@@ -1,0 +1,81 @@
+# ArqonMaestro Git Ignore
+
+# Tools and Dependencies
+.tools/
+.vscode/
+env.sh
+
+# Java / Gradle
+.gradle/
+build/
+bin/
+out/
+gen/
+*.class
+*.jar
+*.war
+*.ear
+
+# Node / JS
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp*
+.vscode-test/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.log
+
+# C++ / Rust
+target/
+*.o
+*.a
+*.so
+*.out
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Multimedia and Archives
+*.wav
+*.mp3
+*.tar.gz
+*.tar.xz
+*.zip
+*.vsix
+*.raw
+
+# Serenade Specific (from nested .gitignore)
+serenade/client/static/local
+serenade/core/lib
+serenade/core/src/dist/lib
+serenade/core/src/main/antlr/.antlr
+serenade/core/src/main/antlr/CommandLexer.g4
+serenade/core/src/main/antlr/CommandParser.g4
+serenade/core/src/main/java/core/util/ObjectType.java
+serenade/core/src/main/java/core/util/ObjectTypeConverter.java
+serenade/core/src/main/resources/CommandLexer.g4
+serenade/core/src/main/resources/CommandParser.g4
+serenade/core/src/main/resources/lexicons
+serenade/core/src/main/resources/grammars
+
+# Exceptions
+!serenade/client/build/*
+!serenade/core/src/main/java/core/gen/antlr/antlr4/LexerAdaptor.java
+!serenade/core/src/dist/bin/run-pro
