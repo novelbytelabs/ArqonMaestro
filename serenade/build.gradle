@@ -1,16 +1,17 @@
-def daggerVersion = "2.41"
-def jettyVersion = "9.4.38.v20210224"
-def jupiterVersion = "5.8.2"
-def logbackVersion = "1.2.3"
-def protobufVersion = "3.14.0"
-def slf4jVersion = "1.7.25"
+def daggerVersion = "2.51.1"
+def jettyVersion = "9.4.53.v20231009"
+def jupiterVersion = "5.10.2"
+def logbackVersion = "1.4.14"
+def protobufVersion = "3.25.2"
+def slf4jVersion = "2.0.13"
+def guavaVersion = "33.0.0-jre"
 
 project.ext.antlrRuntime = "org.antlr:antlr4-runtime:4.7"
 project.ext.jettyServer = "org.eclipse.jetty:jetty-server:$jettyVersion"
 project.ext.jettyWebsocketServer = "org.eclipse.jetty.websocket:javax-websocket-server-impl:$jettyVersion"
 project.ext.protobufVersion = protobufVersion
 project.ext.s3 = "com.amazonaws:aws-java-sdk-s3:1.11.313"
-project.ext.websocketApi = "javax.websocket:javax.websocket-api:1.0"
+project.ext.websocketApi = "javax.websocket:javax.websocket-api:1.1"
 
 def sourceRoot = project.ext.sourceRoot = (
     System.env.SERENADE_SOURCE_ROOT != null ?
@@ -29,6 +30,11 @@ project.ext.speechEngineModels = "$libraryRoot/models/speech-engine"
 
 subprojects {
     apply plugin: "java"
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 
     plugins.withType(DistributionPlugin) {
         distTar {
@@ -49,13 +55,12 @@ subprojects {
         implementation "ch.qos.logback:logback-core:$logbackVersion"
         implementation "ch.qos.logback:logback-classic:$logbackVersion"
         implementation "com.google.dagger:dagger:$daggerVersion"
-        implementation "com.google.guava:guava:29.0-jre"
+        implementation "com.google.guava:guava:$guavaVersion"
         implementation "com.google.protobuf:protobuf-java:$protobufVersion"
         implementation "com.google.protobuf:protobuf-java-util:$protobufVersion"
-        implementation "com.sun.xml.bind:jaxb-impl:3.0.0-M4"
-        implementation "com.sun.activation:javax.activation:1.2.0"
-        implementation "javax.annotation:javax.annotation-api:1.2"
-        implementation "javax.xml.bind:jaxb-api:2.3.0"
+        implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.1"
+        implementation "org.glassfish.jaxb:jaxb-runtime:4.0.4"
+        implementation "jakarta.annotation:jakarta.annotation-api:2.1.1"
         implementation "net.java.dev.jna:jna:5.8.0"
         implementation "net.sourceforge.argparse4j:argparse4j:0.8.1"
         implementation "org.codehaus.janino:janino:3.0.12"

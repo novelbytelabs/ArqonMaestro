@@ -26,6 +26,12 @@ dependencies {
     implementation rootProject.jettyServer
     implementation rootProject.jettyWebsocketServer
     implementation rootProject.websocketApi
+
+    // JAXB API for Java 11+ compatibility
+    implementation "jakarta.xml.bind:jakarta.xml.bind-api:4.0.1"
+    implementation "org.glassfish.jaxb:jaxb-runtime:4.0.4"
+    // Legacy javax.xml.bind for Java 11+ (was removed from JDK)
+    implementation "javax.xml.bind:jaxb-api:2.3.1"
 }
 
 task buildTreeSitter(type: Exec, dependsOn: [":grammarflattener:installDist"]) {
