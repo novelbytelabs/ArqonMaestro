@@ -12,4 +12,32 @@
          <loc>https://novelbytelabs.github.io/ArqonMaestro/modernization-matrix/</loc>
          <lastmod>2026-03-08</lastmod>
     </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/architecture/codebase-layout/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/architecture/request-lifecycle/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/building/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/models/generating-data/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/models/model-architecture/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/models/training-models/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/parsing/grammars/</loc>
+         <lastmod>2026-03-08</lastmod>
+    </url>
 </urlset>
