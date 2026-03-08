@@ -50,7 +50,7 @@ This ordering is deliberate:
 | Linux microphone path | Working | 🟢 Working | Voice pipeline recovered |
 | Cloud-backed runtime | Usable | 🟢 Working | Current best path for day-to-day use |
 | Local multi-service runtime | Partial | 🟡 In Progress | Still needs full operational closure |
-| Build warning hygiene | Incomplete | 🟡 In Progress | Webpack, Gradle, and Python warnings remain |
+| Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
 | Packaging/distribution | Legacy | ⚪ Planned | AppImage/install/release flow still needs modernization |
 | External ownership | Inherited | ⚪ Planned | Endpoint/CDN/image ownership remains inherited |
 | Historical/provenance surfaces | Mixed | ⚪ Planned | Separate audit track now opened |
@@ -67,7 +67,7 @@ This ordering is deliberate:
 | Java baseline | Java 17 | Keep stable | High | 🟢 Working | ADM-001 |
 | Gradle wrapper | 8.5 | Keep stable | High | 🟢 Working | ADM-002 |
 | Dependency baseline | Modernized | Keep current | High | 🟢 Working | ADM-003, ADM-006 |
-| Gradle deprecations | Present | Remove | High | 🟡 In Progress | Wave A |
+| Gradle deprecations | Cleared on active verification path | Keep clean | High | 🟢 Working | Wave A hard-closed |
 | Build script style | Groovy DSL | Kotlin DSL optional migration | Low | ⚪ Planned | ADM-005 |
 
 ### Voice Runtime
@@ -96,7 +96,7 @@ This ordering is deliberate:
 | Tree-sitter binding | Vendored and re-namespaced | Keep stable | High | 🟢 Working | Phase 7 complete |
 | JNI/native glue | Recovered | Keep stable | High | 🟢 Working | Needs regression coverage |
 | Grammar generation | Working | Keep stable | Medium | 🟢 Working | ANTLR still active |
-| Python build warnings | Present | Remove | Medium | 🟡 In Progress | Wave A |
+| Python build warnings | Cleared on active tree-sitter build path | Keep clean | Medium | 🟢 Working | Wave A hard-closed |
 
 ### Packaging / Distribution
 
@@ -152,6 +152,12 @@ Create a clean, boring engineering baseline with warning-free or intentionally-a
 
 - masking real dependency issues by silencing warnings blindly
 - widening scope into dependency churn without a clear payoff
+
+**Status**
+
+- `completed`
+- Evidence: [Wave A Evidence](operations/wave-a-evidence.md)
+- Closeout: [Wave A Closeout](operations/wave-a-closeout.md)
 
 **Test Requirements**
 
@@ -351,16 +357,16 @@ No wave is complete unless its relevant test evidence is recorded.
 
 ## Recommended Next Wave
 
-The next wave should be `Wave A: Build Hygiene`.
+The next wave should be `Wave B: Local Runtime Completeness`.
 
 Why:
 
-- it reduces noise immediately
-- it makes future failures easier to interpret
-- it creates a cleaner baseline before local runtime and packaging work
+- the build baseline is now clean enough to interpret runtime failures directly
+- local mode is still the largest operational gap in the current stack
+- packaging and distribution should not advance until local runtime health is explicit and repeatable
 
 ## Last Updated
 
 - **Date**: 2026-03-08
 - **Updated by**: Codex
-- **Next Review**: At the end of `Wave A`
+- **Next Review**: At the end of `Wave B`

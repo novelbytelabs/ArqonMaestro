@@ -1,6 +1,9 @@
 apply plugin: "application"
 
-mainClassName = "replayer.Replayer"
+application {
+    mainClass = "replayer.Replayer"
+}
+
 distZip.enabled = false
 distTar.enabled = false
 
@@ -15,4 +18,3 @@ dependencies {
     implementation rootProject.jettyWebsocketServer
     implementation rootProject.websocketApi
 }
-

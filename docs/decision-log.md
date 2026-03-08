@@ -260,7 +260,7 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
-## ADM-016: Internal Python Tooling Slug Uses `arqon_maestro`
+## ADM-019: Internal Python Tooling Slug Uses `arqon_maestro`
 
 - **Date**: 2026-03-08
 - **Status**: Accepted
@@ -269,8 +269,21 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 - **Consequences**:
   - training and repository tooling now import `arqon_maestro.*`
   - internal runbooks now point to `scripts/arqon_maestro`
-  - setup tooling in the targeted surface now prefers Arqon env names
-  - `serenade-driver`, `ai.serenade.*`, and external endpoint names remain deferred to Phase 7
+- setup tooling in the targeted surface now prefers Arqon env names
+- `serenade-driver`, `ai.serenade.*`, and external endpoint names remain deferred to Phase 7
+
+---
+
+## ADM-020: Warning-Free Active Build Paths Are The Wave B Baseline
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Treat the active Electron main build, active tree-sitter helper path, and active Gradle verification path as warning-free baselines before Wave B local runtime work proceeds.
+- **Why**: Local runtime recovery is already noisy enough. Carrying avoidable build warnings into that work would make it harder to distinguish code regressions from environmental startup failures.
+- **Consequences**:
+  - Wave A hard-closes only after build-warning evidence is published
+  - the active Webpack, Python, and Gradle warning paths are now regression-sensitive
+  - future warning reintroduction on these paths should be treated as modernization regressions, not normal background noise
 
 ---
 

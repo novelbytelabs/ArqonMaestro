@@ -95,6 +95,8 @@ nav:
       - External Infrastructure Ownership: operations/external-infrastructure-ownership.md
       - Historical and Provenance Audit: operations/historical-provenance-audit.md
       - Troubleshooting Map: operations/troubleshooting-map.md
+      - Wave A Evidence: operations/wave-a-evidence.md
+      - Wave A Closeout: operations/wave-a-closeout.md
   - Development:
       - Extending Maestro: development/extending-maestro.md
       - Custom Commands: development/custom-commands.md

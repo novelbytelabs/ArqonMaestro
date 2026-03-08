@@ -1,6 +1,9 @@
 apply plugin: "application"
 
-mainClassName = "offline.Offline"
+application {
+    mainClass = "offline.Offline"
+}
+
 distZip.enabled = false
 distTar.enabled = false
 

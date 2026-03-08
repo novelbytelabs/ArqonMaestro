@@ -258,6 +258,42 @@ Use for:
 - **Category**: Configuration
 - **Status**: mitigated
 - **Summary**: Moving the config files to `.arqon` is not enough. If `custom.js` remains only under `.serenade/scripts`, UI actions like “open custom commands” point at the canonical directory while the user’s real automation still lives elsewhere.
+- **Impact**: High
+- **Where it matters**:
+  - script migration
+  - custom-command UX
+  - support/debugging
+- **Avoidance**:
+  - migrate scripts with config state, not as a separate afterthought
+  - treat canonical script directories as part of the user-facing product surface
+
+### GOTCHA-013: Optional Native Module Warnings Can Hide Real Build Failures
+
+- **Category**: Build And Packaging
+- **Status**: mitigated
+- **Summary**: The Electron main build can look unhealthy even when the real issue is only optional `ws` native module resolution. Leaving those warnings in place makes later build failures harder to interpret.
+- **Impact**: Medium
+- **Where it matters**:
+  - Electron main build
+  - CI logs
+  - runtime recovery work
+- **Avoidance**:
+  - mark optional native modules explicitly in bundler configuration
+  - keep the active build path warning-free so new failures stand out
+
+### GOTCHA-014: Missing Root `.gitmodules` Leaves The Repo In A Half-Tracked State
+
+- **Category**: Namespace And Dependency Identity
+- **Status**: active
+- **Summary**: After vendoring one tree-sitter dependency, the repo can still contain active gitlinks for other tree-sitter grammars. If the root `.gitmodules` file is not tracked, the repo shape is incomplete and future clone/submodule operations become fragile.
+- **Impact**: Medium
+- **Where it matters**:
+  - tree-sitter grammar dependencies
+  - fresh clone behavior
+  - repository consistency checks
+- **Avoidance**:
+  - track the root `.gitmodules` file whenever gitlinks remain in the repo
+  - treat vendored dependencies and active submodules as separate states that both need explicit metadata
 
 ### GOTCHA-013: Legacy Publishing Plugins Become Build Breakers Once Promoted To Local Dependencies
 

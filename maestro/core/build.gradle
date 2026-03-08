@@ -18,7 +18,10 @@ def antlrJar = (
 
 apply plugin: "application"
 
-mainClassName = "core.Core"
+application {
+    mainClass = "core.Core"
+}
+
 distZip.enabled = false
 
 dependencies {

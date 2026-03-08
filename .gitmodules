@@ -1,0 +1,39 @@
+[submodule "maestro/tree-sitter/tree-sitter-bash"]
+	path = maestro/tree-sitter/tree-sitter-bash
+	url = https://github.com/serenadeai/serenade-tree-sitter-bash
+[submodule "maestro/tree-sitter/tree-sitter-c-sharp"]
+	path = maestro/tree-sitter/tree-sitter-c-sharp
+	url = https://github.com/serenadeai/serenade-tree-sitter-c-sharp
+[submodule "maestro/tree-sitter/tree-sitter-cpp"]
+	path = maestro/tree-sitter/tree-sitter-cpp
+	url = https://github.com/serenadeai/serenade-tree-sitter-cpp
+[submodule "maestro/tree-sitter/tree-sitter-dart"]
+	path = maestro/tree-sitter/tree-sitter-dart
+	url = https://github.com/serenadeai/serenade-tree-sitter-dart
+[submodule "maestro/tree-sitter/tree-sitter-go"]
+	path = maestro/tree-sitter/tree-sitter-go
+	url = https://github.com/serenadeai/serenade-tree-sitter-go
+[submodule "maestro/tree-sitter/tree-sitter-html"]
+	path = maestro/tree-sitter/tree-sitter-html
+	url = https://github.com/serenadeai/serenade-tree-sitter-html
+[submodule "maestro/tree-sitter/tree-sitter-java"]
+	path = maestro/tree-sitter/tree-sitter-java
+	url = https://github.com/serenadeai/serenade-tree-sitter-java
+[submodule "maestro/tree-sitter/tree-sitter-kotlin"]
+	path = maestro/tree-sitter/tree-sitter-kotlin
+	url = https://github.com/serenadeai/serenade-tree-sitter-kotlin
+[submodule "maestro/tree-sitter/tree-sitter-python"]
+	path = maestro/tree-sitter/tree-sitter-python
+	url = https://github.com/serenadeai/serenade-tree-sitter-python
+[submodule "maestro/tree-sitter/tree-sitter-ruby"]
+	path = maestro/tree-sitter/tree-sitter-ruby
+	url = https://github.com/serenadeai/serenade-tree-sitter-ruby
+[submodule "maestro/tree-sitter/tree-sitter-rust"]
+	path = maestro/tree-sitter/tree-sitter-rust
+	url = https://github.com/serenadeai/serenade-tree-sitter-rust
+[submodule "maestro/tree-sitter/tree-sitter-scss"]
+	path = maestro/tree-sitter/tree-sitter-scss
+	url = https://github.com/serenadeai/serenade-tree-sitter-scss
+[submodule "maestro/tree-sitter/tree-sitter-typescript"]
+	path = maestro/tree-sitter/tree-sitter-typescript
+	url = https://github.com/serenadeai/serenade-tree-sitter-typescript

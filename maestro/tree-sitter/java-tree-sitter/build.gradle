@@ -41,6 +41,14 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter:5.6.2"
 }
 
+testing {
+    suites {
+        test {
+            useJUnitJupiter("5.6.2")
+        }
+    }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {
@@ -50,7 +58,6 @@ publishing {
 }
 
 test {
-    useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
     }

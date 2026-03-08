@@ -2,11 +2,16 @@
 
 import argparse
 import ctypes.util
-import distutils.ccompiler
 import os
 import platform
 import sys
 import tempfile
+
+try:
+    from setuptools._distutils import ccompiler, log
+except ImportError:
+    import distutils.ccompiler as ccompiler
+    import distutils.log as log
 
 
 # adapted from https://github.com/tree-sitter/py-tree-sitter
@@ -37,7 +42,7 @@ def build(repositories, output_path="libjava-tree-sitter", arch=None, verbose=Fa
         os.path.join(here, "lib", "ai_arqon_maestro_treesitter_Languages.cc"),
     ]
 
-    compiler = distutils.ccompiler.new_compiler()
+    compiler = ccompiler.new_compiler()
     for repository in repositories:
         src_path = os.path.join(repository, "src")
         source_paths.append(os.path.join(src_path, "parser.c"))
@@ -133,5 +138,5 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    distutils.log.set_verbosity(int(args.verbose))
+    log.set_verbosity(int(args.verbose))
     build(args.repositories, args.output, args.arch, args.verbose)

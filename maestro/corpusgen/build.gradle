@@ -2,8 +2,10 @@ import ai.arqon.maestro.AntlrGenerateTask
 
 apply plugin: "application"
 
-sourceCompatibility = 14
-mainClassName = "corpusgen.CorpusGen"
+application {
+    mainClass = "corpusgen.CorpusGen"
+}
+
 distZip.enabled = false
 distTar.enabled = false
 
