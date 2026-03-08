@@ -1,228 +1,111 @@
-# ArqonMaestro Transfer Pack
+# Arqon Maestro Transfer Pack
 
-**Last Updated: 2026-03-07**
+**Last Updated:** 2026-03-08
 
----
+## What This Repository Is
 
-## Project Overview
+Arqon Maestro is the voice-first control layer for the Arqon ecosystem.
 
-ArqonMaestro is a voice-native layer for ArqonPilot, derived from the Serenade open-source project. The goal is to build software where voice is a first-class interface, not an afterthought.
+This repository contains the current implementation, modernization notes, troubleshooting material, and integration direction for that voice layer.
 
-### Core Vision
+The most important framing for any handoff is:
 
-- **Not** "you own an old voice app now"
-- **Yes** "you now have a working local voice-native application framework"
-- Build software where voice is a first-class interface
-- Every serious software application should have its own embedded, domain-tuned, local voice interface
+- Maestro is part of Arqon
+- Maestro is an interaction layer, not just an app
+- Maestro should be treated as ecosystem infrastructure
 
----
+## What Maestro Is Responsible For
 
-## Architecture: Voltron Pattern
+At a high level, Maestro is responsible for:
 
-**Java conducts, Rust performs**
+- capturing spoken input
+- turning audio into command-ready transcripts
+- interpreting intent
+- applying actions through editor or tool integrations
+- acting as a common voice control surface for Arqon workflows
 
-| Layer | Technology | Purpose |
-|-------|------------|---------|
-| Control Plane | Java | Orchestration, business logic, integration |
-| Data Plane | Rust | Audio streaming, VAD, low-latency processing |
+## Current Repository Shape
 
-### Technology Stack
+Key areas:
 
-- **Protobuf**: 4.25.8 (protoc v25.8)
-- **Rust**: 1.82
-- **Java**: 14.0.1 (pinned for compatibility)
-- **Gradle**: 7.4.2 (pinned for compatibility)
+| Area | Purpose |
+| --- | --- |
+| `README.md` | high-level project framing |
+| `RUN_COMMANDS.md` | practical run commands |
+| `TROUBLESHOOTING.md` | startup and runtime troubleshooting |
+| `MICROPHONE_TROUBLESHOOTING.md` | voice-path and mic debugging notes |
+| `VISION.md` | ecosystem-level product direction |
+| `docs/` | lightweight published documentation |
+| desktop client subtree | Electron UI, capture, streaming, integrations |
+| `vscode-plugin/` | VS Code integration |
 
----
+## Current Strategic Interpretation
 
-## Critical Files
+Interpret this repository as:
 
-### Documentation
+- a reusable voice interface layer
+- a control surface for Arqon tools
+- a practical base for voice-native ecosystem interaction
 
-| File | Purpose |
-|------|---------|
-| [`README.md`](README.md) | Project overview, quick start |
-| [`VISION.md`](VISION.md) | Voice-native opportunity for Arqon |
-| [`TRAINING.md`](TRAINING.md) | Model retraining & fine-tuning |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Integration with ArqonPilot |
-| [`VOLTRON_PATTERN.md`](VOLTRON_PATTERN.md) | Java + Rust architecture |
-| [`setup_maestro.sh`](setup_maestro.sh) | Environment setup script |
+## Working Product Pattern
 
-### Source Code
+The working pattern in Maestro is:
 
-| Path | Purpose |
-|------|---------|
-| `serenade/` | Original Serenade codebase (Java/C++) |
-| `serenade/core/` | Main application (Java 14) |
-| `serenade/client/` | Electron desktop app |
-| `serenade/speech-engine/` | Kaldi-based speech recognition |
-| `serenade/code-engine/` | Marian NMT code generation |
-| `vscode-plugin/` | VS Code extension |
+1. microphone capture
+2. chunking and utterance lifecycle
+3. transcript production
+4. intent resolution
+5. context-aware execution through integrations
 
-### Models
+That pattern is the main asset.
 
-| Location | Size | Contents |
-|----------|------|----------|
-| `~/libserenade/models/` | 1.1 GB | All AI models downloaded |
+## What Has Been Recovered So Far
 
----
+Recent work restored and stabilized several major areas:
 
-## Current Status
+- desktop startup no longer stalls at `Loading...`
+- user-facing branding has been shifted to `Arqon Maestro`
+- Linux microphone capture has been repaired
+- command streaming has been debugged back into a working state
+- docs publishing has been wired for GitHub Pages
 
-### Completed
+## What Still Needs Attention
 
-- [x] Research Serenade project
-- [x] Clone serenadeai/serenade repository
-- [x] Download all AI models (1.1GB)
-- [x] Clone VS Code plugin
-- [x] Define integration vision
-- [x] Analyze Serenade architecture
-- [x] Design integration with ArqonPilot
-- [x] Create implementation roadmap
-- [x] Set up JDK 14.0.1 and Gradle 7.4.2
+Important remaining work includes:
 
-### In Progress
+- internal legacy identifier cleanup
+- packaging and local-mode polish
+- broader tool-integration expansion
+- stronger docs and operator guidance
+- ecosystem-level routing beyond current editor-centric flows
 
-- [ ] Phase 1: Fix dependency issues and build from source
+## Product Framing Rules
 
-### Known Issues (Build Failures)
+If you are updating docs, UI copy, or external messaging, keep these rules:
 
-1. **Protobuf Version Mismatch**
-   - System: protobuf 3.12.4
-   - Generated by: protoc 25.8
-   - Fix: Use protoc 3.14.0 to match protobuf-java 3.14.0
+- describe Maestro as part of Arqon
+- describe Maestro as a voice-first control layer
+- emphasize coding, navigation, execution, and orchestration
+- treat accessibility as a benefit, not the primary definition
+- keep the messaging centered on ecosystem integration
 
-2. **Missing Marian NMT Library**
-   - `libmarian.a` not built
-   - Code-engine needs this compiled
-   - Fix: Build Marian from source
+## Recommended Immediate Priorities
 
-3. **Boost Version Mismatch**
-   - System: Boost 1.74.0
-   - Required: Boost 1.78.0
-   - Fix: Install Boost 1.78.0 or patch CMakeLists.txt
+1. Keep the current runtime path stable.
+2. Continue removing conflicting branding and messaging.
+3. Expand context-aware integrations across the ecosystem.
+4. Reduce remaining migration friction in paths, config, and packaging.
+5. Preserve the architectural pattern while modernizing the internals.
 
-4. **Missing Marian Headers**
-   - `common/timer.h` not found
-   - Fix: Build Marian dependencies
+## Files to Read First
 
----
+1. [README.md](README.md)
+2. [VISION.md](VISION.md)
+3. [RUN_COMMANDS.md](RUN_COMMANDS.md)
+4. [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+5. [MICROPHONE_TROUBLESHOOTING.md](MICROPHONE_TROUBLESHOOTING.md)
+6. [LEGACY_INTERNAL_RENAME_TODO.md](LEGACY_INTERNAL_RENAME_TODO.md)
 
-## Key Decisions
+## Bottom Line
 
-### 1. Don't Rewrite in Rust
-
-> "Do not rewrite Maestro in Rust. Modularize it and replace only the latency-critical organs with Rust."
-
-### 2. Keep Java for Control Plane
-
-- App orchestration
-- Business logic
-- Settings/config
-- Plugin management
-- Model pipeline glue
-
-### 3. Move to Rust for Data Plane
-
-- Audio ingest/streaming
-- VAD/wake detection
-- Chunking/buffering
-- Low-latency transforms
-
-### 4. Project-Local Toolchain
-
-- JDK 14.0.1 (not system Java)
-- Gradle 7.4.2 (not system Gradle)
-- Isolated environment via `env.sh`
-
----
-
-## Gotchas
-
-### Ubuntu 22.04 Specific
-
-1. **Java -version lies by omission**
-   - Check: `which java`, `echo $JAVA_HOME`, `gradle -v`
-   - Must all point to same stack
-
-2. **Gradle daemon caches wrong JVM**
-   - Fix: `gradle --stop` after switching Java
-
-3. **Serenade didn't ship Gradle wrapper**
-   - Uses `gradle installd` not `./gradlew installd`
-   - More exposed to host-machine variation
-
-4. **Stack is old**
-   - Dagger 2.41, Jetty 9.4.38, JUnit 5.8.2
-   - Don't upgrade Java/Gradle casually
-
-5. **GCC-8 assumption**
-   - Build scripts expect `/usr/bin/gcc-8`
-   - Ubuntu 22.04 has 9, 10, 11, 12
-   - Patch for GPU Marian builds
-
-6. **Python 2 baggage**
-   - Setup script installs python2-minimal
-
----
-
-## Next Steps
-
-### Immediate (Fix Build)
-
-1. Install protoc 3.14.0 to match protobuf-java
-2. Build Marian NMT library from source
-3. Install Boost 1.78.0 or patch CMakeLists.txt
-4. Retry `gradle installd`
-
-### After Build
-
-1. Get Maestro running end-to-end
-2. Add profiling instrumentation
-3. Measure baseline latencies
-4. Identify worst hotspot
-5. Extract to Rust with small interface
-
----
-
-## Commands Reference
-
-```bash
-# Activate environment
-source ~/Projects/arqon/ArqonMaestro/env.sh
-
-# Build
-cd ~/Projects/arqon/ArqonMaestro/serenade
-gradle installd
-
-# Run with cloud backend
-cd client && ./bin/dev.py
-
-# Run with local backend
-ENDPOINT=http://localhost:17200 ./bin/dev.py
-```
-
----
-
-## Links
-
-- [Original Serenade Repo](https://github.com/serenadeai/serenade)
-- [VS Code Plugin](https://github.com/serenadeai/code)
-- [Model CDN](https://serenadecdn.com/models/) (still active!)
-
----
-
-## Why This Matters
-
-This is not about preserving Serenade. This is about:
-
-**Building a voice-native control surface for serious local software.**
-
-- Local
-- Embedded
-- Context-aware
-- Domain-tuned
-- Low-latency
-- Voice-native
-
-That is rare and valuable. That is the opportunity.
+Arqon Maestro should be understood as the voice interface layer that helps turn the Arqon ecosystem into a voice-native operating environment.

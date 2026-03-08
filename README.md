@@ -1,26 +1,28 @@
 # Arqon Maestro
 
-Arqon Maestro is a voice-first coding environment for developers who want to write, navigate, and edit software with natural speech.
+Arqon Maestro is the voice-first control layer for the Arqon ecosystem.
 
-It is a distinct project focused on making voice-native software development practical. The purpose of Arqon Maestro is straightforward:
+It provides a natural-language interface for coding, navigation, execution, and workflow control across Arqon tools. It is a shared interaction surface designed to make the broader Arqon ecosystem voice-native.
 
-- make coding by voice practical
-- preserve and modernize an accessibility-first voice coding stack
-- support both cloud-backed and local/offline-style deployment paths
-- provide a foundation for voice-native developer tools
+The purpose of Arqon Maestro is straightforward:
+
+- give the Arqon ecosystem a unified voice interface
+- make natural-language control practical for real development workflows
+- support coding, navigation, orchestration, and execution from one interaction layer
+- provide a reusable control surface for future Arqon systems
 
 ## What Arqon Maestro Does
 
-Arqon Maestro listens to spoken coding commands, turns them into transcripts, interprets those transcripts as code actions, and sends the resulting edits to the active editor plugin.
+Arqon Maestro listens to spoken commands, turns them into transcripts, interprets intent, and routes the resulting actions into the appropriate tool or editor context.
 
 In practice, that means it can help with:
 
-- writing and revising code by voice
-- inserting syntax-aware edits instead of raw dictation only
-- navigating files, tabs, and code structure
+- writing and revising code with natural speech
+- navigating files, tabs, editors, and code structure
 - issuing editor actions through supported plugins
-- dictation and text-entry workflows
-- accessibility-focused hands-free coding
+- driving workflow steps without switching context manually
+- acting as a universal voice control plane for Arqon tools
+- supporting hands-free and low-friction interaction when voice is the best interface
 
 ## Key Capabilities
 
@@ -28,6 +30,7 @@ In practice, that means it can help with:
 - Speech-to-text pipeline for spoken coding commands
 - Command interpretation for source-code edits
 - Context-aware editor operations through plugins
+- Voice-driven workflow execution across tool boundaries
 - Desktop app built with Electron
 - VS Code integration via the extension in [`vscode-plugin`](./vscode-plugin)
 - Support for local and remote backend endpoints
@@ -36,19 +39,21 @@ In practice, that means it can help with:
 ## Typical Workflow
 
 1. Start the Arqon Maestro desktop app.
-2. Focus a supported editor.
+2. Focus the relevant editor or tool context.
 3. Toggle listening.
-4. Speak a command such as `new line`, `go to definition`, or `add function`.
-5. Arqon Maestro captures audio, resolves a transcript, interprets intent, and applies the action through the active plugin.
+4. Speak a command such as `new line`, `go to definition`, `add function`, or another supported workflow action.
+5. Arqon Maestro captures audio, resolves a transcript, interprets intent, and applies the action through the active integration layer.
 
-## Who It Is For
+## Why It Matters
 
-Arqon Maestro is especially relevant for:
+Arqon Maestro matters because the Arqon ecosystem needs a common interaction model that is:
 
-- developers with RSI or other repetitive strain concerns
-- developers who need accessibility-first input methods
-- developers experimenting with voice-native software workflows
-- researchers and builders working on local speech/code systems
+- fast enough for real development work
+- expressive enough for code and tool control
+- reusable across multiple Arqon projects
+- natural for human operators
+
+Accessibility remains an important benefit, but it is not the primary framing. The core value is broader: Arqon Maestro makes voice a first-class control surface for the ecosystem.
 
 ## Repository Layout
 
@@ -85,11 +90,7 @@ Related docs:
 
 This is the simplest way to run the app during development if your config points to a working remote endpoint.
 
-Run the client:
-
-```bash
-See RUN_COMMANDS.md for the current launch command.
-```
+See [RUN_COMMANDS.md](./RUN_COMMANDS.md) for the current launch command.
 
 ### Local mode
 
@@ -118,6 +119,7 @@ Some deeper internal rename work and local-packaging work still remain. Those ar
 - Some legacy internal identifiers still remain for compatibility and migration purposes
 - Config compatibility exists for both legacy and renamed settings paths
 - The repository includes preservation material for models, training, and architecture
+- The long-term direction is ecosystem integration through a shared voice interface layer
 
 ## Documentation Map
 
@@ -131,15 +133,24 @@ Some deeper internal rename work and local-packaging work still remain. Those ar
 
 ## Why This Project Exists
 
-Arqon Maestro is a continuation effort and a practical attempt to keep an important voice-coding stack usable, inspectable, and improvable.
+Arqon Maestro exists to give Arqon a unified, voice-native interaction layer.
+
+It is the piece that turns speech into a practical control plane for:
+
+- development
+- navigation
+- execution
+- orchestration
+- cross-tool interaction
 
 The short version:
 
 - voice coding matters
-- accessibility matters
+- voice control matters beyond coding alone
 - local-first developer tooling matters
+- ecosystems need coherent interaction layers
 - this codebase is worth preserving and extending
 
 ## Credits
 
-Arqon Maestro exists because voice-native developer tooling is worth preserving, improving, and making usable in practice.
+Arqon Maestro exists because voice-native developer tooling and voice-native system control are worth preserving, improving, and making usable in practice.

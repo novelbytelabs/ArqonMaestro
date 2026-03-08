@@ -1,330 +1,124 @@
-# ArqonMaestro Vision
+# Arqon Maestro Vision
 
-**Voice-Native Layer for Arqon**
+## Core Thesis
 
----
+Arqon Maestro is the voice-first interaction layer for the Arqon ecosystem.
 
-## The Opportunity
+The goal is not to bolt speech onto one application. The goal is to give Arqon a reusable control surface that can operate across development, navigation, execution, orchestration, and system interaction.
 
-We did not just acquire an old voice app. We acquired a **working local voice-native application framework**.
+Voice is not the gimmick. Voice is the interface layer.
 
-This system has already solved the hard problems:
+## What Maestro Brings to Arqon
 
-| Problem | Serenade's Solution |
-|---------|---------------------|
-| Speech vs dictation mode | Voice Activity Detection + command grammar |
-| Local/offline operation | Kaldi + Marian models (no cloud) |
-| Domain-specific speech | Trainable vocabulary + G2P |
-| Command parsing | ANTLR grammar + transcript parser |
-| Context-aware interpretation | AST-aware + contextual LM |
-| Application integration | Plugin protocol (WebSocket) |
-| Trainable small models | CorpusGen + Marian pipeline |
+Arqon Maestro gives the ecosystem a common natural-language control model that can be applied across multiple tools and workflows.
 
-**We are not starting from zero. We are starting from a platform.**
+That means:
 
----
-
-## The Real Opportunity
-
-Build software where **voice is a first-class interface**, not an afterthought.
-
-### What Most AI Apps Do Today
-
-- ❌ Chat box pasted into a GUI
-- ❌ Generic STT pasted onto an app
-- ❌ Cloud-dependent
-- ❌ Not tuned to application state
-
-### What ArqonMaestro Enables
-
-- ✅ Local, embedded, offline-capable
-- ✅ Context-aware (knows app state)
-- ✅ Domain-tuned (knows app vocabulary)
-- ✅ Low-latency (<300ms end-to-end)
-- ✅ Voice-native (built-in, not bolted-on)
-
----
+- one interaction layer instead of tool-by-tool voice hacks
+- one place to handle speech capture, chunking, transcripts, and intent routing
+- one place to connect user intent to editor state, workflow state, and execution state
+- one reusable surface for future Arqon systems
 
 ## Why This Matters
 
-In complex software, generic voice integration fails because the system doesn't know:
-
-| What Generic Voice Doesn't Know | What ArqonMaestro Knows |
-|--------------------------------|------------------------|
-| What screen the user is on | Current view/context |
-| What object is selected | Selection state |
-| What actions are legal | Available commands |
-| Whether user is dictating or commanding | Speech mode detection |
-| What the local domain vocabulary is | Custom lexicon |
-
-**Serenade's architecture was built to care about exactly this.**
-
----
-
-## The Product Thesis
-
-**Every serious software application should have its own embedded, domain-tuned, local voice interface.**
-
-Not a generic assistant.
-Not a cloud dependency.
-Not a chat popup.
-
-**A real interface layer.**
-
----
-
-## ArqonMaestro for ArqonPilot
-
-### Current ArqonPilot Capabilities
-
-ArqonPilot is a Rust-based CI/CD control plane with:
+Most software treats voice as an accessory:
 
-- Branch management (`pilot branch`)
-- Code healing (`pilot heal`)
-- Knowledge graph (`pilot oracle`)
-- Governance (`pilot govern`)
-- Multi-repo operations (`pilot multi`)
-- Web UI (`pilot serve`)
+- a microphone button
+- a generic dictation feed
+- a chat box attached to an app
+- a cloud transcription dependency with no context awareness
 
-### Voice-Native Integration Points
+That is not enough for serious operator workflows.
 
-| ArqonPilot Command | Voice Command Example |
-|--------------------|----------------------|
-| `pilot branch create feature-x` | "create branch feature x" |
-| `pilot heal --file src/main.rs` | "heal main dot r s" |
-| `pilot oracle query "auth logic"` | "query oracle for auth logic" |
-| `pilot govern check` | "run governance check" |
-| `pilot multi status` | "show multi repo status" |
-| `pilot serve` | "start web server" |
+Arqon needs a system that can:
 
-### Context-Aware Commands
+- understand context
+- route commands into the right subsystem
+- differentiate dictation from action
+- support local and low-latency paths
+- evolve into a broad interaction plane across the ecosystem
 
-```
-User: "heal this file"
-System: Knows current file from editor context
-       → Executes: pilot heal --file <current-file>
+## Product Direction
 
-User: "check the branch"
-System: Knows current branch from git context
-       → Executes: pilot branch check
+Arqon Maestro should become the universal voice control plane for Arqon.
 
-User: "what does oracle know about this?"
-System: Knows selection/context
-       → Executes: pilot oracle query "<selection>"
-```
+In practical terms, that means Maestro should be able to participate in:
 
----
+- code editing
+- editor navigation
+- repository operations
+- workflow execution
+- multi-step tool orchestration
+- system-level control where voice is the best interface
 
-## Architecture Overview
+## Ecosystem Pattern
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        ArqonMaestro Layer                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │   Speech     │    │   Command    │    │   Context    │       │
-│  │   Engine     │───▶│   Parser     │───▶│   Resolver   │       │
-│  │  (Kaldi)     │    │  (ANTLR)     │    │  (Arqon)     │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
-│         │                   │                   │                │
-│         ▼                   ▼                   ▼                │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
-│  │   Acoustic   │    │  Transcript  │    │   Arqon      │       │
-│  │   Models     │    │   → Code     │    │   Commands   │       │
-│  │  (Local)     │    │  (Marian)    │    │  (Rust)      │       │
-│  └──────────────┘    └──────────────┘    └──────────────┘       │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        ArqonPilot Core                           │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │  Branch  │ │   Heal   │ │  Oracle  │ │ Govern   │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │
-│  │  Multi   │ │  Create  │ │  Navigate│ │  Secure  │           │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-```
+The important pattern is:
 
----
+1. Capture speech
+2. Resolve transcript candidates
+3. Interpret intent against current context
+4. Route intent into the correct Arqon subsystem
+5. Return visible or audible feedback
 
-## Key Components to Extract
+This pattern is more important than any one current application integration.
 
-### 1. Speech Engine (Keep)
+## Architectural Role
 
-- **Kaldi acoustic model** - Audio → phonemes
-- **Language model** - Domain vocabulary
-- **G2P** - Unknown word pronunciation
-- **Re-ranker** - Context-aware scoring
+Arqon Maestro sits between human intent and Arqon system behavior.
 
-**Action**: Wrap as Rust crate or FFI bridge
+High-level flow:
 
-### 2. Command Parser (Adapt)
+1. The client captures microphone audio.
+2. Audio is segmented into usable command chunks.
+3. Speech services produce transcripts.
+4. Command logic resolves intent using active context.
+5. Integrations apply the resulting action to the relevant tool or workflow.
 
-- **ANTLR grammar** - Command structure
-- **Transcript parser** - Voice → command tree
+## Strategic Value
 
-**Action**: Create Arqon-specific grammar
+Arqon Maestro gives Arqon:
 
-### 3. Context System (Build)
+- a reusable voice interface layer
+- a low-friction operator control surface
+- a natural-language bridge into technical workflows
+- a foundation for voice-native tooling beyond code editing alone
 
-- **State resolver** - Map app state to context
-- **Command router** - Route to Arqon commands
-- **Feedback loop** - Speak results back
+Accessibility remains a valuable outcome, but it is not the defining product frame. The defining frame is broader: Maestro is an ecosystem capability.
 
-**Action**: Build new, Arqon-specific
+## Near-Term Objectives
 
-### 4. Plugin Protocol (Adapt)
+- keep the desktop voice pipeline stable
+- maintain reliable microphone capture and command flow
+- preserve local-capable architecture where practical
+- tighten editor and tool integrations
+- align messaging and product structure around ecosystem integration
 
-- **WebSocket protocol** - Client communication
-- **State sync** - App state → voice layer
+## Medium-Term Objectives
 
-**Action**: Integrate with ArqonPilot's existing bus
+- turn editor integrations into a broader Arqon command-routing surface
+- unify context handling across tools
+- make voice workflows composable and automatable
+- improve latency, reliability, and observability
+- reduce legacy naming and packaging friction
 
----
+## Long-Term Direction
 
-## Implementation Phases
+The long-term direction is a voice-native Arqon ecosystem where Maestro acts as:
 
-### Phase 1: Foundation (Weeks 1-4)
+- interface layer
+- command router
+- context bridge
+- orchestration surface
 
-- [ ] Extract speech engine as standalone service
-- [ ] Create Rust FFI bindings for Kaldi/Marian
-- [ ] Define Arqon command grammar
-- [ ] Build basic context resolver
+That is the larger pattern to preserve.
 
-### Phase 2: Integration (Weeks 5-8)
+## Practical Success Criteria
 
-- [ ] Integrate with ArqonPilot bus system
-- [ ] Add voice commands for core operations
-- [ ] Build context sync from Arqon state
-- [ ] Create audio feedback (TTS)
+Arqon Maestro is succeeding when:
 
-### Phase 3: Polish (Weeks 9-12)
-
-- [ ] Train Arqon-specific vocabulary
-- [ ] Optimize latency
-- [ ] Add dictation mode for code
-- [ ] Build voice UI overlay
-
-### Phase 4: Advanced (Weeks 13-16)
-
-- [ ] Fine-tune models on Arqon usage
-- [ ] Add multi-modal (voice + keyboard)
-- [ ] Build voice macros/workflows
-- [ ] Create training pipeline for users
-
----
-
-## Technical Decisions
-
-### Speech Engine: Keep or Replace?
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Keep Kaldi** | Works, offline, trainable | Complex, older tech |
-| **Replace with Whisper** | Modern, accurate | Larger, slower, less tunable |
-| **Hybrid** | Best of both | More work |
-
-**Recommendation**: Start with Kaldi, evaluate Whisper later
-
-### Integration Approach
-
-| Option | Pros | Cons |
-|--------|------|------|
-| **Separate service** | Clean separation | Latency, complexity |
-| **Embedded library** | Low latency | FFI complexity |
-| **Sidecar process** | Balance | IPC overhead |
-
-**Recommendation**: Sidecar process with Unix socket
-
-### Command Grammar
-
-```antlr
-// Arqon command grammar (draft)
-command
-    : branchCommand
-    | healCommand
-    | oracleCommand
-    | governCommand
-    | multiCommand
-    | navigateCommand
-    ;
-
-branchCommand
-    : 'create' 'branch' name=identifier
-    | 'switch' 'to' 'branch' name=identifier
-    | 'merge' 'branch' name=identifier
-    | 'check' 'branch'
-    ;
-
-healCommand
-    : 'heal' 'file' path=filePath
-    | 'heal' 'this'
-    | 'heal' 'selection'
-    ;
-
-oracleCommand
-    : 'query' 'oracle' 'for' query=text
-    | 'what' 'does' 'oracle' 'know' 'about' query=text
-    ;
-
-governCommand
-    : 'run' 'governance' 'check'
-    | 'approve' 'change'
-    | 'reject' 'change'
-    ;
-```
-
----
-
-## Success Metrics
-
-| Metric | Target |
-|--------|--------|
-| End-to-end latency | < 300ms |
-| Command accuracy (Recall@5) | > 95% |
-| Offline capability | 100% |
-| Vocabulary coverage | 100% of Arqon commands |
-| Context accuracy | > 90% |
-
----
-
-## The Bigger Picture
-
-This is not about preserving Serenade.
-
-This is about **building a voice-native control surface for serious local software.**
-
-ArqonPilot manages complex CI/CD workflows. Adding voice-native control means:
-
-- **Faster workflows** - Speak commands instead of typing
-- **Accessibility** - Enable developers with RSI/disabilities
-- **Hands-free operation** - Code while debugging, presenting
-- **Context awareness** - System knows what you mean
-- **Offline capability** - No cloud dependency
-
-**This is the leap.**
-
----
-
-## Next Steps
-
-1. **Analyze Serenade's plugin protocol** - How does it communicate?
-2. **Map ArqonPilot commands** - What can be voiced?
-3. **Design context schema** - What state matters?
-4. **Prototype integration** - Get one command working
-5. **Iterate** - Expand coverage
-
----
-
-## References
-
-- [`README.md`](README.md) - Project setup
-- [`TRAINING.md`](TRAINING.md) - Model training guide
-- `serenade/docs/` - Original Serenade documentation
-- `serenade/docs/request-lifecycle.md` - How commands flow
-- `serenade/docs/codebase-layout.md` - Architecture details
+- users can control meaningful workflows with speech
+- voice interactions are context-aware instead of generic
+- integrations feel native rather than bolted on
+- multiple Arqon tools can share the same interaction model
+- the system remains inspectable, extensible, and operable by the team
