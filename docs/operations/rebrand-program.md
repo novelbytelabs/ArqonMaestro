@@ -40,6 +40,9 @@ The current focus is:
 - all seven planned rebrand phases are hard-closed
 - preserving the compatibility shims that still protect active users
 - treating external infrastructure and historical/provenance cleanup as post-program follow-on work
+- follow-on planning now lives in:
+  - [External Infrastructure Ownership Plan](external-infrastructure-ownership.md)
+  - [Historical And Provenance Audit Plan](historical-provenance-audit.md)
 
 ## Program Records
 
@@ -49,6 +52,7 @@ Keep these three records updated together:
 - `Gotcha Registry`: repeatable traps and migration hazards
 - `Rebrand Program`: current phase status and hard-close expectations
 - `Evidence Packs`: command/results evidence for high-risk phases
+- `Follow-On Plans`: post-program workstreams that intentionally sit outside the seven rebrand phases
 
 ## Phase Rules
 

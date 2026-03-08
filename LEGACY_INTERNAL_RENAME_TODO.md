@@ -33,6 +33,20 @@ The assumption for this plan is explicit:
 | 6 | Safe Internal Slug Rename | `completed` | internal Python tooling slug moved to `scripts/arqon_maestro` and related low-risk references cleaned up |
 | 7 | Namespace and Dependency Migration | `completed` | `ai.arqon.maestro.*`, local tree-sitter dependency, JNI/header rename complete; external infra and upstream package ownership remain separate |
 
+## Post-Program Follow-On Tracks
+
+The seven-phase rebrand program is complete.
+
+The remaining work is intentionally split into separate follow-on tracks:
+
+1. external infrastructure ownership
+2. historical and provenance surface audit
+
+Published follow-on plans:
+
+- [External Infrastructure Ownership Plan](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/external-infrastructure-ownership.md)
+- [Historical And Provenance Audit Plan](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/historical-provenance-audit.md)
+
 ## Target Naming Policy
 
 Use these names consistently:

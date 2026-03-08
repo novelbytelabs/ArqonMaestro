@@ -241,9 +241,22 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 - **Decision**: Keep the upstream npm artifact name `serenade-driver` in manifests for now, but remove direct code-facing references by routing the sidecar through a local `arqon-maestro-driver.js` wrapper.
 - **Why**: The upstream package name is external supply-chain identity, not internal runtime identity. Forcing a manifest-level rename without new package publication would create a brittle lockfile surgery problem with no functional benefit.
 - **Consequences**:
-  - active sidecar code no longer directly imports `serenade-driver`
-  - package manifests still record the upstream artifact name
-  - the remaining inherited driver name is now a documented external/package-ownership exception, not an internal namespace leak
+- active sidecar code no longer directly imports `serenade-driver`
+- package manifests still record the upstream artifact name
+- the remaining inherited driver name is now a documented external/package-ownership exception, not an internal namespace leak
+
+---
+
+## ADM-018: Post-Rebrand Work Splits Into Two Explicit Programs
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Treat the remaining work after Phase 7 as two separate follow-on programs: one for external infrastructure ownership, and one for historical/provenance audit.
+- **Why**: Those surfaces have different risks, different ownership constraints, and different definitions of done. Folding them into the completed seven-phase rebrand would blur scope and undermine the value of the hard-close packs.
+- **Consequences**:
+  - external endpoints, CDN names, image names, marketplace ownership, and upstream repo ownership move into an infrastructure track
+  - inherited READMEs, blog pages, website content, legacy docs, and provenance material move into a separate audit/remediation track
+  - future progress should be recorded against the new follow-on plans rather than reopening the hard-closed rebrand phases
 
 ---
 

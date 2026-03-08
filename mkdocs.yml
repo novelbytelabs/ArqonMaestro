@@ -92,6 +92,8 @@ nav:
       - Phase 7 Evidence: operations/phase-7-evidence.md
       - Phase 7 Closeout: operations/phase-7-closeout.md
       - Rebrand Program: operations/rebrand-program.md
+      - External Infrastructure Ownership: operations/external-infrastructure-ownership.md
+      - Historical and Provenance Audit: operations/historical-provenance-audit.md
       - Troubleshooting Map: operations/troubleshooting-map.md
   - Development:
       - Extending Maestro: development/extending-maestro.md
