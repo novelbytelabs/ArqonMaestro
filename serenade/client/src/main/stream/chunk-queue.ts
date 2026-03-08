@@ -3,6 +3,7 @@ import { core } from "../../gen/core";
 export interface Chunk {
   audioSize: number;
   executed: number;
+  forceFinalized?: boolean;
   id: string;
   reverted: number;
   silence: number;

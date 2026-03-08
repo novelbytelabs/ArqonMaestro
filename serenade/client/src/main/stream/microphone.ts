@@ -15,6 +15,10 @@ type MicrophoneInput = {
 
 export default class Microphone {
   private callbacks: { [key: string]: (message: any) => void } = {};
+  private currentChunkAudio: any = new Int16Array(0);
+  private currentConsecutiveSilence = 0;
+  private currentSpeaking = false;
+  private currentVolume = 0;
   private recorder: any = null;
   private lastUiUpdate = 0;
   private volumeWhileSpeakingBuffer: number[] = [];
@@ -60,6 +64,9 @@ export default class Microphone {
       sileroVadSpeechThreshold: this.settings.getChunkSpeechThreshold(),
       sileroVadSpeakingThreshold: this.settings.getChunkSpeechThreshold(),
       onChunkStart: ({ audio }: { audio: any }) => {
+        this.currentChunkAudio = audio;
+        this.currentSpeaking = true;
+        this.currentConsecutiveSilence = 0;
         this.volumeWhileSpeakingBuffer = [];
         for (const callback of Object.values(this.callbacks)) {
           callback({ event: "chunk_start", audio });
@@ -76,6 +83,10 @@ export default class Microphone {
         speaking: boolean;
         volume: number;
       }) => {
+        this.currentChunkAudio = audio;
+        this.currentConsecutiveSilence = consecutiveSilence;
+        this.currentSpeaking = speaking;
+        this.currentVolume = volume;
         // use only the start of each speech chunk for the low volume warning, or else we'll
         // always show it, since we're still speaking during the trailing buffer
         if (
@@ -111,6 +122,8 @@ export default class Microphone {
         }
       },
       onChunkEnd: () => {
+        this.currentSpeaking = false;
+        this.currentConsecutiveSilence = 0;
         for (const callback of Object.values(this.callbacks)) {
           callback({ event: "chunk_end" });
         }
@@ -141,11 +154,22 @@ export default class Microphone {
 
   register(name: string, callback: (data: any) => void) {
     console.log(`[Audio] Register callback: ${name}`);
-    if (Object.keys(this.callbacks).length == 0) {
-      this.start();
-    }
-
+    const shouldStart = Object.keys(this.callbacks).length == 0;
     this.callbacks[name] = callback;
+    if (shouldStart) {
+      this.start();
+    } else if (!this.running) {
+      this.start();
+    } else if (this.currentSpeaking) {
+      callback({ event: "chunk_start", audio: this.currentChunkAudio });
+      callback({
+        event: "audio",
+        audio: this.currentChunkAudio,
+        volume: this.currentVolume,
+        speaking: this.currentSpeaking,
+        consecutiveSilence: this.currentConsecutiveSilence,
+      });
+    }
   }
 
   stop() {
@@ -156,6 +180,9 @@ export default class Microphone {
     console.log("[Audio] Microphone stop requested");
     this.recorder.stop();
     this.running = false;
+    this.currentSpeaking = false;
+    this.currentConsecutiveSilence = 0;
+    this.currentChunkAudio = new Int16Array(0);
   }
 
   unregister(name: string) {

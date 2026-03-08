@@ -43,6 +43,8 @@ class SpeechRecorder {
   private consecutiveFramesForSpeaking = 1;
   private silenceFramesToEnd = 10;
   private leadingBufferFrames = 10;
+  private currentChunkFrames = 0;
+  private maxChunkFrames = 100;
   private baseSilenceThreshold = 0.008;
   private baseSpeechThreshold = 0.015;
   private noiseFloor = 0.002;
@@ -224,6 +226,7 @@ class SpeechRecorder {
       }
 
       if (!wasSpeaking && this.speaking) {
+        this.currentChunkFrames = 0;
         console.log(
           `[Audio] Chunk start volume=${volume.toFixed(4)} speechThreshold=${speechThreshold.toFixed(
             4
@@ -231,12 +234,29 @@ class SpeechRecorder {
         );
         this.options.onChunkStart?.({ audio: this.concatFrames(this.leadingFrames) });
       } else if (wasSpeaking && !this.speaking) {
+        this.currentChunkFrames = 0;
         console.log(
           `[Audio] Chunk end silenceFrames=${this.consecutiveSilence} silenceThreshold=${silenceThreshold.toFixed(
             4
           )} noiseFloor=${this.noiseFloor.toFixed(4)}`
         );
         this.options.onChunkEnd?.();
+      }
+
+      if (this.speaking) {
+        this.currentChunkFrames += 1;
+        if (this.currentChunkFrames >= this.maxChunkFrames) {
+          this.currentChunkFrames = 0;
+          this.speaking = false;
+          this.consecutiveSpeech = 0;
+          this.consecutiveSilence = 0;
+          console.log(
+            `[Audio] Chunk force-end maxChunkFrames=${this.maxChunkFrames} volume=${volume.toFixed(
+              4
+            )}`
+          );
+          this.options.onChunkEnd?.();
+        }
       }
 
       this.debugFrameCounter += 1;
@@ -269,6 +289,7 @@ class SpeechRecorder {
     this.speaking = false;
     this.consecutiveSpeech = 0;
     this.consecutiveSilence = 0;
+    this.currentChunkFrames = 0;
     this.debugFrameCounter = 0;
     this.pcmBuffer = Buffer.alloc(0);
     this.leadingFrames = [];
@@ -320,6 +341,7 @@ class SpeechRecorder {
     this.speaking = false;
     this.consecutiveSpeech = 0;
     this.consecutiveSilence = 0;
+    this.currentChunkFrames = 0;
 
     if (this.process) {
       this.process.kill("SIGTERM");

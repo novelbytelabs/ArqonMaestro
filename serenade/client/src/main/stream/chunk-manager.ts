@@ -43,6 +43,7 @@ export default class ChunkManager {
   private buffer: Request[] = [];
   private buffering: boolean = false;
   private deadlineToMakeNewInitializeRequest: number = 0;
+  private maxAudioFramesPerChunk: number = 90;
   private speaking: boolean = false;
   private timeToWaitBeforeClassifyingAsNoise: number = 200;
   private timeToWaitBeforeStartingNewCommand: number = 5000;
@@ -367,6 +368,17 @@ export default class ChunkManager {
     if (this.speaking) {
       current.audioSize++;
       this.enqueue({ requestType: "audio", audio: Buffer.from(audio.buffer), chunkId: current.id });
+
+      if (!current.forceFinalized && current.audioSize >= this.maxAudioFramesPerChunk) {
+        current.forceFinalized = true;
+        this.speaking = false;
+        console.log(
+          `[Chunk] Force finalize ${current.id} audioFrames=${current.audioSize}`
+        );
+        this.enqueue({ requestType: "editor" }, false);
+        this.enqueue({ requestType: "endpoint", chunkId: current.id, finalize: true });
+        return;
+      }
 
       // we want to send non-final endpoint requests (aka partials) every so often when it seems like a long
       // command is being spoken, but we're not near the end of it (at which point an endpoint request
