@@ -29,7 +29,7 @@ Complete the migration from inherited `serenade` naming to a coherent `Arqon Mae
 | 2 | Arqon-First Compatibility Layer | Medium | `completed` | `.arqon` / `arqon.json` and `ARQON_MAESTRO_*` are primary while legacy fallbacks remain active |
 | 3 | Repo Subtree Rename | Medium | `completed` | `maestro/` is now the top-level engine subtree and repo-path references have been repaired |
 | 4 | Sidecar and Runtime Process Identity | High | `completed` | primary sidecar and packaged local processes now use Arqon Maestro names with legacy fallbacks preserved |
-| 5 | Config Storage and Logs Migration | Medium | `planned` | `.arqon` is primary live storage |
+| 5 | Config Storage and Logs Migration | Medium | `completed` | live Maestro config, scripts, and logs now migrate into `.arqon` while legacy storage remains preserved |
 | 6 | Safe Internal Slug Rename | Medium | `planned` | remaining safe internal `serenade` names removed |
 | 7 | Namespace and Dependency Migration | High | `planned` | deep technical identity migration complete |
 
@@ -37,9 +37,9 @@ Complete the migration from inherited `serenade` naming to a coherent `Arqon Mae
 
 The current focus is:
 
-- Phase 4 hard-closed
-- keeping runtime identity compatibility shims in place while later phases proceed
-- preparing Phase 5 config storage and log migration
+- Phase 5 hard-closed
+- keeping storage and runtime compatibility shims in place while later phases proceed
+- preparing Phase 6 safe internal slug cleanup
 
 ## Program Records
 

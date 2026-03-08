@@ -205,6 +205,20 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-015: `.arqon` Is Now The Live Maestro State Root
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Phase 5 promotes `~/.arqon` from a preferred config filename location to the actual live Maestro state root for config, scripts, and logs.
+- **Why**: The compatibility layer from Phase 2 was not sufficient on its own. Real user state was still stranded under `~/.serenade`, which meant the product identity and the live storage identity were still out of sync.
+- **Consequences**:
+  - startup now migrates legacy config-adjacent state into `~/.arqon`
+  - `~/.arqon/scripts` becomes the canonical custom-command location
+  - historical logs are copied forward into `~/.arqon` when canonical files are absent
+  - `~/.serenade` remains preserved for fallback and rollback rather than being deleted automatically
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

@@ -238,6 +238,35 @@ Use for:
   - rerun with explicit `ARQON_MAESTRO_SOURCE_ROOT` and `ARQON_MAESTRO_LIBRARY_ROOT`
   - prove at least one renamed packaged artifact path independently of the failing external toolchain
 
+### GOTCHA-011: Shared `.arqon` Root Means Migration Must Be Per-Entry
+
+- **Category**: Configuration
+- **Status**: mitigated
+- **Summary**: `~/.arqon` can already exist for other Arqon tools. That means migration cannot assume the root directory is empty or use root-directory existence as a signal that Maestro state has already been migrated.
+- **Impact**: High
+- **Where it matters**:
+  - config storage migration
+  - script migration
+  - log migration
+- **Avoidance**:
+  - migrate file-by-file and directory-by-directory
+  - treat each canonical target independently
+  - only skip migration when the specific destination file or directory is already populated
+
+### GOTCHA-012: Canonical Storage Without Script Migration Breaks User Expectations
+
+- **Category**: Configuration
+- **Status**: mitigated
+- **Summary**: Moving the config files to `.arqon` is not enough. If `custom.js` remains only under `.serenade/scripts`, UI actions like “open custom commands” point at the canonical directory while the user’s real automation still lives elsewhere.
+- **Impact**: High
+- **Where it matters**:
+  - custom-command editing
+  - support workflows
+  - storage migration
+- **Avoidance**:
+  - migrate `scripts/` into `.arqon` as part of the same storage phase
+  - keep legacy script fallback only as a temporary transition aid
+
 ## Entry Template
 
 ```markdown

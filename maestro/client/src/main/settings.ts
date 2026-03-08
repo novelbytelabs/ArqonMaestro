@@ -16,6 +16,15 @@ export default class Settings {
   private userData: any = {};
   private wordsData: any = {};
   private wordsLastLoad: number = 0;
+  private legacyLogFiles = [
+    "arqon.log",
+    "serenade.log",
+    "error.log",
+    "verbose.log",
+    "core.log",
+    "speech-engine.log",
+    "code-engine.log",
+  ];
 
   constructor() {
     this.setInstalled(true);
@@ -65,6 +74,7 @@ export default class Settings {
     this.userData = {};
     this.wordsData = {};
 
+    this.migrateLegacyStateIfNeeded();
     this.migrateLegacyFileIfNeeded(this.systemFile(), this.legacySystemFile());
     this.migrateLegacyFileIfNeeded(this.userFile(), this.legacyUserFile());
     this.migrateLegacyFileIfNeeded(this.wordsFile(), this.legacyWordsFile());
@@ -181,6 +191,38 @@ export default class Settings {
 
     fs.mkdirpSync(path.dirname(preferred));
     fs.copyFileSync(legacy, preferred);
+  }
+
+  private migrateLegacyDirectoryIfNeeded(preferred: string, legacy: string) {
+    if (!fs.existsSync(legacy) || !fs.statSync(legacy).isDirectory()) {
+      return;
+    }
+
+    const preferredExists = fs.existsSync(preferred);
+    if (preferredExists && fs.statSync(preferred).isDirectory() && fs.readdirSync(preferred).length > 0) {
+      return;
+    }
+
+    fs.mkdirpSync(path.dirname(preferred));
+    fs.copySync(legacy, preferred, {
+      overwrite: false,
+      errorOnExist: false,
+    });
+  }
+
+  private migrateLegacyStateIfNeeded() {
+    fs.mkdirpSync(this.preferredPath());
+    this.migrateLegacyDirectoryIfNeeded(
+      path.join(this.preferredPath(), "scripts"),
+      path.join(this.legacyPath(), "scripts")
+    );
+
+    for (const name of this.legacyLogFiles) {
+      this.migrateLegacyFileIfNeeded(
+        path.join(this.preferredPath(), name),
+        path.join(this.legacyPath(), name)
+      );
+    }
   }
 
   revisionBoxTrigger(app: string): string {
@@ -454,6 +496,7 @@ export default class Settings {
   }
 
   path() {
+    fs.mkdirpSync(this.preferredPath());
     return path.dirname(this.systemFile());
   }
 

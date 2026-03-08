@@ -29,7 +29,7 @@ The assumption for this plan is explicit:
 | 2 | Arqon-First Compatibility Layer | `completed` | `.arqon` and `ARQON_MAESTRO_*` are now primary with legacy fallback preserved |
 | 3 | Repo Subtree Rename | `completed` | top-level engine subtree renamed to `maestro/` and external path references repaired |
 | 4 | Sidecar and Runtime Process Identity | `completed` | primary sidecar and packaged local process names now use Arqon Maestro identity with legacy fallbacks preserved |
-| 5 | Config Storage and Logs Migration | `planned` | `.arqon` becomes the real home |
+| 5 | Config Storage and Logs Migration | `completed` | live Maestro config, scripts, and logs now migrate into `.arqon` while legacy storage remains as fallback |
 | 6 | Safe Internal Slug Rename | `planned` | remaining low/medium-risk internal identifiers |
 | 7 | Namespace and Dependency Migration | `planned` | `ai.serenade.*`, native deps, artifacts |
 
@@ -308,6 +308,14 @@ Migration strategy:
 Never do this:
 
 - do not delete `~/.serenade` automatically during first migration
+
+Status:
+
+- completed on `2026-03-08`
+- canonical live storage is now `~/.arqon`
+- legacy `~/.serenade` remains preserved as fallback and rollback material
+- hard-close pack: [docs/operations/phase-5-closeout.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-5-closeout.md)
+- evidence pack: [docs/operations/phase-5-evidence.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-5-evidence.md)
 
 ### Phase 6: Rename Internal Slugs and App Identifiers
 
