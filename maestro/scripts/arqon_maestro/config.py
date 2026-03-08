@@ -32,7 +32,10 @@ def languages():
 
 def library_path(*args):
     return os.path.join(
-        os.getenv("SERENADE_LIBRARY_ROOT") or os.path.expanduser("~/libserenade"), *args
+        os.getenv("ARQON_MAESTRO_LIBRARY_ROOT")
+        or os.getenv("SERENADE_LIBRARY_ROOT")
+        or os.path.expanduser("~/libserenade"),
+        *args
     )
 
 
@@ -55,6 +58,8 @@ def services(env=None):
     _expand_paths(
         data,
         {
+            "ARQON_MAESTRO_SOURCE_ROOT": source_path(),
+            "ARQON_MAESTRO_LIBRARY_ROOT": library_path(),
             "SERENADE_SOURCE_ROOT": source_path(),
             "SERENADE_LIBRARY_ROOT": library_path(),
         },
@@ -65,7 +70,8 @@ def services(env=None):
 
 def source_path(*args):
     return os.path.join(
-        os.getenv("SERENADE_SOURCE_ROOT")
+        os.getenv("ARQON_MAESTRO_SOURCE_ROOT")
+        or os.getenv("SERENADE_SOURCE_ROOT")
         or os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ".."),
         *args
     )

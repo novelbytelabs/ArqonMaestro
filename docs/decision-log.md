@@ -219,6 +219,20 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-016: Internal Python Tooling Slug Uses `arqon_maestro`
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: The internal Python tooling package previously rooted at `scripts/serenade` is renamed to `scripts/arqon_maestro`.
+- **Why**: This slug was still an inherited internal identifier, but unlike the Java/native namespace layer it could be changed safely within the Python tooling surface. Using `arqon_maestro` also avoids ambiguity with the repo root name `maestro`.
+- **Consequences**:
+  - training and repository tooling now import `arqon_maestro.*`
+  - internal runbooks now point to `scripts/arqon_maestro`
+  - setup tooling in the targeted surface now prefers Arqon env names
+  - `serenade-driver`, `ai.serenade.*`, and external endpoint names remain deferred to Phase 7
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

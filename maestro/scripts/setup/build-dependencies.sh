@@ -4,7 +4,7 @@ set -e
 
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 . $HERE/paths.sh
-cd $SERENADE_LIBRARY_ROOT
+cd $ARQON_MAESTRO_LIBRARY_ROOT
 
 osx_version="11.0"
 gpu=false
@@ -113,8 +113,8 @@ rm -rf sentencepiece-src
 git clone https://github.com/marian-nmt/marian-dev marian
 cd marian
 git checkout 737f43014a939a3ded2806b00cbaa661fbcc5f49
-git apply $SERENADE_SOURCE_ROOT/patches/marian/fix-warnings.patch
-git apply $SERENADE_SOURCE_ROOT/patches/marian/max-history.patch
+git apply $ARQON_MAESTRO_SOURCE_ROOT/patches/marian/fix-warnings.patch
+git apply $ARQON_MAESTRO_SOURCE_ROOT/patches/marian/max-history.patch
 mkdir build
 cd build
 if [[ "$gpu" == "true" ]] ; then
@@ -145,7 +145,7 @@ cd ../..
 git clone https://github.com/kaldi-asr/kaldi
 cd kaldi
 git checkout 3ec108da76e3d9dba901fb69f046d0e46170b8e7
-git apply $SERENADE_SOURCE_ROOT/patches/kaldi/stateless.patch
+git apply $ARQON_MAESTRO_SOURCE_ROOT/patches/kaldi/stateless.patch
 cd tools
 if [[ `uname` == 'Darwin' ]] ; then
   perl -i -pe"s/-g -O2/-g -O2 -mmacosx-version-min=$osx_version/g" Makefile

@@ -11,8 +11,8 @@ import time
 import re
 import zipfile
 
-import serenade.config
-import serenade.repositories
+import arqon_maestro.config
+import arqon_maestro.repositories
 
 
 def _crawl_page(
@@ -75,7 +75,7 @@ def _crawl_page(
             print(f"Skipping (fork) {url}")
             continue
 
-        if url in serenade.repositories.excluded_repositories:
+        if url in arqon_maestro.repositories.excluded_repositories:
             print(f"Skipping (excluded repository) {url}")
             continue
 
@@ -83,11 +83,11 @@ def _crawl_page(
             print(f"Skipping (no license) {url}")
             continue
 
-        if repo["license"]["key"] not in serenade.repositories.permissive_licenses:
+        if repo["license"]["key"] not in arqon_maestro.repositories.permissive_licenses:
             print(f"Skipping (non-permissive license: {repo['license']['key']}) {url}")
             continue
 
-        if any(e in url.lower() for e in serenade.repositories.excluded_keywords(language)):
+        if any(e in url.lower() for e in arqon_maestro.repositories.excluded_keywords(language)):
             print(f"Skipping (excluded keyword) {url}")
             continue
 
@@ -98,7 +98,7 @@ def _crawl_page(
         repository_count += 1
         archive = ""
         try:
-            directory = f"{serenade.repositories.repositories_path}/{language}/{url.replace('https://', '').replace('http://', '').replace('/', '-')}"
+            directory = f"{arqon_maestro.repositories.repositories_path}/{language}/{url.replace('https://', '').replace('http://', '').replace('/', '-')}"
             if os.path.exists(directory):
                 print(f"Skipping (already processed) {url}")
                 continue
@@ -130,20 +130,20 @@ def _crawl_page(
         non_ascii_path = False
         for file in glob.iglob(f"{directory}/**", recursive=True):
             # skip any repository with non-ascii filenames, which is unlikely to be English
-            valid = serenade.repositories.is_ascii(file)
+            valid = arqon_maestro.repositories.is_ascii(file)
             if not valid:
                 non_ascii_path = True
                 break
 
             if valid and any(
                 e in file.lower()[len(directory) :]
-                for e in serenade.repositories.excluded_paths(language)
+                for e in arqon_maestro.repositories.excluded_paths(language)
             ):
                 valid = False
 
             if os.path.isfile(file) and valid:
                 valid = os.path.getsize(file) < 10000000
-                if serenade.repositories.include_file(language, file):
+                if arqon_maestro.repositories.include_file(language, file):
                     valid = True
 
                 if valid:
@@ -154,7 +154,7 @@ def _crawl_page(
                         except:
                             valid = False
 
-                    if valid and data and serenade.repositories.is_ascii(data):
+                    if valid and data and arqon_maestro.repositories.is_ascii(data):
                         # don't count docstrings against files, because those can be long
                         data = re.sub(
                             r"\"{3}(.*?)\"{3}",
@@ -251,7 +251,7 @@ def _crawl_comments(repository, directory):
 
 
 def _headers():
-    return {"Authorization": "Token " + serenade.config.services()["GITHUB_API_KEY"]}
+    return {"Authorization": "Token " + arqon_maestro.config.services()["GITHUB_API_KEY"]}
 
 
 def crawl(language, rounds, page_count, page_size, limit=None):
@@ -287,12 +287,12 @@ def crawl(language, rounds, page_count, page_size, limit=None):
 
     print("Removing empty directories...")
     subprocess.check_call(
-        f"find {serenade.repositories.repositories_path}/{language} -type d -empty -delete",
+        f"find {arqon_maestro.repositories.repositories_path}/{language} -type d -empty -delete",
         shell=True,
     )
 
     print("Creating archive...")
     subprocess.check_call(
-        f"cd {serenade.repositories.repositories_path} && rm -f {language}.tar.gz && tar czf {language}.tar.gz {language}",
+        f"cd {arqon_maestro.repositories.repositories_path} && rm -f {language}.tar.gz && tar czf {language}.tar.gz {language}",
         shell=True,
     )

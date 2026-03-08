@@ -92,7 +92,7 @@ This installs:
 
 ```bash
 # Generate dataset for auto-style model (Python)
-$SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/generate_dataset.py \
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/code_engine/bin/generate_dataset.py \
   --model=auto-style \
   --language=python
 
@@ -108,13 +108,13 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/generate_dataset.py \
 
 ```bash
 # Train with your RTX 2060 (1 GPU, 6GB VRAM)
-$SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/train.py \
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/code_engine/bin/train.py \
   --model=auto-style \
   --language=python \
   --gpus=1
 
 # Test mode (faster, for verification)
-$SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/train.py \
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/code_engine/bin/train.py \
   --model=auto-style \
   --language=python \
   --gpus=1 \
@@ -131,7 +131,7 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/train.py \
 ### Export the Model
 
 ```bash
-$SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/export.py
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/code_engine/bin/export.py
 ```
 
 ### Use Your New Model
@@ -148,10 +148,10 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/export.py
 
 ```bash
 # Downloads ~50GB of source code corpus
-$SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/train.py generate-dataset
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/speech_engine/bin/train.py generate-dataset
 
 # Test mode (smaller dataset)
-$SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/train.py generate-dataset --test-mode
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/speech_engine/bin/train.py generate-dataset --test-mode
 ```
 
 **What this does**:
@@ -163,10 +163,10 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/train.py generate-datas
 ### Train the Language Model
 
 ```bash
-$SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/train.py train-model
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/speech_engine/bin/train.py train-model
 
 # Test mode
-$SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/train.py train-model --test-mode
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/speech_engine/bin/train.py train-model --test-mode
 ```
 
 **What this does**:
@@ -180,7 +180,7 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/train.py train-model --
 ### Export
 
 ```bash
-$SERENADE_SOURCE_ROOT/scripts/serenade/speech_engine/bin/export.py
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/speech_engine/bin/export.py
 ```
 
 ---
@@ -210,7 +210,7 @@ You can fine-tune on your own codebase:
 # Put your code files in a directory structure
 
 # 2. Generate training pairs from your code
-$SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/generate_dataset.py \
+$ARQON_MAESTRO_SOURCE_ROOT/scripts/arqon_maestro/code_engine/bin/generate_dataset.py \
   --model=auto-style \
   --language=python \
   --custom-corpus=/path/to/your/code
@@ -294,17 +294,17 @@ You can use your own codebase for domain-specific training!
 
 ```bash
 # Test CorpusGen changes
-./scripts/serenade/bin/run.py --tests 'gradle corpusgen:test'
+./scripts/arqon_maestro/bin/run.py --tests 'gradle corpusgen:test'
 
 # Test core functionality
-./scripts/serenade/bin/run.py --tests 'gradle core:test'
+./scripts/arqon_maestro/bin/run.py --tests 'gradle core:test'
 ```
 
 ### Manual Testing
 
 ```bash
 # Start local services
-./scripts/serenade/bin/run.py
+./scripts/arqon_maestro/bin/run.py
 
 # Run client with local endpoint
 ENDPOINT=http://localhost:17200 ./client/bin/dev.py
@@ -353,9 +353,9 @@ transcript = result["text"]
 
 | File | Purpose |
 |------|---------|
-| `scripts/serenade/code_engine/bin/train.py` | Code engine training |
-| `scripts/serenade/code_engine/bin/generate_dataset.py` | Data generation |
-| `scripts/serenade/speech_engine/bin/train.py` | Speech engine training |
+| `scripts/arqon_maestro/code_engine/bin/train.py` | Code engine training |
+| `scripts/arqon_maestro/code_engine/bin/generate_dataset.py` | Data generation |
+| `scripts/arqon_maestro/speech_engine/bin/train.py` | Speech engine training |
 | `config/models.yaml` | Model version hashes |
 | `config/languages.yaml` | Language configurations |
 | `docs/model-architecture.md` | Architecture details |

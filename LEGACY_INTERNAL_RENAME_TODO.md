@@ -30,7 +30,7 @@ The assumption for this plan is explicit:
 | 3 | Repo Subtree Rename | `completed` | top-level engine subtree renamed to `maestro/` and external path references repaired |
 | 4 | Sidecar and Runtime Process Identity | `completed` | primary sidecar and packaged local process names now use Arqon Maestro identity with legacy fallbacks preserved |
 | 5 | Config Storage and Logs Migration | `completed` | live Maestro config, scripts, and logs now migrate into `.arqon` while legacy storage remains as fallback |
-| 6 | Safe Internal Slug Rename | `planned` | remaining low/medium-risk internal identifiers |
+| 6 | Safe Internal Slug Rename | `completed` | internal Python tooling slug moved to `scripts/arqon_maestro` and related low-risk references cleaned up |
 | 7 | Namespace and Dependency Migration | `planned` | `ai.serenade.*`, native deps, artifacts |
 
 ## Target Naming Policy
@@ -330,6 +330,13 @@ Examples:
 - stub names
 - package display names
 - output artifact names where the runtime is no longer coupled
+
+Status:
+
+- completed on `2026-03-08`
+- internal Python tooling package moved from `scripts/serenade` to `scripts/arqon_maestro`
+- hard-close pack: [docs/operations/phase-6-closeout.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-6-closeout.md)
+- evidence pack: [docs/operations/phase-6-evidence.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-6-evidence.md)
 
 ### Phase 7: Namespace and Dependency Migration
 

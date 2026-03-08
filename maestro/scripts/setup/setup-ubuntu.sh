@@ -4,7 +4,7 @@ set -e
 
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 . $HERE/paths.sh
-cd $SERENADE_LIBRARY_ROOT
+cd $ARQON_MAESTRO_LIBRARY_ROOT
 
 gpu=false
 while [[ $# -gt 0 ]]; do
@@ -88,8 +88,8 @@ rm jdk.tar.gz
 echo ""
 echo "Install complete!"
 echo "Now, run build-dependencies.sh and add the following to your ~/.zshrc or ~/.bashrc:"
-echo "export PATH=\"$SERENADE_LIBRARY_ROOT/jdk-14.0.1/bin:$SERENADE_LIBRARY_ROOT/gradle-7.4.2/bin:\$PATH\""
-echo "export JAVA_HOME=\"$SERENADE_LIBRARY_ROOT/jdk-14.0.1\""
+echo "export PATH=\"$ARQON_MAESTRO_LIBRARY_ROOT/jdk-14.0.1/bin:$ARQON_MAESTRO_LIBRARY_ROOT/gradle-7.4.2/bin:\$PATH\""
+echo "export JAVA_HOME=\"$ARQON_MAESTRO_LIBRARY_ROOT/jdk-14.0.1\""
 
 # If we're not installing on docker, we need to restart.
 if [[ "$gpu" == "true" && "$EUID" != 0 ]] ; then

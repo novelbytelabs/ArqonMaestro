@@ -5,8 +5,8 @@ import re
 import subprocess
 import shutil
 
-import serenade.config
-import serenade.packages
+import arqon_maestro.config
+import arqon_maestro.packages
 
 allowed_non_ascii = set([169, 180, 181, 228, 920, 931, 8216, 8217, 8220, 8221, 65292])
 
@@ -89,7 +89,7 @@ permissive_licenses = [
 ]
 
 
-repositories_path = serenade.config.library_path("repositories")
+repositories_path = arqon_maestro.config.library_path("repositories")
 extensions = {
     "c": [".c", ".h"],
     "cplusplus": [".c", ".h", ".cc", ".cpp", ".hpp", ".cxx", ".hxx"],
@@ -194,7 +194,7 @@ def download(language, url, use_small_repository=False):
         os.makedirs(os.path.join(repositories_path, local_name), exist_ok=True)
         file_name = f"{language}{'-small' if use_small_repository else ''}.tar.gz"
         local_file_name = f"{local_name}.tar.gz"
-        serenade.packages.download(
+        arqon_maestro.packages.download(
             f"{url}/{language}/{file_name}",
             f"{repositories_path}/{local_file_name}",
         )
@@ -237,7 +237,7 @@ def generate_file_list(language, count, data_path, test_mode):
                 included += 1
 
     with open(
-        serenade.config.library_path(data_path, f"{language}-file-list.txt"),
+        arqon_maestro.config.library_path(data_path, f"{language}-file-list.txt"),
         "w",
     ) as f:
         for file in result:

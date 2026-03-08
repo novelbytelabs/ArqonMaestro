@@ -2,7 +2,7 @@ import boto3
 import os.path
 import requests
 import time
-import serenade.config
+import arqon_maestro.config
 
 default_session = None
 sessions = {}

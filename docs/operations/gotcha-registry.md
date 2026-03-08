@@ -267,6 +267,20 @@ Use for:
   - migrate `scripts/` into `.arqon` as part of the same storage phase
   - keep legacy script fallback only as a temporary transition aid
 
+### GOTCHA-013: Internal Package Slugs Can Collide With Repo Names
+
+- **Category**: Namespace And Dependency Identity
+- **Status**: mitigated
+- **Summary**: Renaming an internal Python package to `maestro` would collide conceptually with the repo subtree name and could create import ambiguity. The safer internal slug is `arqon_maestro`.
+- **Impact**: Medium
+- **Where it matters**:
+  - Python training/tooling package migration
+  - import path cleanup
+  - documentation examples
+- **Avoidance**:
+  - use `arqon_maestro` for the internal Python package slug
+  - reserve `maestro` for repo/directory identity rather than Python import identity
+
 ## Entry Template
 
 ```markdown

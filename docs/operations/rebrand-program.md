@@ -30,16 +30,16 @@ Complete the migration from inherited `serenade` naming to a coherent `Arqon Mae
 | 3 | Repo Subtree Rename | Medium | `completed` | `maestro/` is now the top-level engine subtree and repo-path references have been repaired |
 | 4 | Sidecar and Runtime Process Identity | High | `completed` | primary sidecar and packaged local processes now use Arqon Maestro names with legacy fallbacks preserved |
 | 5 | Config Storage and Logs Migration | Medium | `completed` | live Maestro config, scripts, and logs now migrate into `.arqon` while legacy storage remains preserved |
-| 6 | Safe Internal Slug Rename | Medium | `planned` | remaining safe internal `serenade` names removed |
+| 6 | Safe Internal Slug Rename | Medium | `completed` | internal Python tooling slug moved to `scripts/arqon_maestro` and related low-risk references cleaned up |
 | 7 | Namespace and Dependency Migration | High | `planned` | deep technical identity migration complete |
 
 ## Current Focus
 
 The current focus is:
 
-- Phase 5 hard-closed
-- keeping storage and runtime compatibility shims in place while later phases proceed
-- preparing Phase 6 safe internal slug cleanup
+- Phase 6 hard-closed
+- preserving the compatibility shims added in earlier phases
+- preparing Phase 7 deep namespace and dependency migration
 
 ## Program Records
 

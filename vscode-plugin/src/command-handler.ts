@@ -160,7 +160,7 @@ export default class CommandHandler {
         ) {
           stopOffset++;
         }
-        // don't split crlf when we strip them in serenade.
+        // don't split crlf when we strip them in Arqon Maestro.
         if (before.length - stopOffset - 1 >= 0 &&
             before[before.length - stopOffset - 1] == "\r") {
           stopOffset--;
