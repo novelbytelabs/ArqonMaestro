@@ -75,7 +75,7 @@ export default class TextInputWindow extends Window {
   }
 
   title(): string {
-    return "Serenade Text Input";
+    return "ArqonMaestro Text Input";
   }
 
   url(): string {

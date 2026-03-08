@@ -37,6 +37,7 @@ dependencies {
 task buildTreeSitter(type: Exec, dependsOn: [":grammarflattener:installDist"]) {
     // the script determines if we're up to date, so this task has no outputs
     inputs.file "bin/build-tree-sitter.py"
+    environment "SERENADE_SOURCE_ROOT", rootProject.projectDir.absolutePath
     commandLine "./bin/build-tree-sitter.py", "src/dist/lib/libjava-tree-sitter"
 }
 

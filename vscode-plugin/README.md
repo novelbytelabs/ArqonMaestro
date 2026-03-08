@@ -1,23 +1,23 @@
-<img src="https://cdn.serenade.ai/img/logo-github.png" width="250px" alt="Serenade Logo" />
+<img src="https://cdn.arqon./img/logo-github.png" width="250px" alt="ArqonMaestro Logo" />
 
-# Serenade for Visual Studio Code
+# ArqonMaestro for Visual Studio Code
 
-To use Serenade for Visual Studio Code, you'll also need the Serenade app, which is freely available at [https://serenade.ai](https://serenade.ai).
+To use ArqonMaestro for Visual Studio Code, you'll also need the ArqonMaestro app, which is freely available at [https://novelbytelabs.github.io/ArqonMaestro/](https://novelbytelabs.github.io/ArqonMaestro/).
 
 ## Code with voice
 
-Serenade is the fastest and easiest way to write code with natural speech. Give your hands a break without missing a beat.
+ArqonMaestro is the fastest and easiest way to write code with natural speech. Give your hands a break without missing a beat.
 
-Edit code, run terminal commands, and write documentation entirely with voice. Whether you have an injury or you’re looking to prevent one, Serenade can help you be just as productive without lifting a finger. Use voice alongside your existing workflow, or abandon your keyboard entirely.
+Edit code, run terminal commands, and write documentation entirely with voice. Whether you have an injury or you’re looking to prevent one, ArqonMaestro can help you be just as productive without lifting a finger. Use voice alongside your existing workflow, or abandon your keyboard entirely.
 
-Learn more at [https://serenade.ai](https://serenade.ai).
+Learn more at [https://novelbytelabs.github.io/ArqonMaestro/](https://novelbytelabs.github.io/ArqonMaestro/).
 
-[![Serenade Demo](https://cdn.serenade.ai/img/develop-naturally.gif)](https://serenade.ai/)
+[![ArqonMaestro Demo](https://cdn.arqon./img/develop-naturally.gif)](https://novelbytelabs.github.io/ArqonMaestro//)
 
 ## Installation
 
-To use Serenade with VS Code, you'll also need the Serenade app, available for download [here](https://serenade.ai/download). Once Serenade is installed, restart VS Code, and you'll be able to start using voice commands.
+To use ArqonMaestro with VS Code, you'll also need the ArqonMaestro app, available for download [here](https://github.com/novelbytelabs/ArqonMaestro/releases). Once ArqonMaestro is installed, restart VS Code, and you'll be able to start using voice commands.
 
 ## Getting Started
 
-Check out the [Serenade documentation](https://serenade.ai/docs) to learn how to set up and start using Serenade.
+Check out the [ArqonMaestro documentation](https://novelbytelabs.github.io/ArqonMaestro/) to learn how to set up and start using ArqonMaestro.

@@ -67,7 +67,7 @@ export default class SettingsWindow extends Window {
   }
 
   title(): string {
-    return "Serenade Settings";
+    return "ArqonMaestro Settings";
   }
 
   url(): string {

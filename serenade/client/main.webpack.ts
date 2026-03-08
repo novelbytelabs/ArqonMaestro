@@ -48,9 +48,16 @@ const config: Configuration = {
             const fs = require("fs-extra");
             fs.mkdirpSync("out/static");
             fs.copySync(
+              "static/custom-commands-server",
+              "out/static/custom-commands-server"
+            );
+            fs.copySync(
               "static/custom-commands-server/node_modules",
               "out/static/custom-commands-server-modules"
             );
+            if (fs.existsSync("static/local")) {
+              fs.copySync("static/local", "out/static/local");
+            }
           },
         ],
       },

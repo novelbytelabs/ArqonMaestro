@@ -6,6 +6,7 @@ const initialState = {
   animations: false,
   app: "",
   autocomplete: [],
+  backendIssue: "",
   chunkSilenceThreshold: 0.1,
   chunkSpeechThreshold: 0.3,
   continueRunningInTray: false,

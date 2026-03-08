@@ -272,11 +272,20 @@ export default class App {
     }
 
     instance.registerPushToTalk();
-    console.log("[ArqonMaestro] Setting loggedIn state:", !!settings.getToken());
-    bridge.setState({ loggedIn: !!settings.getToken(), listening: false }, [
+    const initialLoggedIn = !!settings.getToken();
+    console.log("[ArqonMaestro] Setting loggedIn state:", initialLoggedIn);
+    bridge.setState({ loggedIn: initialLoggedIn, listening: false }, [
       mainWindow,
       miniModeWindow,
     ]);
+    // Renderer startup can race with IPC listener registration; send once more
+    // so loggedIn doesn't stay undefined on the loading page.
+    setTimeout(() => {
+      bridge.setState({ loggedIn: initialLoggedIn, listening: false }, [
+        mainWindow,
+        miniModeWindow,
+      ]);
+    }, 1500);
     instance.clearAlternativesAndShowExamples();
     nux.showIfNeeded();
 

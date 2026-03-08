@@ -6,9 +6,9 @@ import * as path from "path";
 import Settings from "../settings";
 
 export default class Custom {
-  private defaultCustomCommandsFile: string = `/* Serenade Custom Commands
+  private defaultCustomCommandsFile: string = `/* ArqonMaestro Custom Commands
 
-In this file, you can define your own custom commands with the Serenade API.
+In this file, you can define your own custom commands with the ArqonMaestro API.
 
 For instance, here's a custom automation that opens your terminal and runs a command:
 
@@ -27,7 +27,7 @@ serenade.language("python").snippet(
   "method"
 );
 
-For more information, check out the Serenade API documentation: https://serenade.ai/docs/api
+For more information, check out the ArqonMaestro API documentation: https://serenade.ai/docs/api
 
 */`;
 
@@ -116,7 +116,19 @@ For more information, check out the Serenade API documentation: https://serenade
 
   async start(): Promise<void> {
     return new Promise((resolve) => {
-      this.resolveStart = resolve;
+      // Do not block app startup indefinitely if the custom commands server
+      // can't connect back (e.g. missing sidecar dependencies).
+      let resolved = false;
+      const resolveOnce = () => {
+        if (resolved) {
+          return;
+        }
+        resolved = true;
+        this.resolveStart = undefined;
+        resolve();
+      };
+
+      this.resolveStart = resolveOnce;
       this.stop();
       const stream = fs.createWriteStream(path.join(this.settings.path(), "serenade.log"));
       this.process = child_process.fork("serenade-custom-commands-server.min.js", [], {
@@ -127,8 +139,13 @@ For more information, check out the Serenade API documentation: https://serenade
       this.process.stdout!.pipe(stream);
       this.process.stderr!.pipe(stream);
       this.process.on("exit", () => {
+        resolveOnce();
         this.process = undefined;
       });
+
+      global.setTimeout(() => {
+        resolveOnce();
+      }, 2000);
 
       // every 30 seconds, send a keepalive message, and if we don't hear back in 3 seconds,
       // then restart the custom commands process

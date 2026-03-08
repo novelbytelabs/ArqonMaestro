@@ -205,6 +205,7 @@ const TutorialSelection = () => {
 const AlternativesListComponent: React.FC<{
   alternatives: any;
   alternativesSpinner: number[];
+  backendIssue: string;
   highlighted: number[];
   loggedIn: boolean;
   miniMode: boolean;
@@ -220,6 +221,7 @@ const AlternativesListComponent: React.FC<{
 }> = ({
   alternatives,
   alternativesSpinner,
+  backendIssue,
   highlighted,
   loggedIn,
   miniMode,
@@ -343,9 +345,31 @@ const AlternativesListComponent: React.FC<{
     </div>
   );
 
+  const backendIssueSection = backendIssue ? (
+    <div
+      id="backend-issue"
+      className={classNames("rounded-md p-3 text-sm bg-white dark:bg-slate-800", {
+        "border shadow mt-2 mb-4 mx-2": !miniMode,
+        "mb-2": miniMode,
+        "border shadow": miniMode && process.arch != "darwin",
+      })}
+    >
+      <div className="flex items-center">
+        <FontAwesomeIcon icon={faExclamationTriangle} className="block" />
+        <h4 className="font-bold pl-2">Voice Backend Issue</h4>
+      </div>
+      <div className="pt-1 break-words">{backendIssue}</div>
+    </div>
+  ) : null;
+
   // these spacer elements exist to avoid the rounded window border on mac, which we can't change
   const spacer =
-    alternatives.length > 0 || suggestion || scriptError || nuxTutorial || updateNotification ? (
+    alternatives.length > 0 ||
+    suggestion ||
+    scriptError ||
+    backendIssue ||
+    nuxTutorial ||
+    updateNotification ? (
       <div className="spacer w-full h-[5px]" />
     ) : null;
 
@@ -359,6 +383,7 @@ const AlternativesListComponent: React.FC<{
     >
       {spacer}
       <UpdateNotification />
+      {backendIssueSection}
       {nuxCompleted && (suggestion || scriptError) ? suggestionSection : null}
       {!loggedIn || nuxCompleted ? null : !nuxTutorial ? <TutorialSelection /> : <NUX />}
       {examplesSection}
@@ -372,6 +397,7 @@ const AlternativesListComponent: React.FC<{
 export const AlternativesList = connect((state: any) => ({
   alternatives: state.alternatives,
   alternativesSpinner: state.alternativesSpinner,
+  backendIssue: state.backendIssue,
   highlighted: state.highlighted,
   loggedIn: state.loggedIn,
   miniMode: state.miniMode,

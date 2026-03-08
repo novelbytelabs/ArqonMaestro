@@ -34,6 +34,11 @@ export default class Microphone {
   ) {}
 
   private calculateNormalizedVolume(volume: number): number {
+    if (volume <= 1) {
+      // Float RMS from PCM capture path.
+      return Math.max(0, Math.min(1, volume / 0.05));
+    }
+
     return Math.max(0, Math.min(1, volume / this.volumeNormalization));
   }
 

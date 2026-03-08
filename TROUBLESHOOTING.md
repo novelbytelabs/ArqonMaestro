@@ -1,0 +1,211 @@
+# ArqonMaestro Troubleshooting Guide
+
+## Overview
+
+ArqonMaestro is a voice-native coding assistant derived from the Serenade open-source project. It consists of:
+- **Java Server** (Jetty + custom speech processing)
+- **Electron Client** (React + TypeScript UI)
+
+## Current Status
+
+- ✅ Java server builds and runs on port 17200
+- ✅ Electron client builds and runs
+- 🔄 VS Code extension - needs to be built and installed
+
+## System Environment
+
+- **OS**: Linux (helios-gpu-118)
+- **Node.js**: v18+
+- **Java**: 17 (upgraded from 14)
+- **Gradle**: 8.5 (upgraded from 7.4.2)
+
+## Issues Encountered
+
+### 1. Build Issues (RESOLVED)
+
+#### Protobuf Version Mismatch
+- **Problem**: System had protobuf 3.12.4, project needed 3.14.0+
+- **Solution**: Installed protoc 3.14.0 locally
+
+#### Gradle/Java Version
+- **Problem**: Original project used Java 14 + Gradle 7.4.2
+- **Solution**: Upgraded to Java 17 + Gradle 8.5
+- **Changes**:
+  - Added JAXB dependency for Java 17 compatibility in `core/build.gradle`
+  - Updated `gradle/wrapper/gradle-wrapper.properties`
+
+### 2. Runtime Issues (RESOLVED)
+
+#### Missing Environment Variables
+- **Problem**: `CORE_PORT` was null, causing `NumberFormatException` in `Core.java:18`
+- **Solution**: Set environment variables before running:
+  ```bash
+  CORE_PORT=17200 
+  SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade 
+  SERENADE_LIBRARY_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+  ```
+
+#### Native Module Missing: serenade-driver
+- **Problem**: Native Node.js module `serenade-driver` not available
+- **Solution**: Created stub at `client/src/main/driver/stub.ts`
+
+#### Native Module Missing: speech-recorder
+- **Problem**: Native audio recording module not available
+- **Solution**: Created TypeScript implementation at `client/src/main/audio/index.ts`
+
+#### WebSocket Connection
+- **Problem**: Client trying to connect to remote server instead of local
+- **Solution**: Created `~/.serenade/settings.json`:
+  ```json
+  {"system":{"streaming_endpoint":"local"}}
+  ```
+
+### 3. Current Issue: UI Stuck on Loading
+
+#### Symptoms
+- Electron window opens but shows "Loading..." indefinitely
+- No error messages in terminal (only warnings)
+- Server IS running on port 17200 (confirmed via `lsof`)
+
+#### Terminal Output
+```
+[WARNING] bluez_dbus_manager.cc: Floss manager not present
+[WARNING] gpu_sandbox_hook_linux.cc: dlopen(libxcb-dri3.so) failed
+[WARNING] gpu_sandbox_hook_linux.cc: dlopen(libxcb-present.so) failed  
+[WARNING] gpu_sandbox_hook_linux.cc: dlopen(libxcb-sync.so) failed
+[INFO] Electron Security Warning (Insecure Content-Security-Policy)
+```
+
+#### Attempted Fixes
+1. Running with `--no-sandbox --disable-gpu` flags
+2. Fixed `getActiveApplication()` stub to return "serenade" (was returning "ArqonMaestro")
+3. Verified settings file exists with correct endpoint
+
+#### Root Cause (FOUND)
+- `loggedIn` in renderer state stayed `undefined`, so `LoadingPage` never redirected.
+- Startup could stall or race before renderer got the initial state update:
+  - The custom commands sidecar (`serenade-custom-commands-server.min.js`) crashed with:
+    `Cannot find module 'chokidar'`
+  - `Custom.start()` originally waited indefinitely for sidecar socket connection.
+  - Initial `bridge.setState({ loggedIn: ... })` could be missed if renderer IPC listener was not ready yet.
+
+#### Additional Deep-Dive Findings
+- The previous local run instructions were incomplete:
+  - Running only `core` on `17200` is not enough for voice recognition.
+  - Local voice also requires:
+    - `speech-engine` on `17202`
+    - `code-engine` on `17203`
+- Rebuilding the full local engine bundle from this checkout currently requires additional native dependencies (for example Marian / related `code-engine` build inputs). Without those, local packaging can still be incomplete even after `client:installServer`.
+- Endpoint selection was being written to the wrong file:
+  - Actual runtime source is `~/.serenade/serenade.json`
+  - Earlier instructions incorrectly used `~/.serenade/settings.json`
+- The Electron main bundle originally did not copy `static/local` into `out/static/local`, so `Local.start()` could not launch bundled services even after they were built.
+- The Linux driver stub hardcoded the active app to `"serenade"`, which could prevent proper editor targeting.
+
+#### Final Fix Applied
+1. **Fail-open custom sidecar startup**
+   - File: `serenade/client/src/main/ipc/custom.ts`
+   - Change: `Custom.start()` now resolves even if sidecar never connects (timeout + exit handling), so app initialization continues.
+2. **Send loggedIn state twice during startup**
+   - File: `serenade/client/src/main/app.ts`
+   - Change: send initial `loggedIn` state immediately, then resend after 1.5s to cover IPC listener race.
+3. **Loading page fallback redirect**
+   - File: `serenade/client/src/renderer/pages/loading.tsx`
+   - Change: if `loggedIn` is still `undefined` after 3s, redirect to `/welcome` instead of spinning forever.
+4. **Legacy endpoint migration + backend diagnostics**
+   - Files:
+     - `serenade/client/src/main/settings.ts`
+     - `serenade/client/src/main/stream/stream.ts`
+     - `serenade/client/src/main/stream/chunk-manager.ts`
+   - Changes:
+     - migrate legacy endpoint values from the wrong config location
+     - fail fast if local backend is incomplete
+     - surface a clear UI warning instead of silently entering a broken listen state
+5. **Active application detection on Linux**
+   - File: `serenade/client/src/main/driver/stub.ts`
+   - Change: use `xprop` on X11 to detect the active app instead of always returning `"serenade"`.
+6. **Packaged local backend wiring**
+   - Files:
+     - `serenade/core/build.gradle`
+     - `serenade/client/main.webpack.ts`
+   - Changes:
+     - fixed `core` tree-sitter build task to pass `SERENADE_SOURCE_ROOT`
+     - verified `./gradlew client:installServer -x downloadModels` succeeds
+     - copy `static/local` into `out/static/local` so Electron can actually launch the bundled local services
+
+#### Verification
+- Rebuilt client (`npm run build`) and relaunched Electron.
+- UI now leaves `Loading...` and proceeds to onboarding/main flow.
+
+#### What Should Happen
+1. Client connects to `ws://localhost:17200/stream/`
+2. WebSocket connection established
+3. `loggedIn` state set to `true` in Redux store
+4. UI transitions from LoadingPage to main app
+
+#### Debugging Steps Taken
+1. Confirmed server running: `lsof -i :17200` shows Java process listening
+2. Tested WebSocket: `curl` shows server responds (HTTP 400 - normal for curl)
+3. Checked settings: `~/.serenade/settings.json` has correct content
+4. Ran with debug flags: `ELECTRON_ENABLE_LOGGING=1 electron . --enable-logging`
+
+## Code Locations
+
+### Server
+- Main: `serenade/core/src/main/java/core/Core.java`
+- WebSocket: Jetty on `/stream/` endpoint
+
+### Client
+- Entry: `serenade/client/src/main/index.ts`
+- App: `serenade/client/src/main/app.ts`
+- Stream: `serenade/client/src/main/stream/stream.ts`
+- Settings: `serenade/client/src/main/settings.ts`
+- Loading Page: `serenade/client/src/renderer/pages/loading.tsx`
+- Driver Stub: `serenade/client/src/main/driver/stub.ts`
+
+## Commands That Work
+
+### Build Server
+```bash
+cd ~/Projects/arqon/ArqonMaestro/serenade
+SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
+```
+
+### Run Server
+```bash
+cd ~/Projects/arqon/ArqonMaestro/serenade
+CORE_PORT=17200 SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade SERENADE_LIBRARY_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./core/build/install/core/bin/core
+```
+
+### Build Client
+```bash
+cd ~/Projects/arqon/ArqonMaestro/serenade/client
+npm run build
+```
+
+### Run Client (with GPU bypass)
+```bash
+cd ~/Projects/arqon/ArqonMaestro/serenade/client
+unset ELECTRON_RUN_AS_NODE
+./node_modules/.bin/electron . --no-sandbox --disable-gpu
+```
+
+## Questions for Other AI
+
+1. Why is the Electron UI stuck on "Loading..." even though the server is running and the WebSocket should be connecting?
+
+2. The `loading.tsx` component shows "Loading..." when `loggedIn` is undefined. What conditions need to be met for `loggedIn` to become `true`?
+
+3. The `stream.ts` connects to `ws://localhost:17200/stream/`. Is there something that needs to happen BEFORE the WebSocket connects for the UI to load?
+
+4. Could the GPU/X11 warnings be causing a silent crash that's preventing the renderer from initializing?
+
+5. Is there a way to get more verbose logging from the Electron renderer process to see what's failing?
+
+## Related Files
+
+- `RUN_COMMANDS.md` - Working run commands
+- `serenade/build.gradle` - Updated dependencies
+- `serenade/core/build.gradle` - JAXB added
+- `serenade/client/src/main/driver/stub.ts` - Native module stub
+- `serenade/client/src/main/audio/index.ts` - Audio implementation

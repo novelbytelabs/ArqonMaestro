@@ -11,9 +11,22 @@ const LoadingPageComponent: React.FC<{
   loggedIn: boolean | undefined;
   miniMode: boolean;
 }> = ({ loadingPageMessage, loadingPageProgress, loggedIn, miniMode }) => {
+  const [fallbackToWelcome, setFallbackToWelcome] = React.useState(false);
+
+  React.useEffect(() => {
+    const timeout = global.setTimeout(() => {
+      setFallbackToWelcome(true);
+    }, 3000);
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, []);
+
   if (loggedIn === true) {
     return <Redirect to="/alternatives" />;
   } else if (loggedIn === false) {
+    return <Redirect to="/welcome" />;
+  } else if (fallbackToWelcome) {
     return <Redirect to="/welcome" />;
   }
 

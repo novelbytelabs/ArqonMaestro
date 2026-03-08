@@ -12,6 +12,7 @@ const ServerComponent: React.FC<{
   endpoint: EndpointType;
   endpoints: EndpointType[];
   latency: number;
+  backendIssue: string;
   loadingPageMessage: string;
   loadingPageProgress: number;
   localLoading: boolean;
@@ -23,6 +24,7 @@ const ServerComponent: React.FC<{
   endpoint,
   endpoints,
   latency,
+  backendIssue,
   loadingPageMessage,
   loadingPageProgress,
   localLoading,
@@ -47,8 +49,8 @@ const ServerComponent: React.FC<{
       {!requiresWsl ? null : (
         <div className="bg-yellow-100 border-l-2 border-yellow-500 text-yellow-700 p-2 my-1 text-small">
           <p>
-            To use Serenade Local, you'll need to install{" "}
-            <a className="underline" href="https://serenade.ai/install#pro" target="_blank">
+            To use ArqonMaestro Local, you'll need to install{" "}
+            <a className="underline" href="https://github.com/novelbytelabs/ArqonMaestro/blob/main/RUN_COMMANDS.md" target="_blank">
               WSL
             </a>
             .
@@ -57,7 +59,12 @@ const ServerComponent: React.FC<{
       )}
       {!requiresNewerMac ? null : (
         <div className="bg-yellow-100 border-l-2 border-yellow-500 text-yellow-700 p-2 my-1 text-small">
-          <p>To use Serenade Local, you'll need to upgrade to macOS 11.0+.</p>
+          <p>To use ArqonMaestro Local, you'll need to upgrade to macOS 11.0+.</p>
+        </div>
+      )}
+      {!backendIssue ? null : (
+        <div className="bg-yellow-100 border-l-2 border-yellow-500 text-yellow-700 p-2 my-1 text-small">
+          <p>{backendIssue}</p>
         </div>
       )}
       {endpoints && endpoints.length > 0 ? (
@@ -94,7 +101,7 @@ const ServerComponent: React.FC<{
       ) : null}
       <Row
         title="Share audio data"
-        subtitle="You can help improve Serenade by sharing your audio data, which will be used to train Serenade's custom speech models."
+        subtitle="You can help improve ArqonMaestro by sharing your audio data, which will be used to train ArqonMaestro's custom speech models."
         action={
           <Toggle
             value={logAudio}
@@ -108,7 +115,7 @@ const ServerComponent: React.FC<{
       />
       <Row
         title="Share code data"
-        subtitle="You can help improve Serenade by sharing your source code and command data, which will be used to train Serenade's custom code models."
+        subtitle="You can help improve ArqonMaestro by sharing your source code and command data, which will be used to train ArqonMaestro's custom code models."
         action={
           <Toggle
             value={logSource}
@@ -125,6 +132,7 @@ const ServerComponent: React.FC<{
 };
 
 export const Server = connect((state: any) => ({
+  backendIssue: state.backendIssue,
   endpoint: state.endpoint,
   endpoints: state.endpoints,
   latency: state.latency,

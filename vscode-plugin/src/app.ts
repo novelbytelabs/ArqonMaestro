@@ -27,7 +27,7 @@ export default class App {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="style-src 'nonce-07c49590f6'">
-    <title>Serenade</title>
+    <title>ArqonMaestro</title>
     <style nonce="07c49590f6">
 
 a {
@@ -63,9 +63,9 @@ p {
     </style>
   </head>
   <body>
-    <h1>Welcome to Serenade!</h1>
-    <p>With Serenade, you can write code faster&mdash;by speaking in plain English, rather than typing. Use Serenade as your coding assistant, or abandon your keyboard entirely.</p>
-    <p>To get started, download the Serenade app and run it alongside VS Code.</p>
+    <h1>Welcome to ArqonMaestro!</h1>
+    <p>With ArqonMaestro, you can write code faster&mdash;by speaking in plain English, rather than typing. Use ArqonMaestro as your coding assistant, or abandon your keyboard entirely.</p>
+    <p>To get started, download the ArqonMaestro app and run it alongside VS Code.</p>
     <a class="download" href="#">Download</a>
   </body>
   <script>
@@ -86,7 +86,7 @@ document.querySelector('.download').addEventListener('click', e => {
   showInstallMessage() {
     const panel = vscode.window.createWebviewPanel(
       "serenade-install",
-      "Serenade",
+      "ArqonMaestro",
       vscode.ViewColumn.Two,
       {
         enableScripts: true,
@@ -96,7 +96,7 @@ document.querySelector('.download').addEventListener('click', e => {
     panel.webview.html = this.installHtml();
     panel.webview.onDidReceiveMessage((message: any) => {
       if (message.type == "download") {
-        vscode.env.openExternal(vscode.Uri.parse("https://serenade.ai/download"));
+        vscode.env.openExternal(vscode.Uri.parse("https://github.com/novelbytelabs/ArqonMaestro/releases"));
         panel.dispose();
       }
     });

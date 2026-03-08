@@ -18,7 +18,7 @@ export const PermissionsPage = () => {
           <div className="w-6/12">
             <h2 className="text-xl font-light pt-5">Grant Permissions</h2>
             <p>
-              Serenade integrates with microphone and accessibility APIs to give you powerful voice
+              ArqonMaestro integrates with microphone and accessibility APIs to give you powerful voice
               control over your device.
             </p>
             <div className="pt-2">

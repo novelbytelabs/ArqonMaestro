@@ -1,4 +1,5 @@
 import WebSocket from "ws";
+import fetch from "electron-fetch";
 import { v4 as uuid } from "uuid";
 import Active from "../active";
 import API from "../api";
@@ -12,6 +13,7 @@ import { core } from "../../gen/core";
 export default class Stream {
   private isConnected: boolean = false;
   private lastActivity: number = 0;
+  private lastConnectionError?: string;
   private keepAliveTimeout?: NodeJS.Timeout;
   private loggingBuffer: Buffer[] = [];
   private coreSocket?: WebSocket;
@@ -54,13 +56,81 @@ export default class Stream {
     socket!.send(core.EvaluateRequest.encode(core.EvaluateRequest.create(data)).finish());
   }
 
+  private async localServiceHealthy(url: string): Promise<boolean> {
+    try {
+      const response = await fetch(url, { method: "GET", timeout: 1500 });
+      return response.ok;
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  private async validateBackend(): Promise<string | undefined> {
+    if (this.settings.getStreamingEndpoint().id != "local") {
+      return undefined;
+    }
+
+    const checks = await Promise.all([
+      this.localServiceHealthy("http://localhost:17202/api/status"),
+      this.localServiceHealthy("http://localhost:17203/api/status"),
+    ]);
+
+    const missing = [];
+    if (!checks[0]) {
+      missing.push("speech-engine (:17202)");
+    }
+    if (!checks[1]) {
+      missing.push("code-engine (:17203)");
+    }
+
+    if (missing.length == 0) {
+      return undefined;
+    }
+
+    return (
+      "Local backend incomplete: missing " +
+      missing.join(" and ") +
+      ". Build the full local stack with `gradle installd && gradle client:installServer`, or use a cloud endpoint."
+    );
+  }
+
   async connect(chunkManager: ChunkManager, custom: Custom, executor: Executor): Promise<boolean> {
     this.lastActivity = Date.now();
     if (this.connected()) {
       return Promise.resolve(true);
     }
 
-    return new Promise<boolean>((resolve, reject) => {
+    const backendIssue = await this.validateBackend();
+    if (backendIssue) {
+      this.lastConnectionError = backendIssue;
+      return Promise.resolve(false);
+    }
+
+    return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (connected: boolean, error?: string) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        if (!connected) {
+          this.lastConnectionError = error || "Unable to connect to stream.";
+          this.isConnected = false;
+          this.coreSocket?.removeAllListeners();
+          this.coreSocket?.terminate();
+          this.coreSocket = undefined;
+        } else {
+          this.lastConnectionError = undefined;
+        }
+
+        resolve(connected);
+      };
+
+      const connectionTimeout = global.setTimeout(() => {
+        finish(false, "Timed out connecting to the speech backend.");
+      }, 5000);
+
       this.coreSocket = new WebSocket(
         `${
           (process.env.ENDPOINT && process.env.ENDPOINT.startsWith("https")) ||
@@ -77,7 +147,8 @@ export default class Stream {
       this.coreSocket.on("open", () => {
         this.log.logVerbose("Stream connected");
         this.isConnected = true;
-        resolve(true);
+        clearTimeout(connectionTimeout);
+        finish(true);
       });
 
       this.coreSocket.on("message", (data: any) => {
@@ -100,20 +171,35 @@ export default class Stream {
       });
 
       this.coreSocket.on("close", () => {
+        clearTimeout(connectionTimeout);
+        if (!settled) {
+          finish(false, "The speech stream closed before initialization completed.");
+          return;
+        }
+
         // an idle timeout might trigger close but not error, so reset the state to be safe
         // this callback is also triggered by toggling chunk manager
         this.disconnect();
       });
 
       this.coreSocket.on("error", (e) => {
-        chunkManager.toggle(false);
         this.log.logError(e);
+        clearTimeout(connectionTimeout);
+        if (!settled) {
+          finish(false, "Unable to connect to the speech stream.");
+        } else {
+          chunkManager.toggle(false);
+        }
       });
     });
   }
 
   connected(): boolean {
     return this.isConnected;
+  }
+
+  connectionError(): string {
+    return this.lastConnectionError || "";
   }
 
   disconnect() {

@@ -166,7 +166,7 @@ export default class MiniModeWindow extends Window {
   }
 
   title(): string {
-    return "Serenade";
+    return "ArqonMaestro";
   }
 
   transparent(): boolean {

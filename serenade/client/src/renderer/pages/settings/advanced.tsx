@@ -70,7 +70,7 @@ const AdvancedComponent: React.FC<{
       />
       <Row
         title="Show suggestions"
-        subtitle="Display tips and tricks as you're using Serenade"
+        subtitle="Display tips and tricks as you're using ArqonMaestro"
         action={
           <Toggle
             value={!disableSuggestions}
@@ -104,7 +104,7 @@ const AdvancedComponent: React.FC<{
       />
       <Row
         title="Minimized position"
-        subtitle="Where alternatives appear when Serenade is minimized"
+        subtitle="Where alternatives appear when ArqonMaestro is minimized"
         action={
           <div className="w-40 ml-auto">
             <Select
@@ -229,7 +229,7 @@ const AdvancedComponent: React.FC<{
       />
       <Row
         title="Toggle text input"
-        subtitle="Keyboard shortcut for toggling type to Serenade"
+        subtitle="Keyboard shortcut for toggling type to ArqonMaestro"
         action={
           <input
             type="text"

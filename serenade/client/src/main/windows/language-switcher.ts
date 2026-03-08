@@ -52,7 +52,7 @@ export default class LanguageSwitcherWindow extends Window {
   }
 
   title(): string {
-    return "Serenade Languages";
+    return "ArqonMaestro Languages";
   }
 
   url(): string {

@@ -24,7 +24,7 @@ const apps: { [key: string]: { name: string; icon: string } } = {
     icon: safari,
   },
   serenade: {
-    name: "Serenade",
+    name: "ArqonMaestro",
     icon,
   },
   slack: {

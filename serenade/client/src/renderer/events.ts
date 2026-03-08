@@ -44,7 +44,7 @@ export const register = () => {
   });
 
   ipcRenderer.on("setURL", (_event: any, data: { url: string }) => {
-    history.pushState(data.url, "Serenade");
+    history.pushState(data.url, "ArqonMaestro");
   });
 
   ipcRenderer.on("updateMiniModeWindowHeight", (_event: any, _data: any) => {

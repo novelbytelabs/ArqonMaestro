@@ -45,7 +45,7 @@ if (!lock) {
     // transparent windows need a slight delay to render correctly
     // https://github.com/electron/electron/issues/2170
     setTimeout(async () => {
-      app.setName("Serenade");
+      app.setName("ArqonMaestro");
       app.setAsDefaultProtocolClient("serenade");
       instance = await App.create();
       autoUpdater.checkForUpdatesAndNotify();

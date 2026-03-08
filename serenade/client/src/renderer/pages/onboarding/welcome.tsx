@@ -14,11 +14,11 @@ export const WelcomePage = () => (
           <img
             className="w-36 block dark:bg-white dark:p-2 dark:rounded"
             src={wordmark}
-            alt="Serenade"
+            alt="ArqonMaestro"
           />
-          <h2 className="text-xl font-light pt-4">Welcome to Serenade!</h2>
+          <h2 className="text-xl font-light pt-4">Welcome to ArqonMaestro!</h2>
           <p className="pt-2">
-            Let's start writing code with voice! We'll walk through setting Serenade up with your
+            Let's start writing code with voice! We'll walk through setting ArqonMaestro up with your
             favorite tools.
           </p>
           <div className="mx-auto pt-4">
@@ -28,7 +28,7 @@ export const WelcomePage = () => (
           </div>
         </div>
         <div className="w-5/12">
-          <img className="w-full" src={onboardingWelcome} alt="Welcome to Serenade" />
+          <img className="w-full" src={onboardingWelcome} alt="Welcome to ArqonMaestro" />
         </div>
       </div>
     </div>

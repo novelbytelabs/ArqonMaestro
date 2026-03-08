@@ -14,9 +14,9 @@ const UpdateNotificationComponent: React.FC<{ miniMode: boolean; updateNotificat
       })}
     >
       {updateNotification == "available" ? (
-        <>A new update for Serenade is downloading.</>
+        <>A new update for ArqonMaestro is downloading.</>
       ) : updateNotification == "downloaded" ? (
-        <>A new update for Serenade has been downloaded. Restart to update to the latest version!</>
+        <>A new update for ArqonMaestro has been downloaded. Restart to update to the latest version!</>
       ) : null}
     </div>
   ) : null;

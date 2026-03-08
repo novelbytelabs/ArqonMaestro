@@ -8,7 +8,7 @@ export const AccessibilityPermission = () => (
     <div className="main-frame unsupported-page">
       <FontAwesomeIcon icon={faUniversalAccess} className="icon-big" />
       <p>
-        Serenade requires the Accessibility permission to automate your workflow and enable you to
+        ArqonMaestro requires the Accessibility permission to automate your workflow and enable you to
         control your system with voice.
       </p>
       <button className="btn" onClick={() => ipcRenderer.send("accessibilityPermission")}>

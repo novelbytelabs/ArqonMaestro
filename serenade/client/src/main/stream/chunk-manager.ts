@@ -463,6 +463,7 @@ export default class ChunkManager {
     this.listening = listening;
     this.bridge.setState(
       {
+        backendIssue: "",
         listening,
         partial: false,
         speakingVolume: 0,
@@ -487,7 +488,27 @@ export default class ChunkManager {
           }
         });
 
-        await this.stream.connect(this, this.custom, this.executor);
+        const connected = await this.stream.connect(this, this.custom, this.executor);
+        if (!connected) {
+          this.microphone.unregister("chunk-manager");
+          this.chunkQueue.clear();
+          this.buffer = [];
+          this.buffering = false;
+          this.speaking = false;
+          this.listening = false;
+          this.bridge.setState(
+            {
+              backendIssue: this.stream.connectionError(),
+              listening: false,
+              speaking: false,
+              statusText: "Paused",
+            },
+            [this.mainWindow, this.miniModeWindow]
+          );
+          this.mainWindow.updateTray();
+          return;
+        }
+
         this.stopBufferingAndFlush();
       } else {
         this.microphone.unregister("chunk-manager");

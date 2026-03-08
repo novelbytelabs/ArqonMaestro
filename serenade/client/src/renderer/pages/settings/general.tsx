@@ -81,7 +81,7 @@ const GeneralComponent: React.FC<{
       />
       <Row
         title="Listen shortcut"
-        subtitle="Keyboard shortcut for toggling Serenade"
+        subtitle="Keyboard shortcut for toggling ArqonMaestro"
         action={
           <input
             type="text"
@@ -93,7 +93,7 @@ const GeneralComponent: React.FC<{
       />
       <Row
         title="Compact UI"
-        subtitle="Shrink the main Serenade window"
+        subtitle="Shrink the main ArqonMaestro window"
         action={<Toggle value={miniMode} onChange={(e) => setValue("miniMode", e)} />}
       />
       <Row
@@ -155,7 +155,7 @@ const GeneralComponent: React.FC<{
         }
       />
       <div className="flex items-start py-2">
-        <h3 className="block text-sm">Serenade v{metadata.version}</h3>
+        <h3 className="block text-sm">ArqonMaestro v{metadata.version}</h3>
       </div>
     </div>
   );

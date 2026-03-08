@@ -71,11 +71,40 @@ export default class Settings {
       this.userData = JSON.parse(userFileContent);
     }
 
+    let migrated = false;
+    const legacySystemSettings = this.userData.system;
+    if (legacySystemSettings && typeof legacySystemSettings == "object") {
+      const legacyEndpoint = legacySystemSettings.streaming_endpoint;
+      const currentEndpoint = this.systemData.streaming_endpoint;
+      if (
+        typeof legacyEndpoint == "string" &&
+        legacyEndpoint.length > 0 &&
+        !currentEndpoint
+      ) {
+        this.systemData.streaming_endpoint = legacyEndpoint;
+        migrated = true;
+      }
+
+      if (legacySystemSettings.streaming_endpoint !== undefined) {
+        delete legacySystemSettings.streaming_endpoint;
+        migrated = true;
+      }
+
+      if (Object.keys(legacySystemSettings).length == 0) {
+        delete this.userData.system;
+        migrated = true;
+      }
+    }
+
     const wordsFileContent = fs.readFileSync(this.wordsFile()).toString();
     if (wordsFileContent) {
       try {
         this.wordsData = jsonc.parse(wordsFileContent);
       } catch (e) {}
+    }
+
+    if (migrated) {
+      this.save();
     }
   }
 

@@ -2,13 +2,13 @@
 
 **Voice-powered coding for everyone.**
 
-Maestro is a preservation and revival project for [Serenade](https://github.com/serenadeai/serenade), an open-source voice coding application designed for developers with disabilities, RSI, or anyone who wants to code using natural speech.
+Maestro is a preservation and revival project for [ArqonMaestro](https://github.com/serenadeai/serenade), an open-source voice coding application designed for developers with disabilities, RSI, or anyone who wants to code using natural speech.
 
 ---
 
 ## 🎯 Project Goals
 
-1. **Preserve** the Serenade codebase and AI models for posterity
+1. **Preserve** the ArqonMaestro codebase and AI models for posterity
 2. **Maintain** a working, offline-capable voice coding system
 3. **Improve** compatibility with modern IDEs and operating systems
 4. **Document** the architecture for future developers
@@ -279,7 +279,7 @@ Models are downloaded from `https://serenadecdn.com/models/` (still active as of
 
 ---
 
-## 📋 Known Issues (from Original Serenade)
+## 📋 Known Issues (from Original ArqonMaestro)
 
 | Issue | Status | Notes |
 |-------|--------|-------|
@@ -322,21 +322,21 @@ Models are downloaded from `https://serenadecdn.com/models/` (still active as of
 - **Client**: MIT
 - **VS Code Plugin**: MIT
 
-Original project by [Serenade Labs, Inc.](https://github.com/serenadeai)
+Original project by [ArqonMaestro Labs, Inc.](https://github.com/serenadeai)
 
 ---
 
 ## 🙏 Credits
 
-- Original Serenade team for creating an accessibility-first coding tool
+- Original ArqonMaestro team for creating an accessibility-first coding tool
 - The open-source community for keeping the project alive
 
 ---
 
 ## 📚 Resources
 
-- [Original Serenade Repo](https://github.com/serenadeai/serenade)
-- [Serenade Website](https://serenade.ai) (may be inactive)
+- [Original ArqonMaestro Repo](https://github.com/serenadeai/serenade)
+- [ArqonMaestro Website](https://serenade.ai) (may be inactive)
 - [Discord Community](https://serenade.ai/community)
 - [Building Guide](serenade/docs/building.md)
 - [Codebase Layout](serenade/docs/codebase-layout.md)

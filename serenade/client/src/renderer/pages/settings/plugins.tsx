@@ -110,43 +110,43 @@ const PluginsComponent: React.FC<{ installed: string[]; stylers: any }> = ({
     <h2 className="text-lg font-light">Plugins</h2>
     <PluginLink
       title="VS Code"
-      subtitle="Install Serenade for the VS Code editor"
+      subtitle="Install ArqonMaestro for the VS Code editor"
       link={plugins.vscode.url}
       installed={installed.some((e: string) => e == "vscode")}
     />
     <PluginLink
       title="JetBrains"
-      subtitle="Install Serenade for JetBrains editors"
+      subtitle="Install ArqonMaestro for JetBrains editors"
       link={plugins.jetbrains.url}
       installed={installed.some((e: string) => e == "intellij" || e == "jetbrains")}
     />
     <PluginLink
       title="Atom"
-      subtitle="Install Serenade for the Atom editor"
+      subtitle="Install ArqonMaestro for the Atom editor"
       link={plugins.atom.url}
       installed={installed.some((e: string) => e == "atom")}
     />
     <PluginLink
       title="Chrome"
-      subtitle="Install Serenade for the Chrome browser"
+      subtitle="Install ArqonMaestro for the Chrome browser"
       link={plugins.chrome.url}
       installed={installed.some((e: string) => e == "chrome")}
     />
     <PluginLink
       title="Edge"
-      subtitle="Install Serenade for the Edge browser"
+      subtitle="Install ArqonMaestro for the Edge browser"
       link={plugins.edge.url}
       installed={installed.some((e: string) => e == "edge")}
     />
     <PluginLink
       title="Hyper"
-      subtitle="Install Serenade for the Hyper terminal"
+      subtitle="Install ArqonMaestro for the Hyper terminal"
       link={plugins.hyper.url}
       installed={installed.some((e: string) => e == "hyper")}
     />
     <PluginLink
       title="iTerm2"
-      subtitle="Install Serenade for the iTerm2 terminal"
+      subtitle="Install ArqonMaestro for the iTerm2 terminal"
       link={plugins.iterm.url}
       installed={installed.some((e: string) => e == "iterm" || e == "iterm2")}
     />

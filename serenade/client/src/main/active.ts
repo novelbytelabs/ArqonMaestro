@@ -353,8 +353,8 @@ export default class Active {
   async update(force: boolean = false) {
     let app = await this.system.determineActiveApplication();
 
-    // some UI controls in Serenade will take the focus off the active app, so we want to keep
-    // sending commands to the last app to be active that isn't Serenade
+    // some UI controls in ArqonMaestro will take the focus off the active app, so we want to keep
+    // sending commands to the last app to be active that isn't ArqonMaestro
     if (app == "serenade") {
       app = this.app;
     }

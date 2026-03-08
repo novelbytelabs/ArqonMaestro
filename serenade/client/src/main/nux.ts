@@ -159,7 +159,7 @@ export default class NUX {
     if (!this.active.pluginConnected() && !setupStep) {
       this.showError(
         step.title,
-        "<p>To continue the tutorial, make sure the Serenade plugin is installed and your editor has focus!</p>"
+        "<p>To continue the tutorial, make sure the ArqonMaestro plugin is installed and your editor has focus!</p>"
       );
       return;
     }

@@ -21,7 +21,7 @@ export const PluginsPage = () => {
           <div className="w-6/12">
             <h2 className="text-xl font-light pt-5">Install Plugins</h2>
             <p>
-              Serenade integrates with your editor via plugins. You'll need one to code with voice!
+              ArqonMaestro integrates with your editor via plugins. You'll need one to code with voice!
             </p>
             <div className="pt-2">
               <a

@@ -17,6 +17,22 @@
  * - Rust-based driver implementation
  */
 
+import { spawnSync } from "child_process";
+
+function xprop(args: string[]): string {
+  try {
+    const result = spawnSync("xprop", args, {
+      encoding: "utf8",
+      env: process.env,
+    });
+    if (result.status === 0) {
+      return result.stdout.trim();
+    }
+  } catch (e) {}
+
+  return "";
+}
+
 // Mouse operations
 export function click(button: string, count: number): void {
   console.warn("[serenade-driver stub] click() not implemented - would click", button, count);
@@ -54,9 +70,24 @@ export function moveMouse(x: number, y: number): void {
 // Returns a string representing the active application name
 // This is used by System.determineActiveApplication() which calls .toLowerCase() on it
 export function getActiveApplication(): Promise<string> {
-  console.warn("[serenade-driver stub] getActiveApplication() not implemented - returning default");
-  // Return a string (not object) to prevent .toLowerCase() errors in calling code
-  return Promise.resolve("ArqonMaestro");
+  const activeWindow = xprop(["-root", "_NET_ACTIVE_WINDOW"]);
+  const match = activeWindow.match(/0x[0-9a-f]+/i);
+  if (!match || match[0] == "0x0") {
+    return Promise.resolve("");
+  }
+
+  const properties = xprop(["-id", match[0], "WM_CLASS", "_NET_WM_NAME"]);
+  const classMatch = properties.match(/WM_CLASS\(STRING\)\s*=\s*(.+)/);
+  if (classMatch) {
+    return Promise.resolve(classMatch[1].replace(/"/g, "").toLowerCase());
+  }
+
+  const nameMatch = properties.match(/_NET_WM_NAME\([A-Z_]+\)\s*=\s*"(.+)"/);
+  if (nameMatch) {
+    return Promise.resolve(nameMatch[1].toLowerCase());
+  }
+
+  return Promise.resolve("");
 }
 
 export function getEditorState(): Promise<any> {

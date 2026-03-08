@@ -48,22 +48,22 @@ export const Docs = () => (
     <DocsLink
       title="Community"
       subtitle="Get help and report issues"
-      link="https://serenade.ai/community"
+      link="https://github.com/novelbytelabs/ArqonMaestro/issues"
     />
     <DocsLink
       title="Editors & IDEs"
       subtitle="Edit code with VS Code and JetBrains"
-      link="https://serenade.ai/docs"
+      link="https://novelbytelabs.github.io/ArqonMaestro/"
     />
     <DocsLink
       title="Web Browsers"
       subtitle="Browse the web with Chrome and Edge"
-      link="https://serenade.ai/docs/chrome"
+      link="https://novelbytelabs.github.io/ArqonMaestro/"
     />
     <DocsLink
       title="Custom Commands"
       subtitle="Create your own voice commands"
-      link="https://serenade.ai/docs/api"
+      link="https://novelbytelabs.github.io/ArqonMaestro/"
     />
     <h2 className="text-lg font-light mt-4">Tutorials</h2>
     {tutorials.map((e, i) => (

@@ -185,7 +185,7 @@ export const RevisionBoxPageComponent: React.FC<{
               )}
             >
               <p>
-                You can use the revision box to edit text without a Serenade plugin. All Serenade
+                You can use the revision box to edit text without a ArqonMaestro plugin. All ArqonMaestro
                 editing commands work here. When you're done, you can say:
               </p>
               <ul className="list-disc ml-6 mt-1">

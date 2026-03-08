@@ -160,7 +160,7 @@ export default class RevisionBoxWindow extends Window {
   }
 
   title(): string {
-    return "Serenade Revision Box";
+    return "ArqonMaestro Revision Box";
   }
 
   url(): string {

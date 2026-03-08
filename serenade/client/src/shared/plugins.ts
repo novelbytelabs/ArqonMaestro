@@ -21,12 +21,12 @@ export const plugins: { [key: string]: PluginConfiguration } = {
   vscode: {
     name: "VS Code",
     icon: vscode,
-    url: "https://marketplace.visualstudio.com/items?itemName=serenade.serenade",
+    url: "https://marketplace.visualstudio.com/items?itemName=arqon.nade",
   },
   jetbrains: {
     name: "JetBrains",
     icon: jetbrains,
-    url: "https://serenade.ai/install#jetbrains",
+    url: "https://github.com/novelbytelabs/ArqonMaestro",
   },
   hyper: {
     name: "Hyper",

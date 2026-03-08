@@ -21,7 +21,7 @@ const PrivacyPageComponent: React.FC<{ logAudio: boolean; logSource: boolean }> 
           <div className="w-6/12 mx-auto">
             <h2 className="text-xl font-light pt-5">Privacy Settings</h2>
             <p className="text-sm">
-              Serenade is an open-source product, and you can help improve Serenade by anonymously
+              ArqonMaestro is an open-source product, and you can help improve ArqonMaestro by anonymously
               sharing your audio and command data. You can change these later in the settings menu.
             </p>
             <Row

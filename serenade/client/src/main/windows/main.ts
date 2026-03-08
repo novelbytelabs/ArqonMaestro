@@ -92,9 +92,9 @@ export default class MainWindow extends Window {
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
         {
-          label: "Serenade",
+          label: "ArqonMaestro",
           submenu: [
-            { label: `Serenade ${this.metadata.version}`, enabled: false },
+            { label: `ArqonMaestro ${this.metadata.version}`, enabled: false },
             { type: "separator" },
             {
               label: "Quit",
@@ -332,7 +332,7 @@ export default class MainWindow extends Window {
   }
 
   title(): string {
-    return "Serenade";
+    return "ArqonMaestro";
   }
 
   updateTray() {
@@ -349,19 +349,19 @@ export default class MainWindow extends Window {
 
     this.tray.setImage(trayIcon);
     let menu: MenuItemConstructorOptions[] = [];
-    menu.push({ label: `Serenade ${this.metadata.version}`, enabled: false });
+    menu.push({ label: `ArqonMaestro ${this.metadata.version}`, enabled: false });
     menu.push({ type: "separator" });
 
     if (this.shown()) {
       menu.push({
-        label: "Hide Serenade",
+        label: "Hide ArqonMaestro",
         click: (_menuItem: any, _browserWindow: any, _event: any) => {
           this.hide(false);
         },
       });
     } else {
       menu.push({
-        label: "Show Serenade",
+        label: "Show ArqonMaestro",
         click: (_menuItem: any, _browserWindow: any, _event: any) => {
           this.show();
         },
@@ -377,7 +377,7 @@ export default class MainWindow extends Window {
 
     this.tray!.setContextMenu(Menu.buildFromTemplate(menu));
     if (!mac) {
-      this.tray.setTitle("Serenade");
+      this.tray.setTitle("ArqonMaestro");
       if (this.tray.listenerCount("click") == 0) {
         this.tray.on("click", () => {
           this.show();
