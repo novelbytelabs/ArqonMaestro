@@ -5,6 +5,8 @@ plugins {
 def requiredNativeInputs = [
     [label: "Boost 1.78 install", path: "${rootProject.libraryRoot}/boost"],
     [label: "Protobuf install", path: "${rootProject.libraryRoot}/protobuf"],
+    [label: "Protobuf compiler", path: "${rootProject.libraryRoot}/protobuf/bin/protoc"],
+    [label: "Protobuf static library", path: "${rootProject.libraryRoot}/protobuf/lib/libprotobuf.a"],
     [label: "Crow headers", path: "${rootProject.libraryRoot}/crow/include"],
     [label: "SentencePiece static library", path: "${rootProject.libraryRoot}/sentencepiece/lib/libsentencepiece.a"],
     [label: "Marian static library", path: "${rootProject.libraryRoot}/marian/build/libmarian.a"],

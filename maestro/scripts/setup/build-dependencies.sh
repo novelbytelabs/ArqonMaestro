@@ -9,6 +9,7 @@ cd $ARQON_MAESTRO_LIBRARY_ROOT
 osx_version="11.0"
 gpu=false
 minimal=false
+native_only=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --gpu)
@@ -20,6 +21,9 @@ while [[ $# -gt 0 ]]; do
     --minimal)
       minimal=true
       ;;
+    --native-only)
+      native_only=true
+      ;;
     *)
       echo "Unknown argument: $1"
       exit 1
@@ -28,28 +32,32 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-pip3 install --upgrade \
-  awscli \
-  black \
-  certbot \
-  certbot_dns_route53 \
-  certifi \
-  click \
-  fabric \
-  jsonlines \
-  numpy \
-  pip \
-  psutil \
-  psycopg2-binary \
-  pybars3 \
-  pyenchant \
-  pyyaml \
-  requests \
-  sentencepiece==0.1.95
+if [[ "$native_only" != "true" ]] ; then
+  pip3 install --upgrade \
+    awscli \
+    black \
+    certbot \
+    certbot_dns_route53 \
+    certifi \
+    click \
+    fabric \
+    jsonlines \
+    numpy \
+    pip \
+    psutil \
+    psycopg2-binary \
+    pybars3 \
+    pyenchant \
+    pyyaml \
+    requests \
+    sentencepiece==0.1.95
 
-sudo-non-docker npm install -g \
-  prettier \
-  prettier-plugin-java
+  NPM_GLOBAL_PREFIX="$ARQON_MAESTRO_LIBRARY_ROOT/npm-global"
+  mkdir -p "$NPM_GLOBAL_PREFIX"
+  npm install -g --prefix "$NPM_GLOBAL_PREFIX" \
+    prettier \
+    prettier-plugin-java
+fi
 
 rm -rf \
   antlr \

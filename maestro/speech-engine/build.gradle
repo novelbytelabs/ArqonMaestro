@@ -5,6 +5,8 @@ plugins {
 def requiredNativeInputs = [
     [label: "Boost 1.78 install", path: "${rootProject.libraryRoot}/boost"],
     [label: "Protobuf install", path: "${rootProject.libraryRoot}/protobuf"],
+    [label: "Protobuf compiler", path: "${rootProject.libraryRoot}/protobuf/bin/protoc"],
+    [label: "Protobuf static library", path: "${rootProject.libraryRoot}/protobuf/lib/libprotobuf.a"],
     [label: "Crow headers", path: "${rootProject.libraryRoot}/crow/include"],
     [label: "Kaldi source tree", path: "${rootProject.libraryRoot}/kaldi/src"],
     [label: "Speech-engine proto", path: "${rootProject.projectDir}/toolbelt/src/main/proto/speech-engine.proto"],
