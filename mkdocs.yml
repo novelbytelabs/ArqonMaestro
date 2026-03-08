@@ -64,6 +64,11 @@ nav:
       - Editor Integrations: guides/editor-integrations.md
       - In-App Tutorials: guides/in-app-tutorials.md
       - Building: guides/building.md
+  - Browser:
+      - Getting Started: browser/getting-started.md
+      - Navigation: browser/navigation.md
+      - Links and Inputs: browser/links-and-inputs.md
+      - Editing Text and Code: browser/editing-text-and-code.md
   - Architecture:
       - Codebase Layout: architecture/codebase-layout.md
       - Request Lifecycle: architecture/request-lifecycle.md
@@ -76,6 +81,12 @@ nav:
       - Troubleshooting Map: operations/troubleshooting-map.md
   - Development:
       - Extending Maestro: development/extending-maestro.md
+      - Custom Commands: development/custom-commands.md
+      - Snippets: development/snippets.md
+      - API Reference: development/api-reference.md
+      - Protocol Overview: development/protocol-overview.md
+      - Protocol Messages: development/protocol-messages.md
+      - Plugin Lifecycle: development/plugin-lifecycle.md
   - Parsing:
       - Grammars: parsing/grammars.md
   - Reference:
