@@ -49,7 +49,7 @@ This ordering is deliberate:
 | Electron startup | Working | 🟢 Working | No longer stuck at `Loading...` |
 | Linux microphone path | Working | 🟢 Working | Voice pipeline recovered |
 | Cloud-backed runtime | Usable | 🟢 Working | Current best path for day-to-day use |
-| Local multi-service runtime | Partial | 🟡 In Progress | Still needs full operational closure |
+| Local multi-service runtime | Partial | 🟡 In Progress | Wave B active; local packaging now fails fast when native inputs are absent |
 | Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
 | Packaging/distribution | Legacy | ⚪ Planned | AppImage/install/release flow still needs modernization |
 | External ownership | Inherited | ⚪ Planned | Endpoint/CDN/image ownership remains inherited |
@@ -84,8 +84,8 @@ This ordering is deliberate:
 
 | Aspect | Current State | Target | Priority | Status | Notes |
 |--------|---------------|--------|----------|--------|-------|
-| Speech engine | Legacy but operational path exists | Stabilize first | High | 🟡 In Progress | Local-mode dependency |
-| Code engine | Local build/runtime still delicate | Stabilize first | High | 🔴 Blocked | Toolchain/environment sensitivity |
+| Speech engine | Legacy but operational path exists | Stabilize first | High | 🟡 In Progress | Local-mode dependency; native dependency root still incomplete |
+| Code engine | Local build/runtime still delicate | Stabilize first | High | 🔴 Blocked | Native dependency root incomplete on current machine |
 | Marian-based path | Legacy | Reassess after Wave B | Medium | ⚪ Planned | Do not optimize before stabilization |
 | Corpus generation | Preserved | Re-enable intentionally | Medium | ⚪ Planned | After runtime and packaging |
 
@@ -191,6 +191,13 @@ Make local mode a first-class operational path instead of a partial recovery pat
 
 - environment-specific failures being mistaken for code regressions
 - partial success in one service hiding another unhealthy service
+
+**Current Baseline**
+
+- local build tasks now pass the repo root explicitly into native packaging instead of drifting to `~/serenade`
+- local Electron startup now fails explicitly when bundled services or model directories are absent instead of polling forever
+- `client:installServer -x downloadModels` now fails fast with a concrete missing-dependency list on this machine
+- current machine blocker: `/home/irbsurfer/libserenade` does not contain the required Boost, Protobuf, Crow, SentencePiece, Marian, and Kaldi native assets
 
 **Test Requirements**
 

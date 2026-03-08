@@ -90,7 +90,7 @@ export default class Stream {
     return (
       "Local backend incomplete: missing " +
       missing.join(" and ") +
-      ". Build the full local stack with `gradle installd && gradle client:installServer`, or use a cloud endpoint."
+      ". Build the full local stack with `./gradlew client:installServer -x downloadModels` after installing the native dependencies from `maestro/docs/building.md`, or use a cloud endpoint."
     );
   }
 

@@ -34,7 +34,11 @@ def library_path(*args):
     return os.path.join(
         os.getenv("ARQON_MAESTRO_LIBRARY_ROOT")
         or os.getenv("SERENADE_LIBRARY_ROOT")
-        or os.path.expanduser("~/libserenade"),
+        or (
+            os.path.expanduser("~/libarqon")
+            if os.path.exists(os.path.expanduser("~/libarqon"))
+            else os.path.expanduser("~/libserenade")
+        ),
         *args
     )
 

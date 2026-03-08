@@ -2,7 +2,34 @@ plugins {
     id "base"
 }
 
-task buildCMake(type: Exec, dependsOn: [rootProject.downloadModels]) {
+def requiredNativeInputs = [
+    [label: "Boost 1.78 install", path: "${rootProject.libraryRoot}/boost"],
+    [label: "Protobuf install", path: "${rootProject.libraryRoot}/protobuf"],
+    [label: "Crow headers", path: "${rootProject.libraryRoot}/crow/include"],
+    [label: "SentencePiece static library", path: "${rootProject.libraryRoot}/sentencepiece/lib/libsentencepiece.a"],
+    [label: "Marian static library", path: "${rootProject.libraryRoot}/marian/build/libmarian.a"],
+    [label: "Core proto", path: "${rootProject.projectDir}/toolbelt/src/main/proto/core.proto"],
+    [label: "Code-engine proto", path: "${rootProject.projectDir}/toolbelt/src/main/proto/code-engine.proto"],
+]
+
+task verifyNativeInputs {
+    doLast {
+        def missing = requiredNativeInputs.findAll { !file(it.path).exists() }
+        if (!missing.isEmpty()) {
+            throw new GradleException(
+                "Missing native dependencies for code-engine packaging:\n - " +
+                missing.collect { "${it.label}: ${it.path}" }.join("\n - ") +
+                "\nInstall the native dependency stack with maestro/scripts/setup/build-dependencies.sh and rerun ./gradlew client:installServer -x downloadModels."
+            )
+        }
+    }
+}
+
+task buildCMake(type: Exec, dependsOn: [rootProject.downloadModels, verifyNativeInputs]) {
+    environment "ARQON_MAESTRO_SOURCE_ROOT", rootProject.projectDir.absolutePath
+    environment "SERENADE_SOURCE_ROOT", rootProject.projectDir.absolutePath
+    environment "ARQON_MAESTRO_LIBRARY_ROOT", rootProject.libraryRoot
+    environment "SERENADE_LIBRARY_ROOT", rootProject.libraryRoot
     commandLine "bash", "-c", "mkdir -p server/build && cd server/build && cmake .. && cmake --build . -j2"
 }
 

@@ -19,11 +19,7 @@ def sourceRoot = project.ext.sourceRoot = (
         (
             System.env.SERENADE_SOURCE_ROOT != null ?
                 System.env.SERENADE_SOURCE_ROOT :
-                (
-                    new File(System.properties["user.home"] + "/maestro").exists() ?
-                        System.properties["user.home"] + "/maestro" :
-                        System.properties["user.home"] + "/serenade"
-                )
+                rootProject.projectDir.absolutePath
         )
 )
 

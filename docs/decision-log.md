@@ -287,6 +287,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-021: Local Native Packaging Must Fail Fast Before CMake
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Treat missing native dependency inputs for local packaging as a preflight failure in Gradle rather than letting `client:installServer` fall through into opaque CMake/compiler errors.
+- **Why**: Wave B is about making local runtime operationally explicit. When the native dependency root is incomplete, the useful information is which inputs are missing, not several pages of downstream compile noise.
+- **Consequences**:
+  - `code-engine` and `speech-engine` packaging now validate required native inputs before invoking CMake
+  - local packaging errors now point directly at `maestro/scripts/setup/build-dependencies.sh`
+  - Wave B evidence can distinguish source-root bugs from genuine environment/toolchain gaps
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

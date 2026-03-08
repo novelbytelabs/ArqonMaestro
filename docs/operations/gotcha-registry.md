@@ -338,6 +338,34 @@ Use for:
   - remove direct code-facing imports first
   - wrap inherited upstream packages behind Arqon-named local modules when publication ownership has not changed
   - document residual manifest names explicitly in the evidence pack
+
+### GOTCHA-016: Local Startup Can Hang Even When The Bundle Is Structurally Incomplete
+
+- **Category**: Runtime Startup
+- **Status**: mitigated
+- **Summary**: If the local bundle is missing `speech-engine`, `code-engine`, or their model directories, the UI can sit in `Starting Server` while the real problem is simply that the packaged local stack is incomplete.
+- **Impact**: High
+- **Where it matters**:
+  - local endpoint startup
+  - bundled service launches
+  - support/debugging
+- **Avoidance**:
+  - validate the packaged local bundle before polling service health
+  - fail local startup explicitly and point to the packaging command and native dependency docs
+
+### GOTCHA-017: Missing Native Dependency Roots Should Fail In Gradle, Not CMake
+
+- **Category**: Build And Packaging
+- **Status**: mitigated
+- **Summary**: When the local library root is missing Boost, Protobuf, Crow, SentencePiece, Marian, or Kaldi assets, letting packaging continue into CMake produces noisy secondary errors that obscure the real blocker.
+- **Impact**: High
+- **Where it matters**:
+  - `client:installServer`
+  - local runtime recovery
+  - environment bring-up
+- **Avoidance**:
+  - verify native dependency inputs before invoking CMake
+  - fail with a concrete missing-path list and the exact remediation command
 - **Impact**: High
 - **Where it matters**:
   - custom-command editing
