@@ -2,6 +2,18 @@
 
 > **Purpose**: Track architectural and technical decisions to preserve context across sessions.
 
+## Maintenance Rule
+
+Add a decision here when a choice is:
+
+- phase-shaping
+- architecture-shaping
+- compatibility-shaping
+- costly to reverse
+- likely to be forgotten later without a written record
+
+Do not put transient debugging discoveries here. Those belong in the gotcha registry or phase closeout material.
+
 ---
 
 ## ADM-001: Java Baseline = 17
@@ -149,6 +161,15 @@
 - **Why**: <Rationale>
 - **Consequences**: <Impact on project>
 ```
+
+## Rebrand Decision Rule
+
+During the rebrand program, record decisions here for topics like:
+
+- whether a legacy name gets a compatibility shim
+- whether a rename is intentionally breaking
+- whether a subsystem is deferred
+- whether a namespace stays inherited temporarily
 
 ---
 

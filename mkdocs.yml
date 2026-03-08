@@ -78,6 +78,9 @@ nav:
       - Training Models: models/training-models.md
   - Operations:
       - Configuration: operations/configuration.md
+      - Gotcha Registry: operations/gotcha-registry.md
+      - Phase Closeout Template: operations/phase-closeout-template.md
+      - Rebrand Program: operations/rebrand-program.md
       - Troubleshooting Map: operations/troubleshooting-map.md
   - Development:
       - Extending Maestro: development/extending-maestro.md
