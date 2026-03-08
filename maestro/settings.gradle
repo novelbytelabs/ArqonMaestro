@@ -1,4 +1,7 @@
-rootProject.name = "serenade"
+rootProject.name = "arqon-maestro"
+
+include ":java-tree-sitter"
+project(":java-tree-sitter").projectDir = file("tree-sitter/java-tree-sitter")
 
 include ":client"
 include ":code-engine"

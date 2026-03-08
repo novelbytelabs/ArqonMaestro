@@ -215,7 +215,35 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - startup now migrates legacy config-adjacent state into `~/.arqon`
   - `~/.arqon/scripts` becomes the canonical custom-command location
   - historical logs are copied forward into `~/.arqon` when canonical files are absent
-  - `~/.serenade` remains preserved for fallback and rollback rather than being deleted automatically
+- `~/.serenade` remains preserved for fallback and rollback rather than being deleted automatically
+
+---
+
+## ADM-016: Tree-Sitter Binding Is Now A Local Arqon Namespace Dependency
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Replace the inherited external `com.github.serenadeai:java-tree-sitter` dependency with a vendored local `:java-tree-sitter` project, and migrate its Java/JNI namespace to `ai.arqon.maestro.treesitter`.
+- **Why**: Phase 7 needed a real namespace migration. That is not possible while `core` still compiles against an external artifact that exports the inherited `ai.serenade.treesitter` package.
+- **Consequences**:
+  - `core` now depends on the local `:java-tree-sitter` project
+  - `maestro/tree-sitter/java-tree-sitter` is now vendored into the parent repo instead of remaining a detached nested git dependency
+  - `rootProject.name` is now `arqon-maestro`
+  - the JNI headers, native glue sources, and Java packages now use `ai.arqon.maestro.treesitter`
+  - Phase 7 verification must include both `:java-tree-sitter:test` and `:core:buildTreeSitter`
+
+---
+
+## ADM-017: Upstream Driver Package Identity Stays Wrapped, Not Renamed
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Keep the upstream npm artifact name `serenade-driver` in manifests for now, but remove direct code-facing references by routing the sidecar through a local `arqon-maestro-driver.js` wrapper.
+- **Why**: The upstream package name is external supply-chain identity, not internal runtime identity. Forcing a manifest-level rename without new package publication would create a brittle lockfile surgery problem with no functional benefit.
+- **Consequences**:
+  - active sidecar code no longer directly imports `serenade-driver`
+  - package manifests still record the upstream artifact name
+  - the remaining inherited driver name is now a documented external/package-ownership exception, not an internal namespace leak
 
 ---
 

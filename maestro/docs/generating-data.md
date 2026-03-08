@@ -231,7 +231,7 @@ The final results, then, from running CorpusGen in `mapping` mode for the `trans
 If you modify CorpusGen, you can test your changes against the CorpusGen unit tests with
 
 ```bash
-./scripts/serenade/bin/run.py --tests 'gradle corpusgen:test'
+./scripts/arqon_maestro/bin/run.py --tests 'gradle corpusgen:test'
 ```
 
 These tests effectively check the inverse of the core unit tests. The `core` tests include an example transcript, source code before the change, and the expected source code after the change. With the CorpusGen tests, we process the desired source code change through mapping mode and make sure that the transcript is included in the list of transcripts that are generated from that code change.

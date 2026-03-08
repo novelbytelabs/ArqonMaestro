@@ -258,6 +258,50 @@ Use for:
 - **Category**: Configuration
 - **Status**: mitigated
 - **Summary**: Moving the config files to `.arqon` is not enough. If `custom.js` remains only under `.serenade/scripts`, UI actions like “open custom commands” point at the canonical directory while the user’s real automation still lives elsewhere.
+
+### GOTCHA-013: Legacy Publishing Plugins Become Build Breakers Once Promoted To Local Dependencies
+
+- **Category**: Namespace And Dependency Identity
+- **Status**: mitigated
+- **Summary**: An inherited subproject can look harmless while it is consumed as an external artifact, then fail immediately once it is included in the root build because stale publishing plugins resolve dead repositories or abandoned transitive metadata.
+- **Impact**: High
+- **Where it matters**:
+  - local dependency replacement
+  - tree-sitter binding promotion into the root Gradle build
+  - Phase 7 verification
+- **Avoidance**:
+  - strip publishing-only plugins from subprojects before making them first-class build dependencies
+  - verify the promoted subproject independently before relying on it from `core`
+
+### GOTCHA-015: Gitlinks Break Parent Pushes If The New Commit Is Only Local
+
+- **Category**: Namespace And Dependency Identity
+- **Status**: mitigated
+- **Summary**: If a parent repo points at a nested git commit that exists only in your local clone, the parent push is structurally incomplete. Anyone else syncing the parent will receive a gitlink to an unreachable object.
+- **Impact**: High
+- **Where it matters**:
+  - vendoring inherited dependencies
+  - nested tree-sitter repos
+  - hard-close publishing
+- **Avoidance**:
+  - do not leave Phase 7 as a parent gitlink update alone
+  - vendor the dependency into the parent repo if you do not control the nested remote
+  - preserve the nested `.git` directory separately as rollback evidence before internalizing it
+
+### GOTCHA-014: Upstream Package Names Are Not The Same Problem As Internal Namespace Leaks
+
+- **Category**: Namespace And Dependency Identity
+- **Status**: active
+- **Summary**: External package names such as `serenade-driver` can remain in lockfiles or manifests even after the internal code graph has been rebranded. Treating those two problems as identical pushes teams toward risky manifest surgery with little runtime value.
+- **Impact**: Medium
+- **Where it matters**:
+  - npm dependency manifests
+  - supply-chain audit review
+  - Phase 7 closeout decisions
+- **Avoidance**:
+  - remove direct code-facing imports first
+  - wrap inherited upstream packages behind Arqon-named local modules when publication ownership has not changed
+  - document residual manifest names explicitly in the evidence pack
 - **Impact**: High
 - **Where it matters**:
   - custom-command editing

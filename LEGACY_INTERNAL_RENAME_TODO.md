@@ -31,7 +31,7 @@ The assumption for this plan is explicit:
 | 4 | Sidecar and Runtime Process Identity | `completed` | primary sidecar and packaged local process names now use Arqon Maestro identity with legacy fallbacks preserved |
 | 5 | Config Storage and Logs Migration | `completed` | live Maestro config, scripts, and logs now migrate into `.arqon` while legacy storage remains as fallback |
 | 6 | Safe Internal Slug Rename | `completed` | internal Python tooling slug moved to `scripts/arqon_maestro` and related low-risk references cleaned up |
-| 7 | Namespace and Dependency Migration | `planned` | `ai.serenade.*`, native deps, artifacts |
+| 7 | Namespace and Dependency Migration | `completed` | `ai.arqon.maestro.*`, local tree-sitter dependency, JNI/header rename complete; external infra and upstream package ownership remain separate |
 
 ## Target Naming Policy
 

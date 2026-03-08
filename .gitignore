@@ -78,7 +78,14 @@ maestro/core/src/main/resources/grammars
 
 # External Dependencies and Runtime Assets
 maestro/models/
-maestro/tree-sitter/
+maestro/tree-sitter/*
+!maestro/tree-sitter/java-tree-sitter/
+!maestro/tree-sitter/java-tree-sitter/**
+maestro/tree-sitter/java-tree-sitter/build/
+maestro/tree-sitter/java-tree-sitter/libjava-tree-sitter.so
+maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.a
+maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.so
+maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.so.*
 
 # Exceptions
 !maestro/client/build/*

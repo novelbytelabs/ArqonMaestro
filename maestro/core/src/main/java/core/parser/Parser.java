@@ -1,10 +1,10 @@
 package core.parser;
 
-import ai.serenade.treesitter.Languages;
-import ai.serenade.treesitter.Node;
-import ai.serenade.treesitter.Tree;
-import ai.serenade.treesitter.TreeCursor;
-import ai.serenade.treesitter.TreeCursorNode;
+import ai.arqon.maestro.treesitter.Languages;
+import ai.arqon.maestro.treesitter.Node;
+import ai.arqon.maestro.treesitter.Tree;
+import ai.arqon.maestro.treesitter.TreeCursor;
+import ai.arqon.maestro.treesitter.TreeCursorNode;
 import core.exception.CannotDetermineLanguage;
 import core.gen.rpc.Language;
 import java.io.UnsupportedEncodingException;
@@ -131,7 +131,7 @@ public class Parser {
       Map.of("language", language),
       () -> {
         try {
-          try (ai.serenade.treesitter.Parser parser = new ai.serenade.treesitter.Parser()) {
+          try (ai.arqon.maestro.treesitter.Parser parser = new ai.arqon.maestro.treesitter.Parser()) {
             parser.setLanguage(treeSitterLanguage(language));
             try (Tree tree = parser.parseString(source)) {
               try (TreeCursor cursor = tree.getRootNode().walk()) {

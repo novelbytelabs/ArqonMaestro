@@ -32,4 +32,4 @@ Serenade supports plugins for a variety of applications, each located in a separ
 We've published several open-source packages that are used by Serenade, but also more broadly useful:
 
 * [speech-recorder](https://github.com/serenadeai/speech-recorder): A native npm module for microphone access and voice activity detection
-* [serenade-driver](https://github.com/serenadeai/driver): A native npm module with platform-specific OS hooks for keystrokes, mouse movement, etc.
+* native input driver module: a native npm module with platform-specific OS hooks for keystrokes, mouse movement, and related automation.

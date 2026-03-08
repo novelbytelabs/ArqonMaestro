@@ -1,4 +1,4 @@
-import ai.serenade.AntlrGenerateTask
+import ai.arqon.maestro.AntlrGenerateTask
 
 def antlrJar = (
     (
@@ -25,7 +25,7 @@ dependencies {
     implementation project(":toolbelt")
 
     implementation "com.spotify:futures-extra:4.2.0"
-    implementation "com.github.serenadeai:java-tree-sitter:1.1.2"
+    implementation project(":java-tree-sitter")
     implementation "com.vdurmont:semver4j:3.1.0"
 
     implementation rootProject.antlrRuntime

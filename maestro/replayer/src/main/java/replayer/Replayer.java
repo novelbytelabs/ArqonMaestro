@@ -304,7 +304,7 @@ public class Replayer {
       Thread.sleep(1000);
 
       ProcessBuilder builder = new ProcessBuilder(
-        Arrays.asList("/root/serenade/scripts/serenade/packaging/run.py", "--skip-build")
+        Arrays.asList("/root/arqon-maestro/scripts/arqon_maestro/packaging/run.py", "--skip-build")
       );
       builder.inheritIO();
       builder.start();

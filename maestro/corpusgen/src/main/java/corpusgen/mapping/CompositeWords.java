@@ -25,7 +25,7 @@ public class CompositeWords {
     try {
       BufferedReader inputReader = new BufferedReader(
         new FileReader(
-          env.sourceRoot() + "/scripts/serenade/speech_engine/lexicon/cmudict-0.7b-utf-8.txt"
+          env.sourceRoot() + "/scripts/arqon_maestro/speech_engine/lexicon/cmudict-0.7b-utf-8.txt"
         )
       );
       transcriptLexicon = new HashSet<>();

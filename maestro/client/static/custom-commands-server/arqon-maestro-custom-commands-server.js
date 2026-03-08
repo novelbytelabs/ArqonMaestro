@@ -1,5 +1,5 @@
 const chokidar = require("chokidar");
-const driver = require("serenade-driver");
+const driver = require("./arqon-maestro-driver");
 const glob = require("glob");
 const os = require("os");
 const path = require("path");

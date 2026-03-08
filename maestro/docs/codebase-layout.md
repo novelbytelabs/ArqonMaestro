@@ -48,11 +48,11 @@ Serenade consists of a few different online services as well as several offline 
 
 `corpusgen` is the offline service that generates the synthetic data used to train auto-style models, transcript-parser models, contextual language models, and speech language models. More details can be found [here](generating-data.md).
 
-### scripts/serenade/code_engine
+### scripts/arqon_maestro/code_engine
 
 `code_engine` scripts are used to train auto-style models, contextual language models, and transcript-parser models. Instructions for training these models can be found [here](training-models.md), and a details about the model architecture can be found [here](model-architecture.md).
 
-### scripts/serenade/speech_engine
+### scripts/arqon_maestro/speech_engine
 
 `speech_engine` scripts are used to train Kaldi language models. Instructions for training these models are [here](training-models.md), and details about the speech engine system are [here](model-architecture.md).
 

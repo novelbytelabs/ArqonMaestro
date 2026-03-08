@@ -1,4 +1,4 @@
-package ai.serenade
+package ai.arqon.maestro
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException

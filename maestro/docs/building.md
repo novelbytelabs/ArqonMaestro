@@ -103,29 +103,29 @@ To compile an individual service, like `speech-engine`, run:
 
 To run all online Serenade services, you can use the provided script:
 
-    scripts/serenade/bin/run.py
+    scripts/arqon_maestro/bin/run.py
 
 To run a specific set of services, you can run:
 
-    scripts/serenade/bin/run.py --service speech-engine --service code-engine
+    scripts/arqon_maestro/bin/run.py --service speech-engine --service code-engine
 
 ## Running Tests
 
 To run all of the Serenade tests:
 
-    scripts/serenade/bin/run.py --tests 'gradle test'
+    scripts/arqon_maestro/bin/run.py --tests 'gradle test'
 
 To run tests for a specific service:
 
-    scripts/serenade/bin/run.py --tests 'gradle core:test'
+    scripts/arqon_maestro/bin/run.py --tests 'gradle core:test'
 
 To run a specific set of tests:
 
-    scripts/serenade/bin/run.py --tests 'gradle core:test --tests *PythonTest.testAdd*'
+    scripts/arqon_maestro/bin/run.py --tests 'gradle core:test --tests *PythonTest.testAdd*'
 
 To run tests with extra debug output:
 
-    scripts/serenade/bin/run.py --tests 'gradle core:test -i'
+    scripts/arqon_maestro/bin/run.py --tests 'gradle core:test -i'
 
 ## Client Integration
 

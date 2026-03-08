@@ -13,9 +13,9 @@ Ensure that you have plenty of disk space. The language model for the speech eng
 You can train a speech engine model by running:
 
 ```bash
-scripts/serenade/speech_engine/bin/train.py generate-dataset [--test-mode]
-scripts/serenade/speech_engine/bin/train.py train-model [--test-mode]
-scripts/serenade/speech_engine/bin/export.py
+scripts/arqon_maestro/speech_engine/bin/train.py generate-dataset [--test-mode]
+scripts/arqon_maestro/speech_engine/bin/train.py train-model [--test-mode]
+scripts/arqon_maestro/speech_engine/bin/export.py
 ```
 
 The optional test-mode flag uses a much smaller subset of the raw data and is intended to be used just to ensure that all of the necessary dependencies have been built and all paths are set up correctly.
@@ -28,11 +28,11 @@ You can train a code engine model by running:
 
 ```bash
 # GPU not required
-scripts/serenade/code_engine/bin/generate_dataset.py --model={MODEL_TYPE} --language={LANGUAGE} [--test-mode]
+scripts/arqon_maestro/code_engine/bin/generate_dataset.py --model={MODEL_TYPE} --language={LANGUAGE} [--test-mode]
 # GPU recommended
-scripts/serenade/code_engine/train.py --model={MODEL_TYPE} --language={LANGUAGE} --gpus={NUMBER OF GPUS TO USE} [--test-mode]
+scripts/arqon_maestro/code_engine/train.py --model={MODEL_TYPE} --language={LANGUAGE} --gpus={NUMBER OF GPUS TO USE} [--test-mode]
 # GPU not required
-scripts/serenade/code_engine/export.py
+scripts/arqon_maestro/code_engine/export.py
 ```
 
 As with the speech engine model, the optional test-mode flag in the first two steps uses a smaller subset of the raw data and can be useful for ensuring that all dependencies are built.

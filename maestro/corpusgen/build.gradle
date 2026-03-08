@@ -1,4 +1,4 @@
-import ai.serenade.AntlrGenerateTask
+import ai.arqon.maestro.AntlrGenerateTask
 
 apply plugin: "application"
 
@@ -17,22 +17,22 @@ dependencies {
 
 task generateAcronyms(type: Exec) {
     inputs.files([
-        "../scripts/serenade/speech_engine/spelling/acronyms/bash.txt",
-        "../scripts/serenade/speech_engine/spelling/acronyms/html_tags.txt",
-        "../scripts/serenade/speech_engine/spelling/acronyms/misc.txt",
-        "../scripts/serenade/speech_engine/spelling/acronyms/top_100_java.txt",
-        "../scripts/serenade/speech_engine/spelling/acronyms/top_100_javascript.txt",
-        "../scripts/serenade/speech_engine/spelling/acronyms/top_100_python.txt",
-        "../scripts/serenade/speech_engine/spelling/abbreviations/html_tags.txt",
-        "../scripts/serenade/speech_engine/spelling/abbreviations/top_100_java.txt",
-        "../scripts/serenade/speech_engine/spelling/abbreviations/top_100_javascript.txt",
-        "../scripts/serenade/speech_engine/spelling/abbreviations/top_100_python.txt",
-        "../scripts/serenade/speech_engine/spelling/abbreviations/top_100_rust.txt"
+        "../scripts/arqon_maestro/speech_engine/spelling/acronyms/bash.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/acronyms/html_tags.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/acronyms/misc.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/acronyms/top_100_java.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/acronyms/top_100_javascript.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/acronyms/top_100_python.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/abbreviations/html_tags.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/abbreviations/top_100_java.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/abbreviations/top_100_javascript.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/abbreviations/top_100_python.txt",
+        "../scripts/arqon_maestro/speech_engine/spelling/abbreviations/top_100_rust.txt"
     ])
 
     outputs.file "src/main/resources/acronyms.txt"
 
-    commandLine "bash", "-c", "cat ../scripts/serenade/speech_engine/spelling/acronyms/* ../scripts/serenade/speech_engine/spelling/abbreviations/* | sort | uniq | grep -v foreignkey | grep -v dataset > src/main/resources/acronyms.txt"
+    commandLine "bash", "-c", "cat ../scripts/arqon_maestro/speech_engine/spelling/acronyms/* ../scripts/arqon_maestro/speech_engine/spelling/abbreviations/* | sort | uniq | grep -v foreignkey | grep -v dataset > src/main/resources/acronyms.txt"
 }
 
 task generateTests(type: Exec) {
