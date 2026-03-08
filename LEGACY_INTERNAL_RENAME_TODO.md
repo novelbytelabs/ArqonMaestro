@@ -27,7 +27,7 @@ The assumption for this plan is explicit:
 | 0 | Freeze Scope | `planned` | baseline capture and rename discipline |
 | 1 | User-Facing Cleanup | `completed` | root docs and published guides now present Arqon Maestro as canonical product identity |
 | 2 | Arqon-First Compatibility Layer | `completed` | `.arqon` and `ARQON_MAESTRO_*` are now primary with legacy fallback preserved |
-| 3 | Repo Subtree Rename | `planned` | `serenade/` to `maestro/` |
+| 3 | Repo Subtree Rename | `completed` | top-level engine subtree renamed to `maestro/` and external path references repaired |
 | 4 | Sidecar and Runtime Process Identity | `planned` | process and sidecar filename migration |
 | 5 | Config Storage and Logs Migration | `planned` | `.arqon` becomes the real home |
 | 6 | Safe Internal Slug Rename | `planned` | remaining low/medium-risk internal identifiers |
@@ -59,7 +59,7 @@ The remaining `serenade` footprint is not small.
 
 Observed concentration:
 
-- largest concentration is under the inherited [serenade](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade) subtree
+- largest concentration is under the inherited engine subtree, now rooted at [maestro](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro)
 - root docs and scripts still contain many operational references
 - config/runtime code still uses `.serenade`, `serenade.json`, `SERENADE_SOURCE_ROOT`, and `SERENADE_LIBRARY_ROOT`
 - the custom command sidecar still uses:
@@ -107,12 +107,12 @@ These are rebrand-critical but operationally risky:
 
 Examples:
 
-- [serenade/client/src/main/settings.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/client/src/main/settings.ts)
+- [settings.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/settings.ts)
 - [vscode-plugin/src/settings.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/vscode-plugin/src/settings.ts)
 - [build.sh](/home/irbsurfer/Projects/arqon/ArqonMaestro/build.sh)
 - [setup_maestro.sh](/home/irbsurfer/Projects/arqon/ArqonMaestro/setup_maestro.sh)
-- [serenade/code-engine/server/CMakeLists.txt](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/code-engine/server/CMakeLists.txt)
-- [serenade/speech-engine/server/CMakeLists.txt](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/speech-engine/server/CMakeLists.txt)
+- [CMakeLists.txt](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/code-engine/server/CMakeLists.txt)
+- [CMakeLists.txt](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/speech-engine/server/CMakeLists.txt)
 
 ### Bucket C: Process and Binary Identity
 
@@ -125,8 +125,8 @@ These can silently break startup and teardown:
 
 Examples:
 
-- [serenade/client/src/main/ipc/custom.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/client/src/main/ipc/custom.ts)
-- [serenade/client/static/custom-commands-server/serenade-custom-commands-server.js](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/client/static/custom-commands-server/serenade-custom-commands-server.js)
+- [custom.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/ipc/custom.ts)
+- [serenade-custom-commands-server.js](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/static/custom-commands-server/serenade-custom-commands-server.js)
 
 ### Bucket D: Dependency and Namespace Identity
 
@@ -140,10 +140,10 @@ These are the highest-risk technical renames:
 
 Examples:
 
-- [serenade/client/package.json](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/client/package.json)
-- [serenade/settings.gradle](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/settings.gradle)
-- [serenade/tree-sitter/java-tree-sitter/build.gradle](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/tree-sitter/java-tree-sitter/build.gradle)
-- [serenade/core/src/main/java/core/parser/Parser.java](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/core/src/main/java/core/parser/Parser.java)
+- [package.json](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/package.json)
+- [settings.gradle](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/settings.gradle)
+- [build.gradle](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/tree-sitter/java-tree-sitter/build.gradle)
+- [Parser.java](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/core/src/main/java/core/parser/Parser.java)
 
 ### Bucket E: External Infrastructure
 
@@ -155,8 +155,8 @@ These must remain until Arqon-owned replacements exist:
 
 Examples:
 
-- [serenade/client/src/main/settings.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/client/src/main/settings.ts)
-- [serenade/client/src/main/api.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/client/src/main/api.ts)
+- [settings.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/settings.ts)
+- [api.ts](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/api.ts)
 - [download_models.sh](/home/irbsurfer/Projects/arqon/ArqonMaestro/download_models.sh)
 
 ### Bucket F: Provenance and Legal History
@@ -169,9 +169,9 @@ Do not rewrite these as product branding:
 
 Examples:
 
-- [serenade/LICENSE](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/LICENSE)
-- [serenade/README.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/README.md)
-- [serenade/CONTRIBUTING.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade/CONTRIBUTING.md)
+- [LICENSE](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/LICENSE)
+- [README.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/README.md)
+- [CONTRIBUTING.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/CONTRIBUTING.md)
 
 ## End-State Goal
 
@@ -249,13 +249,13 @@ Do not remove legacy support during this phase.
 
 Goal:
 
-- rename [serenade](/home/irbsurfer/Projects/arqon/ArqonMaestro/serenade) to `maestro`
+- rename [maestro](/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro) into place as the engine subtree
 
 This is a path migration, not a namespace migration.
 
 Before doing it:
 
-- inventory all references to `ArqonMaestro/serenade`
+- inventory all references to the old `ArqonMaestro/serenade` path
 - update scripts, docs, and build roots
 - update any hardcoded CMake/Gradle path assumptions
 
@@ -560,7 +560,7 @@ This migration is done when:
 
 - user-facing docs and UI no longer use inherited product branding
 - operational docs no longer instruct users to use inherited names
-- repo layout no longer centers the `serenade/` subtree
+- repo layout no longer centers the old `serenade/` subtree
 - `.arqon/arqon.json` is canonical
 - Arqon env vars are canonical
 - sidecar and process names are Arqon-branded

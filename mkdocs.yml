@@ -82,6 +82,7 @@ nav:
       - Phase Closeout Template: operations/phase-closeout-template.md
       - Phase 1 Closeout: operations/phase-1-closeout.md
       - Phase 2 Closeout: operations/phase-2-closeout.md
+      - Phase 3 Closeout: operations/phase-3-closeout.md
       - Rebrand Program: operations/rebrand-program.md
       - Troubleshooting Map: operations/troubleshooting-map.md
   - Development:

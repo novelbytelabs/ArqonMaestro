@@ -136,7 +136,7 @@ If you want to skip C++ engines initially:
 
 ```bash
 # Build only Java components
-cd ~/Projects/arqon/ArqonMaestro/serenade
+cd ~/Projects/arqon/ArqonMaestro/maestro
 gradle core:installd toolbelt:installd --exclude-task :code-engine:buildCMake --exclude-task :speech-engine:buildCMake
 ```
 
@@ -148,17 +148,17 @@ This gives you the Java control plane without the C++ engines.
 
 | Component | Path |
 |-----------|------|
-| build.gradle | `serenade/build.gradle` |
-| code-engine CMake | `serenade/code-engine/server/CMakeLists.txt` |
-| speech-engine CMake | `serenade/speech-engine/server/CMakeLists.txt` |
-| Protobuf definitions | `serenade/toolbelt/src/main/proto/*.proto` |
+| build.gradle | `maestro/build.gradle` |
+| code-engine CMake | `maestro/code-engine/server/CMakeLists.txt` |
+| speech-engine CMake | `maestro/speech-engine/server/CMakeLists.txt` |
+| Protobuf definitions | `maestro/toolbelt/src/main/proto/*.proto` |
 
 ---
 
 ## Environment Variables
 
 ```bash
-export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro
 export ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
 export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"      # compatibility
 export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"    # compatibility

@@ -59,7 +59,7 @@ Max sequence length: 200
 ### Step 1: Setup Environment Variables
 
 ```bash
-export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro
 export ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
 export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"      # compatibility
 export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"    # compatibility

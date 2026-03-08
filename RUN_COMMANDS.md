@@ -18,11 +18,11 @@ This document contains the working commands to run Arqon Maestro locally.
 
 1. **Build the server first** (from project root):
    ```bash
-   cd ~/Projects/arqon/ArqonMaestro/serenade
-   ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
+   cd ~/Projects/arqon/ArqonMaestro/maestro
+   ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro ./gradlew :core:installDist -x downloadModels
    ```
 
-   For a full local voice stack, this repository also needs the native dependencies described in `serenade/docs/building.md` (`scripts/setup/build-dependencies.sh`). Without those, `speech-engine` / `code-engine` packaging can still be incomplete.
+   For a full local voice stack, this repository also needs the native dependencies described in `maestro/docs/building.md` (`scripts/setup/build-dependencies.sh`). Without those, `speech-engine` / `code-engine` packaging can still be incomplete.
 
 2. **Select the local endpoint in the canonical settings file**:
    ```bash
@@ -51,11 +51,11 @@ PY
 ### Terminal 1 - Build the Local Server Bundle
 
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/serenade
+cd ~/Projects/arqon/ArqonMaestro/maestro
 ./gradlew client:installServer -x downloadModels
 ```
 
-If native dependencies are installed correctly, this populates `serenade/client/static/local` with:
+If native dependencies are installed correctly, this populates `maestro/client/static/local` with:
 - `core`
 - `speech-engine`
 - `code-engine`
@@ -65,7 +65,7 @@ If native dependencies are installed correctly, this populates `serenade/client/
 ### Terminal 2 - Start the Client
 
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/serenade/client
+cd ~/Projects/arqon/ArqonMaestro/maestro/client
 unset ELECTRON_RUN_AS_NODE
 ./node_modules/.bin/electron . --no-sandbox --disable-gpu
 ```
@@ -74,7 +74,7 @@ When the endpoint is `local`, the Electron client will start the bundled local s
 
 ### VS Code Extension
 
-To use ArqonMaestro with VS Code:
+To use Arqon Maestro with VS Code:
 
 1. **Build the extension**:
    ```bash
@@ -111,7 +111,7 @@ ELECTRON_ENABLE_LOGGING=1 ./node_modules/.bin/electron . --enable-logging --no-s
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | CORE_PORT | 17200 | Server port |
-| ARQON_MAESTRO_SOURCE_ROOT | ~/Projects/arqon/ArqonMaestro/serenade | Engine source tree |
+| ARQON_MAESTRO_SOURCE_ROOT | ~/Projects/arqon/ArqonMaestro/maestro | Engine source tree |
 | ARQON_MAESTRO_LIBRARY_ROOT | ~/libarqon | Models and native dependencies |
 
 Legacy compatibility:
@@ -132,7 +132,7 @@ Legacy compatibility:
 
 ```
 ~/Projects/arqon/ArqonMaestro/
-├── serenade/                    # Inherited engine subtree, scheduled for later path rename
+├── maestro/                    # Renamed engine subtree
 │   ├── core/                    # Java server
 │   │   └── build/install/core/  # Built distribution
 │   ├── client/                  # Electron client

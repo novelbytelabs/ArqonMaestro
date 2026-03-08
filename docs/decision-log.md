@@ -177,6 +177,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-013: Repo Subtree Renamed Before Internal Namespace Migration
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Rename the top-level engine subtree from `serenade/` to `maestro/` now, while deliberately leaving deeper internal identifiers for later phases.
+- **Why**: The repo path was a highly visible mismatch and had to be corrected early, but folding namespace, process, and package identity changes into the same patch would make the migration far riskier.
+- **Consequences**:
+  - repo paths, root scripts, and runbooks now target `maestro/`
+  - internal identifiers such as `scripts/serenade`, `rootProject.name = "serenade"`, and `ai.serenade.*` remain deferred
+  - later phases must treat path completion and identity completion as separate facts
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

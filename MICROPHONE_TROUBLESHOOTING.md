@@ -16,7 +16,7 @@
 ## Configuration
 
 - **Microphone Setting**: System Default (in Settings/Configuration/General)
-- **Audio Implementation**: [`serenade/client/src/main/audio/index.ts`](../ArqonMaestro/serenade/client/src/main/audio/index.ts)
+- **Audio Implementation**: [`maestro/client/src/main/audio/index.ts`](../ArqonMaestro/maestro/client/src/main/audio/index.ts)
 
 ## Root Cause
 
@@ -30,7 +30,7 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 ## Fix Applied
 
 ### 1. Replaced placeholder shim with real Linux recorder
-- File: `serenade/client/src/main/audio/index.ts`
+- File: `maestro/client/src/main/audio/index.ts`
 - New behavior:
   - Captures real microphone PCM via `parec` (PulseAudio) with `arecord` fallback.
   - Uses 16kHz mono S16LE raw audio.
@@ -39,7 +39,7 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
   - Enumerates input devices via `pactl list short sources` (excluding monitor sinks).
 
 ### 2. Fixed meter scaling and chunk lifecycle
-- File: `serenade/client/src/main/stream/microphone.ts`
+- File: `maestro/client/src/main/stream/microphone.ts`
 - Change:
   - If volume is float-scale (`<= 1`), normalize using `/0.05`.
   - Keeps old `/5000` path for legacy native-volume values.
@@ -47,9 +47,9 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 
 ### 3. Endpointing hardening
 - Files:
-  - `serenade/client/src/main/audio/index.ts`
-  - `serenade/client/src/main/stream/chunk-manager.ts`
-  - `serenade/client/src/main/stream/chunk-queue.ts`
+  - `maestro/client/src/main/audio/index.ts`
+  - `maestro/client/src/main/stream/chunk-manager.ts`
+  - `maestro/client/src/main/stream/chunk-queue.ts`
 - Change:
   - Added adaptive thresholds and forced finalize protection for always-hot microphones.
   - Prevents the app from staying in `Listening` forever without sending a final utterance.
@@ -61,7 +61,7 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 
 1. Relaunch client:
    ```bash
-   cd ~/Projects/arqon/ArqonMaestro/serenade/client
+   cd ~/Projects/arqon/ArqonMaestro/maestro/client
    pkill -f electron || true
    unset ELECTRON_RUN_AS_NODE
    ./node_modules/.bin/electron . --no-sandbox --disable-gpu
@@ -97,9 +97,9 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 
 ## Code Location
 
-- **Audio implementation**: `serenade/client/src/main/audio/index.ts`
-- **Microphone UI component**: `serenade/client/src/renderer/components/listen-toggle.tsx`
-- **Stream/connection**: `serenade/client/src/main/stream/stream.ts`
+- **Audio implementation**: `maestro/client/src/main/audio/index.ts`
+- **Microphone UI component**: `maestro/client/src/renderer/components/listen-toggle.tsx`
+- **Stream/connection**: `maestro/client/src/main/stream/stream.ts`
 
 ## Notes
 
@@ -107,7 +107,7 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 
 ## Related Files
 
-- `serenade/client/src/main/audio/index.ts` - Audio capture implementation
-- `serenade/client/src/renderer/components/listen-toggle.tsx` - Microphone button UI
-- `serenade/client/src/renderer/components/listen-status.tsx` - Status display
-- `serenade/client/src/main/stream/microphone.ts` - Microphone stream handling
+- `maestro/client/src/main/audio/index.ts` - Audio capture implementation
+- `maestro/client/src/renderer/components/listen-toggle.tsx` - Microphone button UI
+- `maestro/client/src/renderer/components/listen-status.tsx` - Status display
+- `maestro/client/src/main/stream/microphone.ts` - Microphone stream handling

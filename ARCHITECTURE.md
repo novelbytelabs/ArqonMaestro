@@ -508,7 +508,7 @@ ArqonMaestro/
 ├── TRAINING.md            # Model training guide
 ├── ARCHITECTURE.md        # This file
 ├── download_models.sh     # Model download script
-├── serenade/              # Inherited engine subtree, slated for later path rename
+├── maestro/               # Renamed engine subtree
 ├── vscode-plugin/         # VS Code extension
 └── arqon-grammar/         # ANTLR grammar for Arqon commands
     └── ArqonCommands.g4

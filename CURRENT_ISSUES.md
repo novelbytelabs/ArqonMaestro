@@ -97,11 +97,11 @@ The deeper issue is local backend completeness / startup, not renderer state:
 
 ```bash
 # Terminal 1 - Start only core (insufficient for full local voice)
-cd ~/Projects/arqon/ArqonMaestro/serenade
-CORE_PORT=17200 ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon ./core/build/install/core/bin/core
+cd ~/Projects/arqon/ArqonMaestro/maestro
+CORE_PORT=17200 ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon ./core/build/install/core/bin/core
 
 # Terminal 2 - Start client
-cd ~/Projects/arqon/ArqonMaestro/serenade/client
+cd ~/Projects/arqon/ArqonMaestro/maestro/client
 unset ELECTRON_RUN_AS_NODE
 ./node_modules/.bin/electron . --no-sandbox --disable-gpu
 ```

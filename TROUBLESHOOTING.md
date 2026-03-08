@@ -41,7 +41,7 @@ Arqon Maestro is a voice-native control layer built on top of an inherited engin
 - **Solution**: Set environment variables before running:
   ```bash
   CORE_PORT=17200 
-  ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+  ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro
   ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
   ```
 
@@ -104,30 +104,30 @@ Arqon Maestro is a voice-native control layer built on top of an inherited engin
 
 #### Final Fix Applied
 1. **Fail-open custom sidecar startup**
-   - File: `serenade/client/src/main/ipc/custom.ts`
+   - File: `maestro/client/src/main/ipc/custom.ts`
    - Change: `Custom.start()` now resolves even if sidecar never connects (timeout + exit handling), so app initialization continues.
 2. **Send loggedIn state twice during startup**
-   - File: `serenade/client/src/main/app.ts`
+   - File: `maestro/client/src/main/app.ts`
    - Change: send initial `loggedIn` state immediately, then resend after 1.5s to cover IPC listener race.
 3. **Loading page fallback redirect**
-   - File: `serenade/client/src/renderer/pages/loading.tsx`
+   - File: `maestro/client/src/renderer/pages/loading.tsx`
    - Change: if `loggedIn` is still `undefined` after 3s, redirect to `/welcome` instead of spinning forever.
 4. **Legacy endpoint migration + backend diagnostics**
    - Files:
-     - `serenade/client/src/main/settings.ts`
-     - `serenade/client/src/main/stream/stream.ts`
-     - `serenade/client/src/main/stream/chunk-manager.ts`
+     - `maestro/client/src/main/settings.ts`
+     - `maestro/client/src/main/stream/stream.ts`
+     - `maestro/client/src/main/stream/chunk-manager.ts`
    - Changes:
      - migrate legacy endpoint values from the wrong config location
      - fail fast if local backend is incomplete
      - surface a clear UI warning instead of silently entering a broken listen state
 5. **Active application detection on Linux**
-   - File: `serenade/client/src/main/driver/stub.ts`
+   - File: `maestro/client/src/main/driver/stub.ts`
    - Change: use `xprop` on X11 to detect the active app instead of always returning `"serenade"`.
 6. **Packaged local backend wiring**
    - Files:
-     - `serenade/core/build.gradle`
-     - `serenade/client/main.webpack.ts`
+     - `maestro/core/build.gradle`
+     - `maestro/client/main.webpack.ts`
    - Changes:
      - fixed `core` tree-sitter build task to pass the source-root environment correctly
      - verified `./gradlew client:installServer -x downloadModels` succeeds
@@ -152,41 +152,40 @@ Arqon Maestro is a voice-native control layer built on top of an inherited engin
 ## Code Locations
 
 ### Server
-- Main: `serenade/core/src/main/java/core/Core.java`
+- Main: `maestro/core/src/main/java/core/Core.java`
 - WebSocket: Jetty on `/stream/` endpoint
 
 ### Client
-- Entry: `serenade/client/src/main/index.ts`
-- App: `serenade/client/src/main/app.ts`
-- Stream: `serenade/client/src/main/stream/stream.ts`
-- Settings: `serenade/client/src/main/settings.ts`
-- Loading Page: `serenade/client/src/renderer/pages/loading.tsx`
-- Driver Stub: `serenade/client/src/main/driver/stub.ts`
+- Entry: `maestro/client/src/main/index.ts`
+- App: `maestro/client/src/main/app.ts`
+- Stream: `maestro/client/src/main/stream/stream.ts`
+- Settings: `maestro/client/src/main/settings.ts`
+- Loading Page: `maestro/client/src/renderer/pages/loading.tsx`
+- Driver Stub: `maestro/client/src/main/driver/stub.ts`
 
 ## Commands That Work
 
 ### Build Server
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/serenade
-ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
+cd ~/Projects/arqon/ArqonMaestro/maestro
+ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro ./gradlew :core:installDist -x downloadModels
 ```
 
 ### Run Server
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/serenade
-CORE_PORT=17200 ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
-  ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon ./core/build/install/core/bin/core
+cd ~/Projects/arqon/ArqonMaestro/maestro
+CORE_PORT=17200 ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon ./core/build/install/core/bin/core
 ```
 
 ### Build Client
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/serenade/client
+cd ~/Projects/arqon/ArqonMaestro/maestro/client
 npm run build
 ```
 
 ### Run Client (with GPU bypass)
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/serenade/client
+cd ~/Projects/arqon/ArqonMaestro/maestro/client
 unset ELECTRON_RUN_AS_NODE
 ./node_modules/.bin/electron . --no-sandbox --disable-gpu
 ```
@@ -206,7 +205,7 @@ unset ELECTRON_RUN_AS_NODE
 ## Related Files
 
 - `RUN_COMMANDS.md` - Working run commands
-- `serenade/build.gradle` - Updated dependencies
-- `serenade/core/build.gradle` - JAXB added
-- `serenade/client/src/main/driver/stub.ts` - Native module stub
-- `serenade/client/src/main/audio/index.ts` - Audio implementation
+- `maestro/build.gradle` - Updated dependencies
+- `maestro/core/build.gradle` - JAXB added
+- `maestro/client/src/main/driver/stub.ts` - Native module stub
+- `maestro/client/src/main/audio/index.ts` - Audio implementation

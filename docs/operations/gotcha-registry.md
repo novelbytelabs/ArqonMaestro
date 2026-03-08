@@ -194,6 +194,20 @@ Use for:
   - make Arqon names canonical in every user-facing command example
   - mention legacy names only as explicit compatibility notes
 
+### GOTCHA-008: Top-Level Ignore Rules Must Move With The Subtree
+
+- **Category**: Build And Packaging
+- **Status**: mitigated
+- **Summary**: Renaming the engine subtree without updating the root `.gitignore` will surface generated assets and model directories as unexpected changes, even when the rename itself is correct.
+- **Impact**: Medium
+- **Where it matters**:
+  - subtree rename
+  - generated model assets
+  - local packaging output
+- **Avoidance**:
+  - update root ignore rules in the same patch as the subtree move
+  - verify untracked model/runtime directories are ignored before closing the phase
+
 ## Entry Template
 
 ```markdown
