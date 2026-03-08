@@ -8,9 +8,10 @@ export interface SpeechRecorderOptions {
   device?: number;
   sileroVadSilenceThreshold?: number;
   sileroVadSpeechThreshold?: number;
-  onChunkStart?: (data: { audio: Float32Array }) => void;
+  sileroVadSpeakingThreshold?: number;
+  onChunkStart?: (data: { audio: Int16Array }) => void;
   onAudio?: (data: {
-    audio: Float32Array;
+    audio: Int16Array;
     consecutiveSilence: number;
     speaking: boolean;
     volume: number;
@@ -27,24 +28,33 @@ export interface AudioDeviceInfo {
 const SAMPLE_RATE = 16000;
 const CHANNELS = 1;
 const BYTES_PER_SAMPLE = 2;
-const FRAME_SAMPLES = 512;
+const FRAME_SAMPLES = 480;
 const FRAME_BYTES = FRAME_SAMPLES * BYTES_PER_SAMPLE;
 
 class SpeechRecorder {
+  private debugFrameCounter = 0;
   private process?: ChildProcessWithoutNullStreams;
   private pcmBuffer: Buffer = Buffer.alloc(0);
+  private leadingFrames: Buffer[] = [];
   private running = false;
   private speaking = false;
+  private consecutiveSpeech = 0;
   private consecutiveSilence = 0;
-  private silenceFramesToEnd = 8;
-  private silenceThreshold = 0.008;
-  private speechThreshold = 0.015;
+  private consecutiveFramesForSpeaking = 1;
+  private silenceFramesToEnd = 10;
+  private leadingBufferFrames = 10;
+  private baseSilenceThreshold = 0.008;
+  private baseSpeechThreshold = 0.015;
+  private noiseFloor = 0.002;
 
   constructor(private options: SpeechRecorderOptions = {}) {
-    this.silenceThreshold = this.mapVadThreshold(options.sileroVadSilenceThreshold, 0.008);
-    this.speechThreshold = this.mapVadThreshold(options.sileroVadSpeechThreshold, 0.015);
-    if (this.silenceThreshold >= this.speechThreshold) {
-      this.silenceThreshold = Math.max(0.001, this.speechThreshold * 0.7);
+    this.baseSilenceThreshold = this.mapVadThreshold(options.sileroVadSilenceThreshold, 0.008);
+    this.baseSpeechThreshold = this.mapVadThreshold(
+      options.sileroVadSpeakingThreshold ?? options.sileroVadSpeechThreshold,
+      0.015
+    );
+    if (this.baseSilenceThreshold >= this.baseSpeechThreshold) {
+      this.baseSilenceThreshold = Math.max(0.001, this.baseSpeechThreshold * 0.7);
     }
   }
 
@@ -56,10 +66,18 @@ class SpeechRecorder {
     // Existing UI defaults are tuned for the native module and are much larger than RMS.
     // Convert those values to a stable RMS range for PCM processing.
     if (value > 0.1) {
-      return Math.max(0.001, Math.min(0.2, value * 0.01));
+      return Math.max(0.004, Math.min(0.2, value * 0.04));
     }
 
     return Math.max(0.001, Math.min(0.2, value));
+  }
+
+  private effectiveSilenceThreshold(): number {
+    return Math.max(this.baseSilenceThreshold, this.noiseFloor * 1.8);
+  }
+
+  private effectiveSpeechThreshold(): number {
+    return Math.max(this.baseSpeechThreshold, this.effectiveSilenceThreshold() * 1.5, this.noiseFloor * 3);
   }
 
   private hasCommand(command: string): boolean {
@@ -89,7 +107,14 @@ class SpeechRecorder {
   private selectedPulseSource(): string | undefined {
     const sources = this.pulseSources();
     if (this.options.device !== undefined && this.options.device >= 0) {
-      return sources[this.options.device];
+      const source = sources[this.options.device];
+      if (source) {
+        return source;
+      }
+
+      console.warn(
+        `[Audio] Requested microphone index ${this.options.device} is unavailable; falling back to default source`
+      );
     }
 
     try {
@@ -116,6 +141,9 @@ class SpeechRecorder {
       const source = this.selectedPulseSource();
       if (source) {
         args.push("--device", source);
+        console.log(`[Audio] Using PulseAudio source: ${source}`);
+      } else {
+        console.log("[Audio] Using default PulseAudio source");
       }
       return spawn(
         "parec",
@@ -131,22 +159,30 @@ class SpeechRecorder {
     );
   }
 
-  private pcmToFloat32(buffer: Buffer): Float32Array {
+  private pcmToInt16(buffer: Buffer): Int16Array {
     const samples = buffer.length / BYTES_PER_SAMPLE;
-    const result = new Float32Array(samples);
+    const result = new Int16Array(samples);
     for (let i = 0; i < samples; i++) {
-      const sample = buffer.readInt16LE(i * BYTES_PER_SAMPLE);
-      result[i] = sample / 32768;
+      result[i] = buffer.readInt16LE(i * BYTES_PER_SAMPLE);
     }
     return result;
   }
 
-  private rms(audio: Float32Array): number {
+  private rms(audio: Int16Array): number {
     let sum = 0;
     for (let i = 0; i < audio.length; i++) {
-      sum += audio[i] * audio[i];
+      const sample = audio[i] / 32768;
+      sum += sample * sample;
     }
     return Math.sqrt(sum / audio.length);
+  }
+
+  private concatFrames(frames: Buffer[]): Int16Array {
+    if (frames.length == 0) {
+      return new Int16Array(0);
+    }
+
+    return this.pcmToInt16(Buffer.concat(frames));
   }
 
   private processPcmData(data: Buffer): void {
@@ -155,25 +191,64 @@ class SpeechRecorder {
     while (this.pcmBuffer.length >= FRAME_BYTES) {
       const frame = this.pcmBuffer.subarray(0, FRAME_BYTES);
       this.pcmBuffer = this.pcmBuffer.subarray(FRAME_BYTES);
+      this.leadingFrames.push(Buffer.from(frame));
+      if (this.leadingFrames.length > this.leadingBufferFrames) {
+        this.leadingFrames.shift();
+      }
 
-      const audio = this.pcmToFloat32(frame);
+      const audio = this.pcmToInt16(frame);
       const volume = this.rms(audio);
       const wasSpeaking = this.speaking;
+      const silenceThreshold = this.effectiveSilenceThreshold();
+      const speechThreshold = this.effectiveSpeechThreshold();
 
-      if (volume >= this.speechThreshold) {
-        this.speaking = true;
+      if (!this.speaking) {
+        this.noiseFloor = this.noiseFloor * 0.95 + volume * 0.05;
+      }
+
+      if (volume >= speechThreshold) {
+        this.consecutiveSpeech += 1;
         this.consecutiveSilence = 0;
-      } else if (volume <= this.silenceThreshold) {
+        if (this.consecutiveSpeech >= this.consecutiveFramesForSpeaking) {
+          this.speaking = true;
+        }
+      } else if (volume <= silenceThreshold) {
+        this.consecutiveSpeech = 0;
         this.consecutiveSilence += 1;
         if (this.consecutiveSilence >= this.silenceFramesToEnd) {
           this.speaking = false;
         }
+      } else {
+        this.consecutiveSpeech = 0;
+        this.consecutiveSilence = 0;
       }
 
       if (!wasSpeaking && this.speaking) {
-        this.options.onChunkStart?.({ audio });
+        console.log(
+          `[Audio] Chunk start volume=${volume.toFixed(4)} speechThreshold=${speechThreshold.toFixed(
+            4
+          )} noiseFloor=${this.noiseFloor.toFixed(4)}`
+        );
+        this.options.onChunkStart?.({ audio: this.concatFrames(this.leadingFrames) });
       } else if (wasSpeaking && !this.speaking) {
+        console.log(
+          `[Audio] Chunk end silenceFrames=${this.consecutiveSilence} silenceThreshold=${silenceThreshold.toFixed(
+            4
+          )} noiseFloor=${this.noiseFloor.toFixed(4)}`
+        );
         this.options.onChunkEnd?.();
+      }
+
+      this.debugFrameCounter += 1;
+      if (
+        (this.speaking || volume > silenceThreshold * 0.5) &&
+        this.debugFrameCounter % 25 == 0
+      ) {
+        console.log(
+          `[Audio] Frame volume=${volume.toFixed(4)} speaking=${this.speaking} silence=${this.consecutiveSilence} noiseFloor=${this.noiseFloor.toFixed(4)} thresholds=${silenceThreshold.toFixed(
+            4
+          )}/${speechThreshold.toFixed(4)}`
+        );
       }
 
       this.options.onAudio?.({
@@ -192,8 +267,17 @@ class SpeechRecorder {
 
     this.running = true;
     this.speaking = false;
+    this.consecutiveSpeech = 0;
     this.consecutiveSilence = 0;
+    this.debugFrameCounter = 0;
     this.pcmBuffer = Buffer.alloc(0);
+    this.leadingFrames = [];
+    this.noiseFloor = 0.002;
+    console.log(
+      `[Audio] Starting recorder device=${this.options.device ?? -1} silenceThreshold=${this.baseSilenceThreshold.toFixed(
+        4
+      )} speechThreshold=${this.baseSpeechThreshold.toFixed(4)}`
+    );
 
     this.process = this.spawnRecorder();
     this.process.stdout.on("data", (chunk: Buffer) => {
@@ -228,11 +312,13 @@ class SpeechRecorder {
 
     this.running = false;
     this.pcmBuffer = Buffer.alloc(0);
+    this.leadingFrames = [];
     if (this.speaking) {
       this.options.onChunkEnd?.();
     }
 
     this.speaking = false;
+    this.consecutiveSpeech = 0;
     this.consecutiveSilence = 0;
 
     if (this.process) {

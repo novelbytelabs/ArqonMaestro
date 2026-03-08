@@ -16,6 +16,7 @@ type MicrophoneInput = {
 export default class Microphone {
   private callbacks: { [key: string]: (message: any) => void } = {};
   private recorder: any = null;
+  private lastUiUpdate = 0;
   private volumeWhileSpeakingBuffer: number[] = [];
   private volumeWhileSpeakingBufferSize = 10;
 
@@ -47,12 +48,17 @@ export default class Microphone {
       return;
     }
 
+    console.log(
+      `[Audio] Microphone start requested callbacks=${Object.keys(this.callbacks).join(",") || "none"}`
+    );
     this.running = true;
+    this.lastUiUpdate = 0;
     this.volumeWhileSpeakingBuffer = [];
     this.recorder = new SpeechRecorder({
       device: this.settings.getMicrophone().id,
       sileroVadSilenceThreshold: this.settings.getChunkSilenceThreshold(),
       sileroVadSpeechThreshold: this.settings.getChunkSpeechThreshold(),
+      sileroVadSpeakingThreshold: this.settings.getChunkSpeechThreshold(),
       onChunkStart: ({ audio }: { audio: any }) => {
         this.volumeWhileSpeakingBuffer = [];
         for (const callback of Object.values(this.callbacks)) {
@@ -79,8 +85,9 @@ export default class Microphone {
           this.volumeWhileSpeakingBuffer.push(volume);
         }
 
-        // debounce UI updates so we don't overwhelm the client
-        if (Math.random() < 0.2) {
+        // throttle UI updates to keep the meter responsive without flooding the renderer
+        if (Date.now() - this.lastUiUpdate >= 100) {
+          this.lastUiUpdate = Date.now();
           let windows: Window[] = [this.mainWindow];
           if (this.settingsWindow() && (await this.settingsWindow()!).shown()) {
             windows.push(await this.settingsWindow()!);
@@ -133,6 +140,7 @@ export default class Microphone {
   }
 
   register(name: string, callback: (data: any) => void) {
+    console.log(`[Audio] Register callback: ${name}`);
     if (Object.keys(this.callbacks).length == 0) {
       this.start();
     }
@@ -145,11 +153,13 @@ export default class Microphone {
       return;
     }
 
+    console.log("[Audio] Microphone stop requested");
     this.recorder.stop();
     this.running = false;
   }
 
   unregister(name: string) {
+    console.log(`[Audio] Unregister callback: ${name}`);
     delete this.callbacks[name];
     if (Object.keys(this.callbacks).length == 0) {
       this.stop();

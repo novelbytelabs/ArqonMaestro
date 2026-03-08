@@ -398,6 +398,7 @@ export default class ChunkManager {
 
   async onChunkEnd() {
     this.speaking = false;
+    console.log("[Chunk] Chunk end");
     this.bridge.setState(
       {
         speaking: false,
@@ -421,6 +422,7 @@ export default class ChunkManager {
     const id = uuid();
     this.chunkQueue.add(id);
     this.log.logVerbose(`Chunk start for ${id}`);
+    console.log(`[Chunk] Chunk start ${id} samples=${audio.length}`);
 
     if (!this.speaking) {
       this.bridge.setState(
@@ -508,6 +510,8 @@ export default class ChunkManager {
           this.mainWindow.updateTray();
           return;
         }
+
+        console.log("[Stream] Connected for listening session");
 
         this.stopBufferingAndFlush();
       } else {

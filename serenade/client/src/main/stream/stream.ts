@@ -237,6 +237,7 @@ export default class Stream {
   }
 
   sendAudioRequest(audio: Buffer, chunkId: string) {
+    console.log(`[Stream] Audio request ${chunkId} bytes=${audio.length}`);
     if (
       this.settings.getStreamingEndpoint() &&
       this.settings.getStreamingEndpoint().id == "local" &&
@@ -295,6 +296,7 @@ export default class Stream {
     this.log.logVerbose(
       `Sending ${finalize ? "final" : "partial"} endpoint request for ${chunkId}`
     );
+    console.log(`[Stream] Endpoint request ${chunkId} finalize=${finalize}`);
     this.send(this.coreSocket, {
       endpointRequest: {
         chunkId,
@@ -306,6 +308,7 @@ export default class Stream {
 
   async sendInitializeRequest(): Promise<any> {
     this.log.logVerbose("Sending initialize request");
+    console.log("[Stream] Initialize request");
     this.send(this.coreSocket, {
       initializeRequest: {
         editorState: await this.active.getEditorState(),

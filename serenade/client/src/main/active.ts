@@ -16,6 +16,7 @@ import { core } from "../gen/core";
 
 export default class Active {
   private suggestion: string = "";
+  private selfApps = new Set(["serenade", "arqon", "arqonmaestro"]);
 
   app: string = "";
   icon?: string;
@@ -47,7 +48,7 @@ export default class Active {
       // The logic below tries this once before we consider it a disconnect.
       if (this.firstPartyBrowserPlugins().includes(this.app) && this.pluginInstalled() && !this.pluginConnected()) {
         if (!this.refocused) {
-          await this.system.focus("arqon");
+          await this.system.focus("arqonmaestro");
           await this.system.focus(this.app);
           this.refocused = true;
           return;
@@ -355,7 +356,7 @@ export default class Active {
 
     // some UI controls in ArqonMaestro will take the focus off the active app, so we want to keep
     // sending commands to the last app to be active that isn't ArqonMaestro
-    if (app == "serenade" || app == "arqon") {
+    if (this.selfApps.has(app)) {
       app = this.app;
     }
 
@@ -368,8 +369,7 @@ export default class Active {
       return;
     }
 
-    const editorState =
-      app == "serenade" || app == "arqon" ? null : await this.getEditorState(false, true);
+    const editorState = this.selfApps.has(app) ? null : await this.getEditorState(false, true);
     let filename = "";
     let sourceAvailable = false;
     if (editorState) {

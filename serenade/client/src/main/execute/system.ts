@@ -107,9 +107,10 @@ export default class System {
     } else if (
       result.includes("electron") ||
       result.includes("serenade") ||
-      result.includes("arqon")
+      result.includes("arqon") ||
+      result.includes("arqonmaestro")
     ) {
-      return "arqon";
+      return "arqonmaestro";
     }
 
     return result;
