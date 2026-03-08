@@ -83,6 +83,8 @@ nav:
       - Phase 1 Closeout: operations/phase-1-closeout.md
       - Phase 2 Closeout: operations/phase-2-closeout.md
       - Phase 3 Closeout: operations/phase-3-closeout.md
+      - Phase 4 Evidence: operations/phase-4-evidence.md
+      - Phase 4 Closeout: operations/phase-4-closeout.md
       - Rebrand Program: operations/rebrand-program.md
       - Troubleshooting Map: operations/troubleshooting-map.md
   - Development:

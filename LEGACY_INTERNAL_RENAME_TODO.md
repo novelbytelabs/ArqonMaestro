@@ -28,7 +28,7 @@ The assumption for this plan is explicit:
 | 1 | User-Facing Cleanup | `completed` | root docs and published guides now present Arqon Maestro as canonical product identity |
 | 2 | Arqon-First Compatibility Layer | `completed` | `.arqon` and `ARQON_MAESTRO_*` are now primary with legacy fallback preserved |
 | 3 | Repo Subtree Rename | `completed` | top-level engine subtree renamed to `maestro/` and external path references repaired |
-| 4 | Sidecar and Runtime Process Identity | `planned` | process and sidecar filename migration |
+| 4 | Sidecar and Runtime Process Identity | `completed` | primary sidecar and packaged local process names now use Arqon Maestro identity with legacy fallbacks preserved |
 | 5 | Config Storage and Logs Migration | `planned` | `.arqon` becomes the real home |
 | 6 | Safe Internal Slug Rename | `planned` | remaining low/medium-risk internal identifiers |
 | 7 | Namespace and Dependency Migration | `planned` | `ai.serenade.*`, native deps, artifacts |
@@ -282,6 +282,15 @@ Safety rule:
 Gotcha:
 
 - if producer and consumer disagree on filenames or process names, custom commands will fail silently
+
+Status:
+
+- completed on `2026-03-08`
+- canonical sidecar entrypoint is now `arqon-maestro-custom-commands-server.js`
+- canonical packaged local process names are now `arqon-maestro-core`, `arqon-maestro-speech-engine`, and `arqon-maestro-code-engine`
+- legacy filename and script-surface fallbacks remain active
+- hard-close pack: [docs/operations/phase-4-closeout.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-4-closeout.md)
+- evidence pack: [docs/operations/phase-4-evidence.md](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-4-evidence.md)
 
 ### Phase 5: Rename Config Storage and Logs for Real
 

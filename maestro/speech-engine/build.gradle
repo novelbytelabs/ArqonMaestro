@@ -12,7 +12,7 @@ task distTar(type: Tar, dependsOn: [buildCMake]) {
 
     from(
         fileTree(".").include("bin/run-pro").files,
-        fileTree(".").include("server/build/speech-engine/serenade-speech-engine").files
+        fileTree(".").include("server/build/speech-engine/arqon-maestro-speech-engine").files
     )
     into "speech-engine"
 }

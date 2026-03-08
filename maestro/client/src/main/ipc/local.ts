@@ -53,6 +53,9 @@ export default class Local {
 
     this.processes = {};
     this.logStreams = {};
+    this.pkill("arqon-maestro-speech-engine");
+    this.pkill("arqon-maestro-code-engine");
+    this.pkill("arqon-maestro-core");
     this.pkill("serenade-speech-engine");
     this.pkill("serenade-code-engine");
     this.pkill("serenade-core");

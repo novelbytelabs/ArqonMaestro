@@ -12,7 +12,7 @@ task distTar(type: Tar, dependsOn: [buildCMake]) {
 
     from(
         fileTree(".").include("bin/run-pro").files,
-        fileTree(".").include("server/build/code-engine/serenade-code-engine").files
+        fileTree(".").include("server/build/code-engine/arqon-maestro-code-engine").files
     )
     into "code-engine"
 }

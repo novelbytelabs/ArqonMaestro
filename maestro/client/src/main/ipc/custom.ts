@@ -6,13 +6,15 @@ import * as path from "path";
 import Settings from "../settings";
 
 export default class Custom {
+  private primaryServerFilename = "arqon-maestro-custom-commands-server.js";
+  private legacyServerFilename = "serenade-custom-commands-server.min.js";
   private defaultCustomCommandsFile: string = `/* ArqonMaestro Custom Commands
 
 In this file, you can define your own custom commands with the ArqonMaestro API.
 
 For instance, here's a custom automation that opens your terminal and runs a command:
 
-serenade.global().command("make", api => {
+arqon.global().command("make", api => {
   api.focusApplication("terminal");
   api.typeText("make clean && make");
   api.pressKey("return");
@@ -20,7 +22,7 @@ serenade.global().command("make", api => {
 
 And, here's a Python snippet for creating a test method:
 
-serenade.language("python").snippet(
+arqon.language("python").snippet(
   "test method <%identifier%>",
   "def test_<%identifier%>(self):<%newline%><%indent%>pass",
   { "identifier": ["underscores"] }
@@ -87,9 +89,19 @@ For more information, check out the ArqonMaestro API documentation: https://nove
         "..",
         "static",
         "custom-commands-server",
-        "serenade-custom-commands-server.min.js"
+        this.primaryServerFilename
       ),
-      `${server}/serenade-custom-commands-server.min.js`
+      path.join(server, this.primaryServerFilename)
+    );
+    await fs.copy(
+      path.join(
+        __dirname,
+        "..",
+        "static",
+        "custom-commands-server",
+        this.legacyServerFilename
+      ),
+      path.join(server, this.legacyServerFilename)
     );
     await fs.copy(
       path.join(__dirname, "static", "custom-commands-server-modules"),
@@ -131,7 +143,7 @@ For more information, check out the ArqonMaestro API documentation: https://nove
       this.resolveStart = resolveOnce;
       this.stop();
       const stream = fs.createWriteStream(path.join(this.settings.path(), "arqon.log"));
-      this.process = child_process.fork("serenade-custom-commands-server.min.js", [], {
+      this.process = child_process.fork(this.primaryServerFilename, [], {
         cwd: path.join(this.settings.path(), "ipc"),
         stdio: "pipe",
       });
@@ -177,6 +189,7 @@ For more information, check out the ArqonMaestro API documentation: https://nove
       this.process.kill("SIGTERM");
       this.process = undefined;
       if (os.platform() != "win32") {
+        child_process.spawnSync("pkill", ["-f", "arqon-maestro-custom-commands-server"]);
         child_process.spawnSync("pkill", ["-f", "serenade-custom-commands-server"]);
       }
     }

@@ -136,8 +136,8 @@ set(KALDI_LIBRARIES
   ${LIB_FST}
 )
 
-add_executable(serenade-speech-engine ${SOURCES} server/speech_engine_server.cc)
-target_link_libraries(serenade-speech-engine
+add_executable(arqon-maestro-speech-engine ${SOURCES} server/speech_engine_server.cc)
+target_link_libraries(arqon-maestro-speech-engine
   speech-engine_protobuf
   pthread
   z
@@ -148,9 +148,9 @@ target_link_libraries(serenade-speech-engine
 )
 
 if(APPLE)
-  target_link_libraries(serenade-speech-engine "-framework Accelerate")
+  target_link_libraries(arqon-maestro-speech-engine "-framework Accelerate")
 else()
-  target_link_libraries(serenade-speech-engine
+  target_link_libraries(arqon-maestro-speech-engine
     "-Wl,--start-group;/opt/intel/mkl/lib/intel64/libmkl_intel_ilp64.a;/opt/intel/mkl/lib/intel64/libmkl_sequential.a;/opt/intel/mkl/lib/intel64/libmkl_core.a;-Wl,--end-group"
     dl
     gomp

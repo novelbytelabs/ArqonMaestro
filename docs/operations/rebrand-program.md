@@ -28,7 +28,7 @@ Complete the migration from inherited `serenade` naming to a coherent `Arqon Mae
 | 1 | User-Facing Cleanup | Low | `completed` | user-facing docs and runbooks use Arqon Maestro naming as the canonical product identity |
 | 2 | Arqon-First Compatibility Layer | Medium | `completed` | `.arqon` / `arqon.json` and `ARQON_MAESTRO_*` are primary while legacy fallbacks remain active |
 | 3 | Repo Subtree Rename | Medium | `completed` | `maestro/` is now the top-level engine subtree and repo-path references have been repaired |
-| 4 | Sidecar and Runtime Process Identity | High | `planned` | sidecar/process rename complete without silent failures |
+| 4 | Sidecar and Runtime Process Identity | High | `completed` | primary sidecar and packaged local processes now use Arqon Maestro names with legacy fallbacks preserved |
 | 5 | Config Storage and Logs Migration | Medium | `planned` | `.arqon` is primary live storage |
 | 6 | Safe Internal Slug Rename | Medium | `planned` | remaining safe internal `serenade` names removed |
 | 7 | Namespace and Dependency Migration | High | `planned` | deep technical identity migration complete |
@@ -37,9 +37,9 @@ Complete the migration from inherited `serenade` naming to a coherent `Arqon Mae
 
 The current focus is:
 
-- Phase 3 hard-closed
-- preparing Phase 4 sidecar and runtime process identity work on top of the renamed subtree
-- keeping the tracker, decision log, and gotcha registry synchronized
+- Phase 4 hard-closed
+- keeping runtime identity compatibility shims in place while later phases proceed
+- preparing Phase 5 config storage and log migration
 
 ## Program Records
 
@@ -48,6 +48,7 @@ Keep these three records updated together:
 - `Decision Log`: architectural and compatibility decisions
 - `Gotcha Registry`: repeatable traps and migration hazards
 - `Rebrand Program`: current phase status and hard-close expectations
+- `Evidence Packs`: command/results evidence for high-risk phases
 
 ## Phase Rules
 

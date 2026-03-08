@@ -17,7 +17,7 @@ task installCodeEngineModels(type: Copy, dependsOn: [":code-engine:packageModels
 task installCore(type: Copy, dependsOn: [":core:distTar"]) {
     from tarTree("../core/build/distributions/core.tar.gz")
     into "static/local"
-    rename '^core$', 'serenade-core'
+    rename '^core$', 'arqon-maestro-core'
 }
 
 task installJdk(type: Copy, dependsOn: [":packageJdk"]) {

@@ -208,6 +208,36 @@ Use for:
   - update root ignore rules in the same patch as the subtree move
   - verify untracked model/runtime directories are ignored before closing the phase
 
+### GOTCHA-009: Sidecar Rebrand Must Preserve User Script Surface
+
+- **Category**: Process And Sidecar Identity
+- **Status**: mitigated
+- **Summary**: Renaming the sidecar entrypoint alone is not enough. Existing user automations can still depend on `global.serenade` and `~/.serenade/scripts`, so a strict cutover can break custom commands even when the process starts correctly.
+- **Impact**: High
+- **Where it matters**:
+  - custom-command sidecar migration
+  - user automation compatibility
+  - startup and reload verification
+- **Avoidance**:
+  - expose `global.arqon` as canonical
+  - preserve `global.serenade` as a compatibility alias during transition
+  - load and watch both `.arqon/scripts` and `.serenade/scripts`
+
+### GOTCHA-010: Native Packaging Failures Can Be Environmental, Not Rename Regressions
+
+- **Category**: Build And Packaging
+- **Status**: active
+- **Summary**: After a runtime identity migration, native packaging failures may still come from unrelated external issues such as stale CMake state, missing Marian artifacts, or protobuf compiler/header drift. Those failures should not be misattributed to process-name changes.
+- **Impact**: High
+- **Where it matters**:
+  - Phase 4 verification
+  - native engine packaging
+  - evidence review
+- **Avoidance**:
+  - clean native build directories before verification
+  - rerun with explicit `ARQON_MAESTRO_SOURCE_ROOT` and `ARQON_MAESTRO_LIBRARY_ROOT`
+  - prove at least one renamed packaged artifact path independently of the failing external toolchain
+
 ## Entry Template
 
 ```markdown

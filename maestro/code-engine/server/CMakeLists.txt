@@ -96,8 +96,8 @@ include_directories(
 include_directories(include)
 include_directories(${SERENADE_SOURCE_ROOT}/toolbelt/src/main/cpp/include)
 file(GLOB SOURCES src/*.cc src/*/*.cc)
-add_executable(serenade-code-engine ${SOURCES} server/code_engine_server.cc)
-target_link_libraries(serenade-code-engine
+add_executable(arqon-maestro-code-engine ${SOURCES} server/code_engine_server.cc)
+target_link_libraries(arqon-maestro-code-engine
   code-engine_protobuf
   pthread
   ${Protobuf_LIBRARIES}
@@ -105,23 +105,23 @@ target_link_libraries(serenade-code-engine
 )
 
 if(DEFINED ENV{SERENADE_NATIVE})
-  target_link_libraries(serenade-code-engine ${MARIAN_NATIVE_ROOT}/build/libmarian.a)
+  target_link_libraries(arqon-maestro-code-engine ${MARIAN_NATIVE_ROOT}/build/libmarian.a)
 else()
-  target_link_libraries(serenade-code-engine ${MARIAN_ROOT}/build/libmarian.a)
+  target_link_libraries(arqon-maestro-code-engine ${MARIAN_ROOT}/build/libmarian.a)
 endif()
 
-target_link_libraries(serenade-code-engine
+target_link_libraries(arqon-maestro-code-engine
   ${SENTENCEPIECE_ROOT}/lib/libsentencepiece.a
   ${SENTENCEPIECE_ROOT}/lib/libsentencepiece_train.a
 )
 
 if(APPLE)
-  target_link_libraries(serenade-code-engine
+  target_link_libraries(arqon-maestro-code-engine
     ${Iconv_LIBRARIES}
     "-framework Accelerate"
   )
 else()
-  target_link_libraries(serenade-code-engine
+  target_link_libraries(arqon-maestro-code-engine
     "-Wl,--start-group;/opt/intel/mkl/lib/intel64/libmkl_intel_ilp64.a;/opt/intel/mkl/lib/intel64/libmkl_sequential.a;/opt/intel/mkl/lib/intel64/libmkl_core.a;-Wl,--end-group"
     dl
     gomp

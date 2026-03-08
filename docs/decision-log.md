@@ -190,6 +190,21 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-014: Runtime Identity Renames Keep Legacy Script Compatibility
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Phase 4 renames the primary sidecar and packaged local process names to Arqon Maestro identifiers while keeping legacy custom-command globals, script roots, and process-name cleanup fallbacks active.
+- **Why**: Runtime identity had to stop presenting inherited process names, but custom-command breakage and shutdown regressions would be too expensive if the transition removed every legacy assumption at once.
+- **Consequences**:
+  - the primary sidecar entrypoint is now `arqon-maestro-custom-commands-server.js`
+  - packaged local binaries now target `arqon-maestro-core`, `arqon-maestro-speech-engine`, and `arqon-maestro-code-engine`
+  - custom-command scripts can use `arqon.*`, while older `serenade.*` scripts still resolve
+  - `.arqon/scripts` is now canonical, but `.serenade/scripts` still loads during the migration window
+  - process teardown still kills both Arqon and legacy process-name patterns until the compatibility layer is intentionally removed
+
+---
+
 ## Template for Future Decisions
 
 ```markdown
