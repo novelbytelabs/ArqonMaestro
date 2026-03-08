@@ -2,7 +2,7 @@
 
 Arqon Maestro is a voice-first coding environment for developers who want to write, navigate, and edit software with natural speech.
 
-It is built from the open-source Serenade codebase and rebranded as a distinct project. The purpose of Arqon Maestro is straightforward:
+It is a distinct project focused on making voice-native software development practical. The purpose of Arqon Maestro is straightforward:
 
 - make coding by voice practical
 - preserve and modernize an accessibility-first voice coding stack
@@ -54,10 +54,10 @@ Arqon Maestro is especially relevant for:
 
 | Component | Path | Purpose |
 | --- | --- | --- |
-| Desktop client | [`serenade/client`](./serenade/client) | Electron app, microphone capture, UI, streaming |
-| Core service | [`serenade/core`](./serenade/core) | Main command-processing service |
-| Speech engine | `serenade/speech-engine` | Speech recognition service |
-| Code engine | `serenade/code-engine` | Transcript-to-code interpretation models |
+| Desktop client | Electron client directory | Electron app, microphone capture, UI, streaming |
+| Core service | Core service directory | Main command-processing service |
+| Speech engine | Speech engine directory | Speech recognition service |
+| Code engine | Code engine directory | Transcript-to-code interpretation models |
 | VS Code extension | [`vscode-plugin`](./vscode-plugin) | Editor integration |
 | Project docs | [`docs`](./docs) and root `*.md` files | Architecture, troubleshooting, training, rebranding |
 
@@ -88,9 +88,7 @@ This is the simplest way to run the app during development if your config points
 Run the client:
 
 ```bash
-cd serenade/client
-unset ELECTRON_RUN_AS_NODE
-./node_modules/.bin/electron . --no-sandbox --disable-gpu
+See RUN_COMMANDS.md for the current launch command.
 ```
 
 ### Local mode
@@ -117,7 +115,7 @@ Some deeper internal rename work and local-packaging work still remain. Those ar
 ## Development Notes
 
 - User-facing branding is `Arqon Maestro`
-- Some legacy internal identifiers still use `serenade` for compatibility
+- Some legacy internal identifiers still remain for compatibility and migration purposes
 - Config compatibility exists for both legacy and renamed settings paths
 - The repository includes preservation material for models, training, and architecture
 
@@ -133,7 +131,7 @@ Some deeper internal rename work and local-packaging work still remain. Those ar
 
 ## Why This Project Exists
 
-Arqon Maestro is not meant to pretend to be the original Serenade product. It is a fork, a continuation effort, and a practical attempt to keep an important voice-coding stack usable, inspectable, and improvable.
+Arqon Maestro is a continuation effort and a practical attempt to keep an important voice-coding stack usable, inspectable, and improvable.
 
 The short version:
 
@@ -144,4 +142,4 @@ The short version:
 
 ## Credits
 
-Arqon Maestro is based on the open-source Serenade project and continues that work under a distinct name and direction.
+Arqon Maestro exists because voice-native developer tooling is worth preserving, improving, and making usable in practice.
