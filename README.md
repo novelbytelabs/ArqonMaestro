@@ -1,342 +1,147 @@
-# Maestro
+# Arqon Maestro
 
-**Voice-powered coding for everyone.**
+Arqon Maestro is a voice-first coding environment for developers who want to write, navigate, and edit software with natural speech.
 
-Maestro is a preservation and revival project for [ArqonMaestro](https://github.com/serenadeai/serenade), an open-source voice coding application designed for developers with disabilities, RSI, or anyone who wants to code using natural speech.
+It is built from the open-source Serenade codebase and rebranded as a distinct project. The purpose of Arqon Maestro is straightforward:
 
----
+- make coding by voice practical
+- preserve and modernize an accessibility-first voice coding stack
+- support both cloud-backed and local/offline-style deployment paths
+- provide a foundation for voice-native developer tools
 
-## 🎯 Project Goals
+## What Arqon Maestro Does
 
-1. **Preserve** the ArqonMaestro codebase and AI models for posterity
-2. **Maintain** a working, offline-capable voice coding system
-3. **Improve** compatibility with modern IDEs and operating systems
-4. **Document** the architecture for future developers
+Arqon Maestro listens to spoken coding commands, turns them into transcripts, interprets those transcripts as code actions, and sends the resulting edits to the active editor plugin.
 
----
+In practice, that means it can help with:
 
-## 📦 What's Included
+- writing and revising code by voice
+- inserting syntax-aware edits instead of raw dictation only
+- navigating files, tabs, and code structure
+- issuing editor actions through supported plugins
+- dictation and text-entry workflows
+- accessibility-focused hands-free coding
 
-| Component | Location | Description |
-|-----------|----------|-------------|
-| **Core Engine** | `serenade/` | Java-based AST manipulation, command processing |
-| **Client App** | `serenade/client/` | Electron desktop application |
-| **VS Code Plugin** | `vscode-plugin/` | VS Code extension |
-| **AI Models** | `~/libserenade/models/` | Speech & code generation models (1.1GB) |
-| **Download Script** | `download_models.sh` | Re-download models from CDN |
+## Key Capabilities
 
----
+- Real-time microphone capture from the desktop client
+- Speech-to-text pipeline for spoken coding commands
+- Command interpretation for source-code edits
+- Context-aware editor operations through plugins
+- Desktop app built with Electron
+- VS Code integration via the extension in [`vscode-plugin`](./vscode-plugin)
+- Support for local and remote backend endpoints
+- Training and model architecture artifacts preserved in the repository
 
-## 🧠 AI Models Breakdown
+## Typical Workflow
 
-### Model Sizes
+1. Start the Arqon Maestro desktop app.
+2. Focus a supported editor.
+3. Toggle listening.
+4. Speak a command such as `new line`, `go to definition`, or `add function`.
+5. Arqon Maestro captures audio, resolves a transcript, interprets intent, and applies the action through the active plugin.
 
-| Model | Size | Purpose |
-|-------|------|---------|
-| **Speech Engine** | | |
-| ├─ Acoustic Model | 122 MB | Converts audio → phonemes |
-| ├─ Export (Graph) | 360 MB | Kaldi FST decoding graph |
-| ├─ Export (Final.mdl) | 81 MB | Neural acoustic model |
-| ├─ Export (Lang) | 96 MB | Language model data |
-| ├─ G2P Model | 45 MB | Grapheme → phoneme conversion |
-| └─ User Language Model | 136 KB | User-specific n-grams |
-| **Code Engine** | | |
-| ├─ Auto-Style (all languages) | 163 MB | Transcript → code generation |
-| ├─ Contextual LM (all languages) | 162 MB | Code context awareness |
-| └─ Transcript Parser | 4 KB | Parse voice commands |
-| **Total** | **~1.1 GB** | |
+## Who It Is For
 
-### What Each Model Does
+Arqon Maestro is especially relevant for:
 
-1. **Acoustic Model** (`final.mdl`) - Neural network that converts raw audio into phoneme probabilities. Based on Kaldi's TDNN architecture.
+- developers with RSI or other repetitive strain concerns
+- developers who need accessibility-first input methods
+- developers experimenting with voice-native software workflows
+- researchers and builders working on local speech/code systems
 
-2. **Decoding Graph** (`graph/`) - Finite State Transducer (FST) that maps phonemes to words using:
-   - Pronunciation dictionary (ARPABET format)
-   - Language model (n-grams from code corpus)
-   - Vocabulary (programming-specific words)
+## Repository Layout
 
-3. **G2P Model** (`model.fst`) - Converts unknown words to phonemes using Phonetisaurus, enabling recognition of new variable/function names.
+| Component | Path | Purpose |
+| --- | --- | --- |
+| Desktop client | [`serenade/client`](./serenade/client) | Electron app, microphone capture, UI, streaming |
+| Core service | [`serenade/core`](./serenade/core) | Main command-processing service |
+| Speech engine | `serenade/speech-engine` | Speech recognition service |
+| Code engine | `serenade/code-engine` | Transcript-to-code interpretation models |
+| VS Code extension | [`vscode-plugin`](./vscode-plugin) | Editor integration |
+| Project docs | [`docs`](./docs) and root `*.md` files | Architecture, troubleshooting, training, rebranding |
 
-4. **Auto-Style Models** - Transformer-based models (Marian NMT) that convert natural language transcripts into syntactically correct code:
-   - Input: "add function called get name"
-   - Output: `def get_name():\n    pass`
+## Architecture
 
-5. **Contextual Language Models** - Rerank code alternatives based on surrounding context in the file.
+The high-level request flow is:
 
-6. **Transcript Parser** - Parses the voice transcript into a command tree structure.
+1. The desktop client captures microphone audio.
+2. Audio frames are streamed to `core`.
+3. `core` coordinates with the speech engine to produce transcripts.
+4. The code engine interprets transcripts into structured coding actions.
+5. The active editor plugin applies the result.
 
----
+Related docs:
 
-## 🔧 Retraining & Fine-Tuning Models
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [RUN_COMMANDS.md](./RUN_COMMANDS.md)
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)
+- [TRAINING.md](./TRAINING.md)
+- [LEGACY_INTERNAL_RENAME_TODO.md](./LEGACY_INTERNAL_RENAME_TODO.md)
 
-### Can I Retrain? **YES!**
+## Supported Operation Modes
 
-All training code is included in the repository. You can:
+### Cloud-backed mode
 
-- ✅ Retrain from scratch
-- ✅ Fine-tune existing models
-- ✅ Add new programming languages
-- ✅ Customize vocabulary
+This is the simplest way to run the app during development if your config points to a working remote endpoint.
 
-### Hardware Requirements
-
-| Task | Minimum GPU | Recommended | Time (per language) |
-|------|-------------|-------------|---------------------|
-| **Code Engine Training** | 1 GPU (6GB VRAM) | 4 GPUs | ~16 hours / ~4 hours |
-| **Speech Engine Training** | CPU only | CPU | ~2-4 hours |
-| **Data Generation** | CPU only | CPU | ~1-2 hours |
-
-**Your RTX 2060 (6GB VRAM) is sufficient for training!** It will take longer than a multi-GPU setup, but it will work.
-
-### Training the Code Engine
-
-```bash
-# 1. Generate training data (CPU, no GPU needed)
-# This downloads ~50GB of source code data
-scripts/serenade/code_engine/bin/generate_dataset.py \
-  --model=auto-style \
-  --language=python
-
-# 2. Train the model (GPU recommended)
-# With your RTX 2060:
-scripts/serenade/code_engine/train.py \
-  --model=auto-style \
-  --language=python \
-  --gpus=1
-
-# 3. Export the model
-scripts/serenade/code_engine/export.py
-```
-
-### Training the Speech Engine
-
-```bash
-# 1. Generate dataset (downloads source code corpus)
-scripts/serenade/speech_engine/bin/train.py generate-dataset
-
-# 2. Train the language model (CPU-based, uses Kaldi)
-scripts/serenade/speech_engine/bin/train.py train-model
-
-# 3. Export
-scripts/serenade/speech_engine/bin/export.py
-```
-
-### Adding Custom Vocabulary
-
-Edit the pronunciation lexicon to add new words:
-
-```
-# In config/lexicon.txt
-SERENADE  S ER AH N EY D
-REFACTOR  R IY F AE K T ER
-```
-
-### Fine-Tuning for Your Codebase
-
-1. Collect your own code corpus
-2. Run CorpusGen to generate training pairs
-3. Fine-tune the auto-style model on your data
-
-```bash
-# Use your own code as training data
-export SERENADE_SOURCE_ROOT=~/Projects/Maestro/serenade
-export SERENADE_LIBRARY_ROOT=~/libserenade
-
-# Generate training pairs from your code
-scripts/serenade/code_engine/bin/generate_dataset.py \
-  --model=auto-style \
-  --language=python \
-  --custom-corpus=/path/to/your/code
-```
-
-### Training Data Requirements
-
-| Model | Training Data | Size |
-|-------|---------------|------|
-| Speech Engine | Source code corpus | ~50 GB |
-| Auto-Style | Source/target pairs | ~10 GB per language |
-| Contextual LM | Code snippets | ~5 GB per language |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Java 14+** (for core engine)
-- **Node.js 16+** (for client)
-- **Python 3** (for scripts)
-- **Gradle** (build system)
-
-### 1. Build the Core Engine
-
-```bash
-cd serenade
-gradle installd
-```
-
-### 2. Build the Client
+Run the client:
 
 ```bash
 cd serenade/client
-npm install
-npm run build
+unset ELECTRON_RUN_AS_NODE
+./node_modules/.bin/electron . --no-sandbox --disable-gpu
 ```
 
-### 3. Run Locally (with cloud backend)
+### Local mode
 
-```bash
-cd serenade/client
-./bin/dev.py
-```
+Arqon Maestro also retains the original multi-service local architecture, but local mode is more demanding. A complete local voice stack requires:
 
-### 4. Run Fully Offline
+- `core`
+- `speech-engine`
+- `code-engine`
 
-```bash
-# Start local services
-./scripts/serenade/bin/run.py
+See [RUN_COMMANDS.md](./RUN_COMMANDS.md) for the exact commands and current local-mode caveats.
 
-# In another terminal, run client pointing to local endpoint
-ENDPOINT=http://localhost:17200 ./client/bin/dev.py
-```
+## Current State
 
----
+This repository is an active modernization and recovery effort. The project has already been brought back to a working state in several important areas:
 
-## 🏗️ Architecture Overview
+- Electron startup no longer stalls on a permanent `Loading...` screen
+- branding has been moved to `Arqon Maestro` across the user-facing surface
+- Linux microphone capture and streaming have been repaired
+- the voice pipeline has been debugged back into a working state
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Client App    │────▶│   Core Engine   │────▶│  Speech Engine  │
-│   (Electron)    │     │     (Java)      │     │    (C++/Kaldi)  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                       │                       │
-        │                       ▼                       │
-        │               ┌─────────────────┐             │
-        └──────────────▶│  Code Engine    │◀────────────┘
-                        │  (C++/Marian)   │
-                        └─────────────────┘
-```
+Some deeper internal rename work and local-packaging work still remain. Those are being tracked explicitly rather than hidden.
 
-### Request Flow
+## Development Notes
 
-1. **Client** captures audio from microphone
-2. **Speech Engine** converts speech → transcript
-3. **Code Engine** converts transcript → code commands
-4. **Core Engine** processes commands, manipulates AST
-5. **Plugin** applies changes to the active editor
+- User-facing branding is `Arqon Maestro`
+- Some legacy internal identifiers still use `serenade` for compatibility
+- Config compatibility exists for both legacy and renamed settings paths
+- The repository includes preservation material for models, training, and architecture
 
----
+## Documentation Map
 
-## 📁 Model Files
+- [RUN_COMMANDS.md](./RUN_COMMANDS.md): practical run commands
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md): startup and runtime troubleshooting
+- [MICROPHONE_TROUBLESHOOTING.md](./MICROPHONE_TROUBLESHOOTING.md): microphone and voice-path notes
+- [CURRENT_ISSUES.md](./CURRENT_ISSUES.md): actively tracked problems
+- [REBRANDING.md](./REBRANDING.md): rebrand tracking
+- [TRANSFER_PACK.md](./TRANSFER_PACK.md): project handoff context
+- [VISION.md](./VISION.md): broader direction
 
-The AI models are stored in `~/libserenade/models/`:
+## Why This Project Exists
 
-```
-~/libserenade/models/
-├── speech-engine/
-│   ├── acoustic-model/     # Kaldi acoustic model (~110MB)
-│   ├── export/             # Speech recognition model (~279MB)
-│   ├── g2p/                # Grapheme-to-phoneme
-│   └── user-language-model/
-└── code-engine/
-    └── export/
-        ├── transcript-parser/    # Parse voice commands
-        ├── auto-style/           # Code generation (per language)
-        │   ├── python/
-        │   ├── javascript/
-        │   ├── rust/
-        │   └── ... (14 languages)
-        └── contextual-language-model/
-            └── ... (per language)
-```
+Arqon Maestro is not meant to pretend to be the original Serenade product. It is a fork, a continuation effort, and a practical attempt to keep an important voice-coding stack usable, inspectable, and improvable.
 
-### Supported Languages
+The short version:
 
-- Python
-- JavaScript / TypeScript
-- Java
-- C++
-- Go
-- Rust
-- Ruby
-- HTML / CSS / SCSS
-- Bash
-- C#
-- Dart
-- Kotlin
+- voice coding matters
+- accessibility matters
+- local-first developer tooling matters
+- this codebase is worth preserving and extending
 
----
+## Credits
 
-## 🔧 Re-downloading Models
-
-If you need to re-download the models:
-
-```bash
-./download_models.sh
-```
-
-Models are downloaded from `https://serenadecdn.com/models/` (still active as of March 2026).
-
----
-
-## 📋 Known Issues (from Original ArqonMaestro)
-
-| Issue | Status | Notes |
-|-------|--------|-------|
-| JetBrains 2024.3+ incompatibility | 🔴 Open | Plugin API changed |
-| macOS Sonoma focus command | 🔴 Open | Accessibility API update needed |
-| Linux AppImage blank window | 🔴 Open | Electron rebuild needed |
-| "Did you know" popup loop | 🔴 Open | Bug in client |
-
----
-
-## 🗺️ Roadmap
-
-### Phase 1: Preservation ✅
-- [x] Clone source repositories
-- [x] Download all AI models
-- [x] Document architecture
-
-### Phase 2: Build Verification
-- [ ] Verify build on Linux
-- [ ] Verify build on macOS
-- [ ] Verify build on Windows
-- [ ] Test offline mode
-
-### Phase 3: Bug Fixes
-- [ ] Fix JetBrains plugin compatibility
-- [ ] Fix macOS Sonoma issues
-- [ ] Fix Linux AppImage
-
-### Phase 4: Enhancements
-- [ ] Update to modern Electron
-- [ ] Update to Java 21
-- [ ] Add Whisper as alternative speech engine
-- [ ] Improve documentation
-
----
-
-## 📜 License
-
-- **Core Engine**: Apache 2.0
-- **Client**: MIT
-- **VS Code Plugin**: MIT
-
-Original project by [ArqonMaestro Labs, Inc.](https://github.com/serenadeai)
-
----
-
-## 🙏 Credits
-
-- Original ArqonMaestro team for creating an accessibility-first coding tool
-- The open-source community for keeping the project alive
-
----
-
-## 📚 Resources
-
-- [Original ArqonMaestro Repo](https://github.com/serenadeai/serenade)
-- [ArqonMaestro Website](https://serenade.ai) (may be inactive)
-- [Discord Community](https://serenade.ai/community)
-- [Building Guide](serenade/docs/building.md)
-- [Codebase Layout](serenade/docs/codebase-layout.md)
+Arqon Maestro is based on the open-source Serenade project and continues that work under a distinct name and direction.
