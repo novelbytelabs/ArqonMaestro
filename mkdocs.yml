@@ -49,6 +49,14 @@ nav:
   - Decision Log: decision-log.md
   - Modernization Matrix: modernization-matrix.md
   - Guides:
+      - Getting Started: guides/getting-started.md
+      - How Commands Work: guides/how-commands-work.md
+      - Common Commands: guides/common-commands.md
+      - Dictation and Raw Text: guides/dictation-and-raw-text.md
+      - Revision Box and Text Input: guides/revision-box-and-text-input.md
+      - Alternatives and Corrections: guides/alternatives-and-corrections.md
+      - Application Control: guides/application-control.md
+      - In-App Tutorials: guides/in-app-tutorials.md
       - Building: guides/building.md
   - Architecture:
       - Codebase Layout: architecture/codebase-layout.md
@@ -64,6 +72,9 @@ nav:
       - Extending Maestro: development/extending-maestro.md
   - Parsing:
       - Grammars: parsing/grammars.md
+  - Reference:
+      - Selectors: reference/selectors.md
+      - Formatting and Symbols: reference/formatting-and-symbols.md
 
 markdown_extensions:
   - attr_list

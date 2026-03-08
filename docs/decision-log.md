@@ -1,4 +1,4 @@
-# ArqonMaestro Decision Log
+# Arqon Maestro Decision Log
 
 > **Purpose**: Track architectural and technical decisions to preserve context across sessions.
 
@@ -8,8 +8,8 @@
 
 - **Date**: 2026-03-07
 - **Status**: Accepted
-- **Decision**: ArqonMaestro will target Java 17 as its control-plane baseline.
-- **Why**: Serenade's original Java 14 stack is historical, not strategic. Java 17 is a modern LTS target and matches the broader Arqon modernization direction.
+- **Decision**: Arqon Maestro will target Java 17 as its control-plane baseline.
+- **Why**: The inherited Java 14 stack is historical, not strategic. Java 17 is a modern LTS target and matches the broader Arqon modernization direction.
 - **Consequences**:
   - Build scripts updated for Java 17
   - Removed dependency on project-local JDK 14
@@ -35,8 +35,8 @@
 
 - **Date**: 2026-03-07
 - **Status**: Accepted
-- **Decision**: Update all Serenade dependencies to modern, compatible versions.
-- **Why**: Original versions (2019-2021) had compatibility issues with Java 17 and modern toolchains.
+- **Decision**: Update inherited dependencies to modern, compatible versions.
+- **Why**: Original versions from the pre-pivot stack had compatibility issues with Java 17 and modern toolchains.
 - **Consequences**:
   - Jetty: 9.4.38 → 9.4.53
   - Dagger: 2.41 → 2.51.1
@@ -102,7 +102,7 @@
 
 - **Date**: 2025-01-01
 - **Status**: Accepted
-- **Decision**: ArqonMaestro follows "Java conducts, Rust performs" architecture
+- **Decision**: Arqon Maestro follows "Java conducts, Rust performs" architecture.
 - **Why**: 
   - Java provides better control plane (orchestration, business logic, plugins)
   - Rust provides better data plane (audio streaming, VAD, low-latency processing)
@@ -130,7 +130,7 @@
 - **Date**: 2025-01-01
 - **Status**: Accepted
 - **Decision**: Do not rewrite Maestro in Rust. Modularize and replace only latency-critical components.
-- **Why**: Complete rewrite would lose the working Serenade functionality. Incremental migration is safer.
+- **Why**: A full rewrite would discard working functionality during a live ecosystem pivot. Incremental migration is safer.
 - **Consequences**:
   - Keep existing Java code working
   - Extract hot paths to Rust incrementally

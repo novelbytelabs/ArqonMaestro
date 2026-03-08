@@ -34,6 +34,9 @@ flowchart LR
 
 ## Start Here
 
+- [Getting Started](guides/getting-started.md): launch Maestro and issue your first commands
+- [How Commands Work](guides/how-commands-work.md): understand action, selector, alternatives, and chaining
+- [Revision Box and Text Input](guides/revision-box-and-text-input.md): use bridge surfaces between apps
 - [Decision Log](decision-log.md): key decisions and rationale
 - [Modernization Matrix](modernization-matrix.md): current status of major modules and priorities
 - [Maestro In Arqon](overview/ecosystem.md): how Maestro fits the larger ecosystem
@@ -51,6 +54,7 @@ The current work in this repository is centered on:
 
 - `Overview`: ecosystem framing and system purpose
 - `Guides`: setup and operational entry points
+- `Reference`: selectors, formatting, symbols, and usage patterns
 - `Architecture`: runtime design and request flow
 - `Models`: training and engine internals
 - `Operations`: configuration and troubleshooting

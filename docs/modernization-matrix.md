@@ -1,4 +1,4 @@
-# ArqonMaestro Modernization Matrix
+# Arqon Maestro Modernization Matrix
 
 > **Purpose**: Track the state and future of each module/component in the project.
 
@@ -105,7 +105,7 @@
 
 | Aspect | Current State | Target | Priority | Status | Notes |
 |--------|--------------|--------|----------|--------|-------|
-| **Bus Protocol** | Serenade | Extend | High | ⚪ Not Started | Voice events |
+| **Bus Protocol** | Legacy voice protocol | Extend | High | ⚪ Not Started | Voice events |
 | **WebSocket** | N/A | Create | High | ⚪ Not Started | Voice endpoint |
 | **Command Router** | N/A | Create | High | ⚪ Not Started | Voice → CLI |
 | **Context Resolver** | N/A | Create | High | ⚪ Not Started | App state |
