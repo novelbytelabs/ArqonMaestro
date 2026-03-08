@@ -1,10 +1,10 @@
-# ArqonMaestro Architecture
+# Arqon Maestro Architecture
 
 **Voice-Native Layer for ArqonPilot**
 
 ---
 
-## Serenade Protocol Analysis
+## Inherited Protocol Analysis
 
 ### Core Message Flow
 
@@ -75,13 +75,13 @@ enum CommandType {
 
 ---
 
-## ArqonMaestro Integration Architecture
+## Arqon Maestro Integration Architecture
 
 ### Layer Overview
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                         ArqonMaestro Layer                          │
+│                        Arqon Maestro Layer                          │
 ├────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
@@ -508,7 +508,7 @@ ArqonMaestro/
 ├── TRAINING.md            # Model training guide
 ├── ARCHITECTURE.md        # This file
 ├── download_models.sh     # Model download script
-├── serenade/              # Original Serenade codebase
+├── serenade/              # Inherited engine subtree, slated for later path rename
 ├── vscode-plugin/         # VS Code extension
 └── arqon-grammar/         # ANTLR grammar for Arqon commands
     └── ArqonCommands.g4

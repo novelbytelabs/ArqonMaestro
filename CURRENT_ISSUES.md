@@ -1,4 +1,4 @@
-# Current Issues - ArqonMaestro
+# Current Issues - Arqon Maestro
 
 ## Summary
 
@@ -17,9 +17,9 @@ npm run build
 ./node_modules/.bin/electron . --no-sandbox --disable-gpu
 
 # Output:
-[ArqonMaestro] Streaming endpoint: local - localhost:17200
-[ArqonMaestro] Token present: true
-[ArqonMaestro] Setting loggedIn state: true
+[Arqon Maestro] Streaming endpoint: local - localhost:17200
+[Arqon Maestro] Token present: true
+[Arqon Maestro] Setting loggedIn state: true
 ```
 
 The client is setting `loggedIn = true`, but that does **not** control the toggle visibility.
@@ -81,8 +81,8 @@ The deeper issue is local backend completeness / startup, not renderer state:
 1. **Is `speech-engine` actually running on `17202`?**
 2. **Is `code-engine` actually running on `17203`?**
 3. **Did `local.start()` spawn valid bundled binaries, or only placeholder `run-pro` scripts?**
-4. **Is the client using `local` endpoint in `~/.serenade/serenade.json`?**
-5. **Does `~/.serenade/speech-engine.log` or `~/.serenade/code-engine.log` show startup failure?**
+4. **Is the client using `local` endpoint in `~/.arqon/arqon.json`?**
+5. **Does `~/.arqon/speech-engine.log` or `~/.arqon/code-engine.log` show startup failure?**
 
 ## Files to Investigate
 
@@ -91,14 +91,14 @@ The deeper issue is local backend completeness / startup, not renderer state:
 - `src/main/ipc/local.ts` - localLoading lifecycle
 - `src/main/stream/stream.ts` - WebSocket connection
 - `src/main/settings.ts` - endpoint source of truth
-- `~/.serenade/serenade.json` - actual endpoint config
+- `~/.arqon/arqon.json` - canonical endpoint config
 
 ## Run Command
 
 ```bash
 # Terminal 1 - Start only core (insufficient for full local voice)
 cd ~/Projects/arqon/ArqonMaestro/serenade
-CORE_PORT=17200 SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade SERENADE_LIBRARY_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./core/build/install/core/bin/core
+CORE_PORT=17200 ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon ./core/build/install/core/bin/core
 
 # Terminal 2 - Start client
 cd ~/Projects/arqon/ArqonMaestro/serenade/client

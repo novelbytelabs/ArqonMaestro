@@ -150,6 +150,33 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-011: Arqon Paths And Env Vars Are Canonical
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Treat `.arqon/arqon.json`, `ARQON_MAESTRO_SOURCE_ROOT`, and `ARQON_MAESTRO_LIBRARY_ROOT` as the canonical config and environment surface.
+- **Why**: Phase 2 required a real Arqon-first compatibility layer rather than cosmetic path helpers. Canonical names must be the default write target and the default documented interface.
+- **Consequences**:
+  - settings code now migrates legacy config into `.arqon`
+  - VS Code settings code now follows the same migration rule
+  - build scripts and native build files prefer `ARQON_MAESTRO_*` and only fall back to legacy vars
+  - user-facing docs now describe Arqon paths first and legacy names only as compatibility notes
+
+---
+
+## ADM-012: Phase Completion Requires Hard-Close Packs
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: No rebrand phase is considered complete until it has an explicit closeout record in the docs.
+- **Why**: The rebrand spans runtime, packaging, docs, and compatibility shims. Without hard-close records, the next phase starts from a fuzzy boundary and regressions become much harder to audit.
+- **Consequences**:
+  - every phase must publish scope, verification, residual risk, and rollback information
+  - tracker state must match the corresponding closeout pack
+  - decision log and gotcha registry must be updated when a phase changes the technical baseline
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

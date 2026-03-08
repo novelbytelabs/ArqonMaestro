@@ -1,4 +1,4 @@
-# ArqonMaestro Build Technote
+# Arqon Maestro Build Technote
 
 **Technical Details for Dependency Resolution**
 
@@ -42,7 +42,7 @@ def protobufVersion = "4.25.8"  // Match system protoc
 ### Error 2: Missing Marian NMT Library
 
 ```
-No rule to make target '/home/irbsurfer/libserenade/marian/build/libmarian.a'
+No rule to make target '/home/irbsurfer/libarqon/marian/build/libmarian.a'
 ```
 
 **Root Cause**: Marian NMT is not compiled. This is a C++ neural machine translation library used by code-engine.
@@ -61,7 +61,7 @@ sudo apt-get install -y \
     git
 
 # Clone and build Marian
-cd ~/libserenade
+cd ~/libarqon
 git clone https://github.com/marian-nmt/marian.git
 cd marian
 mkdir build && cd build
@@ -87,11 +87,11 @@ The following configuration files were considered but not accepted:
 
 1. **Install Boost 1.78.0 from source**:
 ```bash
-cd ~/libserenade
+cd ~/libarqon
 curl -LO https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
 tar -xzf boost_1_78_0.tar.gz
 cd boost_1_78_0
-./bootstrap.sh --prefix=$HOME/libserenade/boost
+./bootstrap.sh --prefix=$HOME/libarqon/boost
 ./b2 install -j$(nproc)
 ```
 
@@ -158,8 +158,10 @@ This gives you the Java control plane without the C++ engines.
 ## Environment Variables
 
 ```bash
-export SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
-export SERENADE_LIBRARY_ROOT=~/libserenade
+export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+export ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
+export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"      # compatibility
+export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"    # compatibility
 export JAVA_HOME=~/Projects/arqon/ArqonMaestro/.tools/jdk-14.0.1
 export GRADLE_HOME=~/Projects/arqon/ArqonMaestro/.tools/gradle-7.4.2
 export PATH="$JAVA_HOME/bin:$GRADLE_HOME/bin:$PATH"
@@ -183,7 +185,7 @@ protoc --version  # Should show 3.14.0 (after install)
 ls /usr/lib/x86_64-linux-gnu/cmake/Boost-*/BoostConfig.cmake
 
 # Check Marian (after build)
-ls ~/libserenade/marian/build/libmarian.a
+ls ~/libarqon/marian/build/libmarian.a
 ```
 
 ---

@@ -165,6 +165,35 @@ Use for:
 - **Avoidance**:
   - keep inherited external endpoints until Arqon-owned replacements are live and validated
 
+### GOTCHA-006: Preferred Path Helpers Are Not Enough
+
+- **Category**: Configuration
+- **Status**: mitigated
+- **Summary**: A codebase can appear Arqon-first while still behaving legacy-first if reads and writes continue to prefer existing legacy files.
+- **Impact**: High
+- **Where it matters**:
+  - settings migration
+  - first-run behavior
+  - VS Code integration
+- **Avoidance**:
+  - return canonical `.arqon` file paths from the settings layer
+  - migrate legacy contents forward when needed
+  - keep legacy files as read fallback, not as the preferred write target
+
+### GOTCHA-007: Docs Can Undermine A Compatibility Layer
+
+- **Category**: Build And Packaging
+- **Status**: active
+- **Summary**: Even when the code prefers Arqon names, stale runbooks that still tell users to export `SERENADE_*` or edit `~/.serenade/serenade.json` will drag the system back into legacy-first operation.
+- **Impact**: Medium
+- **Where it matters**:
+  - root runbooks
+  - troubleshooting guides
+  - training and build docs
+- **Avoidance**:
+  - make Arqon names canonical in every user-facing command example
+  - mention legacy names only as explicit compatibility notes
+
 ## Entry Template
 
 ```markdown

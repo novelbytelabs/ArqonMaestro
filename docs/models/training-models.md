@@ -80,7 +80,7 @@ The generate dataset step:
 
 The train step:
 
-- Finds for the generated data in `$SERENADE_LIBRARY_ROOT/code-engine-training/data/{MODEL_TYPE}/{LANGUAGE}`
+- Finds the generated data in `$ARQON_MAESTRO_LIBRARY_ROOT/code-engine-training/data/{MODEL_TYPE}/{LANGUAGE}`
 - Generates vocabulary to be used by Marian
 - Runs Marian with the proper configuration for the given model type and language
 

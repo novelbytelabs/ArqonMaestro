@@ -25,8 +25,8 @@ The assumption for this plan is explicit:
 | Phase | Name | Status | Notes |
 |---|---|---|---|
 | 0 | Freeze Scope | `planned` | baseline capture and rename discipline |
-| 1 | User-Facing Cleanup | `planned` | docs, UI strings, onboarding, tutorials |
-| 2 | Arqon-First Compatibility Layer | `planned` | canonical Arqon config and env with legacy fallback |
+| 1 | User-Facing Cleanup | `completed` | root docs and published guides now present Arqon Maestro as canonical product identity |
+| 2 | Arqon-First Compatibility Layer | `completed` | `.arqon` and `ARQON_MAESTRO_*` are now primary with legacy fallback preserved |
 | 3 | Repo Subtree Rename | `planned` | `serenade/` to `maestro/` |
 | 4 | Sidecar and Runtime Process Identity | `planned` | process and sidecar filename migration |
 | 5 | Config Storage and Logs Migration | `planned` | `.arqon` becomes the real home |

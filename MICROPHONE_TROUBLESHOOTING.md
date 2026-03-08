@@ -5,7 +5,7 @@
 - ✅ Server runs on port 17200
 - ✅ Electron client runs
 - ✅ VS Code extension connects to server
-- ✅ Microphone capture path fixed in code (pending runtime verification)
+- ✅ Microphone capture path fixed in code and validated
 
 ## Symptoms
 
@@ -21,7 +21,7 @@
 ## Root Cause
 
 The previous `audio/index.ts` was a placeholder shim:
-- It attempted `desktopCapturer.getSources()` (not suitable for Linux microphone input in this path).
+- It attempted `desktopCapturer.getSources()` in the wrong capture path.
 - It simulated random audio instead of recording real PCM from the microphone.
 - Meter normalization expected native-module scale (`/5000`), so float audio RMS appeared as zero.
 
@@ -34,17 +34,27 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 - New behavior:
   - Captures real microphone PCM via `parec` (PulseAudio) with `arecord` fallback.
   - Uses 16kHz mono S16LE raw audio.
-  - Converts PCM to `Float32Array`, computes RMS volume, and emits real `onAudio`.
-  - Emits `onChunkStart`/`onChunkEnd` based on calibrated speaking/silence thresholds.
+  - Streams real PCM into the existing microphone pipeline.
+  - Restores the expected chunk lifecycle with calibrated thresholds and forced finalize protection.
   - Enumerates input devices via `pactl list short sources` (excluding monitor sinks).
 
-### 2. Fixed meter scaling for float-RMS audio
+### 2. Fixed meter scaling and chunk lifecycle
 - File: `serenade/client/src/main/stream/microphone.ts`
 - Change:
   - If volume is float-scale (`<= 1`), normalize using `/0.05`.
   - Keeps old `/5000` path for legacy native-volume values.
+  - Registers listeners before recorder startup so the listen path cannot miss `chunk_start`.
 
-### 3. Build result
+### 3. Endpointing hardening
+- Files:
+  - `serenade/client/src/main/audio/index.ts`
+  - `serenade/client/src/main/stream/chunk-manager.ts`
+  - `serenade/client/src/main/stream/chunk-queue.ts`
+- Change:
+  - Added adaptive thresholds and forced finalize protection for always-hot microphones.
+  - Prevents the app from staying in `Listening` forever without sending a final utterance.
+
+### 4. Build result
 - `npm run build:main` succeeds after the patch.
 
 ## Runtime Verification Steps
@@ -58,13 +68,13 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
    ```
 2. Open Settings and verify the volume meter moves while speaking.
 3. Click Listen and confirm speech generates transcription activity.
-4. If still no capture, check terminal for `[Audio]` stderr messages from `parec/arecord`.
+4. If still no capture, check terminal for `[Audio]`, `[Chunk]`, and `[Stream]` messages.
 
 ## Debugging Steps Taken
 
 1. ✅ Microphone setting shows "System Default"
 2. ✅ Clicking microphone shows "Listening" state
-3. ❌ Audio meter stays at zero - no sound detected
+3. ✅ Audio meter and finalization path now work in the repaired build
 
 ## What to Check
 
@@ -73,24 +83,16 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
    ELECTRON_ENABLE_LOGGING=1 ./node_modules/.bin/electron . --enable-logging
    ```
 
-2. **Check if desktopCapturer returns audio sources**:
-   - Add console.log in audio/index.ts to see what sources are found
-
-3. **Check browser permissions**:
+2. **Check browser permissions**:
    - In Electron, go to Permissions in Settings
    - Check if Microphone permission is granted
 
-4. **Check system audio**:
+3. **Check system audio**:
    ```bash
    # List audio sources
    pactl list sources
    # or
    arecord -l
-   ```
-
-5. **Check gstreamer** (needed for audio processing):
-   ```bash
-   gst-inspect-1.0 audiotestsrc
    ```
 
 ## Code Location
@@ -101,7 +103,7 @@ Result: UI could show "Listening" while actual microphone capture/transcription 
 
 ## Notes
 
-- Native `speech-recorder` module in this environment is present but not built (`.node` binding missing), so the Linux PCM path avoids that blocker.
+- Native `speech-recorder` is still absent in this environment, but the Linux PCM capture path is now sufficient for reliable use.
 
 ## Related Files
 

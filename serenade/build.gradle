@@ -14,15 +14,31 @@ project.ext.s3 = "com.amazonaws:aws-java-sdk-s3:1.11.313"
 project.ext.websocketApi = "javax.websocket:javax.websocket-api:1.1"
 
 def sourceRoot = project.ext.sourceRoot = (
-    System.env.SERENADE_SOURCE_ROOT != null ?
-        System.env.SERENADE_SOURCE_ROOT :
-        System.properties["user.home"] + "/serenade"
+    System.env.ARQON_MAESTRO_SOURCE_ROOT != null ?
+        System.env.ARQON_MAESTRO_SOURCE_ROOT :
+        (
+            System.env.SERENADE_SOURCE_ROOT != null ?
+                System.env.SERENADE_SOURCE_ROOT :
+                (
+                    new File(System.properties["user.home"] + "/maestro").exists() ?
+                        System.properties["user.home"] + "/maestro" :
+                        System.properties["user.home"] + "/serenade"
+                )
+        )
 )
 
 def libraryRoot = project.ext.libraryRoot = (
-    System.env.SERENADE_LIBRARY_ROOT != null ?
-        System.env.SERENADE_LIBRARY_ROOT :
-        System.properties["user.home"] + "/libserenade"
+    System.env.ARQON_MAESTRO_LIBRARY_ROOT != null ?
+        System.env.ARQON_MAESTRO_LIBRARY_ROOT :
+        (
+            System.env.SERENADE_LIBRARY_ROOT != null ?
+                System.env.SERENADE_LIBRARY_ROOT :
+                (
+                    new File(System.properties["user.home"] + "/libarqon").exists() ?
+                        System.properties["user.home"] + "/libarqon" :
+                        System.properties["user.home"] + "/libserenade"
+                )
+        )
 )
 
 project.ext.codeEngineModels = "$libraryRoot/models/code-engine"

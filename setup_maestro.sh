@@ -6,10 +6,11 @@ set -e
 
 MAESTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLS_DIR="$MAESTRO_ROOT/.tools"
-SERENADE_ROOT="$MAESTRO_ROOT/serenade"
-LIB_SERENADE="$HOME/libserenade"
+MAESTRO_ENGINE_ROOT="$MAESTRO_ROOT/serenade"
+ARQON_MAESTRO_LIBRARY_ROOT_DEFAULT="$HOME/libarqon"
+LEGACY_LIBRARY_ROOT="$HOME/libserenade"
 
-# Versions (pinned from original Serenade Dockerfile)
+# Versions (pinned from the inherited engine Dockerfile)
 JDK_VERSION="14.0.1"
 GRADLE_VERSION="7.4.2"
 
@@ -24,7 +25,7 @@ echo ""
 
 # Create directories
 mkdir -p "$TOOLS_DIR"
-mkdir -p "$LIB_SERENADE/models"
+mkdir -p "$ARQON_MAESTRO_LIBRARY_ROOT_DEFAULT/models"
 
 # Download and install JDK 14.0.1
 if [ ! -d "$TOOLS_DIR/jdk-$JDK_VERSION" ]; then
@@ -62,19 +63,23 @@ export JAVA_HOME="$MAESTRO_ROOT/.tools/jdk-14.0.1"
 export GRADLE_HOME="$MAESTRO_ROOT/.tools/gradle-7.4.2"
 export PATH="$JAVA_HOME/bin:$GRADLE_HOME/bin:$PATH"
 
-export SERENADE_SOURCE_ROOT="$MAESTRO_ROOT/serenade"
-export SERENADE_LIBRARY_ROOT="$HOME/libserenade"
+export ARQON_MAESTRO_SOURCE_ROOT="$MAESTRO_ROOT/serenade"
+export ARQON_MAESTRO_LIBRARY_ROOT="$HOME/libarqon"
+export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"
+export SERENADE_LIBRARY_ROOT="${SERENADE_LIBRARY_ROOT:-$ARQON_MAESTRO_LIBRARY_ROOT}"
 
 # Aliases for convenience
-alias maestro-build="cd \$SERENADE_SOURCE_ROOT && gradle installd"
-alias maestro-run="cd \$SERENADE_SOURCE_ROOT/client && ./bin/dev.py"
-alias maestro-local="cd \$SERENADE_SOURCE_ROOT/client && ENDPOINT=http://localhost:17200 ./bin/dev.py"
+alias maestro-build="cd \$ARQON_MAESTRO_SOURCE_ROOT && gradle installd"
+alias maestro-run="cd \$ARQON_MAESTRO_SOURCE_ROOT/client && ./bin/dev.py"
+alias maestro-local="cd \$ARQON_MAESTRO_SOURCE_ROOT/client && ENDPOINT=http://localhost:17200 ./bin/dev.py"
 
 echo "Maestro environment activated"
 echo "  JAVA_HOME: $JAVA_HOME"
 echo "  GRADLE_HOME: $GRADLE_HOME"
-echo "  SERENADE_SOURCE_ROOT: $SERENADE_SOURCE_ROOT"
-echo "  SERENADE_LIBRARY_ROOT: $SERENADE_LIBRARY_ROOT"
+echo "  ARQON_MAESTRO_SOURCE_ROOT: $ARQON_MAESTRO_SOURCE_ROOT"
+echo "  ARQON_MAESTRO_LIBRARY_ROOT: $ARQON_MAESTRO_LIBRARY_ROOT"
+echo "  SERENADE_SOURCE_ROOT (compat): $SERENADE_SOURCE_ROOT"
+echo "  SERENADE_LIBRARY_ROOT (compat): $SERENADE_LIBRARY_ROOT"
 echo ""
 echo "Commands:"
 echo "  maestro-build  - Build the project"
@@ -93,7 +98,7 @@ set -e
 MAESTRO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$MAESTRO_ROOT/env.sh"
 
-cd "$SERENADE_SOURCE_ROOT"
+cd "$ARQON_MAESTRO_SOURCE_ROOT"
 
 echo "Building Maestro..."
 echo "Java: $(java -version 2>&1 | head -1)"
@@ -127,4 +132,4 @@ echo "  maestro-build"
 echo "  OR"
 echo "  ./build.sh"
 echo ""
-echo "Models are already downloaded to: $LIB_SERENADE/models"
+echo "Models are already downloaded to: $ARQON_MAESTRO_LIBRARY_ROOT_DEFAULT/models"

@@ -65,6 +65,10 @@ export default class Settings {
     this.userData = {};
     this.wordsData = {};
 
+    this.migrateLegacyFileIfNeeded(this.systemFile(), this.legacySystemFile());
+    this.migrateLegacyFileIfNeeded(this.userFile(), this.legacyUserFile());
+    this.migrateLegacyFileIfNeeded(this.wordsFile(), this.legacyWordsFile());
+
     this.createIfNotExists(this.systemFile());
     this.createIfNotExists(this.userFile());
     this.createIfNotExists(this.wordsFile());
@@ -136,21 +140,47 @@ export default class Settings {
   }
 
   private systemFile(): string {
-    const preferred = path.join(this.preferredPath(), "arqon.json");
-    const legacy = path.join(this.legacyPath(), "serenade.json");
-    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
+    return path.join(this.preferredPath(), "arqon.json");
   }
 
   private userFile(): string {
-    const preferred = path.join(this.preferredPath(), "settings.json");
-    const legacy = path.join(this.legacyPath(), "settings.json");
-    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
+    return path.join(this.preferredPath(), "settings.json");
   }
 
   private wordsFile(): string {
-    const preferred = path.join(this.preferredPath(), "words.json");
-    const legacy = path.join(this.legacyPath(), "words.json");
-    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
+    return path.join(this.preferredPath(), "words.json");
+  }
+
+  private legacySystemFile(): string {
+    return path.join(this.legacyPath(), "serenade.json");
+  }
+
+  private legacyUserFile(): string {
+    return path.join(this.legacyPath(), "settings.json");
+  }
+
+  private legacyWordsFile(): string {
+    return path.join(this.legacyPath(), "words.json");
+  }
+
+  private migrateLegacyFileIfNeeded(preferred: string, legacy: string) {
+    if (!fs.existsSync(legacy)) {
+      return;
+    }
+
+    const preferredExists = fs.existsSync(preferred);
+    const preferredSize = preferredExists ? fs.statSync(preferred).size : 0;
+    const legacySize = fs.statSync(legacy).size;
+    if (preferredExists && preferredSize > 0) {
+      return;
+    }
+
+    if (legacySize == 0) {
+      return;
+    }
+
+    fs.mkdirpSync(path.dirname(preferred));
+    fs.copyFileSync(legacy, preferred);
   }
 
   revisionBoxTrigger(app: string): string {

@@ -2,7 +2,7 @@
 
 ## Deep Dive: Can We Retrain? Can We Fine-Tune?
 
-**Short Answer: YES to both!**
+**Short Answer: YES to both.**
 
 The entire training pipeline is included in the repository. You can retrain from scratch or fine-tune existing models.
 
@@ -59,8 +59,10 @@ Max sequence length: 200
 ### Step 1: Setup Environment Variables
 
 ```bash
-export SERENADE_SOURCE_ROOT=~/Projects/Maestro/serenade
-export SERENADE_LIBRARY_ROOT=~/libserenade
+export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+export ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
+export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"      # compatibility
+export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"    # compatibility
 ```
 
 ### Step 2: Install Dependencies
@@ -68,7 +70,7 @@ export SERENADE_LIBRARY_ROOT=~/libserenade
 The full training setup requires:
 
 ```bash
-# From serenade repo root
+# From the inherited engine subtree root
 ./scripts/setup/setup-ubuntu.sh  # or setup-mac.sh
 
 # Build all dependencies (including training tools)
@@ -94,7 +96,7 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/generate_dataset.py \
   --model=auto-style \
   --language=python
 
-# Output: Creates training pairs in ~/libserenade/code-engine-training/data/
+# Output: Creates training pairs in ~/libarqon/code-engine-training/data/
 ```
 
 **What this does**:
@@ -134,9 +136,9 @@ $SERENADE_SOURCE_ROOT/scripts/serenade/code_engine/bin/export.py
 
 ### Use Your New Model
 
-1. Copy the tarball to `~/libserenade/models/code-engine/export/auto-style/python/`
+1. Copy the tarball to `~/libarqon/models/code-engine/export/auto-style/python/`
 2. Update `config/models.yaml` with the new hash
-3. Rebuild Serenade
+3. Rebuild Arqon Maestro
 
 ---
 
@@ -194,7 +196,7 @@ The acoustic model can be fine-tuned with your own audio data:
 # Format: audio files + corresponding transcripts
 
 # Fine-tuning script is in Kaldi's standard tools
-# Path: ~/libserenade/kaldi/egs/wsj/s5/steps/
+# Path: ~/libarqon/kaldi/egs/wsj/s5/steps/
 ```
 
 **Note**: The original team found limited gains from acoustic model fine-tuning, but your results may vary with domain-specific data.
@@ -372,4 +374,4 @@ transcript = result["text"]
 | Can use custom codebase? | ✅ Yes, via CorpusGen |
 | Can replace speech engine? | ✅ Yes, Whisper integration possible |
 
-The Maestro/Serenade codebase is **fully trainable and customizable**. All training scripts, data generation tools, and model architectures are included and documented.
+The Arqon Maestro engine stack is **fully trainable and customizable**. All training scripts, data generation tools, and model architectures are included and documented.

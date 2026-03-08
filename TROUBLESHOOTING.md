@@ -1,8 +1,8 @@
-# ArqonMaestro Troubleshooting Guide
+# Arqon Maestro Troubleshooting Guide
 
 ## Overview
 
-ArqonMaestro is a voice-native coding assistant derived from the Serenade open-source project. It consists of:
+Arqon Maestro is a voice-native control layer built on top of an inherited engine stack. It currently consists of:
 - **Java Server** (Jetty + custom speech processing)
 - **Electron Client** (React + TypeScript UI)
 
@@ -41,8 +41,8 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
 - **Solution**: Set environment variables before running:
   ```bash
   CORE_PORT=17200 
-  SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade 
-  SERENADE_LIBRARY_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+  ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+  ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
   ```
 
 #### Native Module Missing: serenade-driver
@@ -55,9 +55,9 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
 
 #### WebSocket Connection
 - **Problem**: Client trying to connect to remote server instead of local
-- **Solution**: Created `~/.serenade/settings.json`:
+- **Solution**: Use `~/.arqon/arqon.json` as the canonical endpoint file:
   ```json
-  {"system":{"streaming_endpoint":"local"}}
+  {"streaming_endpoint":"local"}
   ```
 
 ### 3. Current Issue: UI Stuck on Loading
@@ -78,7 +78,7 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
 
 #### Attempted Fixes
 1. Running with `--no-sandbox --disable-gpu` flags
-2. Fixed `getActiveApplication()` stub to return "serenade" (was returning "ArqonMaestro")
+2. Fixed the Linux active-app fallback so the app does not mis-target itself
 3. Verified settings file exists with correct endpoint
 
 #### Root Cause (FOUND)
@@ -97,10 +97,10 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
     - `code-engine` on `17203`
 - Rebuilding the full local engine bundle from this checkout currently requires additional native dependencies (for example Marian / related `code-engine` build inputs). Without those, local packaging can still be incomplete even after `client:installServer`.
 - Endpoint selection was being written to the wrong file:
-  - Actual runtime source is `~/.serenade/serenade.json`
-  - Earlier instructions incorrectly used `~/.serenade/settings.json`
+  - Canonical runtime source is `~/.arqon/arqon.json`
+  - Legacy `~/.serenade/serenade.json` is only a compatibility fallback
 - The Electron main bundle originally did not copy `static/local` into `out/static/local`, so `Local.start()` could not launch bundled services even after they were built.
-- The Linux driver stub hardcoded the active app to `"serenade"`, which could prevent proper editor targeting.
+- The Linux driver stub previously hardcoded the active app to the legacy product name, which could prevent proper editor targeting.
 
 #### Final Fix Applied
 1. **Fail-open custom sidecar startup**
@@ -129,7 +129,7 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
      - `serenade/core/build.gradle`
      - `serenade/client/main.webpack.ts`
    - Changes:
-     - fixed `core` tree-sitter build task to pass `SERENADE_SOURCE_ROOT`
+     - fixed `core` tree-sitter build task to pass the source-root environment correctly
      - verified `./gradlew client:installServer -x downloadModels` succeeds
      - copy `static/local` into `out/static/local` so Electron can actually launch the bundled local services
 
@@ -146,7 +146,7 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
 #### Debugging Steps Taken
 1. Confirmed server running: `lsof -i :17200` shows Java process listening
 2. Tested WebSocket: `curl` shows server responds (HTTP 400 - normal for curl)
-3. Checked settings: `~/.serenade/settings.json` has correct content
+3. Checked settings: `~/.arqon/arqon.json` has correct content
 4. Ran with debug flags: `ELECTRON_ENABLE_LOGGING=1 electron . --enable-logging`
 
 ## Code Locations
@@ -168,13 +168,14 @@ ArqonMaestro is a voice-native coding assistant derived from the Serenade open-s
 ### Build Server
 ```bash
 cd ~/Projects/arqon/ArqonMaestro/serenade
-SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
+ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
 ```
 
 ### Run Server
 ```bash
 cd ~/Projects/arqon/ArqonMaestro/serenade
-CORE_PORT=17200 SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade SERENADE_LIBRARY_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./core/build/install/core/bin/core
+CORE_PORT=17200 ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade
+  ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon ./core/build/install/core/bin/core
 ```
 
 ### Build Client

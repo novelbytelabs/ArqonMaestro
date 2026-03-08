@@ -87,10 +87,12 @@ To stop Docker Compose, run:
 
 You can also install Arqon Maestro and its dependencies directly onto your system.
 
-Arqon Maestro uses two environment variables to describe where source code and dependencies will be on the filesystem:
+Arqon Maestro uses two canonical environment variables to describe where source code and dependencies live on the filesystem:
 
-- `SERENADE_SOURCE_ROOT`: The location of the engine source tree.
-- `SERENADE_LIBRARY_ROOT`: The location of engine dependencies and models.
+- `ARQON_MAESTRO_SOURCE_ROOT`: The location of the engine source tree.
+- `ARQON_MAESTRO_LIBRARY_ROOT`: The location of engine dependencies and models.
+
+Legacy `SERENADE_SOURCE_ROOT` and `SERENADE_LIBRARY_ROOT` are still accepted as compatibility fallbacks during the rebrand program.
 
 If you're using a Mac, make sure you're running all of these commands in [Rosetta](https://support.apple.com/en-us/HT211861). Arqon Maestro currently only supports x86-64 architectures, and not arm64.
 

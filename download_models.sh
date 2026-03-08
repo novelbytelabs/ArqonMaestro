@@ -1,11 +1,11 @@
 #!/bin/bash
 # Maestro Model Downloader
-# Downloads all Serenade AI models from CDN for local/offline use
+# Downloads Arqon Maestro model assets from the inherited CDN for local/offline use
 
 set -e
 
 BASE_URL="https://serenadecdn.com/models"
-MODEL_DIR="$HOME/libserenade/models"
+MODEL_DIR="${ARQON_MAESTRO_LIBRARY_ROOT:-${SERENADE_LIBRARY_ROOT:-$HOME/libarqon}}/models"
 
 mkdir -p "$MODEL_DIR"
 

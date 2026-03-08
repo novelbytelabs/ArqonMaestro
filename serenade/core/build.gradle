@@ -2,9 +2,17 @@ import ai.serenade.AntlrGenerateTask
 
 def antlrJar = (
     (
-        System.env.SERENADE_LIBRARY_ROOT != null ?
-            System.env.SERENADE_LIBRARY_ROOT :
-            System.properties["user.home"] + "/libserenade"
+        System.env.ARQON_MAESTRO_LIBRARY_ROOT != null ?
+            System.env.ARQON_MAESTRO_LIBRARY_ROOT :
+            (
+                System.env.SERENADE_LIBRARY_ROOT != null ?
+                    System.env.SERENADE_LIBRARY_ROOT :
+                    (
+                        new File(System.properties["user.home"] + "/libarqon").exists() ?
+                            System.properties["user.home"] + "/libarqon" :
+                            System.properties["user.home"] + "/libserenade"
+                    )
+            )
     ) + "/antlr/antlr-4.7.2-complete.jar"
 )
 
@@ -37,6 +45,7 @@ dependencies {
 task buildTreeSitter(type: Exec, dependsOn: [":grammarflattener:installDist"]) {
     // the script determines if we're up to date, so this task has no outputs
     inputs.file "bin/build-tree-sitter.py"
+    environment "ARQON_MAESTRO_SOURCE_ROOT", rootProject.projectDir.absolutePath
     environment "SERENADE_SOURCE_ROOT", rootProject.projectDir.absolutePath
     commandLine "./bin/build-tree-sitter.py", "src/dist/lib/libjava-tree-sitter"
 }

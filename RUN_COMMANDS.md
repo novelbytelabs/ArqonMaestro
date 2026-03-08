@@ -1,6 +1,6 @@
-# ArqonMaestro Run Commands
+# Arqon Maestro Run Commands
 
-This document contains the working commands to run the ArqonMaestro application locally.
+This document contains the working commands to run Arqon Maestro locally.
 
 ## Current Status
 
@@ -19,17 +19,17 @@ This document contains the working commands to run the ArqonMaestro application 
 1. **Build the server first** (from project root):
    ```bash
    cd ~/Projects/arqon/ArqonMaestro/serenade
-   SERENADE_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
+   ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/serenade ./gradlew :core:installDist -x downloadModels
    ```
 
    For a full local voice stack, this repository also needs the native dependencies described in `serenade/docs/building.md` (`scripts/setup/build-dependencies.sh`). Without those, `speech-engine` / `code-engine` packaging can still be incomplete.
 
-2. **Select the local endpoint in the correct settings file**:
+2. **Select the local endpoint in the canonical settings file**:
    ```bash
-   mkdir -p ~/.serenade
+   mkdir -p ~/.arqon
    python - <<'PY'
 import json, os
-path = os.path.expanduser("~/.serenade/serenade.json")
+path = os.path.expanduser("~/.arqon/arqon.json")
 data = {}
 if os.path.exists(path) and os.path.getsize(path) > 0:
     with open(path) as f:
@@ -39,7 +39,7 @@ with open(path, "w") as f:
     json.dump(data, f, indent=2)
 PY
    ```
-   `ArqonMaestro` reads the active endpoint from `~/.serenade/serenade.json`, not `~/.serenade/settings.json`.
+   Arqon Maestro now treats `~/.arqon/arqon.json` as canonical. Legacy `~/.serenade/serenade.json` is still read as a fallback during migration.
 
 3. **Install missing X11 libraries** (if on Linux):
    ```bash
@@ -88,7 +88,7 @@ To use ArqonMaestro with VS Code:
    ```bash
    npx vsce package
    ```
-   This creates `serenade-1.5.3.vsix`
+   This creates a VS Code extension package. The current artifact name may still contain legacy naming until later rebrand phases land.
 
 3. **Install in VS Code**:
    - Open VS Code
@@ -98,11 +98,8 @@ To use ArqonMaestro with VS Code:
    - Select the built .vsix file
 
 4. **Configure**:
-   - Make sure the Serenade server is running (Terminal 1)
+   - Make sure the Arqon Maestro backend is running (Terminal 1)
    - The extension should connect automatically to localhost:17200
-
-**Note**: The extension is currently named "Serenade" in package.json. To rebrand to "ArqonMaestro", update:
-   - `package.json`: name, displayName, publisher
 
 Or with debugging:
 ```bash
@@ -114,14 +111,19 @@ ELECTRON_ENABLE_LOGGING=1 ./node_modules/.bin/electron . --enable-logging --no-s
 | Variable | Value | Purpose |
 |----------|-------|---------|
 | CORE_PORT | 17200 | Server port |
-| SERENADE_SOURCE_ROOT | ~/Projects/arqon/ArqonMaestro/serenade | Source code path |
-| SERENADE_LIBRARY_ROOT | ~/Projects/arqon/ArqonMaestro/serenade | Models/libraries path |
+| ARQON_MAESTRO_SOURCE_ROOT | ~/Projects/arqon/ArqonMaestro/serenade | Engine source tree |
+| ARQON_MAESTRO_LIBRARY_ROOT | ~/libarqon | Models and native dependencies |
+
+Legacy compatibility:
+
+- `SERENADE_SOURCE_ROOT` still works as a fallback
+- `SERENADE_LIBRARY_ROOT` still works as a fallback
 
 ## Troubleshooting
 
 - **NumberFormatException on Core.java:18**: Missing CORE_PORT environment variable
 - **ECONNREFUSED on WebSocket**: Local bundle missing or backend incomplete - run `./gradlew client:installServer -x downloadModels`
-- **Wrong endpoint errors**: Check `~/.serenade/serenade.json` has `"streaming_endpoint": "local"`
+- **Wrong endpoint errors**: Check `~/.arqon/arqon.json` has `"streaming_endpoint": "local"`
 - **Only core is running**: This is not enough for voice. Local mode also requires `speech-engine` on `17202` and `code-engine` on `17203`
 - **libxcb errors**: Install libxcb libraries: `sudo apt install libxcb-dri3-0 libxcb-present0 libxcb-sync1`
 - **Window not showing**: Try with `--no-sandbox --disable-gpu` flags
@@ -130,10 +132,10 @@ ELECTRON_ENABLE_LOGGING=1 ./node_modules/.bin/electron . --enable-logging --no-s
 
 ```
 ~/Projects/arqon/ArqonMaestro/
-├── serenade/                    # Main project
+├── serenade/                    # Inherited engine subtree, scheduled for later path rename
 │   ├── core/                    # Java server
 │   │   └── build/install/core/  # Built distribution
 │   ├── client/                  # Electron client
 │   └── gradlew                 # Gradle wrapper
-└── ~/.serenade/serenade.json  # System settings / active endpoint
+└── ~/.arqon/arqon.json        # Canonical system settings / active endpoint
 ```
