@@ -104,8 +104,12 @@ export default class System {
       return "terminal";
     } else if (result.includes("slack")) {
       return "slack";
-    } else if (result.includes("electron") || result.includes("serenade")) {
-      return "serenade";
+    } else if (
+      result.includes("electron") ||
+      result.includes("serenade") ||
+      result.includes("arqon")
+    ) {
+      return "arqon";
     }
 
     return result;

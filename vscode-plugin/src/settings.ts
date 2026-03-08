@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as mkdirp from "mkdirp";
 import * as os from "os";
+import * as path from "path";
 
 export default class Settings {
   private systemData: any = {};
@@ -9,10 +10,18 @@ export default class Settings {
   private userDefaults: any = {};
 
   private createIfNotExists(file: string) {
-    mkdirp.sync(this.path());
+    mkdirp.sync(path.dirname(file));
     if (!fs.existsSync(file)) {
       fs.closeSync(fs.openSync(file, "w"));
     }
+  }
+
+  private preferredPath(): string {
+    return path.join(os.homedir(), ".arqon");
+  }
+
+  private legacyPath(): string {
+    return path.join(os.homedir(), ".serenade");
   }
 
   private dataForFile(file: string): any {
@@ -74,11 +83,15 @@ export default class Settings {
   }
 
   private systemFile(): string {
-    return `${this.path()}/serenade.json`;
+    const preferred = path.join(this.preferredPath(), "arqon.json");
+    const legacy = path.join(this.legacyPath(), "serenade.json");
+    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
   }
 
   private userFile(): string {
-    return `${this.path()}/settings.json`;
+    const preferred = path.join(this.preferredPath(), "settings.json");
+    const legacy = path.join(this.legacyPath(), "settings.json");
+    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
   }
 
   getAnimations(): boolean {
@@ -98,7 +111,7 @@ export default class Settings {
   }
 
   path(): string {
-    return `${os.homedir()}/.serenade`;
+    return path.dirname(this.systemFile());
   }
 
   setPluginInstalled(plugin: string) {

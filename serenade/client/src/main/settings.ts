@@ -22,10 +22,18 @@ export default class Settings {
   }
 
   private createIfNotExists(file: string) {
-    fs.mkdirpSync(this.path());
+    fs.mkdirpSync(path.dirname(file));
     if (!fs.existsSync(file)) {
       fs.closeSync(fs.openSync(file, "w"));
     }
+  }
+
+  private preferredPath(): string {
+    return path.join(os.homedir(), ".arqon");
+  }
+
+  private legacyPath(): string {
+    return path.join(os.homedir(), ".serenade");
   }
 
   private dataForFile(file: string): any {
@@ -128,15 +136,21 @@ export default class Settings {
   }
 
   private systemFile(): string {
-    return path.join(this.path(), "serenade.json");
+    const preferred = path.join(this.preferredPath(), "arqon.json");
+    const legacy = path.join(this.legacyPath(), "serenade.json");
+    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
   }
 
   private userFile(): string {
-    return path.join(this.path(), "settings.json");
+    const preferred = path.join(this.preferredPath(), "settings.json");
+    const legacy = path.join(this.legacyPath(), "settings.json");
+    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
   }
 
   private wordsFile(): string {
-    return path.join(this.path(), "words.json");
+    const preferred = path.join(this.preferredPath(), "words.json");
+    const legacy = path.join(this.legacyPath(), "words.json");
+    return fs.existsSync(preferred) || !fs.existsSync(legacy) ? preferred : legacy;
   }
 
   revisionBoxTrigger(app: string): string {
@@ -410,7 +424,7 @@ export default class Settings {
   }
 
   path() {
-    return `${os.homedir()}/.serenade`;
+    return path.dirname(this.systemFile());
   }
 
   setAnimations(animations: boolean) {

@@ -1,7 +1,7 @@
 /**
- * serenade-driver stub
+ * arqon-driver stub
  * 
- * Stub replacement for the native serenade-driver module.
+ * Stub replacement for the native arqon driver module.
  * 
  * The original driver provides:
  * - mouse click simulation
@@ -35,35 +35,35 @@ function xprop(args: string[]): string {
 
 // Mouse operations
 export function click(button: string, count: number): void {
-  console.warn("[serenade-driver stub] click() not implemented - would click", button, count);
+  console.warn("[arqon-driver stub] click() not implemented - would click", button, count);
 }
 
 // UI element operations
 export function getClickableButtons(): Promise<string[]> {
-  console.warn("[serenade-driver stub] getClickableButtons() not implemented");
+  console.warn("[arqon-driver stub] getClickableButtons() not implemented");
   return Promise.resolve([]);
 }
 
 export function clickButton(name: string): void {
-  console.warn("[serenade-driver stub] clickButton() not implemented - would click button:", name);
+  console.warn("[arqon-driver stub] clickButton() not implemented - would click button:", name);
 }
 
 // Keyboard operations
 export function pressKey(key: string, modifiers?: string[], count?: number): void {
-  console.warn("[serenade-driver stub] pressKey() not implemented - would press:", key, modifiers, count);
+  console.warn("[arqon-driver stub] pressKey() not implemented - would press:", key, modifiers, count);
 }
 
 export function type(text: string): void {
-  console.warn("[serenade-driver stub] type() not implemented - would type:", text);
+  console.warn("[arqon-driver stub] type() not implemented - would type:", text);
 }
 
 export function typeText(text: string): void {
-  console.warn("[serenade-driver stub] typeText() not implemented - would type:", text);
+  console.warn("[arqon-driver stub] typeText() not implemented - would type:", text);
 }
 
 // Mouse movement
 export function moveMouse(x: number, y: number): void {
-  console.warn("[serenade-driver stub] moveMouse() not implemented - would move to:", x, y);
+  console.warn("[arqon-driver stub] moveMouse() not implemented - would move to:", x, y);
 }
 
 // Application operations
@@ -91,29 +91,29 @@ export function getActiveApplication(): Promise<string> {
 }
 
 export function getEditorState(): Promise<any> {
-  console.warn("[serenade-driver stub] getEditorState() not implemented");
+  console.warn("[arqon-driver stub] getEditorState() not implemented");
   return Promise.resolve({});
 }
 
 export function focusApplication(name: string, aliases?: { [key: string]: string }): void {
-  console.warn("[serenade-driver stub] focusApplication() not implemented - would focus:", name, aliases);
+  console.warn("[arqon-driver stub] focusApplication() not implemented - would focus:", name, aliases);
 }
 
 export function getInstalledApplications(): Promise<string[]> {
-  console.warn("[serenade-driver stub] getInstalledApplications() not implemented");
+  console.warn("[arqon-driver stub] getInstalledApplications() not implemented");
   return Promise.resolve([]);
 }
 
 export function launchApplication(name: string, aliases?: { [key: string]: string }): void {
-  console.warn("[serenade-driver stub] launchApplication() not implemented - would launch:", name, aliases);
+  console.warn("[arqon-driver stub] launchApplication() not implemented - would launch:", name, aliases);
 }
 
 export function quitApplication(name: string, aliases?: { [key: string]: string }): void {
-  console.warn("[serenade-driver stub] quitApplication() not implemented - would quit:", name, aliases);
+  console.warn("[arqon-driver stub] quitApplication() not implemented - would quit:", name, aliases);
 }
 
 export function getRunningApplications(): Promise<string[]> {
-  console.warn("[serenade-driver stub] getRunningApplications() not implemented");
+  console.warn("[arqon-driver stub] getRunningApplications() not implemented");
   return Promise.resolve([]);
 }
 

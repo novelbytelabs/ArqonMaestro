@@ -46,7 +46,7 @@ if (!lock) {
     // https://github.com/electron/electron/issues/2170
     setTimeout(async () => {
       app.setName("ArqonMaestro");
-      app.setAsDefaultProtocolClient("serenade");
+      app.setAsDefaultProtocolClient("arqon");
       instance = await App.create();
       autoUpdater.checkForUpdatesAndNotify();
     }, 500);

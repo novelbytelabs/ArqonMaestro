@@ -114,7 +114,7 @@ export default class RendererProcessEventHandlers {
     });
 
     ipcMain.on("openLogDirectory", () => {
-      shell.openPath(path.join(os.homedir(), ".serenade"));
+      shell.openPath(this.settings.path());
     });
 
     ipcMain.on("openURL", (_event: any, data: string) => {

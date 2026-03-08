@@ -16,12 +16,12 @@ export const plugins: { [key: string]: PluginConfiguration } = {
   atom: {
     name: "Atom",
     icon: atom,
-    url: "https://atom.io/packages/serenade",
+    url: "https://github.com/novelbytelabs/ArqonMaestro",
   },
   vscode: {
     name: "VS Code",
     icon: vscode,
-    url: "https://marketplace.visualstudio.com/items?itemName=arqon.nade",
+    url: "https://github.com/novelbytelabs/ArqonMaestro/tree/main/vscode-plugin",
   },
   jetbrains: {
     name: "JetBrains",
@@ -31,21 +31,21 @@ export const plugins: { [key: string]: PluginConfiguration } = {
   hyper: {
     name: "Hyper",
     icon: hyper,
-    url: "https://github.com/serenadeai/hyper",
+    url: "https://github.com/novelbytelabs/ArqonMaestro",
   },
   iterm: {
     name: "iTerm",
     icon: iterm,
-    url: "https://github.com/serenadeai/iterm2",
+    url: "https://github.com/novelbytelabs/ArqonMaestro",
   },
   chrome: {
     name: "Chrome",
     icon: chrome,
-    url: "https://chrome.google.com/webstore/detail/bgfbijeikimjmdjldemlegooghdjinmj",
+    url: "https://github.com/novelbytelabs/ArqonMaestro",
   },
   edge: {
     name: "Edge",
     icon: edge,
-    url: "https://chrome.google.com/webstore/detail/bgfbijeikimjmdjldemlegooghdjinmj",
+    url: "https://github.com/novelbytelabs/ArqonMaestro",
   },
 };

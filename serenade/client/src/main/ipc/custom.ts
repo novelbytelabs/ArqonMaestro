@@ -27,7 +27,7 @@ serenade.language("python").snippet(
   "method"
 );
 
-For more information, check out the ArqonMaestro API documentation: https://serenade.ai/docs/api
+For more information, check out the ArqonMaestro API documentation: https://novelbytelabs.github.io/ArqonMaestro/
 
 */`;
 
@@ -130,7 +130,7 @@ For more information, check out the ArqonMaestro API documentation: https://sere
 
       this.resolveStart = resolveOnce;
       this.stop();
-      const stream = fs.createWriteStream(path.join(this.settings.path(), "serenade.log"));
+      const stream = fs.createWriteStream(path.join(this.settings.path(), "arqon.log"));
       this.process = child_process.fork("serenade-custom-commands-server.min.js", [], {
         cwd: path.join(this.settings.path(), "ipc"),
         stdio: "pipe",

@@ -85,7 +85,7 @@ document.querySelector('.download').addEventListener('click', e => {
 
   showInstallMessage() {
     const panel = vscode.window.createWebviewPanel(
-      "serenade-install",
+      "arqon-install",
       "ArqonMaestro",
       vscode.ViewColumn.Two,
       {

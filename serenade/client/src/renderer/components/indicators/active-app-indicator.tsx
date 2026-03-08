@@ -23,6 +23,10 @@ const apps: { [key: string]: { name: string; icon: string } } = {
     name: "Safari",
     icon: safari,
   },
+  arqon: {
+    name: "ArqonMaestro",
+    icon,
+  },
   serenade: {
     name: "ArqonMaestro",
     icon,

@@ -1,8 +1,8 @@
 {
-  "name": "Serenade",
-  "productName": "Serenade",
+  "name": "arqon-maestro",
+  "productName": "ArqonMaestro",
   "version": "2.0.2",
-  "author": "Serenade Labs, Inc. <contact@arqon.>",
+  "author": "Novel Byte Labs",
   "description": "Code with voice. Learn more at https://novelbytelabs.github.io/ArqonMaestro/",
   "license": "MIT",
   "private": true,
@@ -19,8 +19,8 @@
       "entitlementsInherit": "./build/entitlements.mac.plist",
       "signIgnore": "(static/local/jdk/lib/modules)|(static/local/jdk/lib/security/cacerts)|(static/local/code-engine-models)|(static/local/speech-engine-models)",
       "extendInfo": {
-        "NSAppleEventsUsageDescription": "Serenade uses Apple Events to automate your workflow.",
-        "NSMicrophoneUsageDescription": "Serenade uses your microphone to enable you to code with voice."
+        "NSAppleEventsUsageDescription": "ArqonMaestro uses Apple Events to automate your workflow.",
+        "NSMicrophoneUsageDescription": "ArqonMaestro uses your microphone to enable you to code with voice."
       },
       "target": [
         {
@@ -58,12 +58,12 @@
       ]
     },
     "dmg": {
-      "title": "Serenade"
+      "title": "ArqonMaestro"
     },
     "protocols": {
-      "name": "serenade-protocol",
+      "name": "arqon-protocol",
       "schemes": [
-        "serenade"
+        "arqon"
       ]
     },
     "publish": {

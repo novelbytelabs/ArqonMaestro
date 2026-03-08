@@ -1,4 +1,4 @@
-<img src="https://cdn.arqon./img/logo-github.png" width="250px" alt="ArqonMaestro Logo" />
+<img src="./icon.png" width="128px" alt="ArqonMaestro Logo" />
 
 # ArqonMaestro for Visual Studio Code
 
@@ -12,7 +12,7 @@ Edit code, run terminal commands, and write documentation entirely with voice. W
 
 Learn more at [https://novelbytelabs.github.io/ArqonMaestro/](https://novelbytelabs.github.io/ArqonMaestro/).
 
-[![ArqonMaestro Demo](https://cdn.arqon./img/develop-naturally.gif)](https://novelbytelabs.github.io/ArqonMaestro//)
+[![ArqonMaestro](./icon.png)](https://novelbytelabs.github.io/ArqonMaestro/)
 
 ## Installation
 

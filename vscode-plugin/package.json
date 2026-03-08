@@ -1,10 +1,10 @@
 {
-  "name": "serenade",
+  "name": "arqon-maestro",
   "description": "Code with voice. Learn more at https://novelbytelabs.github.io/ArqonMaestro/.",
   "displayName": "ArqonMaestro",
   "license": "MIT",
-  "publisher": "serenade",
-  "repository": "https://github.com/serenadeai/code",
+  "publisher": "novelbytelabs",
+  "repository": "https://github.com/novelbytelabs/ArqonMaestro",
   "version": "1.5.3",
   "extensionKind": "ui",
   "icon": "icon.png",
