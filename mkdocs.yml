@@ -52,10 +52,16 @@ nav:
       - Getting Started: guides/getting-started.md
       - How Commands Work: guides/how-commands-work.md
       - Common Commands: guides/common-commands.md
+      - Adding and Inserting Code: guides/adding-and-inserting-code.md
+      - Navigation and Selection: guides/navigation-and-selection.md
+      - Editing and Refactoring: guides/editing-and-refactoring.md
       - Dictation and Raw Text: guides/dictation-and-raw-text.md
+      - Command Modes: guides/command-modes.md
       - Revision Box and Text Input: guides/revision-box-and-text-input.md
       - Alternatives and Corrections: guides/alternatives-and-corrections.md
       - Application Control: guides/application-control.md
+      - Browser and System Control: guides/browser-and-system-control.md
+      - Editor Integrations: guides/editor-integrations.md
       - In-App Tutorials: guides/in-app-tutorials.md
       - Building: guides/building.md
   - Architecture:
