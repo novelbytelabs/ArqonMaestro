@@ -25,11 +25,15 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -37,7 +41,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -45,7 +51,9 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -54,7 +62,9 @@
     },
     "protocols": {
       "name": "serenade-protocol",
-      "schemes": ["serenade"]
+      "schemes": [
+        "serenade"
+      ]
     },
     "publish": {
       "provider": "generic",
@@ -80,7 +90,9 @@
     "start:electron": "electron ."
   },
   "electronWebpack": {
-    "whiteListedModules": ["react-redux"]
+    "whiteListedModules": [
+      "react-redux"
+    ]
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^1.2.32",
@@ -127,10 +139,12 @@
     "cross-env": "^7.0.3",
     "css-loader": "^6.5.1",
     "dotenv": "^8.1.0",
-    "electron": "18.2.0",
+    "electron": "^18.2.0",
     "electron-builder": "^23.0.3",
     "electron-notarize": "^1.2.1",
     "html-webpack-plugin": "^5.5.0",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
     "postcss": "^8.4.5",
     "postcss-loader": "^6.2.1",
     "prettier": "^2.2.0",

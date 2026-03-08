@@ -123,16 +123,19 @@ export default class API {
 
     const unreachable = 1000;
     const url = endpoint.address.split(":")[0];
+    console.log("[ArqonMaestro] Pinging endpoint:", url);
     try {
       const start = Date.now();
       await fetch(`https://${url}/api/status`, { method: "POST", timeout: unreachable });
       const latency = Math.round(Date.now() - start);
+      console.log("[ArqonMaestro] Ping success:", url, "latency:", latency);
       if (updateRenderer) {
         this.bridge.setState({ latency }, [this.mainWindow, this.settingsWindow()]);
       }
 
       return latency;
     } catch (e) {
+      console.log("[ArqonMaestro] Ping failed:", url, "error:", e);
       return unreachable;
     }
   }

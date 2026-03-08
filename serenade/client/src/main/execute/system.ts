@@ -1,7 +1,7 @@
 import { clipboard } from "electron";
 import * as os from "os";
 import Settings from "../settings";
-const driver = require("serenade-driver");
+import * as driver from "../driver/stub";
 
 export default class System {
   // some applications don't have what they're commonly referred to in their application bundle,
@@ -50,7 +50,9 @@ export default class System {
   }
 
   async determineActiveApplication() {
-    const result = (await driver.getActiveApplication()).toLowerCase();
+    // Defensive guard: ensure we get a string before calling .toLowerCase()
+    const rawResult = await driver.getActiveApplication();
+    const result = String(rawResult || "").toLowerCase();
     if (result === "system dialog") {
       return "system dialog";
     } else if (result.includes("atom")) {

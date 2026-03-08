@@ -28,7 +28,7 @@ import System from "./execute/system";
 import TextInputWindow from "./windows/text-input";
 import Window from "./windows/window";
 import * as examples from "./examples";
-const { SpeechRecorder } = require("speech-recorder");
+import { SpeechRecorder } from "./audio";
 
 export default class App {
   private bridge?: RendererBridge;
@@ -255,13 +255,24 @@ export default class App {
       miniModeWindow,
     ]);
 
-    if (settings.getStreamingEndpoint() && settings.getStreamingEndpoint().id == "local") {
+    const endpoint = settings.getStreamingEndpoint();
+    console.log("[ArqonMaestro] Streaming endpoint:", endpoint?.id, "-", endpoint?.address);
+    console.log("[ArqonMaestro] Token present:", !!settings.getToken());
+
+    if (endpoint && endpoint.id == "local") {
       local.start();
     } else {
-      await api.setBestEndpoint(settings.getStreamingEndpoints());
+      console.log("[ArqonMaestro] Attempting to connect to remote endpoint:", endpoint?.address);
+      try {
+        await api.setBestEndpoint(settings.getStreamingEndpoints());
+        console.log("[ArqonMaestro] setBestEndpoint completed successfully");
+      } catch (e) {
+        console.error("[ArqonMaestro] setBestEndpoint failed:", e);
+      }
     }
 
     instance.registerPushToTalk();
+    console.log("[ArqonMaestro] Setting loggedIn state:", !!settings.getToken());
     bridge.setState({ loggedIn: !!settings.getToken(), listening: false }, [
       mainWindow,
       miniModeWindow,

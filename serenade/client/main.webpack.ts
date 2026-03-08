@@ -1,15 +1,16 @@
 import * as path from "path";
 import { Configuration } from "webpack";
 
-const nodeExternals = require("webpack-node-externals");
 const WebpackShellPlugin = require("webpack-shell-plugin-next");
 
 const config: Configuration = {
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
+    modules: ["node_modules"],
   },
   devtool: "source-map",
   entry: path.resolve(__dirname, "src/main/index.ts"),
+  // CRITICAL: Use electron-main target - handles electron module natively
   target: "electron-main",
   module: {
     rules: [
@@ -19,6 +20,8 @@ const config: Configuration = {
           path.resolve(__dirname, "src/gen"),
           path.resolve(__dirname, "src/main"),
           path.resolve(__dirname, "src/shared"),
+          path.resolve(__dirname, "src/audio"),
+          path.resolve(__dirname, "src/driver"),
         ],
         use: ["ts-loader"],
       },
@@ -32,8 +35,11 @@ const config: Configuration = {
     path: path.resolve(__dirname, "out"),
     filename: "[name].js",
   },
-  externals: [nodeExternals()],
-  externalsPresets: { node: true },
+  // CRITICAL FIX: Don't externalize electron - Electron provides it
+  externals: {
+    "electron-updater": "commonjs electron-updater",
+    "electron-log": "commonjs electron-log",
+  },
   plugins: [
     new WebpackShellPlugin({
       onBuildEnd: {

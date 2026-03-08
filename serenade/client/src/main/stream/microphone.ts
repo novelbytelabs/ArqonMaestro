@@ -3,7 +3,7 @@ import RendererBridge from "../bridge";
 import Settings from "../settings";
 import SettingsWindow from "../windows/settings";
 import Window from "../windows/window";
-const { SpeechRecorder, devices } = require("speech-recorder");
+import { SpeechRecorder, devices } from "../audio";
 
 declare var __static: string;
 
