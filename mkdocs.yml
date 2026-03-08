@@ -44,8 +44,26 @@ theme:
 
 nav:
   - Overview: index.md
+  - Ecosystem:
+      - Maestro In Arqon: overview/ecosystem.md
   - Decision Log: decision-log.md
   - Modernization Matrix: modernization-matrix.md
+  - Guides:
+      - Building: guides/building.md
+  - Architecture:
+      - Codebase Layout: architecture/codebase-layout.md
+      - Request Lifecycle: architecture/request-lifecycle.md
+  - Models:
+      - Generating Data: models/generating-data.md
+      - Model Architecture: models/model-architecture.md
+      - Training Models: models/training-models.md
+  - Operations:
+      - Configuration: operations/configuration.md
+      - Troubleshooting Map: operations/troubleshooting-map.md
+  - Development:
+      - Extending Maestro: development/extending-maestro.md
+  - Parsing:
+      - Grammars: parsing/grammars.md
 
 markdown_extensions:
   - attr_list
@@ -129,10 +147,5 @@ copyright: "Copyright &copy; 2026 NovelByte Labs - All rights reserved."
 
 plugins:
   - search:
-  - git-revision-date-localized:
-      enabled: true
-      type: date
-      locale: en
-      fallback_to_build_date: true
   - minify:
       minify_html: true
