@@ -83,3 +83,4 @@ serenade/tree-sitter/      # Grammar parsers (cloned from upstream)
 !serenade/client/build/*
 !serenade/core/src/main/java/core/gen/antlr/antlr4/LexerAdaptor.java
 !serenade/core/src/dist/bin/run-pro
+serenade/models/
