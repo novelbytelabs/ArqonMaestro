@@ -19,6 +19,11 @@ export default class Local {
   private pollingInterval?: NodeJS.Timeout;
   private localStartTimeout?: NodeJS.Timeout;
   private started: boolean = false;
+  private startupHealthy: boolean = false;
+  private consecutiveHealthFailures: number = 0;
+  private recovering: boolean = false;
+  private recoveryAttempts: number = 0;
+  private maxRecoveryAttempts: number = 5;
 
   constructor(
     private bridge: RendererBridge,
@@ -91,6 +96,26 @@ export default class Local {
     }
   }
 
+  private async servicesHealthy(): Promise<boolean> {
+    try {
+      const [speechResponse, codeResponse] = await Promise.all([
+        fetch("http://localhost:17202/api/status", { method: "GET", timeout: 1500 }),
+        fetch("http://localhost:17203/api/status", { method: "GET", timeout: 1500 }),
+      ]);
+      if (!speechResponse.ok || !codeResponse.ok) {
+        return false;
+      }
+
+      const [speechHealthy, codeHealthy] = await Promise.all([
+        speechResponse.json(),
+        codeResponse.json(),
+      ]);
+      return !!speechHealthy && !!codeHealthy;
+    } catch (_e) {
+      return false;
+    }
+  }
+
   private setLocalState(localLoading: boolean, backendIssue: string = "") {
     this.bridge.setState(
       {
@@ -104,9 +129,45 @@ export default class Local {
   private failStartup(message: string) {
     this.log.logError(new Error(message));
     this.started = false;
+    this.startupHealthy = false;
+    this.consecutiveHealthFailures = 0;
+    this.recovering = false;
+    this.recoveryAttempts = 0;
     this.stopPolling();
     this.killAll();
     this.setLocalState(false, message);
+  }
+
+  private scheduleRecovery(reason: string) {
+    if (this.recovering || !this.started) {
+      return;
+    }
+
+    if (this.recoveryAttempts >= this.maxRecoveryAttempts) {
+      this.failStartup(
+        `Local backend became unstable and exceeded recovery attempts (${this.maxRecoveryAttempts}). Last reason: ${reason}`
+      );
+      return;
+    }
+
+    this.recovering = true;
+    this.recoveryAttempts += 1;
+    const attempt = this.recoveryAttempts;
+    this.log.logError(
+      new Error(`Local backend unhealthy: ${reason}. Attempting recovery ${attempt}/${this.maxRecoveryAttempts}.`)
+    );
+    this.setLocalState(
+      true,
+      `Local backend disconnected. Attempting recovery ${attempt}/${this.maxRecoveryAttempts}...`
+    );
+
+    this.started = false;
+    this.stopPolling();
+    this.killAll();
+    global.setTimeout(async () => {
+      this.recovering = false;
+      await this.start();
+    }, Math.min(1000 * attempt, 5000));
   }
 
   private localPath(...parts: string[]) {
@@ -260,6 +321,35 @@ export default class Local {
         return;
       }
 
+      // Some run-pro launchers can exit 0 after handing off to the actual service binary.
+      // In that case, verify service health before treating it as a startup failure.
+      if ((service == "speech-engine" || service == "code-engine") && code === 0) {
+        global.setTimeout(async () => {
+          if (!this.started || !this.pollingInterval) {
+            return;
+          }
+
+          try {
+            const url =
+              service == "speech-engine"
+                ? "http://localhost:17202/api/status"
+                : "http://localhost:17203/api/status";
+            const response = await fetch(url, { method: "GET", timeout: 1500 });
+            if (response.ok && (await response.json())) {
+              this.log.logVerbose(
+                `${service} launcher exited with code 0 after successful startup handoff.`
+              );
+              return;
+            }
+          } catch (_e) {}
+
+          this.failStartup(
+            `${service} exited before local startup completed (exit code 0) and health check failed.`
+          );
+        }, 1500);
+        return;
+      }
+
       const exitDetail =
         code !== null ? `exit code ${code}` : signal ? `signal ${signal}` : "unknown exit";
       this.failStartup(`${service} exited before local startup completed (${exitDetail}).`);
@@ -279,16 +369,29 @@ export default class Local {
     }, 30000);
 
     this.pollingInterval = global.setInterval(async () => {
-      try {
-        const [speechResponse, codeResponse] = await Promise.all([
-          fetch("http://localhost:17202/api/status"),
-          fetch("http://localhost:17203/api/status"),
-        ]);
-        if ((await speechResponse.json()) && (await codeResponse.json())) {
-          this.stopPolling();
+      const healthy = await this.servicesHealthy();
+      if (healthy) {
+        this.consecutiveHealthFailures = 0;
+        if (!this.startupHealthy) {
+          this.startupHealthy = true;
+          if (this.localStartTimeout) {
+            clearTimeout(this.localStartTimeout);
+            this.localStartTimeout = undefined;
+          }
           this.setLocalState(false, "");
         }
-      } catch (e) {}
+
+        return;
+      }
+
+      this.consecutiveHealthFailures += 1;
+      if (!this.startupHealthy) {
+        return;
+      }
+
+      if (this.consecutiveHealthFailures >= 3) {
+        this.scheduleRecovery("health checks failed three consecutive times");
+      }
     }, 1000);
   }
 
@@ -312,6 +415,8 @@ export default class Local {
     }
 
     this.started = true;
+    this.startupHealthy = false;
+    this.consecutiveHealthFailures = 0;
     this.killAll();
     const portIssue = this.ensurePortsAvailable();
     if (portIssue) {
@@ -392,6 +497,10 @@ export default class Local {
 
   stop() {
     this.started = false;
+    this.startupHealthy = false;
+    this.consecutiveHealthFailures = 0;
+    this.recovering = false;
+    this.recoveryAttempts = 0;
     this.stopPolling();
     this.killAll();
     this.setLocalState(false);

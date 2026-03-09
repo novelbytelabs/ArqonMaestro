@@ -637,4 +637,218 @@ export default class Settings {
   setUseVerboseLogging(verboseLogging: boolean) {
     this.set("user", "verbose_logging", verboseLogging);
   }
+
+  // ========================================================================
+  // Arqon Bus Configuration
+  // ========================================================================
+
+  /**
+   * Get whether Arqon Bus integration is enabled
+   * Production default: true (after cutover)
+   */
+  getArqonBusEnabled(): boolean {
+    return this.get("system", "arqon_bus_enabled", true);
+  }
+
+  /**
+   * Set Arqon Bus enabled state
+   */
+  setArqonBusEnabled(enabled: boolean) {
+    this.set("system", "arqon_bus_enabled", enabled);
+  }
+
+  /**
+   * Get Arqon Bus WebSocket URL
+   */
+  getArqonBusWsUrl(): string {
+    return this.get("system", "arqon_bus_ws_url", "ws://localhost:9100");
+  }
+
+  /**
+   * Set Arqon Bus WebSocket URL
+   */
+  setArqonBusWsUrl(url: string) {
+    this.set("system", "arqon_bus_ws_url", url);
+  }
+
+  /**
+   * Get Arqon Bus shadow mode setting
+   * When enabled, messages are published but responses are not acted upon
+   * Production default: false (after cutover)
+   */
+  getArqonBusShadowMode(): boolean {
+    return this.get("system", "arqon_bus_shadow_mode", false);
+  }
+
+  /**
+   * Set Arqon Bus shadow mode
+   */
+  setArqonBusShadowMode(shadowMode: boolean) {
+    this.set("system", "arqon_bus_shadow_mode", shadowMode);
+  }
+
+  /**
+   * Get Arqon Bus room name
+   */
+  getArqonBusRoom(): string {
+    return this.get("system", "arqon_bus_room", "stt");
+  }
+
+  /**
+   * Set Arqon Bus room name
+   */
+  setArqonBusRoom(room: string) {
+    this.set("system", "arqon_bus_room", room);
+  }
+
+  /**
+   * Get Arqon Bus channel name
+   */
+  getArqonBusChannel(): string {
+    return this.get("system", "arqon_bus_channel", "transcription");
+  }
+
+  /**
+   * Set Arqon Bus channel name
+   */
+  setArqonBusChannel(channel: string) {
+    this.set("system", "arqon_bus_channel", channel);
+  }
+
+  // ========================================================================
+  // Arqon Bus Comparison Configuration
+  // ========================================================================
+
+  /**
+   * Get whether comparison mode is enabled
+   */
+  getArqonBusCompareEnabled(): boolean {
+    return this.get("system", "arqon_bus_compare_enabled", false);
+  }
+
+  /**
+   * Set comparison mode enabled
+   */
+  setArqonBusCompareEnabled(enabled: boolean) {
+    this.set("system", "arqon_bus_compare_enabled", enabled);
+  }
+
+  /**
+   * Get similarity threshold for comparison (0-1)
+   */
+  getArqonBusCompareThreshold(): number {
+    return this.get("system", "arqon_bus_compare_threshold", 0.95);
+  }
+
+  /**
+   * Set similarity threshold
+   */
+  setArqonBusCompareThreshold(threshold: number) {
+    this.set("system", "arqon_bus_compare_threshold", threshold);
+  }
+
+  /**
+   * Get comparison report interval in seconds
+   */
+  getArqonBusCompareReportInterval(): number {
+    return this.get("system", "arqon_bus_compare_report_interval_s", 300);
+  }
+
+  /**
+   * Set comparison report interval
+   */
+  setArqonBusCompareReportInterval(intervalSeconds: number) {
+    this.set("system", "arqon_bus_compare_report_interval_s", intervalSeconds);
+  }
+
+  /**
+   * Get comparison sample rate (0-1)
+   */
+  getArqonBusCompareSampleRate(): number {
+    return this.get("system", "arqon_bus_compare_sample_rate", 1.0);
+  }
+
+  /**
+   * Set comparison sample rate
+   */
+  setArqonBusCompareSampleRate(rate: number) {
+    this.set("system", "arqon_bus_compare_sample_rate", rate);
+  }
+
+  // ========================================================================
+  // Arqon Bus Cutover Configuration
+  // ========================================================================
+
+  /**
+   * Get whether cutover is enabled (master switch)
+   * Production default: true (after cutover)
+   */
+  getArqonBusCutoverEnabled(): boolean {
+    return this.get("system", "arqon_bus_cutover_enabled", true);
+  }
+
+  /**
+   * Set cutover enabled state
+   */
+  setArqonBusCutoverEnabled(enabled: boolean) {
+    this.set("system", "arqon_bus_cutover_enabled", enabled);
+  }
+
+  /**
+   * Get current Bus traffic percentage (0-100)
+   * Production default: 100 (after cutover)
+   */
+  getArqonBusTrafficPercentage(): number {
+    return this.get("system", "arqon_bus_traffic_percentage", 100);
+  }
+
+  /**
+   * Set Bus traffic percentage
+   */
+  setArqonBusTrafficPercentage(percentage: number) {
+    this.set("system", "arqon_bus_traffic_percentage", Math.max(0, Math.min(100, percentage)));
+  }
+
+  /**
+   * Get current cutover stage
+   * Production default: 100pct (after cutover)
+   */
+  getArqonBusCurrentStage(): string {
+    return this.get("system", "arqon_bus_current_stage", "100pct");
+  }
+
+  /**
+   * Set current cutover stage
+   */
+  setArqonBusCurrentStage(stage: string) {
+    this.set("system", "arqon_bus_current_stage", stage);
+  }
+
+  /**
+   * Get whether instant rollback is enabled
+   */
+  getArqonBusRollbackEnabled(): boolean {
+    return this.get("system", "arqon_bus_rollback_enabled", false);
+  }
+
+  /**
+   * Set rollback enabled state
+   */
+  setArqonBusRollbackEnabled(enabled: boolean) {
+    this.set("system", "arqon_bus_rollback_enabled", enabled);
+  }
+
+  /**
+   * Get stage check interval in seconds
+   */
+  getArqonBusStageCheckInterval(): number {
+    return this.get("system", "arqon_bus_stage_check_interval_s", 60);
+  }
+
+  /**
+   * Set stage check interval
+   */
+  setArqonBusStageCheckInterval(intervalSeconds: number) {
+    this.set("system", "arqon_bus_stage_check_interval_s", intervalSeconds);
+  }
 }

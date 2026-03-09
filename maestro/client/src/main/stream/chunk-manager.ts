@@ -12,8 +12,11 @@ import RendererBridge from "../bridge";
 import Settings from "../settings";
 import Stream from "./stream";
 import { Chunk, ChunkQueue } from "./chunk-queue";
+import STTTracking, { ChunkMetrics } from "../stt/tracking";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
+import STTComparator from "../stt/comparator";
+import TrafficRouter, { RoutingDecision, RoutingPath } from "../stt/traffic-router";
 
 interface Request {
   requestType: "audio" | "editor" | "endpoint" | "initialize";
@@ -45,8 +48,18 @@ export default class ChunkManager {
   private deadlineToMakeNewInitializeRequest: number = 0;
   private maxAudioFramesPerChunk: number = 90;
   private speaking: boolean = false;
+  private toggleGeneration: number = 0;
   private timeToWaitBeforeClassifyingAsNoise: number = 200;
   private timeToWaitBeforeStartingNewCommand: number = 5000;
+  private lastToggleTime: number = 0;
+  private busClient: any = null;
+  private sessionStartTime: number = 0;
+  private audioSequenceNumber: number = 0;
+  private comparator?: STTComparator;
+  private trafficRouter?: TrafficRouter;
+  private currentRoutingDecision?: RoutingDecision;
+  private busResponseLatency?: number;
+  private websocketResponseLatency?: number;
 
   listening: boolean = false;
 
@@ -63,8 +76,203 @@ export default class ChunkManager {
     private microphone: Microphone,
     private miniModeWindow: MiniModeWindow,
     private settings: Settings,
-    private stream: Stream
-  ) {}
+    private stream: Stream,
+    private tracking: STTTracking
+  ) {
+    // Lazy load bus client to avoid circular dependencies
+  }
+
+  /**
+   * Set the Bus client for shadow publishing
+   */
+  setBusClient(busClient: any) {
+    this.busClient = busClient;
+    if (busClient && busClient.isEnabled()) {
+      busClient.connect();
+    }
+  }
+
+  /**
+   * Set the comparator for WebSocket vs Bus comparison
+   */
+  setComparator(comparator: STTComparator) {
+    this.comparator = comparator;
+    if (this.comparator && this.busClient && this.busClient.isEnabled()) {
+      // Register callback to receive Bus responses for comparison
+      this.busClient.registerTranscriptCallback(
+        (
+          sessionId: string,
+          chunkId: string,
+          alternatives: any[],
+          latencyMs: number,
+          isFinal: boolean
+        ) => {
+          if (this.comparator?.isEnabled()) {
+            this.comparator.storeBusResponse(
+              sessionId,
+              chunkId,
+              alternatives,
+              latencyMs,
+              isFinal
+            );
+          }
+        }
+      );
+    }
+  }
+
+  /**
+   * Set the traffic router for cutover routing
+   */
+  setTrafficRouter(router: TrafficRouter) {
+    this.trafficRouter = router;
+    this.log.logVerbose("[ChunkManager] Traffic router configured");
+  }
+
+  /**
+   * Get current routing decision
+   */
+  getCurrentRoutingDecision(): RoutingDecision | undefined {
+    return this.currentRoutingDecision;
+  }
+
+  /**
+   * Route session to either WebSocket or Bus based on traffic router
+   */
+  private routeSession(sessionId: string): RoutingPath {
+    if (!this.trafficRouter || !this.trafficRouter.isEnabled()) {
+      return "websocket";
+    }
+
+    // Check if Bus is healthy
+    if (!this.trafficRouter.isBusHealthy()) {
+      return "websocket";
+    }
+
+    // Get routing decision
+    const decision = this.trafficRouter.route(sessionId);
+    this.currentRoutingDecision = decision;
+
+    this.log.logVerbose(
+      `[ChunkManager] Session ${sessionId.substring(0, 8)} routed to: ${decision.path}`
+    );
+
+    // Enable execution mode on Bus client if routed to bus
+    if (decision.path === "bus" && this.busClient) {
+      this.busClient.setExecutionMode(true, this.handleBusResponse.bind(this));
+    } else if (this.busClient) {
+      this.busClient.setExecutionMode(false);
+    }
+
+    return decision.path;
+  }
+
+  /**
+   * Handle response from Bus (execution mode)
+   */
+  private handleBusResponse(
+    sessionId: string,
+    chunkId: string,
+    alternatives: any[],
+    latencyMs: number,
+    isFinal: boolean
+  ) {
+    this.busResponseLatency = latencyMs;
+    
+    // Record metrics for the Bus path
+    if (this.trafficRouter && this.currentRoutingDecision?.path === "bus") {
+      this.trafficRouter.recordSessionResult(
+        sessionId,
+        "bus",
+        true, // success - we received a response
+        latencyMs,
+        this.websocketResponseLatency,
+        undefined // matched - comparison handled separately
+      );
+    }
+  }
+
+  /**
+   * Check if should route to Bus for current session
+   */
+  private shouldUseBusPath(): boolean {
+    return this.currentRoutingDecision?.path === "bus" && this.busClient?.isConnected();
+  }
+
+  /**
+   * Publish an STT envelope to the Bus if enabled
+   */
+  private publishToBus(envelopeType: string, ...args: any[]) {
+    if (!this.busClient || !this.busClient.isEnabled() || !this.tracking.getCurrentSessionId()) {
+      return;
+    }
+
+    try {
+      const sessionId = this.tracking.getCurrentSessionId()!;
+      const chunk = this.chunkQueue.getIndex(0);
+      const chunkId = chunk?.id || uuid();
+
+      switch (envelopeType) {
+        case "session_start":
+          this.busClient.publishSessionStart(
+            sessionId,
+            chunkId,
+            "en-US", // TODO: Get actual language
+            this.settings.getStreamingEndpoint()?.id || "default"
+          );
+          break;
+        case "audio_append":
+          this.busClient.publishAudioAppend(
+            sessionId,
+            chunkId,
+            args[0], // audioData
+            args[1], // sequenceNumber
+            args[2]  // timestampMs
+          );
+          break;
+        case "endpoint_request":
+          this.busClient.publishEndpointRequest(
+            sessionId,
+            chunkId,
+            args[0], // finalize
+            args[1]  // endpointType
+          );
+          break;
+        case "transcript_partial":
+          this.busClient.publishTranscriptPartial(
+            sessionId,
+            chunkId,
+            args[0], // alternatives
+            args[1], // latencyMs
+            args[2], // silenceThreshold
+            args[3], // modelId
+            args[4]  // redactionApplied
+          );
+          break;
+        case "transcript_final":
+          this.busClient.publishTranscriptFinal(
+            sessionId,
+            chunkId,
+            args[0], // alternatives
+            args[1], // latencyMs
+            args[2], // silenceThreshold
+            args[3], // modelId
+            args[4]  // redactionApplied
+          );
+          break;
+        case "session_stop":
+          this.busClient.publishSessionStop(
+            sessionId,
+            args[0], // chunkId
+            args[1], // reason
+            args[2]  // durationMs
+          );
+          break;
+      }
+    } catch (error) {
+      this.log.logVerbose(`[ChunkManager] Bus publish error: ${error}`);
+    }
+  }
 
   private async enqueue(request: Request, flush: boolean = true) {
     this.buffer.push(request);
@@ -123,6 +331,7 @@ export default class ChunkManager {
     let data: any = {
       token: this.settings.getToken(),
       endpoint_id: response.endpointId,
+      session_id: this.tracking.getCurrentSessionId(),
     };
 
     if (this.settings.getLogAudio() || this.settings.getLogSource()) {
@@ -142,6 +351,9 @@ export default class ChunkManager {
     this.api.logEvent(`client.stream.${response.final ? "final" : "partial"}_response`, {
       dt: Date.now(),
       data,
+    }, {
+      session_id: this.tracking.getCurrentSessionId(),
+      chunk_id: response.chunkId,
     });
 
     if (
@@ -306,6 +518,10 @@ export default class ChunkManager {
     this.log.logVerbose(`Executing chunk ${chunk.id}`);
     this.deadlineToMakeNewInitializeRequest = 0;
     chunk.executed = Date.now();
+    
+    // Track execution
+    this.tracking.onExecuted(chunk.id);
+    
     this.startBuffering();
     await this.executor.execute(this.getResponse(chunk));
     await this.stopBufferingAndFlush();
@@ -325,6 +541,50 @@ export default class ChunkManager {
         .map((e: any) => e.transcript)
         .join(", ")}]`
     );
+
+    // Track response latency
+    if (response.final) {
+      this.tracking.onFinalResponse(chunk.id);
+      this.tracking.logLatencyMetrics(chunk.id);
+      
+      // Track WebSocket latency for comparison with Bus
+      this.websocketResponseLatency = metrics?.received_at ? Date.now() - metrics.received_at : 0;
+    } else {
+      this.tracking.onPartialResponse(chunk.id);
+    }
+
+    // Store WebSocket response for comparison with Bus
+    if (this.comparator?.isEnabled()) {
+      const sessionId = this.tracking.getCurrentSessionId();
+      if (sessionId) {
+        this.comparator.storeWebSocketResponse(
+          sessionId,
+          chunk.id,
+          alternatives,
+          latencyMs,
+          response.final
+        );
+      }
+    }
+
+    // Publish to Arqon Bus (shadow publish)
+    const metrics = this.tracking.getChunkMetrics(chunk.id);
+    const latencyMs = metrics?.received_at ? Date.now() - metrics.received_at : 0;
+    const silenceThreshold = response.silenceThreshold || 0.3;
+    const modelId = this.settings.getStreamingEndpoint()?.id || "default";
+    
+    const alternatives = (response.alternatives || []).map((alt, index) => ({
+      transcript: alt.transcript || "",
+      rank: index,
+      score: alt.confidence || 0,
+      is_final: response.final || false,
+    }));
+    
+    if (response.final) {
+      this.publishToBus("transcript_final", alternatives, latencyMs, silenceThreshold, modelId, false);
+    } else {
+      this.publishToBus("transcript_partial", alternatives, latencyMs, silenceThreshold, modelId, false);
+    }
 
     if (response.final) {
       response = await this.executor.postProcessResponse(response);
@@ -369,6 +629,9 @@ export default class ChunkManager {
       current.audioSize++;
       this.enqueue({ requestType: "audio", audio: Buffer.from(audio.buffer), chunkId: current.id });
 
+      // Publish audio to Bus (shadow publish)
+      this.publishToBus("audio_append", Buffer.from(audio.buffer), this.audioSequenceNumber++, Date.now());
+
       if (!current.forceFinalized && current.audioSize >= this.maxAudioFramesPerChunk) {
         current.forceFinalized = true;
         this.speaking = false;
@@ -404,6 +667,9 @@ export default class ChunkManager {
       current.silence == Math.ceil(this.settings.getExecuteSilenceThreshold() * silenceThreshold)
     ) {
       this.log.logVerbose(`Silence hit for ${current.id}`);
+      // Track endpoint detection timing
+      const endpointTime = Date.now() - (this.tracking.getChunkMetrics(current.id)?.received_at || Date.now());
+      this.tracking.onEndpointDetected(current.id, endpointTime);
       this.attemptToEvaluateChunk(current);
     }
   }
@@ -426,6 +692,10 @@ export default class ChunkManager {
     }
 
     this.log.logVerbose(`Chunk end for ${current.id}`);
+    
+    // Publish endpoint request to Bus (shadow publish)
+    this.publishToBus("endpoint_request", true, "force_final");
+    
     this.enqueue({ requestType: "editor" }, false);
     this.enqueue({ requestType: "endpoint", chunkId: current.id, finalize: true });
   }
@@ -435,6 +705,18 @@ export default class ChunkManager {
     this.chunkQueue.add(id);
     this.log.logVerbose(`Chunk start for ${id}`);
     console.log(`[Chunk] Chunk start ${id} samples=${audio.length}`);
+
+    // Track chunk start for metrics
+    const chunkMetrics = this.tracking.onChunkStart(id);
+    this.log.logVerbose(`Chunk tracked: session=${chunkMetrics.correlation.session_id}, chunk=${id}`);
+
+    // Reset audio sequence number for new chunk
+    this.audioSequenceNumber = 0;
+
+    // Publish session start to Bus (shadow publish)
+    if (this.tracking.getCurrentSessionId()) {
+      this.publishToBus("session_start");
+    }
 
     if (!this.speaking) {
       this.bridge.setState(
@@ -474,7 +756,41 @@ export default class ChunkManager {
       listening = !this.listening;
     }
 
+    const generation = ++this.toggleGeneration;
+    const requestedListening = listening;
+    
+    // Track session state changes for race condition detection
+    if (listening !== this.listening) {
+      // Check if we're toggling within a short time (potential race condition)
+      const now = Date.now();
+      if (this.lastToggleTime && (now - this.lastToggleTime) < 100) {
+        this.tracking.onPauseResumeRace();
+      }
+      this.lastToggleTime = now;
+    }
+    
     this.listening = listening;
+    
+    // Start or end tracking session
+    if (listening) {
+      this.sessionStartTime = Date.now();
+      this.tracking.startSession();
+      
+      // Route session to WebSocket or Bus
+      const sessionId = this.tracking.getCurrentSessionId();
+      if (sessionId) {
+        this.routeSession(sessionId);
+      }
+    } else {
+      // Publish session stop to Bus (shadow publish)
+      const current = this.chunkQueue.getIndex(0);
+      const durationMs = this.sessionStartTime ? Date.now() - this.sessionStartTime : 0;
+      if (this.tracking.getCurrentSessionId()) {
+        this.publishToBus("session_stop", current?.id || "", "user_toggle", durationMs);
+      }
+      this.tracking.endSession();
+    }
+    
     this.bridge.setState(
       {
         backendIssue: "",
@@ -489,9 +805,18 @@ export default class ChunkManager {
 
     this.log.logVerbose(`Toggling listening to ${listening}`);
     setTimeout(async () => {
+      if (generation != this.toggleGeneration) {
+        return;
+      }
+
       this.mainWindow.updateTray();
-      if (listening) {
+      if (requestedListening) {
         this.startBuffering();
+        // Ensure resume always starts from a clean callback/queue state.
+        this.microphone.unregister("chunk-manager");
+        this.chunkQueue.clear();
+        this.buffer = [];
+        this.speaking = false;
         this.microphone.register("chunk-manager", (data: any) => {
           if (data.event == "chunk_start") {
             this.onChunkStart(data.audio);
@@ -503,6 +828,15 @@ export default class ChunkManager {
         });
 
         const connected = await this.stream.connect(this, this.custom, this.executor);
+        if (generation != this.toggleGeneration) {
+          this.microphone.unregister("chunk-manager");
+          if (connected) {
+            this.stream.sendDisableRequest();
+            this.stream.disconnect();
+          }
+          return;
+        }
+
         if (!connected) {
           this.microphone.unregister("chunk-manager");
           this.chunkQueue.clear();
@@ -536,6 +870,12 @@ export default class ChunkManager {
         this.buffer = [];
         this.buffering = false;
         this.speaking = false;
+        this.bridge.setState(
+          {
+            speaking: false,
+          },
+          [this.mainWindow]
+        );
       }
     }, 1);
   }

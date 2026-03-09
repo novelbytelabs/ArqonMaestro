@@ -28,6 +28,10 @@ import Stream from "./stream/stream";
 import System from "./execute/system";
 import TextInputWindow from "./windows/text-input";
 import Window from "./windows/window";
+import STTTracking from "./stt/tracking";
+import { createBusClient } from "./stt/bus-client";
+import { createSTTComparator } from "./stt/comparator";
+import { createTrafficRouter } from "./stt/traffic-router";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
@@ -149,7 +153,11 @@ export default class App {
 
     const nativeCommands = new NativeCommands(active, insertHistory, revisionBoxWindow, system);
     const api = new API(active, bridge, log, mainWindow, metadata, settings, () => settingsWindow);
-    const stream = (instance.stream = new Stream(active, api, log, settings));
+    
+    // Create STT tracking instance for correlation IDs and metrics
+    const tracking = new STTTracking(api, settings);
+    
+    const stream = (instance.stream = new Stream(active, api, log, settings, tracking));
     const local = (instance.local = new Local(bridge, log, mainWindow, metadata, settings));
     const nux = new NUX(
       active,
@@ -204,8 +212,44 @@ export default class App {
       microphone,
       miniModeWindow,
       settings,
-      stream
+      stream,
+      tracking
     ));
+
+    // Initialize Arqon Bus client for shadow publishing
+    const busClient = createBusClient(settings, log, tracking);
+    chunkManager.setBusClient(busClient);
+    
+    // Initialize STT Comparator for dual-run comparison
+    const comparator = createSTTComparator(log, settings, tracking);
+    chunkManager.setComparator(comparator);
+    
+    // Initialize Traffic Router for gradual cutover
+    const trafficRouter = createTrafficRouter(settings, log, tracking);
+    chunkManager.setTrafficRouter(trafficRouter);
+    
+    // Start stage check if cutover is enabled
+    if (trafficRouter.isEnabled()) {
+      trafficRouter.startStageCheck(
+        (stage) => {
+          log.logVerbose(`[App] Cutover promoted to stage: ${stage}`);
+        },
+        (reason) => {
+          log.logError(`[App] Cutover rolled back: ${reason}`);
+        }
+      );
+    }
+    
+    // Start health check if Bus is enabled
+    if (busClient.isEnabled()) {
+      busClient.startHealthCheck(() => {
+        return {
+          status: busClient.isConnected() ? "healthy" : "unhealthy",
+          latency: 0,
+          errors: 0,
+        };
+      });
+    }
 
     const commandHandler: CommandHandler = new CommandHandler(
       active,

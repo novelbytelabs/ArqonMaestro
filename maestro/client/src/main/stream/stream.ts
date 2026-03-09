@@ -8,6 +8,7 @@ import Custom from "../ipc/custom";
 import Executor from "../execute/executor";
 import Log from "../log";
 import Settings from "../settings";
+import STTTracking from "../stt/tracking";
 import { core } from "../../gen/core";
 
 export default class Stream {
@@ -17,13 +18,18 @@ export default class Stream {
   private keepAliveTimeout?: NodeJS.Timeout;
   private loggingBuffer: Buffer[] = [];
   private coreSocket?: WebSocket;
+  private tracking: STTTracking;
+  private reconnectCount: number = 0;
+  private lastDisconnectTime: number = 0;
 
   constructor(
     private active: Active,
     private api: API,
     private log: Log,
-    private settings: Settings
+    private settings: Settings,
+    tracking: STTTracking
   ) {
+    this.tracking = tracking;
     // disconnect after an hour with no commands
     setInterval(() => {
       if (this.connected() && Date.now() > this.lastActivity + 3600000) {
@@ -96,6 +102,15 @@ export default class Stream {
 
   async connect(chunkManager: ChunkManager, custom: Custom, executor: Executor): Promise<boolean> {
     this.lastActivity = Date.now();
+    
+    // Track reconnect if we were previously connected
+    const wasDisconnected = this.lastDisconnectTime > 0;
+    if (wasDisconnected && this.reconnectCount > 0) {
+      const reconnectLatency = Date.now() - this.lastDisconnectTime;
+      this.tracking.onReconnect();
+      this.log.logVerbose(`Reconnect event: count=${this.reconnectCount}, latency=${reconnectLatency}ms`);
+    }
+    
     if (this.connected()) {
       return Promise.resolve(true);
     }
@@ -120,8 +135,11 @@ export default class Stream {
           this.coreSocket?.removeAllListeners();
           this.coreSocket?.terminate();
           this.coreSocket = undefined;
+          this.lastDisconnectTime = Date.now();
+          this.reconnectCount++;
         } else {
           this.lastConnectionError = undefined;
+          this.reconnectCount = 0;
         }
 
         resolve(connected);
@@ -209,6 +227,8 @@ export default class Stream {
 
     this.log.logVerbose("Stream disconnected");
     this.isConnected = false;
+    this.lastDisconnectTime = Date.now();
+    this.reconnectCount++;
     this.coreSocket?.close();
     this.loggingBuffer = [];
     this.coreSocket = undefined;
@@ -238,6 +258,10 @@ export default class Stream {
 
   sendAudioRequest(audio: Buffer, chunkId: string) {
     console.log(`[Stream] Audio request ${chunkId} bytes=${audio.length}`);
+    
+    // Track audio being sent to server
+    this.tracking.onAudioSent(chunkId);
+    
     if (
       this.settings.getStreamingEndpoint() &&
       this.settings.getStreamingEndpoint().id == "local" &&

@@ -58,7 +58,7 @@ export default class API {
     }
   }
 
-  logEvent(log: string, event: any) {
+  logEvent(log: string, event: any, correlation?: { session_id?: string; chunk_id?: string }) {
     if (this.settings.getDisableAnalytics()) {
       return;
     }
@@ -74,6 +74,7 @@ export default class API {
           core.Language[this.active.language]
         ),
         dt: Date.now(),
+        ...correlation,
       },
       core.LogEventRequest,
       core.EmptyResponse,
