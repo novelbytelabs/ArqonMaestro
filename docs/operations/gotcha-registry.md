@@ -465,6 +465,21 @@ Use for:
   - require explicit owners for DNS, TLS, CDN, runtime service, and release operations
   - enforce a no-cutover rule until readiness checklist is fully green
 
+### GOTCHA-023: Rewriting Legal/Provenance Text Directly Can Corrupt Historical Accuracy
+
+- **Category**: External Infrastructure
+- **Status**: mitigated
+- **Summary**: Bulk rebrand rewrites can unintentionally alter legal or historical meaning in inherited privacy/terms/blog content.
+- **Impact**: High
+- **Where it matters**:
+  - Wave E content migration
+  - legal policy pages
+  - historical public archive pages
+- **Avoidance**:
+  - classify legal/historical pages as `preserve + annotate`
+  - add explicit provenance notices instead of rewriting legal body text
+  - rewrite active product surfaces separately from historical/legal bodies
+
 ## Entry Template
 
 ```markdown

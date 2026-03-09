@@ -13,8 +13,8 @@ const CommunityPage = () => {
   return (
     <Main>
       <Hero
-        title="Redirecting you to the Serenade Community"
-        text="Join the Serenade Discord to get help, share feedback, and meet other voice coders"
+        title="Redirecting you to the Arqon Maestro Community"
+        text="Join the Arqon Discord to get help, share feedback, and meet other voice builders"
         hideButton={true}
         image={
           <div className="w-[550px] mx-auto">

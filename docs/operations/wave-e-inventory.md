@@ -40,10 +40,11 @@ Discovery signals:
 - Keep technical behavior unchanged; documentation-only changes.
 - Status: complete in this batch.
 
-### Batch E1-C (next)
+### Batch E1-C (completed)
 
 - Rewrite active `maestro/web` product pages and metadata.
 - Add historical/provenance banner component for blog/legal surfaces.
+- Status: complete in this batch.
 
 ## Guardrails Applied
 
@@ -56,3 +57,5 @@ Discovery signals:
 - every in-scope surface cluster has a classification and action
 - no unclassified cluster remains in `maestro/README.md`, `maestro/docs`, `maestro/web`
 - Wave E matrix points to this inventory artifact
+
+E1 is complete.

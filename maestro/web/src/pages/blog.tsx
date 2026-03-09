@@ -1,6 +1,7 @@
 import React from "react";
 import { Post } from "../components/blog";
 import { Gray } from "../components/pages";
+import { ProvenanceNotice } from "../components/provenance-notice";
 import * as OpenSource from "./blog/open-sourcing-serenade";
 import * as Languages from "./blog/new-languages-rust-go-ruby";
 import * as Expanding from "./blog/expanding-the-serenade-ecosystem";
@@ -16,7 +17,8 @@ const BlogPage = () => (
   <Gray>
     <div className="bg-gray-100">
       <div className="max-w-screen-lg mx-auto pt-6">
-        <h1 className="font-bold text-4xl">Serenade Blog</h1>
+        <h1 className="font-bold text-4xl">Arqon Maestro Blog Archive</h1>
+        <ProvenanceNotice text="These posts are preserved historical content from the inherited project timeline and are kept for provenance." />
       </div>
       <Post post={OpenSource.Post} />
       <Post post={Languages.Post} />

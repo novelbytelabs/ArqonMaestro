@@ -5,33 +5,38 @@ import { Footer } from "./footer";
 import { DocsNavigation, MainNavigation } from "./navigation";
 import { TableOfContents } from "./docs/table-of-contents";
 import { Heading, Subheading, Link as DocsLink } from "./docs/headings";
+import { ProvenanceNotice } from "./provenance-notice";
 
 const Page: React.FC<{ title: string }> = ({ children, title }) => (
   <>
     <Helmet>
-      <title>{title || "Serenade | Code with voice"}</title>
+      <title>{title || "Arqon Maestro | Voice-first control layer"}</title>
       <meta
         name="description"
-        content="Serenade is the most powerful way to program using natural speech. Boost your productivity by adding voice to your workflow."
+        content="Arqon Maestro is a voice-first control layer for the Arqon ecosystem."
         key="meta-description"
       />
       <meta
         name="thumbnail"
-        content="https://cdn.serenade.ai/web/img/logo-background.png"
+        content="https://novelbytelabs.github.io/ArqonMaestro/assets/logo-background.png"
         key="meta-thumbnail"
       />
       <meta name="theme-color" content="#ffffff" key="meta-theme-color" />
-      <meta property="og:url" content="https://serenade.ai" key="meta-og:url" />
-      <meta property="og:title" content="Serenade" key="meta-og:title" />
+      <meta
+        property="og:url"
+        content="https://novelbytelabs.github.io/ArqonMaestro/"
+        key="meta-og:url"
+      />
+      <meta property="og:title" content="Arqon Maestro" key="meta-og:title" />
       <meta
         name="og:description"
-        content="Serenade is the most powerful way to program using natural speech. Boost your productivity by adding voice to your workflow."
+        content="Arqon Maestro is a voice-first control layer for the Arqon ecosystem."
         key="meta-og:description"
       />
-      <meta property="og:site_name" content="Serenade" key="meta-og:site_name" />
+      <meta property="og:site_name" content="Arqon Maestro" key="meta-og:site_name" />
       <meta
         property="og:image"
-        content="https://cdn.serenade.ai/web/img/logo-background.png"
+        content="https://novelbytelabs.github.io/ArqonMaestro/assets/logo-background.png"
         key="meta-og:image"
       />
       <script
@@ -115,6 +120,10 @@ export const Legal: React.FC<{ title: string }> = ({ children, title }) => (
         <div className="py-12">
           <Block>
             <h1 className="font-bold text-4xl pb-4">{title}</h1>
+            <ProvenanceNotice
+              title="Historical Legal Notice"
+              text="This legal document is preserved from inherited materials for provenance. Operational policy for Arqon Maestro is tracked in the current project documentation."
+            />
             {children}
           </Block>
         </div>

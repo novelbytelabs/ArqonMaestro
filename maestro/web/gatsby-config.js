@@ -1,10 +1,10 @@
 module.exports = {
   siteMetadata: {
-    siteUrl: "https://serenade.ai",
-    title: "Serenade | Code with voice",
+    siteUrl: "https://novelbytelabs.github.io/ArqonMaestro/",
+    title: "Arqon Maestro | Voice-first control layer",
     description:
-      "Serenade is the most powerful way to program using natural speech. Boost your productivity by adding voice to your workflow.",
-    keywords: "voice, code, programming, developer, productivity",
+      "Arqon Maestro is a voice-first control layer for the Arqon ecosystem.",
+    keywords: "arqon, arqon-maestro, voice, code, productivity",
   },
   plugins: [
     "gatsby-plugin-postcss",

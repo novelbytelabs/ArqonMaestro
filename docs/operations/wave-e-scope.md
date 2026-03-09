@@ -7,7 +7,7 @@ Separate active product documentation from historical and provenance material wi
 ## Program State
 
 - Wave D closed as `prepared + deferred`.
-- Wave E starts now as a content-governance and public-surface hygiene wave.
+- Wave E completed as a content-governance and public-surface hygiene wave.
 
 ## Wave E Phases
 

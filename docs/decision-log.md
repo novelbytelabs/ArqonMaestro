@@ -393,6 +393,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-028: Historical Blog And Legal Content Is Preserved With Explicit Provenance Notices
+
+- **Date**: 2026-03-09
+- **Status**: Accepted
+- **Decision**: Preserve inherited blog/legal body content for provenance and legal traceability, but add explicit UI-level provenance notices and rebrand active surrounding surfaces.
+- **Why**: Full body rewrites of historical/legal text risk altering historical context or legal meaning. Annotation preserves traceability while removing ambiguity in active product framing.
+- **Consequences**:
+  - active pages and metadata are rebranded to Arqon Maestro
+  - historical/legal pages remain readable as historical records with explicit notice
+  - Wave E closes without legal-text rewrite risk
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

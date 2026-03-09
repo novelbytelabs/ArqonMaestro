@@ -5,35 +5,35 @@ import { Gray } from "../components/pages";
 const InstallingPage = () => (
   <Gray>
     <div className="max-w-screen-md mx-auto pt-6">
-      <h1 className="font-bold text-4xl">Installing Serenade</h1>
+      <h1 className="font-bold text-4xl">Installing Arqon Maestro</h1>
     </div>
     <div className="max-w-screen-md mx-auto">
       <Group
-        title="Serenade"
-        description="Installing the main Serenade client application"
+        title="Arqon Maestro"
+        description="Installing the main Arqon Maestro desktop client"
         id="app"
       >
         <h4 className="text-lg font-medium -mt-6">macOS</h4>
         <OL>
           <LI>
-            Drag Serenade.app into your Applications folder.
+            Drag ArqonMaestro.app into your Applications folder.
             <img
               src="https://cdn.serenade.ai/web/img/macos-install.png"
               width={400}
-              alt="macOS Finder window with Serenade"
+              alt="macOS Finder window with Arqon Maestro"
             />
           </LI>
-          <LI>Open your Applications folder, and click Serenade to run it.</LI>
+          <LI>Open your Applications folder, and click ArqonMaestro to run it.</LI>
           <LI>Follow the prompts in the app to continue setup! </LI>
         </OL>
         <h4 className="text-lg font-medium pt-2">Windows</h4>
         <OL>
           <LI>
-            Run the installer application, which will install and run the Serenade app.
+            Run the installer application, which will install and run Arqon Maestro.
             <img
               src="https://cdn.serenade.ai/web/img/windows-install.png"
               width={600}
-              alt="Windows Explorer window with Serenade"
+              alt="Windows Explorer window with Arqon Maestro"
             />
           </LI>
           <LI>Follow the prompts in the app to continue setup!</LI>
@@ -41,27 +41,27 @@ const InstallingPage = () => (
         <h4 className="text-lg font-medium pt-2">Linux</h4>
         <OL>
           <LI>
-            Set the permissions of Serenade-*.AppImage to be executable with:
+            Set the permissions of ArqonMaestro-*.AppImage to be executable with:
             <div className="py-2 px-4 my-4 bg-gray-700 text-white rounded">
-              <code>chmod +x Serenade-*.AppImage</code>
+              <code>chmod +x ArqonMaestro-*.AppImage</code>
             </div>
-            Or, use a file manager UI to make Serenade executable.
+            Or, use a file manager UI to make Arqon Maestro executable.
             <img
               src="https://cdn.serenade.ai/web/img/linux-install.png"
               width={400}
-              alt="Ubuntu Linux Serenade file properties"
+              alt="Ubuntu Linux Arqon Maestro file properties"
               style={{ marginTop: "0.5rem" }}
             />
           </LI>
-          <LI>Run the Serenade-*.AppImage file, either via the terminal or a file manager UI.</LI>
+          <LI>Run the ArqonMaestro-*.AppImage file, either via the terminal or a file manager UI.</LI>
           <LI>Follow the prompts in the app to continue setup!</LI>
         </OL>
       </Group>
-      <Group title="Serenade Pro" description="Getting set up with Serenade Pro" id="pro">
+      <Group title="Arqon Maestro Pro" description="Getting set up with Arqon Maestro Pro" id="pro">
         <h4 className="text-lg font-medium -mt-6">Windows Only: Install WSL</h4>
         <P>
-          Serenade Pro requires WSL to run on Windows. On macOS and Linux, no other dependencies are
-          required.
+          Arqon Maestro Pro requires WSL to run on Windows. On macOS and Linux, no other
+          dependencies are required.
         </P>
         <P>
           If you already have WSL installed, then you're all set! If not, you can follow these steps
@@ -90,33 +90,33 @@ const InstallingPage = () => (
           </LI>
           <LI>Open the newly installed Ubuntu app to complete the installation process.</LI>
         </OL>
-        <h4 className="text-lg font-medium pt-2">Install Serenade Pro</h4>
+        <h4 className="text-lg font-medium pt-2">Install Arqon Maestro Pro</h4>
         <P>
-          Once Pro has been enabled on your account, Serenade Pro will download (and auto-update)
-          when you start Serenade.
+          Once Pro has been enabled on your account, Arqon Maestro Pro will download (and
+          auto-update) when you start Arqon Maestro.
         </P>
         <P>
-          To switch to Pro, open Serenade, and then open the Settings window via the gear icon at
-          top-right. Then, head to Server and select Serenade Pro.
+          To switch to Pro, open Arqon Maestro, then open the Settings window via the gear icon at
+          top-right. Head to Server and select Arqon Maestro Pro.
         </P>
         <P>
           <img
             src="https://cdn.serenade.ai/web/img/server-settings-window.png"
-            alt="Serenade Server Settings"
+            alt="Arqon Maestro Server Settings"
             style={{ width: "400px" }}
           />
         </P>
       </Group>
       <Group
         title="JetBrains Plugin"
-        description="Integrating Serenade with JetBrains IDEs"
+        description="Integrating Arqon Maestro with JetBrains IDEs"
         id="jetbrains"
       >
         <ol className="list-decimal ml-8 -mt-8">
           <LI>Open the JetBrains preferences window.</LI>
           <LI>Navigate to Plugins on the left sidebar.</LI>
           <LI>
-            Search for Serenade in the search bar, then click Install.
+            Search for Arqon Maestro in the search bar, then click Install.
             <img
               src="https://cdn.serenade.ai/web/img/jetbrains-plugins-window.png"
               alt="JetBrains Plugins Window"

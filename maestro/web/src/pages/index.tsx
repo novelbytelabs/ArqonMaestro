@@ -13,7 +13,7 @@ const IndexPage = () => (
     <HomepageHero />
     <TwoColumnFeature
       title="The open-source voice assistant for developers"
-      subtitle="With Serenade, you can write code using natural speech. Serenade's speech-to-code engine is designed for developers from the ground up and fully open-source."
+      subtitle="With Arqon Maestro, you can write code using natural speech. The speech-to-code stack is designed for developer workflows and integrated into the Arqon ecosystem."
       dark={true}
       content={
         <div className="-mx-8">
@@ -25,7 +25,7 @@ const IndexPage = () => (
     />
     <TwoColumnFeature
       title="Take a break from typing"
-      subtitle="Give your hands a break without missing a beat. Whether you have an injury or you're looking to prevent one, Serenade can help you be just as productive without typing at all."
+      subtitle="Give your hands a break without losing flow. Whether you are preventing strain or reducing repetitive input, Arqon Maestro supports productive hands-free editing."
       gradient="bottom-right"
       content={
         <div className="w-[550px] mx-auto">
@@ -39,13 +39,13 @@ const IndexPage = () => (
     />
     <TwoColumnFeature
       title="Secure, fast speech-to-code"
-      subtitle="Serenade can run in the cloud, to minimize impact on your system's resources, or completely locally, so all of your voice commands and source code stay on-device. It's up to you, and everything is open-source."
+      subtitle="Arqon Maestro can run in the cloud or locally. Choose the runtime mode that matches your performance, privacy, and operational needs."
       dark={true}
       content={
         <div className="md:w-[400px] mx-auto">
           <StaticImage
             src="https://cdn.serenade.ai/web/img/enterprise-shield.png"
-            alt="Serenade Pro logo"
+            alt="Arqon Maestro secure runtime"
             placeholder="none"
           />
         </div>
@@ -53,7 +53,7 @@ const IndexPage = () => (
     />
     <FullWidthFeature
       title="Add voice to any application"
-      subtitle="Serenade integrates with your existing tools—from writing code with VS Code to messaging with Slack—so you don't have to learn an entirely new workflow. And, Serenade provides you with the right speech engine to match what you're editing, whether that's code or prose."
+      subtitle="Arqon Maestro integrates with your existing tools, from coding to messaging, so you can add voice without replacing your workflow."
       content={
         <div className="pt-4">
           <PluginGrid />
@@ -74,7 +74,7 @@ const IndexPage = () => (
     />
     <FullWidthFeature
       title="Customize your workflow"
-      subtitle="Create powerful custom voice commands and plugins using Serenade's open protocol, and add them to your workflow. Or, try customizations shared by the Serenade community."
+      subtitle="Create custom voice commands and plugins using the open protocol, then adapt automation to your own workflow."
       gradient="bottom-left"
       content={
         <div className="mx-auto">

@@ -59,7 +59,7 @@ Wave B is now governed by two explicit control documents:
 | Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
 | Packaging/distribution | Repeatable baseline validated on current lane | 🟢 Working | Wave C hard-closed with evidence |
 | External ownership | Governance completed; cutover deferred | 🟢 Working | Wave D hard-closed as prepared+deferred |
-| Historical/provenance surfaces | Scoped and ready for execution | 🟡 In Progress | Wave E scope published |
+| Historical/provenance surfaces | Classified and updated with provenance controls | 🟢 Working | Wave E hard-closed |
 | Rust data plane extraction | Architectural direction only | ⚪ Planned | Voltron pattern defined, not executed |
 
 ---
@@ -329,8 +329,9 @@ Separate active product messaging from historical and provenance material.
 
 **Current Status**
 
-- `in progress (scoping complete)`
-- E1 inventory/classification published
+- `completed (hard-close)`
+- Evidence: [Wave E Evidence](operations/wave-e-evidence.md)
+- Closeout: [Wave E Closeout](operations/wave-e-closeout.md)
 
 **Test Requirements**
 

@@ -5,6 +5,7 @@ import { StaticImage } from "gatsby-plugin-image";
 import { Hero } from "../components/hero";
 import { Main } from "../components/pages";
 import { FullWidthFeature, TwoColumnFeature } from "../components/features";
+import { ProvenanceNotice } from "../components/provenance-notice";
 
 const currentVersion = "2.0.2";
 const legacyVersion = "";
@@ -66,8 +67,8 @@ const DownloadPage = () => {
       <Hero
         title={
           platform == "unsupported"
-            ? "Serenade is only available on desktop"
-            : "Install Serenade to start speaking code"
+            ? "Arqon Maestro is only available on desktop"
+            : "Install Arqon Maestro to start speaking code"
         }
         buttonLink={
           platform == "mac"
@@ -103,8 +104,8 @@ const DownloadPage = () => {
         subtitle={
           <>
             <div className="mb-8">
-              First time writing code with voice? We've got you covered. Check out the Serenade
-              documentation to hit the ground running.
+              First time writing code with voice? Check out the Arqon Maestro documentation to hit
+              the ground running.
             </div>
             <Link to="/docs" className="primary-button">
               Read the docs
@@ -115,16 +116,22 @@ const DownloadPage = () => {
           <div className="w-[450px] mx-auto">
             <StaticImage
               src="https://cdn.serenade.ai/web/img/email-messages.png"
-              alt="Serenade logo"
+              alt="Arqon Maestro"
               placeholder="none"
               eager={true}
             />
           </div>
         }
       />
+      <div className="max-w-screen-lg mx-auto px-4">
+        <ProvenanceNotice
+          title="Distribution Dependency Notice"
+          text="Current downloadable artifacts are served from inherited distribution infrastructure while Wave D migration is deferred."
+        />
+      </div>
       <FullWidthFeature
-        title="All Serenade Versions"
-        subtitle="Serenade works across Mac, Windows, and Linux."
+        title="All Arqon Maestro Versions"
+        subtitle="Arqon Maestro works across Mac, Windows, and Linux."
         content={
           <div className="mx-auto max-w-screen-lg text-slate-600 w-full mb-12">
             <table className="w-full">
