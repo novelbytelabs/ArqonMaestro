@@ -25,6 +25,7 @@ yarn-error.log*
 .vscode-test/
 dist/
 vscode-plugin/package-lock.json
+vscode-plugin/yarn.lock
 
 # Python
 __pycache__/

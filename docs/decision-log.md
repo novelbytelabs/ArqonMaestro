@@ -380,6 +380,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-027: Wave E Uses Classification-First Content Governance
+
+- **Date**: 2026-03-09
+- **Status**: Accepted
+- **Decision**: Wave E executes with a classification-first approach (`rewrite`, `annotate`, `preserve`, `archive`, `remove`) before any large-scale doc/web content edits.
+- **Why**: A direct rewrite sweep risks legal/provenance errors and inconsistent handling of historical pages. Classification first gives a safe, auditable sequence.
+- **Consequences**:
+  - active product surfaces are rewritten in dedicated batches
+  - legal and provenance surfaces are preserved or annotated intentionally
+  - Wave E progress is measured by inventory coverage before text rewrite volume
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

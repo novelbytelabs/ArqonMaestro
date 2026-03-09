@@ -319,6 +319,7 @@ Separate active product messaging from historical and provenance material.
 
 - [Historical And Provenance Audit Plan](operations/historical-provenance-audit.md)
 - [Wave E Scope](operations/wave-e-scope.md)
+- [Wave E1 Inventory](operations/wave-e-inventory.md)
 
 **Exit Criteria**
 
@@ -329,7 +330,7 @@ Separate active product messaging from historical and provenance material.
 **Current Status**
 
 - `in progress (scoping complete)`
-- execution starts from the Wave E scope inventory order
+- E1 inventory/classification published
 
 **Test Requirements**
 
