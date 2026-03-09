@@ -450,6 +450,21 @@ Use for:
   - run Maestro Electron commands through `maestro/scripts/with_clean_electron_env.sh`
   - fail readiness checks when global contamination is detected
 
+### GOTCHA-022: External Cutover Before Ownership Assignment Causes Operational Deadlock
+
+- **Category**: External Infrastructure
+- **Status**: active
+- **Summary**: Migrating runtime endpoints or update hosts before assigning DNS/TLS/CDN/runtime ownership creates a high-risk state where incidents have no clear operator or rollback authority.
+- **Impact**: High
+- **Where it matters**:
+  - Wave D live endpoint migration
+  - desktop update pipeline cutover
+  - incident response and rollback
+- **Avoidance**:
+  - complete Wave D1 ownership inventory before any endpoint switch
+  - require explicit owners for DNS, TLS, CDN, runtime service, and release operations
+  - enforce a no-cutover rule until readiness checklist is fully green
+
 ## Entry Template
 
 ```markdown

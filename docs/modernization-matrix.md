@@ -58,8 +58,8 @@ Wave B is now governed by two explicit control documents:
 | Local multi-service runtime | Healthy local services with concurrent status checks | 🟢 Working | Wave B hard-closed; keep local e2e voice flow under regression |
 | Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
 | Packaging/distribution | Repeatable baseline validated on current lane | 🟢 Working | Wave C hard-closed with evidence |
-| External ownership | Inherited | ⚪ Planned | Endpoint/CDN/image ownership remains inherited |
-| Historical/provenance surfaces | Mixed | ⚪ Planned | Separate audit track now opened |
+| External ownership | Governance completed; cutover deferred | 🟢 Working | Wave D hard-closed as prepared+deferred |
+| Historical/provenance surfaces | Scoped and ready for execution | 🟡 In Progress | Wave E scope published |
 | Rust data plane extraction | Architectural direction only | ⚪ Planned | Voltron pattern defined, not executed |
 
 ---
@@ -279,12 +279,21 @@ Move inherited external ownership surfaces into Arqon-owned infrastructure where
 **Canonical Plan**
 
 - [External Infrastructure Ownership Plan](operations/external-infrastructure-ownership.md)
+- [Wave D1 Ownership Inventory](operations/wave-d-ownership-inventory.md)
+- [Wave D Readiness Checklist](operations/wave-d-readiness-checklist.md)
 
 **Exit Criteria**
 
 - ownership surfaces are inventoried and classified
 - at least the first production-relevant external surface has a real Arqon replacement plan
 - runtime changes only occur once replacement infrastructure actually exists
+
+**Current Status**
+
+- `completed (prepared + deferred)`
+- Evidence: [Wave D Evidence](operations/wave-d-evidence.md)
+- Closeout: [Wave D Closeout](operations/wave-d-closeout.md)
+- live cutover remains deferred until D2 trigger conditions are met
 
 **Test Requirements**
 
@@ -309,12 +318,18 @@ Separate active product messaging from historical and provenance material.
 **Canonical Plan**
 
 - [Historical And Provenance Audit Plan](operations/historical-provenance-audit.md)
+- [Wave E Scope](operations/wave-e-scope.md)
 
 **Exit Criteria**
 
 - public surfaces are classified as preserve, annotate, rewrite, archive, or remove
 - active product surfaces no longer rely on stale inherited messaging
 - provenance material remains accurate where preserved
+
+**Current Status**
+
+- `in progress (scoping complete)`
+- execution starts from the Wave E scope inventory order
 
 **Test Requirements**
 

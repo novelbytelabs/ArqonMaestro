@@ -354,6 +354,32 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-025: Wave D Uses A D1 Preparation Gate Before Any Live Cutover
+
+- **Date**: 2026-03-09
+- **Status**: Accepted
+- **Decision**: External infrastructure ownership work must run in two stages: `D1` preparation (inventory, ownership assignment, readiness checks) and `D2` live migration. No runtime endpoint cutover is allowed until D1 gate criteria are complete.
+- **Why**: Arqon-owned endpoint/CDN coverage is currently minimal. Attempting direct cutover now would create avoidable outages and ambiguous ownership during incidents.
+- **Consequences**:
+  - Wave D starts with ownership inventory and readiness checklist documents as hard prerequisites
+  - modernization tracking marks Wave D as in-progress preparation, not cutover-ready
+  - docs and config must not claim Arqon-owned live replacements before infrastructure actually exists
+
+---
+
+## ADM-026: Wave D Hard-Close As Prepared+Deferred
+
+- **Date**: 2026-03-09
+- **Status**: Accepted
+- **Decision**: Complete Wave D in governance mode and defer live endpoint/CDN migration. Keep inherited remote infrastructure active until Arqon-owned replacements exist and D2 readiness criteria are met.
+- **Why**: Current Arqon-owned infrastructure coverage is intentionally minimal. Forcing cutover now would add operational risk without user benefit.
+- **Consequences**:
+  - Wave D closes with ownership inventory and readiness controls, not runtime changes
+  - inherited remote streaming/update surfaces remain active by design
+  - D2 migration requires explicit trigger conditions and approval window
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

@@ -24,6 +24,7 @@ yarn-error.log*
 .pnp*
 .vscode-test/
 dist/
+vscode-plugin/package-lock.json
 
 # Python
 __pycache__/
@@ -82,6 +83,7 @@ maestro/tree-sitter/*
 !maestro/tree-sitter/java-tree-sitter/
 !maestro/tree-sitter/java-tree-sitter/**
 maestro/tree-sitter/java-tree-sitter/build/
+maestro/tree-sitter/java-tree-sitter/bin/
 maestro/tree-sitter/java-tree-sitter/libjava-tree-sitter.so
 maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.a
 maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.so
