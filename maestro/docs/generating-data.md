@@ -1,6 +1,6 @@
 # Generating Data with CorpusGen
 
-All of the models used by Serenade use an offline service called CorpusGen to process raw source code data into the source and target text sequences that used to train our models. You most likely will not have to run CorpusGen directly in order to train models, but we this overview is helpful for modifying the generated data for your own experiments.
+All of the models used by Arqon Maestro use an offline service called CorpusGen to process raw source code data into the source and target text sequences that used to train our models. You most likely will not have to run CorpusGen directly in order to train models, but we this overview is helpful for modifying the generated data for your own experiments.
 
 ## Overview and Rationale
 
@@ -8,7 +8,7 @@ CorpusGen works by sampling parts of source code and using a series of hand-craf
 
 To get a better sense of the benefits for taking our approach, consider two other approaches. One alternative is to use a rule-based system to parse the transcripts directly and not to use data at all. The main issue with this is that transcripts can be ambiguous. Consider "list of string elements". Should this result in `List<String> elements` or `list("elements")`? Both are possible interpretations, depending on the context.
 
-Another approach could be to use same machine learning models, but to use annotated data instead of synthetic data. This approach could certainly complement our approach, since both approaches output data in the same format. The main issue it faces when used by itself is that it's too expensive to label enough data to provide strong accuracy gaurantees for the core Serenade commands across a variety of languages.
+Another approach could be to use same machine learning models, but to use annotated data instead of synthetic data. This approach could certainly complement our approach, since both approaches output data in the same format. The main issue it faces when used by itself is that it's too expensive to label enough data to provide strong accuracy gaurantees for the core Arqon Maestro commands across a variety of languages.
 
 ## Tokenization
 
@@ -42,7 +42,7 @@ CorpusGen has four modes: `mapping`, `text`, `lexicon`, and `unknowns`. The bulk
 
 This mode creates source and target pairs of text sequences corresponding to the desired sequences for the models.
 
-There are two types of mappings: "insert" mappings and "add" mappings. These reflect the "insert" and "add" commands used in Serenade, where "insert" is used for inserting formatted strings of text and "add" is used to add larger code snippets. For both types of mappings, the CorpusGen `MappingGenerator` randomly samples the raw source code and then approximately generates the natural language command that would produce that source code.
+There are two types of mappings: "insert" mappings and "add" mappings. These reflect the "insert" and "add" commands used in Arqon Maestro, where "insert" is used for inserting formatted strings of text and "add" is used to add larger code snippets. For both types of mappings, the CorpusGen `MappingGenerator` randomly samples the raw source code and then approximately generates the natural language command that would produce that source code.
 
 Running CorpusGen in mapping mode for the `transcript-parser` adds an additional step. There, we use the insert mappings to produce new mappings from command transcripts to transcript parse trees.
 
@@ -64,7 +64,7 @@ The transcript parser model uses the phrase token lists from the insert mappings
 
 ### Leading Context and Alpha Context
 
-Both types of mappings sometimes include leading context and "alpha subsequence context". Leading context is just a list of the tokens that precede the code tokens of the mapping. Alpha subsequence context is the sequences of alphanumeric tokens that appear elsewhere in the code. Both of these serve to help the model disambiguate or reweight ambiguous results based on the source code that is in your editor while using Serenade.
+Both types of mappings sometimes include leading context and "alpha subsequence context". Leading context is just a list of the tokens that precede the code tokens of the mapping. Alpha subsequence context is the sequences of alphanumeric tokens that appear elsewhere in the code. Both of these serve to help the model disambiguate or reweight ambiguous results based on the source code that is in your editor while using Arqon Maestro.
 
 Some mappings that are generated do not include any context. This is done to ensure the model can still produce good predictions when we start a new file.
 
@@ -157,7 +157,7 @@ For words that do not make it into the lexicon, we use `unknowns` to replace the
 
 ## `CommandGenerator`, `Chainer`, and Transcript Parse Trees
 
-The `transcript-parser` model is slightly different from the other code engine models. For this model, we extract just the formatted text strings from the insert mappings. We then run `CommandGenerator`, which takes an [ANTLR grammar](https://www.antlr.org/) of Serenade commands and randomly samples paths through that grammar. Some of the nodes (rules) in the grammar call for formatted text; when we reach one of those nodes, we add one of the formatted text strings we obtained from the insert mapping.
+The `transcript-parser` model is slightly different from the other code engine models. For this model, we extract just the formatted text strings from the insert mappings. We then run `CommandGenerator`, which takes an [ANTLR grammar](https://www.antlr.org/) of Arqon Maestro commands and randomly samples paths through that grammar. Some of the nodes (rules) in the grammar call for formatted text; when we reach one of those nodes, we add one of the formatted text strings we obtained from the insert mapping.
 
 The reasoning behind using formatted text from insert mappings (rather than, say, random text) is similar to our rationale for generating commands from code. By using text simulated from real source code, we can resolve ambiguities by ensuring that the distribution of these ambiguities are accurately represented in our training set to properly guide the model.
 
@@ -205,7 +205,7 @@ command3:
 ...
 ```
 
-Serenade is also capable of chaining multiple commands together (e.g. "go to line 5, add function foo"). To support this feature in the transcript parser, we provide examples of these chained commands in the training data. These chains are produced by `Chainer`, which takes the list of commands generated by `CommandGenerator` and combines some fraction of commands that can be chained together. The command markup for these final parse trees looks like
+Arqon Maestro is also capable of chaining multiple commands together (e.g. "go to line 5, add function foo"). To support this feature in the transcript parser, we provide examples of these chained commands in the training data. These chains are produced by `Chainer`, which takes the list of commands generated by `CommandGenerator` and combines some fraction of commands that can be chained together. The command markup for these final parse trees looks like
 
 ```
 <main>

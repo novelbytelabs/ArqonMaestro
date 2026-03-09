@@ -1,25 +1,25 @@
 # Codebase Layout
 
-Serenade consists of a few different online services as well as several offline training pipelinees for models.
+Arqon Maestro consists of a few different online services as well as several offline training pipelinees for models.
 
 ## Online Services
 
 ### core
 
-`core` is the main Serenade application, which is written in Java 14. Some core packages include:
+`core` is the main Arqon Maestro application, which is written in Java 14. Some core packages include:
 
-- `ast`: The Abstract Syntax Tree abstraction that's used for various Serenade commands, like `go to function` or `delete parameter`.
+- `ast`: The Abstract Syntax Tree abstraction that's used for various Arqon Maestro commands, like `go to function` or `delete parameter`.
 - `closeness`: Utility methods for determining which objects are closest to the cursor.
 - `codeengine`: Utility methods for making calls to the `code-engine` service.
 - `commands`: Code manipulation command implementations.
-- `converter`: Language-specific implementations to convert from tree-sitter parse trees to Serenade ASTs.
-- `evaluator`: Handles the evaluation of transcripts into Serenade commands.
-- `exception`: Serenade exception classes.
+- `converter`: Language-specific implementations to convert from tree-sitter parse trees to Arqon Maestro ASTs.
+- `evaluator`: Handles the evaluation of transcripts into Arqon Maestro commands.
+- `exception`: Arqon Maestro exception classes.
 - `fixedsource`: Utilities for dealing with tree-sitter parse errors.
 - `formattedtext`: The non-ML implementation of text formatting commands, which is used for commands like `system <text>`.
 - `language`: Utilities for creating language-specific classes, like converters and selectors.
 - `metadata`: Protobuf wrapper classes that add metadata that's used within `core`, but not relevant to other services (and thus the protobuf).
-- `parser`: Parses code from strings to tree-sitter trees and then Serenade ASTs.
+- `parser`: Parses code from strings to tree-sitter trees and then Arqon Maestro ASTs.
 - `selector`: AST traversal methods and language-specific implementations thereof.
 - `server`: HTTP server endpoints.
 - `snippet`: Language-specific collections of `add` commands.
@@ -58,7 +58,7 @@ Serenade consists of a few different online services as well as several offline 
 
 ### grammarflattener
 
-`grammarflattener` is a post-processing step that's performed on generated tree-sitter grammars in order to make them suitable for use with Serenade.
+`grammarflattener` is a post-processing step that's performed on generated tree-sitter grammars in order to make them suitable for use with Arqon Maestro.
 
 ### replayer
 

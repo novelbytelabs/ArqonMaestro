@@ -1,145 +1,104 @@
-# Building Serenade
+# Building Arqon Maestro
 
-Serenade is built using the [Gradle](https://gradle.org) build system. We also have a few scripts useful for running various Serenade services.
+Arqon Maestro uses Gradle for Java services and native build scripts for engine dependencies.
 
-## Client
+## Environment
 
-To run the Serenade app, simply run:
+Canonical paths and env vars:
 
-    cd client
-    ./bin/dev.py
+- `ARQON_MAESTRO_SOURCE_ROOT`: source tree path
+- `ARQON_MAESTRO_LIBRARY_ROOT`: dependency/model root (default `~/libarqon`)
 
-This will run a local version of the client that uses Serenade Cloud as the backend.
+Set these before building local services:
 
-If you'd instead like the client to connect to a specific endpoint (e.g., a local server you're running yourself), you can run:
+```bash
+export ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro
+export ARQON_MAESTRO_LIBRARY_ROOT=~/libarqon
+```
 
-    ENDPOINT=http://localhost:17200 ./bin/dev.py
+## Build Dependencies
 
-## Service Setup
+Install platform dependencies from the setup scripts:
 
-### Docker
+```bash
+scripts/setup/setup-ubuntu.sh
+# or
+scripts/setup/setup-mac.sh
+```
 
-We provide a Dockerfile and Docker Compose file that you can use to set up a Serenade environment.
+Build native dependencies and models:
 
-#### Images
+```bash
+scripts/setup/build-dependencies.sh
+```
 
-Docker images are available at [Docker Hub](https://hub.docker.com/u/serenadeai). We provide the following images:
+Minimal runtime-only dependency build:
 
-* `serenadeai/serenade`: Contains all of the dependencies needed to run Serenade as well as train models. (~30GB)
-* `serenadeai/serenade-gpu`: Contains all of the dependencies needed to run Serenade as well as train models on a GPU. (~30GB)
-* `serenadeai/serenade-minimal`: Contains only the dependencies needed to run Serenade. (~9GB)
+```bash
+scripts/setup/build-dependencies.sh --minimal
+```
 
-If you don't intend to train any models, then you can use the `serenadeai/serenade-minimal` image, which is significantly smaller.
+## Compile Services
 
-You can also build these images yourself.
+Build all services:
 
-For the standard image:
+```bash
+./gradlew installd
+```
 
-    docker build -f config/Dockerfile -t serenade .
+Build a specific service:
 
-For the GPU image:
+```bash
+./gradlew speech-engine:installd
+```
 
-    docker build -f config/Dockerfile -t serenade-gpu --build-arg DEVICE_TYPE=gpu .
+## Run Services
 
-For the minimal image:
+Run online services:
 
-    docker build -f config/Dockerfile -t serenade-minimal --build-arg BUILD_TYPE=minimal .
+```bash
+scripts/arqon_maestro/bin/run.py
+```
 
-#### Compose
+Run selected services:
 
-The provided Docker Compose file sets up ports and mount points to enable you to edit files on a host machine and run Serenade inside of a container.
+```bash
+scripts/arqon_maestro/bin/run.py --service speech-engine --service code-engine
+```
 
-To start Docker Compose, run:
+## Test
 
-    docker compose -f config/docker-compose.yaml up -d
+Run all tests:
 
-By default, this will use the `serenadeai/serenade` image. To use a different image, run:
+```bash
+scripts/arqon_maestro/bin/run.py --tests 'gradle test'
+```
 
-    SERENADE_IMAGE=serenadeai/serenade-minimal docker-compose -f config/docker-compose.yaml up -d
+Run targeted tests:
 
-To get a shell in the running container, run:
+```bash
+scripts/arqon_maestro/bin/run.py --tests 'gradle core:test --tests *PythonTest.testAdd*'
+```
 
-    docker compose -f config/docker-compose.yaml exec serenade bash
+## Local Client Integration
 
-To stop Docker Compose, run:
+To build and install the local server bundle used by the client:
 
-    docker compose -f config/docker-compose.yaml down --remove-orphans
+```bash
+./gradlew installd
+./gradlew client:installServer
+```
 
-### System
+Then run the client in local endpoint mode to use this bundle.
 
-You can also install Serenade and its dependencies directly onto your system.
+## Web Docs (Inherited Site Source)
 
-Serenade uses two environment variables to describe where source code and dependencies will be on the filesystem:
+For the inherited Gatsby web subtree:
 
-- `SERENADE_SOURCE_ROOT`: The location of the `serenade` repository. Defaults to `~/serenade`.
-- `SERENADE_LIBRARY_ROOT`: The location of Serenade dependencies. Defaults to `~/libserenade`.
+```bash
+cd web
+npm install
+npm run dev
+```
 
-If you're using a Mac, make sure you're running all of these commands in [Rosetta](https://support.apple.com/en-us/HT211861). Serenade currently only supports x86-64 architectures, and not arm64.
-
-To install necessary system-wide dependencies onto your system, run:
-
-    scripts/setup/setup-ubuntu.sh
-    scripts/setup/setup-mac.sh
-
-Then, to download and build Serenade libraries and models, run:
-
-    scripts/setup/build-dependencies.sh
-
-As with the Docker image, this will build all of the dependencies needed to run Serenade as well as train models. To build only the dependencies needed to run Serenade, you can instead run:
-
-    scripts/setup/build-dependencies.sh --minimal
-
-## Compiling Services
-
-To compile all Serenade services, from the root directory, run:
-
-    gradle installd
-
-To compile an individual service, like `speech-engine`, run:
-
-    gradle speech-engine:installd
-
-## Running Services
-
-To run all online Serenade services, you can use the provided script:
-
-    scripts/arqon_maestro/bin/run.py
-
-To run a specific set of services, you can run:
-
-    scripts/arqon_maestro/bin/run.py --service speech-engine --service code-engine
-
-## Running Tests
-
-To run all of the Serenade tests:
-
-    scripts/arqon_maestro/bin/run.py --tests 'gradle test'
-
-To run tests for a specific service:
-
-    scripts/arqon_maestro/bin/run.py --tests 'gradle core:test'
-
-To run a specific set of tests:
-
-    scripts/arqon_maestro/bin/run.py --tests 'gradle core:test --tests *PythonTest.testAdd*'
-
-To run tests with extra debug output:
-
-    scripts/arqon_maestro/bin/run.py --tests 'gradle core:test -i'
-
-## Client Integration
-
-If you'd like to build your own version Serenade Local to be used by the client, you can run:
-
-    gradle installd
-    gradle client:installServer
-
-Then, when you run the client (following the instructions above) and use the Serenade Local endpoint, you'll be running the version that you built locally.
-
-## Static Site
-
-To make changes to the serenade.ai website (including documentation), you can run:
-
-    cd web
-    npm install
-    npm run dev
+Current canonical docs publishing is handled at the repository root via MkDocs.

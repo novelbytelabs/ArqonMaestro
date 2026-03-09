@@ -1,10 +1,10 @@
 # Grammars
 
-Serenade uses a few different grammars to parse spoken commands and code. This document gives a summary of how each is used by the system.
+Arqon Maestro uses a few different grammars to parse spoken commands and code. This document gives a summary of how each is used by the system.
 
 ## Command Grammar
 
-The command grammar is used to define the set of valid Serenade commands. It's important to note that this grammar is *not* a deterministic list of what can be said to Serenade. Instead, this grammar is used to train a `transcript-parser` model, which is ultimately used to parse spoken commands. For more on how this works, see [Generating Data](generating-data.md).
+The command grammar is used to define the set of valid Arqon Maestro commands. It's important to note that this grammar is *not* a deterministic list of what can be said to Arqon Maestro. Instead, this grammar is used to train a `transcript-parser` model, which is ultimately used to parse spoken commands. For more on how this works, see [Generating Data](generating-data.md).
 
 The command grammar is defined using the [ANTLR](https://www.antlr.org/) grammar format. It's split between a lexer and a parser, located in:
 
@@ -13,13 +13,13 @@ The command grammar is defined using the [ANTLR](https://www.antlr.org/) grammar
 
 ## Language Grammars
 
-Language grammars are used to parse source code files into Abstract Syntax Trees (ASTs). Serenade uses [tree-sitter](https://tree-sitter.github.io/tree-sitter/) to parse source code into an immutable tree, then applies a few transformations in order to produce a mutable tree with nodes defined in the `core.ast` package.
+Language grammars are used to parse source code files into Abstract Syntax Trees (ASTs). Arqon Maestro uses [tree-sitter](https://tree-sitter.github.io/tree-sitter/) to parse source code into an immutable tree, then applies a few transformations in order to produce a mutable tree with nodes defined in the `core.ast` package.
 
-When you build Serenade, versioned tree-sitter grammars are automatically downloaded to `~/libserenade/tree-sitter`. The versions for each language grammar are defined in `config/languages.yaml`.
+When you build Arqon Maestro, versioned tree-sitter grammars are automatically downloaded to `~/libarqon/tree-sitter`. The versions for each language grammar are defined in `config/languages.yaml`.
 
-If you'd like to make changes to the tree-sitter grammar and test them with Serenade, follow these steps:
+If you'd like to make changes to the tree-sitter grammar and test them with Arqon Maestro, follow these steps:
 
-1. Clone the language you'd like to modify to `~/libserenade/dev-tree-sitter`.
+1. Clone the language you'd like to modify to `~/libarqon/dev-tree-sitter`.
 2. Run `npm i` to install the necessary dependencies.
 3. Several grammars have dependencies on other grammars and require additional setup:
     1. If you are making changes to TypeScript:

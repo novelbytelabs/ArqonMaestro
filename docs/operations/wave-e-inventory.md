@@ -28,18 +28,19 @@ Discovery signals:
 
 ## Batch Plan
 
-### Batch E1-A (now)
+### Batch E1-A (completed)
 
 - Publish this inventory and classification matrix.
 - Mark legal pages as preserve/annotate category.
 - Mark blog archive as annotate category.
 
-### Batch E1-B
+### Batch E1-B (completed)
 
 - Rewrite `maestro/README.md` and `maestro/docs/*.md` into Arqon-first language.
 - Keep technical behavior unchanged; documentation-only changes.
+- Status: complete in this batch.
 
-### Batch E1-C
+### Batch E1-C (next)
 
 - Rewrite active `maestro/web` product pages and metadata.
 - Add historical/provenance banner component for blog/legal surfaces.

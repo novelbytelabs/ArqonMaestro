@@ -2,17 +2,17 @@
 
 ## Motivation
 
-When we started out building Serenade, we wanted to avoid building our own speech engine. Most of the work in developing Serenade went into building a system to process the transcripts once you have them, as opposed to generating the transcripts from audio. Our initial prototypes used cloud APIs like the Google Speech API.
+When we started out building Arqon Maestro, we wanted to avoid building our own speech engine. Most of the work in developing Arqon Maestro went into building a system to process the transcripts once you have them, as opposed to generating the transcripts from audio. Our initial prototypes used cloud APIs like the Google Speech API.
 
 Unfortunately these APIs had a few problems that led us to build our own speech engine. Among these were latency, privacy concerns, and cost. A decent amount of work went into improving latency. In particular, getting to our goal of < 150ms required special management of state that most voice applications don’t need because latency is less of a constraint. Besides that, the bulk of the work went into mitigating the largest issue: accuracy.
 
 ### Accuracy and Metrics
 
-Some ASR leaderboards suggest the models used in these cloud APIs had [reached human-level accuracy in 2017](https://github.com/syhw/wer_are_we). However, these accuracy benchmarks are highly context- and domain-sensitive. Consider the phrase "triple equals". Sending this audio to the Google Speech API came back with something like "AAA, Kohl's". This is arguably a good transcript to guess, especially if the person is mumbling or not speaking clearly, since people speaking to voice assistants (the typical use-case for these APIs) are generally more likely to mention places they buy products from than programming syntax. Similar issues came up with other programming and Serenade-specific words and phrases like "getenv", "instanceof", "dedent", and "system dot out dot println".
+Some ASR leaderboards suggest the models used in these cloud APIs had [reached human-level accuracy in 2017](https://github.com/syhw/wer_are_we). However, these accuracy benchmarks are highly context- and domain-sensitive. Consider the phrase "triple equals". Sending this audio to the Google Speech API came back with something like "AAA, Kohl's". This is arguably a good transcript to guess, especially if the person is mumbling or not speaking clearly, since people speaking to voice assistants (the typical use-case for these APIs) are generally more likely to mention places they buy products from than programming syntax. Similar issues came up with other programming and Arqon Maestro-specific words and phrases like "getenv", "instanceof", "dedent", and "system dot out dot println".
 
 This sensitivity to the use case may not be able to be overcome by just increasing the data volume. State-of-the-art models trained on 10k+ hours of general-purpose data often do significantly worse on the LibriSpeech audiobook data benchmark than models only trained on the much smaller (1k hours) LibriSpeech dataset. We noticed the same pattern with our dataset.
 
-When building a new Serenade-specific speech engine, we tried to use domain-specific metrics just like we used domain-specific data. We ultimately landed on recall@1, recall@5, and recall@10, measuring how often the correct transcript is the most likely transcript, in the top 5, and in the top 10, respectively. This was inspired by the "alternatives" mechanic in Serenade, where the most likely transcript is executed, but the user is able to easily revert that change to apply another displayed alternative. In this workflow, it's great if the first result is correct, but it is essential that the correct interpretation is in the top 5-10 options otherwise.
+When building a new Arqon Maestro-specific speech engine, we tried to use domain-specific metrics just like we used domain-specific data. We ultimately landed on recall@1, recall@5, and recall@10, measuring how often the correct transcript is the most likely transcript, in the top 5, and in the top 10, respectively. This was inspired by the "alternatives" mechanic in Arqon Maestro, where the most likely transcript is executed, but the user is able to easily revert that change to apply another displayed alternative. In this workflow, it's great if the first result is correct, but it is essential that the correct interpretation is in the top 5-10 options otherwise.
 
 Throughout the iterating process, we often discovered approaches that improved recall@5 and recall@10 a lot, while not affecting recall@1, and vice-versa. Had we focused solely on improving word error-rates, we may have missed some of these opportunities.
 
@@ -30,7 +30,7 @@ To leverage all of the available text data and make use of context, we focused o
 
 ### Generating a Corpus
 
-To generate the English corpus, we created a system called CorpusGen (a more detailed outline of the system can be found in [Generating Data](generating-data.md)). This system takes comments and code crawled from GitHub and uses them to generate a random sample of transcripts that could be used to generate that code using Serenade commands. In short, it converts millions of code fragments like "System.out.println" to millions of english transcripts like "system dot out dot println".
+To generate the English corpus, we created a system called CorpusGen (a more detailed outline of the system can be found in [Generating Data](generating-data.md)). This system takes comments and code crawled from GitHub and uses them to generate a random sample of transcripts that could be used to generate that code using Arqon Maestro commands. In short, it converts millions of code fragments like "System.out.println" to millions of english transcripts like "system dot out dot println".
 
 ### Speech Engine Architecture
 
@@ -58,15 +58,15 @@ The transformer language model is an encoder-decoder model that takes the code c
 
 While the speech engine turns audio into a ranked list of transcripts, many of those transcripts will describe source code, and so we need to translate natural language descriptions of code into actual source code. The code engine models solve this task.
 
-Serenade has three transformer models:
+Arqon Maestro has three transformer models:
 
 * `contextual-language-model`, which scores the likelihood of an English transcript given the current context
-* `transcript-parser`, which converts English transcripts into Serenade command markup
+* `transcript-parser`, which converts English transcripts into Arqon Maestro command markup
 * `auto-style`, which converts code context and English transcripts into tokenized code
 
 These problems can be thought of as translation tasks, converting sequences from a source language (English) to a target language (tokenized code or command markup; see the tokenizer section of the [Generating Data](generating-data.md) for more information).
 
-Our models all have an encoder-decoder architecture, with different numbers of encoding and decoding layers for each model. The models all needed to be small enough to run Serenade Pro consumer hardware. We tried to sizes that were as large as possible while keeping the overall latency of Serenade under 300ms.
+Our models all have an encoder-decoder architecture, with different numbers of encoding and decoding layers for each model. The models all needed to be small enough to run Arqon Maestro Pro consumer hardware. We tried to sizes that were as large as possible while keeping the overall latency of Arqon Maestro under 300ms.
 
 ### Experiments with End-to-End Models
 
