@@ -1,7 +1,7 @@
 # Arqon Maestro
 
 <p align="center">
-  <img src="docs/assets/logo.png" width="400" alt="Arqon Maestro Logo">
+  <img src="docs/assets/logo.png" width="100%" alt="Arqon Maestro Logo">
 </p>
 
 Arqon Maestro is the voice-first control layer for the Arqon ecosystem.
