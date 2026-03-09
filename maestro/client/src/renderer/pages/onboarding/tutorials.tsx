@@ -18,7 +18,7 @@ export const TutorialsPage = () => {
       >
         <div className="w-full h-full flex items-center">
           <div className="w-6/12 mx-auto pl-6 pr-4">
-            <h2 className="text-xl font-light pt-5">Complete a Tutorial</h2>
+            <h2 className="text-xl font-light pt-5">Choose a Tutorial</h2>
             <p>
               To start learning how to code with voice, choose one of the basic tutorials below.
             </p>

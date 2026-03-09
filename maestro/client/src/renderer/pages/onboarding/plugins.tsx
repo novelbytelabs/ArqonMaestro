@@ -19,9 +19,10 @@ export const PluginsPage = () => {
       >
         <div className="w-full h-full flex items-center p-6">
           <div className="w-6/12">
-            <h2 className="text-xl font-light pt-5">Install Plugins</h2>
+            <h2 className="text-xl font-light pt-5">Connect Your Editor</h2>
             <p>
-              ArqonMaestro integrates with your editor via plugins. You'll need one to code with voice!
+              Arqon Maestro integrates with your editor via plugins. Install one to start coding with
+              voice.
             </p>
             <div className="pt-2">
               <a

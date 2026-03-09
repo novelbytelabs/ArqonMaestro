@@ -5,6 +5,7 @@ import { ipcRenderer } from "electron";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTimes, faMinus } from "@fortawesome/free-solid-svg-icons";
 import { faSquare } from "@fortawesome/free-regular-svg-icons";
+import logoSymbol from "../../../static/img/symbol_small.png";
 
 const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
   const [maximized, setMaximized] = useState(false);
@@ -39,9 +40,11 @@ const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
   }
 
   return process.platform != "darwin" ? (
-    <div className="w-full h-[24px] absolute z-10 top-0 left-0">
-      <div className="w-full h-full flex">
-        <div className="flex-1 draggable" />
+    <div className="w-full h-[32px] absolute z-10 top-0 left-0 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800">
+      <div className="w-full h-full flex items-center px-2">
+        <img src={logoSymbol} className="h-5 w-5 mr-2" alt="Logo" />
+        <span className="text-xs font-semibold text-gray-500 dark:text-neutral-400">Arqon Maestro</span>
+        <div className="flex-1 draggable h-full" />
         <div>
           <a
             href="#"
