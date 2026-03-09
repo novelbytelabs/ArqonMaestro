@@ -1,9 +1,8 @@
 # Arqon Maestro
 
-<p align="center">
+<span align="center">
   <img src="docs/assets/logo.png" width="100%" alt="Arqon Maestro Logo">
-</p>
-
+</span>
 Arqon Maestro is the voice-first control layer for the Arqon ecosystem.
 
 It provides a natural-language interface for coding, navigation, execution, and workflow control across Arqon tools. It is a shared interaction surface designed to make the broader Arqon ecosystem voice-native.
