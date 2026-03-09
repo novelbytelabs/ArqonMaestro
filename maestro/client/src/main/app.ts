@@ -1,4 +1,5 @@
 import { globalShortcut, nativeTheme } from "electron";
+import fetch from "electron-fetch";
 import Active from "./active";
 import API from "./api";
 import { ChunkQueue } from "./stream/chunk-queue";
@@ -255,9 +256,18 @@ export default class App {
       miniModeWindow,
     ]);
 
-    const endpoint = settings.getStreamingEndpoint();
+    let endpoint = settings.getStreamingEndpoint();
     console.log("[ArqonMaestro] Streaming endpoint:", endpoint?.id, "-", endpoint?.address);
     console.log("[ArqonMaestro] Token present:", !!settings.getToken());
+
+    const localServiceHealthy = async (url: string): Promise<boolean> => {
+      try {
+        const response = await fetch(url, { method: "GET", timeout: 1500 });
+        return response.ok;
+      } catch (_e) {
+        return false;
+      }
+    };
 
     if (endpoint && endpoint.id == "local") {
       local.start();
@@ -272,7 +282,38 @@ export default class App {
     }
 
     instance.registerPushToTalk();
-    const initialLoggedIn = !!settings.getToken();
+
+    const tokenPresent = !!settings.getToken();
+    let initialLoggedIn = tokenPresent;
+    if (endpoint && endpoint.id == "local") {
+      const [speechHealthy, codeHealthy] = await Promise.all([
+        localServiceHealthy("http://localhost:17202/api/status"),
+        localServiceHealthy("http://localhost:17203/api/status"),
+      ]);
+      initialLoggedIn = initialLoggedIn && speechHealthy && codeHealthy;
+      if (!initialLoggedIn) {
+        console.warn(
+          "[ArqonMaestro] Local endpoint selected but local backend is not fully healthy yet."
+        );
+
+        const remoteEndpoints = settings.getStreamingEndpoints().filter((e) => e.id != "local");
+        if (tokenPresent && remoteEndpoints.length > 0) {
+          const pings = await Promise.all(remoteEndpoints.map((e) => api.ping(e, false)));
+          const index = Math.max(0, pings.indexOf(Math.min(...pings)));
+          const fallback = remoteEndpoints[index];
+          settings.setStreamingEndpoint(fallback.id!);
+          endpoint = settings.getStreamingEndpoint();
+          initialLoggedIn = true;
+          console.warn(
+            "[ArqonMaestro] Falling back to remote endpoint:",
+            fallback.id,
+            fallback.address
+          );
+          bridge.setState({ endpoint, latency: pings[index] }, [mainWindow, miniModeWindow]);
+        }
+      }
+    }
+
     console.log("[ArqonMaestro] Setting loggedIn state:", initialLoggedIn);
     bridge.setState({ loggedIn: initialLoggedIn, listening: false }, [
       mainWindow,
@@ -286,6 +327,30 @@ export default class App {
         miniModeWindow,
       ]);
     }, 1500);
+
+    // Local backend startup can lag app initialization. Poll briefly and flip to logged-in
+    // once both local services are healthy so restart is not required.
+    if (endpoint && endpoint.id == "local" && tokenPresent && !initialLoggedIn) {
+      let attempts = 0;
+      const interval = setInterval(async () => {
+        attempts += 1;
+        const [speechHealthy, codeHealthy] = await Promise.all([
+          localServiceHealthy("http://localhost:17202/api/status"),
+          localServiceHealthy("http://localhost:17203/api/status"),
+        ]);
+
+        if (speechHealthy && codeHealthy) {
+          console.log("[ArqonMaestro] Local backend healthy; enabling loggedIn state.");
+          bridge.setState({ loggedIn: true, listening: false }, [mainWindow, miniModeWindow]);
+          clearInterval(interval);
+          return;
+        }
+
+        if (attempts >= 30) {
+          clearInterval(interval);
+        }
+      }, 1000);
+    }
     instance.clearAlternativesAndShowExamples();
     nux.showIfNeeded();
 
