@@ -113,6 +113,100 @@ export default class Local {
     return path.join(__dirname, "..", "static", "local", ...parts);
   }
 
+  private processCommandLine(pid: number): string {
+    try {
+      const cmdline = fs.readFileSync(`/proc/${pid}/cmdline`);
+      return cmdline.toString("utf8").replace(/\0/g, " ").trim();
+    } catch (_e) {
+      return "";
+    }
+  }
+
+  private listeningPids(port: number): number[] {
+    if (os.platform() == "win32") {
+      return [];
+    }
+
+    try {
+      const result = child_process.spawnSync("ss", ["-ltnp"]);
+      const output = `${result.stdout?.toString() || ""}\n${result.stderr?.toString() || ""}`;
+      const pattern = new RegExp(`:${port}\\s`);
+      const pids: number[] = [];
+      for (const line of output.split("\n")) {
+        if (!pattern.test(line)) {
+          continue;
+        }
+
+        const regex = /pid=(\d+)/g;
+        let match;
+        while ((match = regex.exec(line)) != null) {
+          const pid = parseInt(match[1], 10);
+          if (!isNaN(pid)) {
+            pids.push(pid);
+          }
+        }
+      }
+
+      return [...new Set(pids)];
+    } catch (_e) {
+      return [];
+    }
+  }
+
+  private ensurePortsAvailable(): string | undefined {
+    const ports = [17202, 17203];
+    for (const port of ports) {
+      const initialPids = this.listeningPids(port);
+      for (const pid of initialPids) {
+        const cmdline = this.processCommandLine(pid);
+        if (
+          cmdline.includes("arqon-maestro-speech-engine") ||
+          cmdline.includes("arqon-maestro-code-engine") ||
+          cmdline.includes("serenade-speech-engine") ||
+          cmdline.includes("serenade-code-engine") ||
+          cmdline.includes("run-pro")
+        ) {
+          try {
+            process.kill(pid, "SIGTERM");
+          } catch (_e) {}
+        }
+      }
+
+      // Give graceful shutdown a moment, then force-kill lingering local engine processes.
+      if (initialPids.length > 0) {
+        child_process.spawnSync("sleep", ["1"]);
+      }
+      const afterTermPids = this.listeningPids(port);
+      for (const pid of afterTermPids) {
+        const cmdline = this.processCommandLine(pid);
+        if (
+          cmdline.includes("arqon-maestro-speech-engine") ||
+          cmdline.includes("arqon-maestro-code-engine") ||
+          cmdline.includes("serenade-speech-engine") ||
+          cmdline.includes("serenade-code-engine") ||
+          cmdline.includes("run-pro")
+        ) {
+          try {
+            process.kill(pid, "SIGKILL");
+          } catch (_e) {}
+        }
+      }
+
+      const remainingPids = this.listeningPids(port);
+      if (remainingPids.length > 0) {
+        const owners = remainingPids
+          .map((pid) => {
+            const cmdline = this.processCommandLine(pid) || "unknown";
+            return `${pid} (${cmdline})`;
+          })
+          .join(", ");
+        return `Port ${port} is already in use by ${owners}. Stop the conflicting process or switch off local endpoint mode.`;
+      }
+    }
+
+    return undefined;
+  }
+
   private validateLocalBundle(): string | undefined {
     const requiredPaths: { label: string; path: string }[] = [
       { label: "speech-engine/run-pro", path: this.localPath("speech-engine", "run-pro") },
@@ -180,15 +274,17 @@ export default class Local {
     this.setLocalState(true, "");
     this.localStartTimeout = global.setTimeout(() => {
       this.failStartup(
-        "Local backend did not become healthy on :17202 within 30 seconds. Check `~/.arqon/speech-engine.log` and `~/.arqon/code-engine.log`, then rebuild the local bundle if needed."
+        "Local backend did not become healthy on :17202/:17203 within 30 seconds. Check `~/.arqon/speech-engine.log` and `~/.arqon/code-engine.log`, then rebuild the local bundle if needed."
       );
     }, 30000);
 
     this.pollingInterval = global.setInterval(async () => {
-      // speech-engine is always the last to load, so poll until it's ready
       try {
-        const response = await fetch("http://localhost:17202/api/status");
-        if (await response.json()) {
+        const [speechResponse, codeResponse] = await Promise.all([
+          fetch("http://localhost:17202/api/status"),
+          fetch("http://localhost:17203/api/status"),
+        ]);
+        if ((await speechResponse.json()) && (await codeResponse.json())) {
           this.stopPolling();
           this.setLocalState(false, "");
         }
@@ -217,6 +313,11 @@ export default class Local {
 
     this.started = true;
     this.killAll();
+    const portIssue = this.ensurePortsAvailable();
+    if (portIssue) {
+      this.failStartup(portIssue);
+      return;
+    }
     this.pollUntilRunning();
 
     let speechEngineModels = path.join(__dirname, "..", "static", "local", "speech-engine-models");
