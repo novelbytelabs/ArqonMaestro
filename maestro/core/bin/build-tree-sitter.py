@@ -46,12 +46,14 @@ def main(output):
             )
     os.chdir(cwd)
 
-    if (
-        not updated
-        and os.path.exists(output + (".dylib" if platform.system() == "Darwin" else ".so"))
-        and not dev_tree_sitter
-    ):
-        sys.exit(0)
+    output_library = output + (".dylib" if platform.system() == "Darwin" else ".so")
+    if not updated and os.path.exists(output_library) and not dev_tree_sitter:
+        try:
+            symbols = subprocess.check_output(["nm", "-D", output_library], text=True)
+            if "Java_ai_arqon_maestro_treesitter" in symbols:
+                sys.exit(0)
+        except Exception:
+            pass
 
     paths = []
     prefix = arqon_maestro.config.library_path("tree-sitter")
@@ -85,14 +87,16 @@ def main(output):
         )
 
     os.makedirs(os.path.dirname(output), exist_ok=True)
+    source_java_tree_sitter = arqon_maestro.config.source_path("tree-sitter", "java-tree-sitter", "build.py")
+    if os.path.exists(source_java_tree_sitter):
+        build_script = source_java_tree_sitter
+    elif dev_tree_sitter and os.path.exists(f"{dev_prefix}/java-tree-sitter"):
+        build_script = f"{dev_prefix}/java-tree-sitter/build.py"
+    else:
+        build_script = f"{prefix}/java-tree-sitter/build.py"
+
     subprocess.check_call(
-        [
-            f"{dev_prefix}/java-tree-sitter/build.py"
-            if dev_tree_sitter and os.path.exists(f"{dev_prefix}/java-tree-sitter")
-            else f"{prefix}/java-tree-sitter/build.py",
-            "-o",
-            output,
-        ]
+        [build_script, "-o", output]
         + (["-a", "x86_64"] if platform.system() == "Darwin" else [])
         + paths,
     )

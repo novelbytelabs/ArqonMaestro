@@ -247,6 +247,21 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+
+## ADM-019: Wave B Must Obey A Frozen Requirements Contract
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: Local runtime completion work may not infer or mutate broader Arqon ecosystem lanes ad hoc. Wave B must run against an explicit frozen requirements registry and compatibility matrix before more native dependency work proceeds.
+- **Why**: The local native engine stack intersects shared ecosystem tooling. Continuing without a written contract would risk making Maestro appear healthy by destabilizing the wider environment.
+- **Consequences**:
+  - Wave B now requires a `Frozen Requirements Registry`
+  - Wave B now requires a `Wave B Compatibility Matrix`
+  - frozen lanes must be consumed explicitly, not rediscovered by ambient machine state
+  - private native artifacts must stay isolated from shared ecosystem environments
+
+---
+
 ## ADM-018: Post-Rebrand Work Splits Into Two Explicit Programs
 
 - **Date**: 2026-03-08
@@ -297,6 +312,32 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - `code-engine` and `speech-engine` packaging now validate required native inputs before invoking CMake
   - local packaging errors now point directly at `maestro/scripts/setup/build-dependencies.sh`
   - Wave B evidence can distinguish source-root bugs from genuine environment/toolchain gaps
+
+---
+
+## ADM-022: Core Tree-Sitter JNI Must Be Built From In-Repo Arqon Sources
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: `core/bin/build-tree-sitter.py` must prefer the in-repo `maestro/tree-sitter/java-tree-sitter/build.py`, and must reject stale prebuilt JNI artifacts that export legacy `Java_ai_serenade_treesitter_*` symbols.
+- **Why**: Wave B local core startup was crashing in `Parser.<clinit>()` because the packaged JNI library was built from legacy Serenade java-tree-sitter sources with mismatched class namespaces.
+- **Consequences**:
+  - local core JNI output is now validated against Arqon symbol namespace before reusing cached artifacts
+  - local packaging now regenerates tree-sitter JNI when a stale legacy artifact is detected
+  - Wave B runtime evidence now treats JNI symbol namespace verification as a required check
+
+---
+
+## ADM-023: Code-Engine SentencePiece Tokenization Uses CLI Boundary
+
+- **Date**: 2026-03-08
+- **Status**: Accepted
+- **Decision**: `code-engine` `TokenIdConverter` no longer uses in-process `SentencePieceProcessor::LoadFromSerializedProto(...)`; it now uses the `spm_encode` CLI boundary for sentencepiece token-id encoding.
+- **Why**: Wave B local mode was blocked by a reproducible native crash path during sentencepiece/protobuf parsing in-process. The CLI boundary preserves functional tokenization behavior while avoiding that crash path in the service process.
+- **Consequences**:
+  - local `code-engine` startup now reaches healthy status in the bundled local stack
+  - sentencepiece binary resolution is explicit (`ARQON_MAESTRO_SPM_ENCODE`, `SERENADE_SPM_ENCODE`, then default binary paths)
+  - Wave B can hard-close on local service health while deeper ABI unification remains a follow-on hardening topic
 
 ---
 

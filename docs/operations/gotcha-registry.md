@@ -389,6 +389,52 @@ Use for:
   - use `arqon_maestro` for the internal Python package slug
   - reserve `maestro` for repo/directory identity rather than Python import identity
 
+### GOTCHA-018: Legacy Tree-Sitter JNI Symbols Can Crash Core During `System.load`
+
+- **Category**: Namespace And Dependency Identity
+- **Status**: mitigated
+- **Summary**: If `libjava-tree-sitter.so` exports `Java_ai_serenade_treesitter_*` while Java code imports `ai.arqon.maestro.treesitter.*`, local core can crash during `Parser.<clinit>()` before normal app startup.
+- **Impact**: High
+- **Where it matters**:
+  - `core/bin/build-tree-sitter.py`
+  - `client:installServer` packaging path
+  - Wave B runtime smoke
+- **Avoidance**:
+  - build JNI from the in-repo `maestro/tree-sitter/java-tree-sitter/build.py`
+  - reject cached JNI artifacts without `Java_ai_arqon_maestro_treesitter_*` symbols
+  - verify JNI symbol namespace in Wave B evidence
+
+### GOTCHA-019: Code-Engine Can Segfault Before `main()` Despite Valid Model Paths
+
+- **Category**: Build And Packaging
+- **Status**: mitigated
+- **Summary**: `code-engine` can crash with SIGSEGV before entering `main()`, so normal startup logs and argument-validation paths never run. This appears as an immediate wrapper crash even when `CODE_ENGINE_MODELS` is set.
+- **Impact**: High
+- **Where it matters**:
+  - Wave B local runtime hard-close
+  - native ABI/static-init compatibility checks
+  - local service health validation on `:17203`
+- **Avoidance**:
+  - treat pre-`main()` crashes as native ABI/static-init blockers, not app-logic bugs
+  - capture native traces outside sandbox ptrace restrictions
+  - keep sentencepiece tokenization on a stable boundary (`spm_encode` CLI path in `TokenIdConverter`)
+  - do not hard-close local runtime milestones until `:17203` health checks are green
+
+### GOTCHA-020: Failed Native Link Can Leave A Zero-Filled Engine Artifact In Local Bundle
+
+- **Category**: Build And Packaging
+- **Status**: active
+- **Summary**: If `code-engine` native link fails but packaging reuses an existing path, `client/static/local/code-engine/arqon-maestro-code-engine` can appear as a large zero-filled file (`file: data`), causing `Exec format error` and misleading runtime debugging.
+- **Impact**: High
+- **Where it matters**:
+  - `code-engine:buildCMake` and `code-engine:distTar`
+  - `client:installCodeEngine`
+  - local runtime smoke scripts
+- **Avoidance**:
+  - verify native target output exists in `maestro/code-engine/server/build/code-engine/arqon-maestro-code-engine` after CMake link
+  - verify installed artifact with `file` before runtime smoke
+  - fail the pipeline immediately on native link errors before trusting packaged local binaries
+
 ## Entry Template
 
 ```markdown

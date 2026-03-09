@@ -1,4 +1,5 @@
 #!/bin/bash
 
 trap 'kill $(jobs -p) > /dev/null 2>&1' EXIT
-ENV="local" SPEECH_ENGINE_MODELS="$1" ./arqon-maestro-speech-engine
+MODELS_PATH="${1:-../speech-engine-models}"
+ENV="local" SPEECH_ENGINE_MODELS="$MODELS_PATH" ./arqon-maestro-speech-engine

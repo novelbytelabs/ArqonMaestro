@@ -22,6 +22,54 @@ else()
   endif()
 endif()
 
+if(DEFINED ENV{ARQON_MAESTRO_PROTOBUF_ROOT})
+  set(SERENADE_PROTOBUF_ROOT $ENV{ARQON_MAESTRO_PROTOBUF_ROOT})
+elseif(DEFINED ENV{SERENADE_PROTOBUF_ROOT})
+  set(SERENADE_PROTOBUF_ROOT $ENV{SERENADE_PROTOBUF_ROOT})
+elseif(DEFINED ENV{CONDA_PREFIX} AND EXISTS "$ENV{CONDA_PREFIX}/include/google/protobuf")
+  set(SERENADE_PROTOBUF_ROOT $ENV{CONDA_PREFIX})
+else()
+  set(SERENADE_PROTOBUF_ROOT ${SERENADE_LIBRARY_ROOT}/protobuf)
+endif()
+
+if(DEFINED ENV{ARQON_MAESTRO_PROTOC_EXECUTABLE})
+  set(SERENADE_PROTOC_EXECUTABLE $ENV{ARQON_MAESTRO_PROTOC_EXECUTABLE})
+elseif(DEFINED ENV{SERENADE_PROTOC_EXECUTABLE})
+  set(SERENADE_PROTOC_EXECUTABLE $ENV{SERENADE_PROTOC_EXECUTABLE})
+elseif(EXISTS "${SERENADE_PROTOBUF_ROOT}/bin/protoc")
+  set(SERENADE_PROTOC_EXECUTABLE "${SERENADE_PROTOBUF_ROOT}/bin/protoc")
+elseif(EXISTS "$ENV{HOME}/.local/bin/protoc")
+  set(SERENADE_PROTOC_EXECUTABLE "$ENV{HOME}/.local/bin/protoc")
+else()
+  set(SERENADE_PROTOC_EXECUTABLE "protoc")
+endif()
+
+if(DEFINED ENV{ARQON_MAESTRO_LINEAR_ALGEBRA_BACKEND})
+  set(SERENADE_LINEAR_ALGEBRA_BACKEND $ENV{ARQON_MAESTRO_LINEAR_ALGEBRA_BACKEND})
+elseif(DEFINED ENV{SERENADE_LINEAR_ALGEBRA_BACKEND})
+  set(SERENADE_LINEAR_ALGEBRA_BACKEND $ENV{SERENADE_LINEAR_ALGEBRA_BACKEND})
+elseif(EXISTS "/opt/intel/mkl/lib/intel64/libmkl_core.a")
+  set(SERENADE_LINEAR_ALGEBRA_BACKEND "MKL")
+else()
+  set(SERENADE_LINEAR_ALGEBRA_BACKEND "OPENBLAS")
+endif()
+
+if(DEFINED ENV{ARQON_MAESTRO_MKL_ROOT})
+  set(SERENADE_MKL_ROOT $ENV{ARQON_MAESTRO_MKL_ROOT})
+elseif(DEFINED ENV{SERENADE_MKL_ROOT})
+  set(SERENADE_MKL_ROOT $ENV{SERENADE_MKL_ROOT})
+else()
+  set(SERENADE_MKL_ROOT "/opt/intel/mkl")
+endif()
+
+if(DEFINED ENV{ARQON_MAESTRO_OPENBLAS_LIBRARY})
+  set(SERENADE_OPENBLAS_LIBRARY $ENV{ARQON_MAESTRO_OPENBLAS_LIBRARY})
+elseif(DEFINED ENV{SERENADE_OPENBLAS_LIBRARY})
+  set(SERENADE_OPENBLAS_LIBRARY $ENV{SERENADE_OPENBLAS_LIBRARY})
+else()
+  set(SERENADE_OPENBLAS_LIBRARY "openblas")
+endif()
+
 # some options carried over from Kaldi
 add_compile_options(
   -Wall
@@ -48,12 +96,12 @@ else()
   )
 endif()
 
-list(APPEND CMAKE_PREFIX_PATH ${SERENADE_LIBRARY_ROOT}/protobuf)
-set(Protobuf_ROOT ${SERENADE_LIBRARY_ROOT}/protobuf)
-set(Protobuf_PROTOC_EXECUTABLE ${SERENADE_LIBRARY_ROOT}/protobuf/bin/protoc)
-set(Protobuf_INCLUDE_DIR ${SERENADE_LIBRARY_ROOT}/protobuf/include)
-set(Protobuf_LIBRARY ${SERENADE_LIBRARY_ROOT}/protobuf/lib/libprotobuf.a)
-set(Protobuf_LIBRARIES ${SERENADE_LIBRARY_ROOT}/protobuf/lib/libprotobuf.a)
+list(APPEND CMAKE_PREFIX_PATH ${SERENADE_PROTOBUF_ROOT})
+list(APPEND CMAKE_PREFIX_PATH ${SERENADE_PROTOBUF_ROOT}/lib/cmake)
+set(Protobuf_ROOT ${SERENADE_PROTOBUF_ROOT})
+set(Protobuf_PROTOC_EXECUTABLE ${SERENADE_PROTOC_EXECUTABLE})
+set(Protobuf_INCLUDE_DIR ${SERENADE_PROTOBUF_ROOT}/include)
+set(protobuf_MODULE_COMPATIBLE TRUE)
 set(CMAKE_MODULE_PATH "${MARIAN_ROOT}/cmake" ${CMAKE_MODULE_PATH})
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
@@ -70,10 +118,8 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.78.0 COMPONENTS regex system thread PATHS ${SERENADE_LIBRARY_ROOT}/boost)
 include_directories(${Boost_INCLUDE_DIRS})
 
-set(Protobuf_USE_STATIC_LIBS ON)
-include(FindProtobuf)
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIR})
+find_package(Protobuf CONFIG REQUIRED)
+include_directories(${Protobuf_INCLUDE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 set(PROTOS ${SERENADE_SOURCE_ROOT}/toolbelt/src/main/proto/speech-engine.proto)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HEADERS ${PROTOS})
@@ -142,7 +188,7 @@ target_link_libraries(arqon-maestro-speech-engine
   speech-engine_protobuf
   pthread
   z
-  ${Protobuf_LIBRARIES}
+  protobuf::libprotobuf
   ${Boost_LIBRARIES}
   ${KALDI_LIBRARIES}
   ${KALDI_LIBRARIES}
@@ -151,9 +197,17 @@ target_link_libraries(arqon-maestro-speech-engine
 if(APPLE)
   target_link_libraries(arqon-maestro-speech-engine "-framework Accelerate")
 else()
-  target_link_libraries(arqon-maestro-speech-engine
-    "-Wl,--start-group;/opt/intel/mkl/lib/intel64/libmkl_intel_ilp64.a;/opt/intel/mkl/lib/intel64/libmkl_sequential.a;/opt/intel/mkl/lib/intel64/libmkl_core.a;-Wl,--end-group"
-    dl
-    gomp
-  )
+  if(SERENADE_LINEAR_ALGEBRA_BACKEND STREQUAL "MKL")
+    target_link_libraries(arqon-maestro-speech-engine
+      "-Wl,--start-group;${SERENADE_MKL_ROOT}/lib/intel64/libmkl_intel_ilp64.a;${SERENADE_MKL_ROOT}/lib/intel64/libmkl_sequential.a;${SERENADE_MKL_ROOT}/lib/intel64/libmkl_core.a;-Wl,--end-group"
+      dl
+      gomp
+    )
+  else()
+    target_link_libraries(arqon-maestro-speech-engine
+      ${SERENADE_OPENBLAS_LIBRARY}
+      dl
+      gomp
+    )
+  endif()
 endif()

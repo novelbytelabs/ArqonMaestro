@@ -1,4 +1,5 @@
 #!/bin/bash
 
 trap 'kill $(jobs -p) > /dev/null 2>&1' EXIT
-ENV="local" CODE_ENGINE_MODELS="$1" ./arqon-maestro-code-engine
+MODELS_PATH="${1:-../code-engine-models}"
+ENV="local" CODE_ENGINE_MODELS="$MODELS_PATH" ./arqon-maestro-code-engine

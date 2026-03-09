@@ -4,9 +4,9 @@ plugins {
 
 def requiredNativeInputs = [
     [label: "Boost 1.78 install", path: "${rootProject.libraryRoot}/boost"],
-    [label: "Protobuf install", path: "${rootProject.libraryRoot}/protobuf"],
-    [label: "Protobuf compiler", path: "${rootProject.libraryRoot}/protobuf/bin/protoc"],
-    [label: "Protobuf static library", path: "${rootProject.libraryRoot}/protobuf/lib/libprotobuf.a"],
+    [label: "Protobuf root", path: "${rootProject.protobufRoot}/include/google/protobuf"],
+    [label: "Protobuf compiler", path: "${rootProject.protobufCompiler}"],
+    [label: "Protobuf library", path: "${rootProject.protobufLibrary}"],
     [label: "Crow headers", path: "${rootProject.libraryRoot}/crow/include"],
     [label: "Kaldi source tree", path: "${rootProject.libraryRoot}/kaldi/src"],
     [label: "Speech-engine proto", path: "${rootProject.projectDir}/toolbelt/src/main/proto/speech-engine.proto"],
@@ -30,6 +30,16 @@ task buildCMake(type: Exec, dependsOn: [rootProject.downloadModels, verifyNative
     environment "SERENADE_SOURCE_ROOT", rootProject.projectDir.absolutePath
     environment "ARQON_MAESTRO_LIBRARY_ROOT", rootProject.libraryRoot
     environment "SERENADE_LIBRARY_ROOT", rootProject.libraryRoot
+    environment "ARQON_MAESTRO_PROTOBUF_ROOT", rootProject.protobufRoot
+    environment "SERENADE_PROTOBUF_ROOT", rootProject.protobufRoot
+    environment "ARQON_MAESTRO_PROTOC_EXECUTABLE", rootProject.protobufCompiler
+    environment "SERENADE_PROTOC_EXECUTABLE", rootProject.protobufCompiler
+    environment "ARQON_MAESTRO_LINEAR_ALGEBRA_BACKEND", rootProject.linearAlgebraBackend
+    environment "SERENADE_LINEAR_ALGEBRA_BACKEND", rootProject.linearAlgebraBackend
+    environment "ARQON_MAESTRO_MKL_ROOT", rootProject.mklRoot
+    environment "SERENADE_MKL_ROOT", rootProject.mklRoot
+    environment "ARQON_MAESTRO_OPENBLAS_LIBRARY", rootProject.openBlasLibrary
+    environment "SERENADE_OPENBLAS_LIBRARY", rootProject.openBlasLibrary
     commandLine "bash", "-c", "mkdir -p server/build && cd server/build && cmake .. && cmake --build . -j2"
 }
 
@@ -37,10 +47,7 @@ task distTar(type: Tar, dependsOn: [buildCMake]) {
     archiveExtension = "tar.gz"
     compression = Compression.GZIP
 
-    from(
-        fileTree(".").include("bin/run-pro").files,
-        fileTree(".").include("server/build/speech-engine/arqon-maestro-speech-engine").files
-    )
+    from("bin/run-pro", "server/build/speech-engine/arqon-maestro-speech-engine")
     into "speech-engine"
 }
 

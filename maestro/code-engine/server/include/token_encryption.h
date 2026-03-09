@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sentencepiece_processor.h>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -20,7 +18,8 @@ class TokenIdConverter {
   bool is_sentencepiece_;
   std::map<std::string, std::string> token_to_id_;
   std::map<std::string, std::string> id_to_token_;
-  std::unique_ptr<sentencepiece::SentencePieceProcessor> sp_processor_;
+  std::string spm_filename_;
+  std::string spm_encode_binary_;
 
  public:
   std::string Encode(std::string input);
@@ -31,6 +30,7 @@ class TokenIdConverter {
 
  private:
   void LoadTokenMaps(const std::string &vocab_filename);
+  std::string EncodeWithSentencePieceCli(const std::string &input);
 };
 
 }  // namespace code_engine

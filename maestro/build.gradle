@@ -37,6 +37,90 @@ def libraryRoot = project.ext.libraryRoot = (
         )
 )
 
+def defaultFrozenCondaRoot = "${System.properties['user.home']}/miniconda3/envs/helios-gpu-118"
+def protobufRoot = project.ext.protobufRoot = (
+    System.env.ARQON_MAESTRO_PROTOBUF_ROOT != null ?
+        System.env.ARQON_MAESTRO_PROTOBUF_ROOT :
+        (
+            System.env.SERENADE_PROTOBUF_ROOT != null ?
+                System.env.SERENADE_PROTOBUF_ROOT :
+                (
+                    System.env.CONDA_PREFIX != null &&
+                    new File("${System.env.CONDA_PREFIX}/include/google/protobuf").exists() &&
+                    (
+                        new File("${System.env.CONDA_PREFIX}/lib/libprotobuf.a").exists() ||
+                        new File("${System.env.CONDA_PREFIX}/lib/libprotobuf.so").exists()
+                    ) ?
+                        System.env.CONDA_PREFIX :
+                        (
+                            new File("${defaultFrozenCondaRoot}/include/google/protobuf").exists() &&
+                            (
+                                new File("${defaultFrozenCondaRoot}/lib/libprotobuf.a").exists() ||
+                                new File("${defaultFrozenCondaRoot}/lib/libprotobuf.so").exists()
+                            ) ?
+                                defaultFrozenCondaRoot :
+                                "$libraryRoot/protobuf"
+                        )
+                )
+        )
+)
+
+def protobufCompiler = project.ext.protobufCompiler = (
+    System.env.ARQON_MAESTRO_PROTOC_EXECUTABLE != null ?
+        System.env.ARQON_MAESTRO_PROTOC_EXECUTABLE :
+        (
+            System.env.SERENADE_PROTOC_EXECUTABLE != null ?
+                System.env.SERENADE_PROTOC_EXECUTABLE :
+                (
+                    new File("${protobufRoot}/bin/protoc").exists() ?
+                        "${protobufRoot}/bin/protoc" :
+                        (
+                            new File("${System.properties['user.home']}/.local/bin/protoc").exists() ?
+                                "${System.properties['user.home']}/.local/bin/protoc" :
+                                "protoc"
+                        )
+                )
+        )
+)
+
+def protobufLibrary = project.ext.protobufLibrary = (
+    new File("${protobufRoot}/lib/libprotobuf.a").exists() ?
+        "${protobufRoot}/lib/libprotobuf.a" :
+        (
+            new File("${protobufRoot}/lib/libprotobuf.so").exists() ?
+                "${protobufRoot}/lib/libprotobuf.so" :
+                "${protobufRoot}/lib/libprotobuf.so.29.3.0"
+        )
+)
+
+def mklRoot = project.ext.mklRoot = (
+    System.env.ARQON_MAESTRO_MKL_ROOT != null ?
+        System.env.ARQON_MAESTRO_MKL_ROOT :
+        (
+            System.env.SERENADE_MKL_ROOT != null ?
+                System.env.SERENADE_MKL_ROOT :
+                "/opt/intel/mkl"
+        )
+)
+
+def openBlasLibrary = project.ext.openBlasLibrary = (
+    System.env.ARQON_MAESTRO_OPENBLAS_LIBRARY != null ?
+        System.env.ARQON_MAESTRO_OPENBLAS_LIBRARY :
+        (
+            System.env.SERENADE_OPENBLAS_LIBRARY != null ?
+                System.env.SERENADE_OPENBLAS_LIBRARY :
+                (
+                    new File("/usr/lib/x86_64-linux-gnu/libopenblas.so").exists() ?
+                        "/usr/lib/x86_64-linux-gnu/libopenblas.so" :
+                        "libopenblas.so"
+                )
+        )
+)
+
+def linearAlgebraBackend = project.ext.linearAlgebraBackend = (
+    new File("${mklRoot}/lib/intel64/libmkl_core.a").exists() ? "MKL" : "OPENBLAS"
+)
+
 project.ext.codeEngineModels = "$libraryRoot/models/code-engine"
 project.ext.speechEngineModels = "$libraryRoot/models/speech-engine"
 

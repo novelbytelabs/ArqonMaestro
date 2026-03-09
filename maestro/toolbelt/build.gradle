@@ -2,6 +2,24 @@ plugins {
     id "com.google.protobuf" version "0.9.4"
 }
 
+def cachedJavaProtoc = fileTree("${System.properties['user.home']}/.gradle/caches/modules-2/files-2.1/com.google.protobuf/protoc/3.25.2").matching {
+    include "**/protoc-3.25.2-*.exe"
+}.files.find()
+
+def javaProtocPath = (
+    System.env.ARQON_MAESTRO_JAVA_PROTOC_EXECUTABLE != null ?
+        System.env.ARQON_MAESTRO_JAVA_PROTOC_EXECUTABLE :
+        (
+            System.env.SERENADE_JAVA_PROTOC_EXECUTABLE != null ?
+                System.env.SERENADE_JAVA_PROTOC_EXECUTABLE :
+                (
+                    cachedJavaProtoc != null ?
+                        cachedJavaProtoc.absolutePath :
+                        null
+                )
+        )
+)
+
 dependencies {
     implementation "com.google.code.gson:gson:2.8.5"
     implementation "redis.clients:jedis:3.1.0"
@@ -13,7 +31,12 @@ dependencies {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:${rootProject.protobufVersion}"
+        if (javaProtocPath == null) {
+            throw new GradleException(
+                "Missing cached Java protoc 3.25.2. Set ARQON_MAESTRO_JAVA_PROTOC_EXECUTABLE to a compatible protoc binary."
+            )
+        }
+        path = javaProtocPath
     }
 }
 

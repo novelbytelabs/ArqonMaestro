@@ -204,7 +204,22 @@ void LoadModels(
 }
 
 int main(int argc, char* argv[]) {
-  std::string include = std::getenv("CODE_ENGINE_MODELS");
+  const bool debug_startup =
+      std::getenv("ARQON_MAESTRO_DEBUG_STARTUP") != nullptr;
+  if (debug_startup) {
+    std::cerr << "code-engine startup: entered main" << std::endl;
+  }
+
+  const char* include_env = std::getenv("CODE_ENGINE_MODELS");
+  if (include_env == nullptr || std::string(include_env).empty()) {
+    std::cerr << "code-engine startup error: CODE_ENGINE_MODELS is not set"
+              << std::endl;
+    return 2;
+  }
+  std::string include = include_env;
+  if (debug_startup) {
+    std::cerr << "code-engine startup: models path=" << include << std::endl;
+  }
 
   std::map<std::pair<Model, Language>, std::mutex> mutexes;
   std::map<std::pair<Model, Language>, std::unique_ptr<TokenIdConverter>>
@@ -225,12 +240,48 @@ int main(int argc, char* argv[]) {
       LANGUAGE_BASH, LANGUAGE_DEFAULT, LANGUAGE_CSHARP,     LANGUAGE_GO,
       LANGUAGE_RUST, LANGUAGE_RUBY};
 
-  LoadModels(MODEL_AUTO_STYLE, auto_style_models, include, mutexes, converters,
-             translate_services, rescore_services);
-  LoadModels(MODEL_CONTEXTUAL_LANGUAGE_MODEL, auto_style_models, include,
-             mutexes, converters, translate_services, rescore_services);
-  LoadModels(MODEL_TRANSCRIPT_PARSER, transcript_parser_models, include,
-             mutexes, converters, translate_services, rescore_services);
+  if (debug_startup) {
+    std::cerr << "code-engine startup: loading auto-style models" << std::endl;
+  }
+  LoadModels(
+      MODEL_AUTO_STYLE,
+      auto_style_models,
+      include,
+      mutexes,
+      converters,
+      translate_services,
+      rescore_services
+  );
+  if (debug_startup) {
+    std::cerr << "code-engine startup: loading contextual-language-model models"
+              << std::endl;
+  }
+  LoadModels(
+      MODEL_CONTEXTUAL_LANGUAGE_MODEL,
+      auto_style_models,
+      include,
+      mutexes,
+      converters,
+      translate_services,
+      rescore_services
+  );
+  if (debug_startup) {
+    std::cerr << "code-engine startup: loading transcript-parser models"
+              << std::endl;
+  }
+  LoadModels(
+      MODEL_TRANSCRIPT_PARSER,
+      transcript_parser_models,
+      include,
+      mutexes,
+      converters,
+      translate_services,
+      rescore_services
+  );
+  if (debug_startup) {
+    std::cerr << "code-engine startup: models loaded, starting server"
+              << std::endl;
+  }
 
   try {
     crow::SimpleApp app;

@@ -42,6 +42,12 @@ This ordering is deliberate:
 
 ## Current State Snapshot
 
+Wave B is now governed by two explicit control documents:
+
+- [Frozen Requirements Registry](operations/frozen-requirements-registry.md)
+- [Wave B Compatibility Matrix](operations/wave-b-compatibility-matrix.md)
+
+
 | Area | Current State | Status | Notes |
 |------|---------------|--------|-------|
 | Java control plane | Modernized to Java 17 / Gradle 8.5 baseline | 🟢 Working | See ADM-001 and ADM-002 |
@@ -49,7 +55,7 @@ This ordering is deliberate:
 | Electron startup | Working | 🟢 Working | No longer stuck at `Loading...` |
 | Linux microphone path | Working | 🟢 Working | Voice pipeline recovered |
 | Cloud-backed runtime | Usable | 🟢 Working | Current best path for day-to-day use |
-| Local multi-service runtime | Partial | 🟡 In Progress | Wave B active; local packaging now fails fast when native inputs are absent |
+| Local multi-service runtime | Healthy local services with concurrent status checks | 🟢 Working | Wave B hard-closed; keep local e2e voice flow under regression |
 | Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
 | Packaging/distribution | Legacy | ⚪ Planned | AppImage/install/release flow still needs modernization |
 | External ownership | Inherited | ⚪ Planned | Endpoint/CDN/image ownership remains inherited |
@@ -78,14 +84,14 @@ This ordering is deliberate:
 | Microphone capture | Stable on Linux | Keep stable | High | 🟢 Working | Mic pipeline repaired |
 | Chunking / endpointing | Stable | Harden | High | 🟢 Working | Keep under regression coverage |
 | Cloud-backed listen flow | Working | Keep stable | High | 🟢 Working | Current reliable mode |
-| Local multi-service voice flow | Partial | Full reliability | High | 🟡 In Progress | Wave B |
+| Local multi-service voice flow | Operational with concurrent engine health checks | Full reliability | High | 🟢 Working | Wave B hard-closed; continue e2e command regression |
 
 ### Engines
 
 | Aspect | Current State | Target | Priority | Status | Notes |
 |--------|---------------|--------|----------|--------|-------|
-| Speech engine | Legacy but operational path exists | Stabilize first | High | 🟡 In Progress | Local-mode dependency; native dependency root still incomplete |
-| Code engine | Local build/runtime still delicate | Stabilize first | High | 🔴 Blocked | Native dependency root incomplete on current machine |
+| Speech engine | Local startup and status endpoint healthy | Stabilize first | High | 🟢 Working | Verified on `:17202` in bundled local stack |
+| Code engine | Local startup and status endpoint healthy | Stabilize first | High | 🟢 Working | Previous segfault path removed from `TokenIdConverter` |
 | Marian-based path | Legacy | Reassess after Wave B | Medium | ⚪ Planned | Do not optimize before stabilization |
 | Corpus generation | Preserved | Re-enable intentionally | Medium | ⚪ Planned | After runtime and packaging |
 
@@ -186,18 +192,25 @@ Make local mode a first-class operational path instead of a partial recovery pat
 - local UI leaves `Starting Server...` correctly
 - local listen flow produces actual command execution
 - local logs and health checks are documented and reliable
+- every dependency used to close Wave B is accounted for in the compatibility matrix
+- no frozen lane was mutated to make local mode work
 
 **Primary Risks**
 
 - environment-specific failures being mistaken for code regressions
 - partial success in one service hiding another unhealthy service
+- violating a frozen ecosystem lane through implicit dependency assumptions
 
 **Current Baseline**
 
 - local build tasks now pass the repo root explicitly into native packaging instead of drifting to `~/serenade`
 - local Electron startup now fails explicitly when bundled services or model directories are absent instead of polling forever
 - `client:installServer -x downloadModels` now fails fast with a concrete missing-dependency list on this machine
-- current machine blocker: `/home/irbsurfer/libserenade` does not contain the required Boost, Protobuf, Crow, SentencePiece, Marian, and Kaldi native assets
+- Wave B is now constrained by the frozen registry and compatibility matrix instead of ambient environment assumptions
+- `core` local runtime no longer crashes in `Parser.<clinit>()`; tree-sitter JNI library now exports `ai.arqon.maestro` symbols
+- `speech-engine` and `code-engine` startup scripts now default model paths and fail clearly when model env vars are missing
+- local `code-engine` no longer hits the previous sentencepiece/protobuf crash path in `TokenIdConverter`
+- local `core`, `speech-engine`, and `code-engine` all return `status=ok` concurrently (`17200/17202/17203`)
 
 **Test Requirements**
 
@@ -206,6 +219,10 @@ Make local mode a first-class operational path instead of a partial recovery pat
 - end-to-end tests: full local listen command from app launch to applied action
 - regression tests: compare local behavior against current cloud-backed working flow
 - adversarial tests: kill one local service, corrupt one config, or block one port and confirm failure is explicit
+
+**Current Evidence**
+
+- [Wave B Evidence (Hard-Close)](operations/wave-b-evidence.md)
 
 ### Wave C: Packaging And Distribution
 

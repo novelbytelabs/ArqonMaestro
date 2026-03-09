@@ -164,7 +164,16 @@ if [[ `uname` == 'Darwin' ]] ; then
   ./configure --shared --use-cuda=no
   perl -i -pe"s/-O1/-O3 -DNDEBUG -mmacosx-version-min=$osx_version/g" kaldi.mk
 else
-  ./configure --shared --mathlib=MKL --use-cuda=no
+  if [[ -n "${ARQON_MAESTRO_KALDI_MATHLIB:-}" ]] ; then
+    kaldi_mathlib="$ARQON_MAESTRO_KALDI_MATHLIB"
+  elif [[ -n "${SERENADE_KALDI_MATHLIB:-}" ]] ; then
+    kaldi_mathlib="$SERENADE_KALDI_MATHLIB"
+  elif [[ -f "/opt/intel/mkl/lib/intel64/libmkl_core.a" ]] ; then
+    kaldi_mathlib="MKL"
+  else
+    kaldi_mathlib="OPENBLAS"
+  fi
+  ./configure --shared --mathlib="$kaldi_mathlib" --use-cuda=no
   perl -i -pe's/-O1/-O3 -DNDEBUG/g' kaldi.mk
 fi
 perl -i -pe's/-g //g' kaldi.mk

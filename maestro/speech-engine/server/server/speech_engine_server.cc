@@ -211,7 +211,13 @@ int main(int argc, char* argv[]) {
     typedef kaldi::int32 int32;
     typedef kaldi::int64 int64;
 
-    std::string include = std::getenv("SPEECH_ENGINE_MODELS");
+    const char* include_env = std::getenv("SPEECH_ENGINE_MODELS");
+    if (include_env == nullptr || std::string(include_env).empty()) {
+      std::cerr << "speech-engine startup error: SPEECH_ENGINE_MODELS is not set"
+                << std::endl;
+      return 2;
+    }
+    std::string include = include_env;
 
     // feature_opts includes configuration for the iVector adaptation,
     // as well as the basic features.

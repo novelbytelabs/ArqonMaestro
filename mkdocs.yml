@@ -93,9 +93,12 @@ nav:
       - Phase 7 Closeout: operations/phase-7-closeout.md
       - Rebrand Program: operations/rebrand-program.md
       - External Infrastructure Ownership: operations/external-infrastructure-ownership.md
+      - Frozen Requirements Registry: operations/frozen-requirements-registry.md
       - Historical and Provenance Audit: operations/historical-provenance-audit.md
       - Troubleshooting Map: operations/troubleshooting-map.md
       - Wave A Evidence: operations/wave-a-evidence.md
+      - Wave B Evidence: operations/wave-b-evidence.md
+      - Wave B Compatibility Matrix: operations/wave-b-compatibility-matrix.md
       - Wave A Closeout: operations/wave-a-closeout.md
   - Development:
       - Extending Maestro: development/extending-maestro.md
