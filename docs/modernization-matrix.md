@@ -60,7 +60,7 @@ Wave B is now governed by two explicit control documents:
 | Packaging/distribution | Repeatable baseline validated on current lane | 🟢 Working | Wave C hard-closed with evidence |
 | External ownership | Governance completed; cutover deferred | 🟢 Working | Wave D hard-closed as prepared+deferred |
 | Historical/provenance surfaces | Classified and updated with provenance controls | 🟢 Working | Wave E hard-closed |
-| Rust data plane extraction | Architectural direction only | ⚪ Planned | Voltron pattern defined, not executed |
+| Rust data plane extraction | Wave F kickoff active | 🟡 In Progress | Voltron pattern execution starts with bounded extraction |
 
 ---
 
@@ -125,9 +125,9 @@ Wave B is now governed by two explicit control documents:
 
 | Aspect | Current State | Target | Priority | Status | Notes |
 |--------|---------------|--------|----------|--------|-------|
-| Audio hot path | Mostly inherited/native | Rust extraction | Medium | ⚪ Planned | Wave F |
-| VAD hot path | Mostly inherited/native | Rust extraction | Medium | ⚪ Planned | Wave F |
-| FFI boundary | Minimal / inherited | Explicit Rust bridge | Medium | ⚪ Planned | Wave F |
+| Audio hot path | Mostly inherited/native | Rust extraction | Medium | 🟡 In Progress | Wave F active |
+| VAD hot path | Mostly inherited/native | Rust extraction | Medium | 🟡 In Progress | Wave F active |
+| FFI boundary | Minimal / inherited | Explicit Rust bridge | Medium | 🟡 In Progress | Wave F active |
 | Full rewrite pressure | Rejected | Incremental extraction only | High | 🟢 Working | ADM-010 |
 
 ---
@@ -365,6 +365,11 @@ Start the Rust extraction path only after the system is operationally stable.
 - rewrite creep
 - destabilizing a now-working voice path for architectural purity
 
+**Current Status**
+
+- `in progress (kickoff)`
+- scope focus: baseline/profiling + first bounded extraction candidate selection
+
 **Test Requirements**
 
 - unit tests: Rust module behavior and FFI contract boundaries
@@ -403,18 +408,18 @@ No wave is complete unless its relevant test evidence is recorded.
 
 ---
 
-## Recommended Next Wave
+## Active Wave
 
-The next wave should be `Wave B: Local Runtime Completeness`.
+Current active wave is `Wave F: Data Plane Modernization`.
 
-Why:
+Current focus:
 
-- the build baseline is now clean enough to interpret runtime failures directly
-- local mode is still the largest operational gap in the current stack
-- packaging and distribution should not advance until local runtime health is explicit and repeatable
+- establish baseline latency/behavior metrics
+- select first bounded hot-path extraction target
+- define interface and rollback strategy before implementation
 
 ## Last Updated
 
-- **Date**: 2026-03-08
+- **Date**: 2026-03-09
 - **Updated by**: Codex
-- **Next Review**: At the end of `Wave B`
+- **Next Review**: At the end of `Wave F` kickoff checkpoint
