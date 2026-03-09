@@ -12,7 +12,7 @@ Edit code, run terminal commands, and write documentation entirely with voice. W
 
 Learn more at [https://novelbytelabs.github.io/ArqonMaestro/](https://novelbytelabs.github.io/ArqonMaestro/).
 
-[![ArqonMaestro](./icon.png)](https://novelbytelabs.github.io/ArqonMaestro/)
+[![ArqonMaestro](./logo.png)](https://novelbytelabs.github.io/ArqonMaestro/)
 
 ## Installation
 
