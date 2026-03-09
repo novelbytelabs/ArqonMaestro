@@ -341,6 +341,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-024: Electron Runtime Checks Must Use A Clean Env Wrapper
+
+- **Date**: 2026-03-09
+- **Status**: Accepted
+- **Decision**: Desktop runtime and packaging checks for Maestro must execute through `maestro/scripts/with_clean_electron_env.sh`, which unsets `ELECTRON_RUN_AS_NODE` before launching Electron commands.
+- **Why**: Some local workflows require `ELECTRON_RUN_AS_NODE=1` for legacy command usage. When exported globally, that flag contaminates packaged-app and runtime smoke checks and can make evidence invalid.
+- **Consequences**:
+  - Wave C evidence scripts and runbooks now invoke Electron commands through a clean-env wrapper
+  - legacy command behavior remains available, but must be scoped per command instead of shell-global export
+  - future release-readiness checks treat global Electron mode contamination as a failure condition
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

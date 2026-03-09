@@ -185,10 +185,20 @@ npm run build
 
 ### Run Client (with GPU bypass)
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/maestro/client
-unset ELECTRON_RUN_AS_NODE
-./node_modules/.bin/electron . --no-sandbox --disable-gpu
+cd ~/Projects/arqon/ArqonMaestro/maestro
+./scripts/run_client.sh
 ```
+
+## Environment Trap: `ELECTRON_RUN_AS_NODE`
+
+If `ELECTRON_RUN_AS_NODE=1` is exported globally, Electron app checks can silently run in the wrong mode and invalidate packaging/runtime evidence.
+
+Safe pattern:
+
+- keep legacy behavior scoped to the one command that needs it:
+  `ELECTRON_RUN_AS_NODE=1 <legacy-command>`
+- always launch Maestro through:
+  `maestro/scripts/with_clean_electron_env.sh <electron-command>`
 
 ## Questions for Other AI
 

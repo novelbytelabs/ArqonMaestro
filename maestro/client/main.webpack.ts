@@ -5,10 +5,6 @@ const WebpackShellPlugin = require("webpack-shell-plugin-next");
 
 const config: Configuration = {
   resolve: {
-    alias: {
-      bufferutil: false,
-      "utf-8-validate": false,
-    },
     extensions: [".tsx", ".ts", ".js"],
     modules: ["node_modules"],
   },
@@ -43,6 +39,10 @@ const config: Configuration = {
   externals: {
     "electron-updater": "commonjs electron-updater",
     "electron-log": "commonjs electron-log",
+    // Keep ws optional native deps external so require() can throw and ws can
+    // fall back to its pure-JS path.
+    bufferutil: "commonjs bufferutil",
+    "utf-8-validate": "commonjs utf-8-validate",
   },
   plugins: [
     new WebpackShellPlugin({

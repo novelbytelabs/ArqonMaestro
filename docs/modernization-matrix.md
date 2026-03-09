@@ -57,7 +57,7 @@ Wave B is now governed by two explicit control documents:
 | Cloud-backed runtime | Usable | 🟢 Working | Current best path for day-to-day use |
 | Local multi-service runtime | Healthy local services with concurrent status checks | 🟢 Working | Wave B hard-closed; keep local e2e voice flow under regression |
 | Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
-| Packaging/distribution | Legacy | ⚪ Planned | AppImage/install/release flow still needs modernization |
+| Packaging/distribution | Repeatable baseline validated on current lane | 🟢 Working | Wave C hard-closed with evidence |
 | External ownership | Inherited | ⚪ Planned | Endpoint/CDN/image ownership remains inherited |
 | Historical/provenance surfaces | Mixed | ⚪ Planned | Separate audit track now opened |
 | Rust data plane extraction | Architectural direction only | ⚪ Planned | Voltron pattern defined, not executed |
@@ -108,10 +108,10 @@ Wave B is now governed by two explicit control documents:
 
 | Aspect | Current State | Target | Priority | Status | Notes |
 |--------|---------------|--------|----------|--------|-------|
-| Electron packaging | Legacy | Modernized | High | ⚪ Planned | Wave C |
-| AppImage | Unclear / brittle | Verified or replaced | Medium | ⚪ Planned | Wave C |
-| Release/update flow | Legacy assumptions | Verified distribution path | Medium | ⚪ Planned | Wave C |
-| VS Code extension packaging | Legacy | Modernized and verified | Medium | ⚪ Planned | Wave C |
+| Electron packaging | Repeatable unsigned package path | Modernized | High | 🟢 Working | Wave C hard-closed |
+| AppImage | Verified artifact build + checksum | Verified or replaced | Medium | 🟢 Working | Wave C hard-closed |
+| Release/update flow | Build path verified; ownership deferred | Verified distribution path | Medium | 🟡 In Progress | Runtime ownership moves to Wave D |
+| VS Code extension packaging | Build and pack dry-run verified | Modernized and verified | Medium | 🟢 Working | Wave C hard-closed |
 
 ### Ownership / Public Surface
 
@@ -247,6 +247,13 @@ Make packaging, installers, and release artifacts reproducible and supportable.
 
 - packaging code paths diverging from development startup paths
 - release metadata still pointing at inherited infrastructure
+
+**Status**
+
+- `completed (hard-close)`
+- Plan: [Wave C Plan](operations/wave-c-plan.md)
+- Evidence: [Wave C Evidence](operations/wave-c-evidence.md)
+- Closeout: [Wave C Closeout](operations/wave-c-closeout.md)
 
 **Test Requirements**
 

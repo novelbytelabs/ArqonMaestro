@@ -65,9 +65,8 @@ If native dependencies are installed correctly, this populates `maestro/client/s
 ### Terminal 2 - Start the Client
 
 ```bash
-cd ~/Projects/arqon/ArqonMaestro/maestro/client
-unset ELECTRON_RUN_AS_NODE
-./node_modules/.bin/electron . --no-sandbox --disable-gpu
+cd ~/Projects/arqon/ArqonMaestro/maestro
+./scripts/run_client.sh
 ```
 
 When the endpoint is `local`, the Electron client will start the bundled local services itself from `out/static/local`.
@@ -103,8 +102,13 @@ To use Arqon Maestro with VS Code:
 
 Or with debugging:
 ```bash
-ELECTRON_ENABLE_LOGGING=1 ./node_modules/.bin/electron . --enable-logging --no-sandbox --disable-gpu 2>&1 | tee electron.log
+../scripts/with_clean_electron_env.sh env ELECTRON_ENABLE_LOGGING=1 ./node_modules/.bin/electron . --enable-logging --no-sandbox --disable-gpu 2>&1 | tee electron.log
 ```
+
+Legacy compatibility note:
+
+- If another legacy program needs Node-style Electron behavior, scope it per command instead of exporting globally:
+  `ELECTRON_RUN_AS_NODE=1 <legacy-command>`
 
 ## Environment Variables
 

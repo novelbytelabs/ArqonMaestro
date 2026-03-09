@@ -435,6 +435,21 @@ Use for:
   - verify installed artifact with `file` before runtime smoke
   - fail the pipeline immediately on native link errors before trusting packaged local binaries
 
+### GOTCHA-021: Global `ELECTRON_RUN_AS_NODE` Pollutes App Runtime Evidence
+
+- **Category**: Runtime Startup
+- **Status**: mitigated
+- **Summary**: Exporting `ELECTRON_RUN_AS_NODE=1` globally can make Electron app startup and packaged smoke checks run in the wrong mode, producing misleading failures or false negatives.
+- **Impact**: High
+- **Where it matters**:
+  - desktop runtime smoke checks
+  - packaging evidence collection
+  - support/debug sessions where shell environment is reused
+- **Avoidance**:
+  - keep legacy `ELECTRON_RUN_AS_NODE=1` usage scoped to the single command that needs it
+  - run Maestro Electron commands through `maestro/scripts/with_clean_electron_env.sh`
+  - fail readiness checks when global contamination is detected
+
 ## Entry Template
 
 ```markdown
