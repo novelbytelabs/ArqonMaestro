@@ -48,10 +48,10 @@ export class SplitMix64 {
    * Generate next u64 value
    */
   nextU64(): bigint {
-    this.state = this.state + 0x9E3779B97F4A7C15n;
+    this.state = (this.state + 0x9E3779B97F4A7C15n) & 0xFFFFFFFFFFFFFFFFn;
     let z = this.state;
-    z = (z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n;
-    z = (z ^ (z >> 27n)) * 0x94D049BB133111EBn;
+    z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & 0xFFFFFFFFFFFFFFFFn;
+    z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & 0xFFFFFFFFFFFFFFFFn;
     return z ^ (z >> 31n);
   }
 
@@ -139,9 +139,11 @@ function soundex(word: string): string {
       break;
     }
     const code = codeFor(chars[i]);
-    if (code !== null && code !== prevCode) {
-      result += code;
-      prevCode = code;
+    if (code !== null) {
+      if (code !== prevCode) {
+        result += code;
+        prevCode = code;
+      }
     } else {
       prevCode = null; // vowels reset the prev_code
     }

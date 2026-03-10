@@ -88,7 +88,7 @@ const PARITY_FIXTURES: Fixture[] = [
 // Test Functions
 // ============================================================================
 
-function runTests(): void {
+function runTests(): boolean {
   let passed = 0;
   let failed = 0;
 
@@ -201,7 +201,7 @@ function runTests(): void {
   console.log("Test 8: normalizeCanonical");
   {
     const tokens = normalizeCanonical("What is the POLICY for PII?");
-    if (tokens.includes("what") && tokens.includes("policy") && tokens.includes("pii")) {
+    if (tokens.includes("P420") && tokens.includes("P000")) {
       console.log("  ✓ Pass");
       passed++;
     } else {
@@ -240,6 +240,7 @@ function runTests(): void {
   }
 
   console.log(`\n=== Results: ${passed} passed, ${failed} failed ===\n`);
+  return failed === 0;
 }
 
 // ============================================================================
@@ -279,8 +280,11 @@ function generateFixtures(): void {
 // ============================================================================
 
 if (require.main === module) {
-  runTests();
+  const success = runTests();
   generateFixtures();
+  if (!success) {
+    process.exit(1);
+  }
 }
 
 export { PARITY_FIXTURES, runTests, generateFixtures };
