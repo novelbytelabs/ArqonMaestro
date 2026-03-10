@@ -3,29 +3,29 @@
 <span align="center">
   <img src="docs/assets/logo.png" width="100%" alt="Arqon Maestro Logo">
 </span>
-Arqon Maestro is the voice-first control layer for the Arqon ecosystem.
 
-It provides a natural-language interface for coding, navigation, execution, and workflow control across Arqon tools. It is a shared interaction surface designed to make the broader Arqon ecosystem voice-native.
+Arqon Maestro is the high-performance **Universal Voice Plane** for the Arqon ecosystem. 
+
+It provides a full-duplex, zero-latency feedback loop that transforms human speech into deterministic system actions through **O(0) skill execution**, **Address-First routing**, and **Constitutive Integrity** gating.
 
 The purpose of Arqon Maestro is straightforward:
 
-- give the Arqon ecosystem a unified voice interface
-- make natural-language control practical for real development workflows
-- support coding, navigation, orchestration, and execution from one interaction layer
-- provide a reusable control surface for future Arqon systems
+- **Universal Voice Control**: Give the Arqon ecosystem a unified, low-latency voice interface.
+- **Address-First Intelligence**: Use Canonical Fingerprint Hashing (CFH) to resolve semantic intent at the edge, skipping heavy LLM reasoning for known tasks.
+- **Constitutive Reliability**: Ensure every voice-driven action is grounded in truth through IntegriGuard adjudication and ACE governance.
+- **Subconscious Execution**: Native integration with ArqonMCP and ArqonSense for sub-millisecond skill dispatch.
 
 ## What Arqon Maestro Does
 
-Arqon Maestro listens to spoken commands, turns them into transcripts, interprets intent, and routes the resulting actions into the appropriate tool or editor context.
+Arqon Maestro listens to spoken commands, resolves them into Semantic Address Space (SAS) pointers, and routes actions through a hardened trust boundary.
 
 In practice, that means it can help with:
 
-- writing and revising code with natural speech
-- navigating files, tabs, editors, and code structure
-- issuing editor actions through supported plugins
-- driving workflow steps without switching context manually
-- acting as a universal voice control plane for Arqon tools
-- supporting hands-free and low-friction interaction when voice is the best interface
+- **Zero-Latency Coding**: Writing and revising code using cached, high-accuracy voice skills.
+- **Predictive Navigation**: Navigating files and editors using client-side intent resolution.
+- **Governed Execution**: Issuing high-risk actions that are automatically sandboxed and verified by ArqonSentinel.
+- **Episodic Continuity**: Maintaining situational awareness of your workflow via ArqonContinuum.
+- **Ambient Thinking**: Delegating complex architectural tasks to ArqonLattice for background search and optimization.
 
 ## Key Capabilities
 

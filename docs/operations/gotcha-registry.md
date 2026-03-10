@@ -295,7 +295,7 @@ Use for:
   - track the root `.gitmodules` file whenever gitlinks remain in the repo
   - treat vendored dependencies and active submodules as separate states that both need explicit metadata
 
-### GOTCHA-013: Legacy Publishing Plugins Become Build Breakers Once Promoted To Local Dependencies
+### GOTCHA-015: Legacy Publishing Plugins Become Build Breakers Once Promoted To Local Dependencies
 
 - **Category**: Namespace And Dependency Identity
 - **Status**: mitigated
@@ -309,7 +309,7 @@ Use for:
   - strip publishing-only plugins from subprojects before making them first-class build dependencies
   - verify the promoted subproject independently before relying on it from `core`
 
-### GOTCHA-015: Gitlinks Break Parent Pushes If The New Commit Is Only Local
+### GOTCHA-016: Gitlinks Break Parent Pushes If The New Commit Is Only Local
 
 - **Category**: Namespace And Dependency Identity
 - **Status**: mitigated
@@ -324,7 +324,7 @@ Use for:
   - vendor the dependency into the parent repo if you do not control the nested remote
   - preserve the nested `.git` directory separately as rollback evidence before internalizing it
 
-### GOTCHA-014: Upstream Package Names Are Not The Same Problem As Internal Namespace Leaks
+### GOTCHA-017: Upstream Package Names Are Not The Same Problem As Internal Namespace Leaks
 
 - **Category**: Namespace And Dependency Identity
 - **Status**: active
@@ -339,7 +339,7 @@ Use for:
   - wrap inherited upstream packages behind Arqon-named local modules when publication ownership has not changed
   - document residual manifest names explicitly in the evidence pack
 
-### GOTCHA-016: Local Startup Can Hang Even When The Bundle Is Structurally Incomplete
+### GOTCHA-018: Local Startup Can Hang Even When The Bundle Is Structurally Incomplete
 
 - **Category**: Runtime Startup
 - **Status**: mitigated
@@ -353,7 +353,7 @@ Use for:
   - validate the packaged local bundle before polling service health
   - fail local startup explicitly and point to the packaging command and native dependency docs
 
-### GOTCHA-017: Missing Native Dependency Roots Should Fail In Gradle, Not CMake
+### GOTCHA-019: Missing Native Dependency Roots Should Fail In Gradle, Not CMake
 
 - **Category**: Build And Packaging
 - **Status**: mitigated
@@ -366,16 +366,7 @@ Use for:
 - **Avoidance**:
   - verify native dependency inputs before invoking CMake
   - fail with a concrete missing-path list and the exact remediation command
-- **Impact**: High
-- **Where it matters**:
-  - custom-command editing
-  - support workflows
-  - storage migration
-- **Avoidance**:
-  - migrate `scripts/` into `.arqon` as part of the same storage phase
-  - keep legacy script fallback only as a temporary transition aid
-
-### GOTCHA-013: Internal Package Slugs Can Collide With Repo Names
+### GOTCHA-020: Internal Package Slugs Can Collide With Repo Names
 
 - **Category**: Namespace And Dependency Identity
 - **Status**: mitigated
@@ -389,7 +380,7 @@ Use for:
   - use `arqon_maestro` for the internal Python package slug
   - reserve `maestro` for repo/directory identity rather than Python import identity
 
-### GOTCHA-018: Legacy Tree-Sitter JNI Symbols Can Crash Core During `System.load`
+### GOTCHA-021: Legacy Tree-Sitter JNI Symbols Can Crash Core During `System.load`
 
 - **Category**: Namespace And Dependency Identity
 - **Status**: mitigated
@@ -404,7 +395,7 @@ Use for:
   - reject cached JNI artifacts without `Java_ai_arqon_maestro_treesitter_*` symbols
   - verify JNI symbol namespace in Wave B evidence
 
-### GOTCHA-019: Code-Engine Can Segfault Before `main()` Despite Valid Model Paths
+### GOTCHA-022: Code-Engine Can Segfault Before `main()` Despite Valid Model Paths
 
 - **Category**: Build And Packaging
 - **Status**: mitigated
@@ -420,7 +411,7 @@ Use for:
   - keep sentencepiece tokenization on a stable boundary (`spm_encode` CLI path in `TokenIdConverter`)
   - do not hard-close local runtime milestones until `:17203` health checks are green
 
-### GOTCHA-020: Failed Native Link Can Leave A Zero-Filled Engine Artifact In Local Bundle
+### GOTCHA-023: Failed Native Link Can Leave A Zero-Filled Engine Artifact In Local Bundle
 
 - **Category**: Build And Packaging
 - **Status**: active
@@ -435,7 +426,7 @@ Use for:
   - verify installed artifact with `file` before runtime smoke
   - fail the pipeline immediately on native link errors before trusting packaged local binaries
 
-### GOTCHA-021: Global `ELECTRON_RUN_AS_NODE` Pollutes App Runtime Evidence
+### GOTCHA-024: Global `ELECTRON_RUN_AS_NODE` Pollutes App Runtime Evidence
 
 - **Category**: Runtime Startup
 - **Status**: mitigated
@@ -450,7 +441,7 @@ Use for:
   - run Maestro Electron commands through `maestro/scripts/with_clean_electron_env.sh`
   - fail readiness checks when global contamination is detected
 
-### GOTCHA-022: External Cutover Before Ownership Assignment Causes Operational Deadlock
+### GOTCHA-025: External Cutover Before Ownership Assignment Causes Operational Deadlock
 
 - **Category**: External Infrastructure
 - **Status**: active
@@ -465,7 +456,7 @@ Use for:
   - require explicit owners for DNS, TLS, CDN, runtime service, and release operations
   - enforce a no-cutover rule until readiness checklist is fully green
 
-### GOTCHA-023: Rewriting Legal/Provenance Text Directly Can Corrupt Historical Accuracy
+### GOTCHA-026: Rewriting Legal/Provenance Text Directly Can Corrupt Historical Accuracy
 
 - **Category**: External Infrastructure
 - **Status**: mitigated
@@ -479,6 +470,76 @@ Use for:
   - classify legal/historical pages as `preserve + annotate`
   - add explicit provenance notices instead of rewriting legal body text
   - rewrite active product surfaces separately from historical/legal bodies
+
+### GOTCHA-027: Evidence Drift Between Code And Closeout Docs
+
+- **Category**: Configuration
+- **Status**: active
+- **Summary**: Documentation can claim production defaults or completed rollout while `settings.ts` still uses conservative shadow defaults, or vice versa.
+- **Impact**: High
+- **Where it matters**:
+  - closeout packs
+  - release readiness reviews
+  - operator handoff
+- **Avoidance**:
+  - verify docs against current defaults before every closeout
+  - include a command-backed defaults snapshot in evidence docs
+
+### GOTCHA-028: Mock Confidence Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Passing a mock bus harness can be misreported as production readiness even though it only proves protocol handling in a controlled environment.
+- **Impact**: High
+- **Where it matters**:
+  - go/no-go decisions
+  - rollout stage promotion
+  - incident preparedness
+- **Avoidance**:
+  - label evidence as `mock`, `staging`, or `production-like`
+  - require separate production-like validation evidence before GO
+
+### GOTCHA-029: Path-Portability Trap In Documentation Links
+
+- **Category**: Configuration
+- **Status**: active
+- **Summary**: Absolute `file:///` links work only on one workstation and break portability, external review, and AI handoff quality.
+- **Impact**: Medium
+- **Where it matters**:
+  - implementation plans
+  - architecture references
+  - cross-repo collaboration
+- **Avoidance**:
+  - use repo-relative links in docs
+  - run link portability checks before closeout
+
+### GOTCHA-030: Stage Gate Bypass By Flag Drift
+
+- **Category**: Runtime Startup
+- **Status**: active
+- **Summary**: Manual stage approval may exist in code, but conflicting defaults or stale user/system config flags can still route traffic unexpectedly.
+- **Impact**: High
+- **Where it matters**:
+  - staged cutover
+  - local recovery testing
+  - release operations
+- **Avoidance**:
+  - verify all cutover flags as a single preflight checklist
+  - require explicit evidence for defaults and current stage before promotion
+
+### GOTCHA-031: Green Build Illusion
+
+- **Category**: Build And Packaging
+- **Status**: active
+- **Summary**: A clean compile can hide runtime correctness gaps, missing integration semantics, or incomplete rollback behavior.
+- **Impact**: High
+- **Where it matters**:
+  - phase completion decisions
+  - hard-close packs
+  - quality audits
+- **Avoidance**:
+  - require build + harness + rollback proof together
+  - block closeout when any operational gate lacks evidence
 
 ## Entry Template
 
