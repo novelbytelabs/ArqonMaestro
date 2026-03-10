@@ -20,7 +20,8 @@ export type STTMessageType =
   | "stt.transcript.partial"
   | "stt.transcript.final"
   | "stt.session.stop"
-  | "stt.health.status";
+  | "stt.health.status"
+  | "stt.address.query";  // New: address-first routing message
 
 /**
  * Common fields shared across all STT envelopes
@@ -70,6 +71,17 @@ export interface TranscriptPayload {
   model_id: string;
   /** Whether CASIL redaction was applied */
   redaction_applied: boolean;
+  /**
+   * Optional address identifier for address-first routing.
+   * When present, enables O(0) routing via pre-computed semantic address.
+   * Generated from CFH signature + opcode + slots.
+   */
+  addr_id?: string;
+  /**
+   * Optional CFH signature for fuzzy matching.
+   * Hex-encoded 1024-bit signature for locality-sensitive hashing.
+   */
+  cfh_signature?: string;
 }
 
 // ============================================================================
@@ -182,6 +194,36 @@ export interface STTHealthStatusEnvelope extends STTCommonFields {
 }
 
 // ============================================================================
+// STT Address Query (Address-First Routing)
+// ============================================================================
+
+/**
+ * Address query payload for address-first routing.
+ * Enables O(0) routing by pre-computing semantic address on client side.
+ */
+export interface STTAddressQueryPayload {
+  /** The transcribed text */
+  transcript: string;
+  /** Pre-computed address identifier (from CFH + opcode + slots) */
+  addr_id: string;
+  /** CFH signature hex (1024-bit) */
+  cfh_signature: string;
+  /** Confidence score from STT */
+  confidence: number;
+  /** Whether this is a final transcript */
+  is_final: boolean;
+  /** Optional opcode hint from client-side grammar */
+  opcode_hint?: string;
+  /** Optional slots from client-side parsing */
+  slots_hint?: Record<string, string>;
+}
+
+export interface STTAddressQueryEnvelope extends STTCommonFields {
+  type: "stt.address.query";
+  payload: STTAddressQueryPayload;
+}
+
+// ============================================================================
 // Union type for all STT envelopes
 // ============================================================================
 
@@ -192,7 +234,8 @@ export type STTEnvelope =
   | STTTranscriptPartialEnvelope
   | STTTranscriptFinalEnvelope
   | STTSessionStopEnvelope
-  | STTHealthStatusEnvelope;
+  | STTHealthStatusEnvelope
+  | STTAddressQueryEnvelope;  // New: address-first routing
 
 // ============================================================================
 // Arqon Bus Message Wrapper
@@ -393,6 +436,52 @@ export function createHealthStatusEnvelope(
       status,
       latency_ms: latencyMs,
       error_count: errorCount,
+    },
+  };
+}
+
+/**
+ * Create an stt.address.query envelope for address-first routing.
+ * This is the NEW path that enables O(0) routing via pre-computed semantic address.
+ * 
+ * @param sessionId - Session identifier
+ * @param chunkId - Chunk identifier
+ * @param transcript - The transcribed text
+ * @param addrId - Pre-computed address identifier (from CFH + opcode + slots)
+ * @param cfhSignature - CFH signature hex (1024-bit)
+ * @param confidence - Confidence score from STT
+ * @param isFinal - Whether this is a final transcript
+ * @param options - Optional opcode hint, slots hint, and tenant ID
+ */
+export function createAddressQueryEnvelope(
+  sessionId: string,
+  chunkId: string,
+  transcript: string,
+  addrId: string,
+  cfhSignature: string,
+  confidence: number,
+  isFinal: boolean,
+  options?: {
+    opcodeHint?: string;
+    slotsHint?: Record<string, string>;
+    tenantId?: string;
+  }
+): STTAddressQueryEnvelope {
+  const tenantId = options && options.tenantId ? options.tenantId : undefined;
+  const opcodeHint = options && options.opcodeHint ? options.opcodeHint : undefined;
+  const slotsHint = options && options.slotsHint ? options.slotsHint : undefined;
+  
+  return {
+    ...createCommonFields(sessionId, chunkId, tenantId),
+    type: "stt.address.query",
+    payload: {
+      transcript,
+      addr_id: addrId,
+      cfh_signature: cfhSignature,
+      confidence,
+      is_final: isFinal,
+      opcode_hint: opcodeHint,
+      slots_hint: slotsHint,
     },
   };
 }

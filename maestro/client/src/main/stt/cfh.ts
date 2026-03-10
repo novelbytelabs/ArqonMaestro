@@ -209,7 +209,7 @@ export function normalizeCanonical(q: string): string[] {
  */
 export function normalizeQuery(q: string): string {
   const lower = q.toLowerCase();
-  return lower.split(/\s+/).join(" ");
+  return lower.split(/\s+/).filter(s => s.length > 0).join(" ");
 }
 
 // ============================================================================
@@ -256,19 +256,20 @@ function projectFeature(feat: string, acc: number[], density: number): void {
 export function generateSignatureBytes(query: string, dim: number = 128): Uint8Array {
   const tokens = normalizeCanonical(query);
   const nBits = dim * 8;
-  const accumulator = new Float32Array(nBits).fill(0);
+  // Use regular number array for mutability (Float32Array copy issue)
+  const accumulator: number[] = new Array(nBits).fill(0);
   
   // Project each canonical token with high density
   for (const token of tokens) {
     // Token-level projection (high weight for whole word stability)
-    projectFeature(token, Array.from(accumulator), 256);
+    projectFeature(token, accumulator, 256);
     
     // Char-trigrams for typo resilience
     const chars = token.split("");
     if (chars.length >= 3) {
       for (let i = 0; i <= chars.length - 3; i++) {
         const trigram = chars.slice(i, i + 3).join("");
-        projectFeature(trigram, Array.from(accumulator), 64);
+        projectFeature(trigram, accumulator, 64);
       }
     }
     
@@ -276,18 +277,15 @@ export function generateSignatureBytes(query: string, dim: number = 128): Uint8A
     if (chars.length >= 3) {
       const prefix = chars.slice(0, 3).join("");
       const suffix = chars.slice(chars.length - 3).join("");
-      projectFeature("^" + prefix, Array.from(accumulator), 32);
-      projectFeature(suffix + "$", Array.from(accumulator), 32);
+      projectFeature("^" + prefix, accumulator, 32);
+      projectFeature(suffix + "$", accumulator, 32);
     }
   }
-
-  // Convert Float32Array to number array for processing
-  const accArray = Array.from(accumulator);
 
   // Sign-based quantization into bitstring
   const out = new Uint8Array(dim);
   for (let i = 0; i < nBits; i++) {
-    const val = accArray[i];
+    const val = accumulator[i];
     let bitIsOne: boolean;
     
     if (val > 0) {
@@ -317,8 +315,8 @@ export function sigBytesToU64x16(sig: Uint8Array): bigint[] {
   const out: bigint[] = new Array(SIG_U64S).fill(0n);
   const take = Math.min(sig.length, SIG_BYTES);
   
-  // Create buffer with zeros
-  const buf = new Uint8Array(SIG_BYTES);
+  // Create Buffer with zeros (Buffer is required for readBigUInt64LE)
+  const buf = Buffer.alloc(SIG_BYTES);
   buf.set(sig.slice(0, take), 0);
 
   for (let i = 0; i < SIG_U64S; i++) {
