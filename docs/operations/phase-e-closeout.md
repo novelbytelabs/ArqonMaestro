@@ -1,7 +1,7 @@
 # Phase E Closeout: STT Migration Recovery Hard-Close
 
 > [!NOTE]
-> **Recovery hard-close completed on 2026-03-09.** Simulated validation logic was removed, build integrity was restored, and regression harness execution is now evidence-backed.
+> **Recovery hard-close completed on 2026-03-09.** Gate 1 and Gate 2 hard-close evidence was finalized on 2026-03-10.
 
 ## Phase Summary
 
@@ -19,7 +19,7 @@
 
 2. **Regression harness execution**
    - Command: `npx ts-node test-soak.ts`
-   - Result: `8/8` scenarios passed:
+   - Result: `10/10` scenarios passed:
      - normal_operation
      - pause_resume
      - reconnect
@@ -28,10 +28,16 @@
      - malformed
      - replay
      - command_execution
+     - transcript_mismatch
+     - command_mismatch
 
 3. **Promotion safety controls**
    - Stage progression requires explicit manual approval via `getArqonBusStageApproval()`.
    - Rollback path remains available via traffic percentage and cutover controls.
+
+4. **Gate 1 / Gate 2 hard-close criteria**
+   - Evidence pack now includes mandatory artifact blocks, mismatch category evidence, decision-log path, and rollback proof.
+   - See: `docs/operations/phase-e-evidence.md`
 
 ## Runtime Safety Defaults (Verified in settings)
 

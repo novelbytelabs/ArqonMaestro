@@ -65,6 +65,7 @@ Latency language in this plan is target-SLO based (P95/P99), not “zero latency
 - **Deliverables**
   - comparator report with transcript and command match rates
   - mismatch categories with counts and examples
+  - command comparison metrics are computed from runtime observations (no fixed success constants)
 - **Required commands**
   - `npm run build:main`
   - `npx ts-node test-soak.ts`
@@ -72,8 +73,19 @@ Latency language in this plan is target-SLO based (P95/P99), not “zero latency
   - any red build
   - mock-only pass reported as production validation
   - missing mismatch evidence
+  - comparator report contains placeholder or synthetic pass values for command parity
 - **Exit evidence**
   - update `docs/operations/phase-e-evidence.md` with command outputs and timestamps
+  - include a Gate 1 artifact block for each required command:
+    - `command`
+    - `timestamp`
+    - `exit_code`
+    - `key_output`
+  - include comparator report excerpt showing:
+    - `transcript_match_rate`
+    - `command_match_rate` (or explicit `null` with `commands_compared=0`)
+    - mismatch category counts + at least one concrete mismatch example per non-zero category
+  - include Decision Log entry path and rollback proof path
 
 ### Gate 2: Address-First Pivot (CFH + AddrId)
 
@@ -83,6 +95,7 @@ Latency language in this plan is target-SLO based (P95/P99), not “zero latency
   - TypeScript CFH implementation that matches Rust reflexifier output
   - envelope support for `addr_id` while preserving existing mirror path
   - client-side SAS precheck with debounce/throttle
+  - precheck path actively emits `stt.address.query` via `publishAddressQuery` in runtime flow
 - **References**
   - `../ArqonReflex/crates/arqon_core/src/reflexifier.rs`
   - `../ArqonReflex/crates/arqon_core/src/table.rs`
@@ -90,11 +103,36 @@ Latency language in this plan is target-SLO based (P95/P99), not “zero latency
 - **Required commands**
   - `npm run build:main`
   - parity fixture command(s) proving TS/Rust CFH equality on test corpus
+  - `npx ts-node src/main/stt/cfh-parity.ts`
+  - `npx ts-node test-soak.ts`
 - **Hard fail conditions**
   - any CFH mismatch without fallback behavior
   - breaking existing `stt.audio.append` mirror before cutover proof
+  - parity script validates only TS-local expectations and does not compare against Rust-produced expectations
+  - address-first path exists in API surface but is not wired into live precheck execution
 - **Exit evidence**
   - fixture parity report + updated evidence doc
+  - include Gate 2 artifact block for each required command:
+    - `command`
+    - `timestamp`
+    - `exit_code`
+    - `key_output`
+  - include explicit parity statement with corpus size and result (example: `19/19 exact 1024-bit matches`)
+  - include proof that both paths co-exist during pivot:
+    - `stt.address.query` emission evidence
+    - `stt.audio.append` mirror still functioning
+  - include Decision Log entry path and rollback proof path
+
+### Gate 1 + Gate 2 Hard-Close Checklist (Mandatory)
+
+A hard-close declaration for Gate 1 or Gate 2 is valid only when all items below are true:
+
+1. Every required command has an artifact block in the mandatory template.
+2. Evidence includes concrete mismatch examples, not only aggregate pass/fail text.
+3. No placeholder pass logic remains in migration-critical analytics/reporting paths.
+4. Decision Log entry path is published and linked from the evidence pack.
+5. Rollback path is explicitly proven with command-level evidence.
+6. Documentation claims are strictly bounded to what command artifacts prove.
 
 ### Gate 3: Voice Output and Replay Controls
 

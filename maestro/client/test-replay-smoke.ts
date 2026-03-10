@@ -4,10 +4,8 @@ import Log from "./src/main/log";
 import Settings from "./src/main/settings";
 
 async function main() {
-  console.log("Starting Mock Arqon Bus Server...");
   const server = new MockArqonBusServer(9100);
 
-  console.log("Initializing Test Dependencies...");
   const mockLog = {
     logInfo: console.log,
     logVerbose: console.log,
@@ -31,23 +29,19 @@ async function main() {
 
   const runner = createRegressionTestRunner(mockLog, mockSettings);
 
-  console.log("\nRunning Integration Tests...\n");
+  console.log("=== TARGETED REPLAY SMOKE PROBE ===");
   const results = await runner.runAll();
-
-  console.log("\n--- TEST RESULTS ---");
-  for (const r of results) {
-    console.log(`[${r.passed ? "PASS" : "FAIL"}] ${r.scenario}`);
-    if (!r.passed && r.error) {
-      console.log(`  Error: ${r.error}`);
-    }
-  }
+  const replayResult = results.find(r => r.scenario === "speech_replay");
   
-  const allPassed = results.every(r => r.passed);
-  console.log(`\nOverall passing: ${allPassed}`);
+  console.log("");
+  console.log(JSON.stringify({
+    probe: "stt.speech.replay_deduplication",
+    status: (replayResult && replayResult.passed) ? "OK" : "FAILED",
+    metrics: replayResult ? replayResult.details : null
+  }, null, 2));
   
-  console.log("Shutting down mock server...");
   server.stop();
-  process.exit(allPassed ? 0 : 1);
+  process.exit((replayResult && replayResult.passed) ? 0 : 1);
 }
 
 main().catch(e => {

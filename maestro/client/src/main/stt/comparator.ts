@@ -58,6 +58,14 @@ export interface ComparisonReport {
   command_match_rate: number | null; // Null if no commands compared
   latency_delta_avg_ms: number;
   generated_at: string;
+  mismatch_categories?: Record<string, number>;
+  mismatch_examples?: Array<{
+    category: string;
+    ws: string;
+    bus: string;
+    similarity?: number;
+    chunk_id: string;
+  }>;
 }
 
 /**
@@ -105,21 +113,33 @@ export default class STTComparator {
   private totalLatencyBus: number = 0;
   private duplicatesDetected: number = 0;
   private outOfOrderDetected: number = 0;
-  private sessionCount: number = 0;
-  
-  // Configuration
+
+  // Categorical Mismatch Tracking
+  private mismatchCounts: Map<string, number> = new Map();
+  private maxExamplesPerCategory: number = 3;
+  private mismatchExamples: Array<{
+    category: string;
+    ws: string;
+    bus: string;
+    similarity?: number;
+    chunk_id: string;
+  }> = [];
   private similarityThreshold: number = 0.95;
   private maxLatencyDeltaMs: number = 1000;
   private reportIntervalSeconds: number = 300;
   private sampleRate: number = 1.0;
-  
   private reportInterval?: NodeJS.Timeout;
+
+  // Command extraction patterns
+  private COMMAND_KEYWORDS = ["pause", "resume", "stop", "cancel", "undo", "redo", "save", "delete"];
+  private commandRegex: RegExp;
 
   constructor(
     private log: Log,
     private settings: Settings,
     private tracking: STTTracking
   ) {
+    this.commandRegex = new RegExp(`\\b(${this.COMMAND_KEYWORDS.join("|")})\\b`, "gi");
     this.loadConfiguration();
   }
 
@@ -178,12 +198,18 @@ export default class STTComparator {
     // Apply sample rate
     if (Math.random() > this.sampleRate) return;
 
-    const transcript = alternatives[0]?.transcript || "";
+    const transcript = (alternatives[0] && alternatives[0].transcript) || "";
     const messageId = `${sessionId}_${chunkId}_ws_${isFinal ? "final" : "partial"}`;
     
     // Check for duplicates
     if (this.seenMessageIds.has(messageId)) {
       this.duplicatesDetected++;
+      this.recordMismatchCategory("duplicate", {
+        category: "duplicate",
+        ws: "websocket_path",
+        bus: "duplicate_detected",
+        chunk_id: chunkId
+      });
       this.log.logVerbose(`[Comparator] Duplicate WebSocket message: ${messageId}`);
       return;
     }
@@ -229,12 +255,18 @@ export default class STTComparator {
     // Apply sample rate
     if (Math.random() > this.sampleRate) return;
 
-    const transcript = alternatives[0]?.transcript || "";
+    const transcript = (alternatives[0] && alternatives[0].transcript) || "";
     const messageId = `${sessionId}_${chunkId}_bus_${isFinal ? "final" : "partial"}`;
     
     // Check for duplicates
     if (this.seenMessageIds.has(messageId)) {
       this.duplicatesDetected++;
+      this.recordMismatchCategory("duplicate", {
+        category: "duplicate",
+        ws: "N/A",
+        bus: "duplicate_detected",
+        chunk_id: chunkId
+      });
       this.log.logVerbose(`[Comparator] Duplicate Bus message: ${messageId}`);
       return;
     }
@@ -307,6 +339,22 @@ export default class STTComparator {
       transcript_type: ws.is_final ? "final" : "partial",
     };
 
+    // Extract and compare commands
+    const wsCommands = this.extractCommands(ws.transcript);
+    const busCommands = this.extractCommands(bus.transcript);
+    
+    const commandsMatch = this.compareCommands(wsCommands, busCommands);
+    
+    if (wsCommands.length > 0 || busCommands.length > 0) {
+      this.commandsCompared++;
+      if (commandsMatch) {
+        this.commandMatches++;
+      } else {
+        this.commandMismatches++;
+        this.logCommandMismatch(ws.session_id, ws.chunk_id, wsCommands, busCommands);
+      }
+    }
+
     if (match) {
       this.transcriptMatches++;
     } else {
@@ -373,6 +421,65 @@ export default class STTComparator {
   }
 
   /**
+   * Extract commands from transcript text
+   */
+  private extractCommands(transcript: string): Command[] {
+    const commands: Command[] = [];
+    let match;
+    this.commandRegex.lastIndex = 0;
+    
+    while ((match = this.commandRegex.exec(transcript)) !== null) {
+      commands.push({
+        type: match[0].toLowerCase(),
+        index: match.index
+      });
+    }
+    
+    return commands;
+  }
+
+  /**
+   * Compare two sets of commands for equality
+   */
+  private compareCommands(ws: Command[], bus: Command[]): boolean {
+    if (ws.length !== bus.length) return false;
+    for (let i = 0; i < ws.length; i++) {
+      if (ws[i].type !== bus[i].type) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Log command mismatch details
+   */
+  private logCommandMismatch(sessionId: string, chunkId: string, ws: Command[], bus: Command[]): void {
+    this.log.logVerbose(`[Comparator] Command mismatch:`);
+    this.log.logVerbose(`  Session: ${sessionId}, Chunk: ${chunkId}`);
+    this.log.logVerbose(`  WebSocket Commands: ${ws.map(c => c.type).join(", ") || "none"}`);
+    this.log.logVerbose(`  Bus Commands: ${bus.map(c => c.type).join(", ") || "none"}`);
+
+    this.recordMismatchCategory("command_mismatch", {
+      category: "command_mismatch",
+      ws: ws.map(c => c.type).join(", ") || "none",
+      bus: bus.map(c => c.type).join(", ") || "none",
+      chunk_id: chunkId
+    });
+  }
+
+  /**
+   * Record a mismatch for the report
+   */
+  private recordMismatchCategory(category: string, example: any): void {
+    const currentCount = this.mismatchCounts.get(category) || 0;
+    this.mismatchCounts.set(category, currentCount + 1);
+
+    // Only store unique examples up to limit
+    if (this.mismatchExamples.filter(e => e.category === category).length < this.maxExamplesPerCategory) {
+      this.mismatchExamples.push(example);
+    }
+  }
+
+  /**
    * Log mismatch details
    */
   private logMismatch(comparison: TranscriptComparison): void {
@@ -385,6 +492,14 @@ export default class STTComparator {
     this.log.logVerbose(`  Similarity: ${(comparison.similarity_score * 100).toFixed(1)}%`);
     this.log.logVerbose(`  Latency WS: ${comparison.latency_websocket_ms}ms, Bus: ${comparison.latency_bus_ms}ms`);
     
+    this.recordMismatchCategory("transcript_mismatch", {
+      category: "transcript_mismatch",
+      ws: comparison.websocket_transcript,
+      bus: comparison.bus_transcript,
+      similarity: comparison.similarity_score,
+      chunk_id: comparison.chunk_id
+    });
+
     // Log to telemetry
     this.tracking.onMismatchDetected(
       comparison.chunk_id,
@@ -417,6 +532,11 @@ export default class STTComparator {
       ? this.commandMatches / this.commandsCompared
       : null;
 
+    const mismatchCategories: Record<string, number> = {};
+    this.mismatchCounts.forEach((count, category) => {
+      mismatchCategories[category] = count;
+    });
+
     const report: ComparisonReport = {
       total_comparisons: this.totalComparisons,
       transcript_matches: this.transcriptMatches,
@@ -432,6 +552,8 @@ export default class STTComparator {
       command_match_rate: commandMatchRate,
       latency_delta_avg_ms: avgLatencyBus - avgLatencyWebsocket,
       generated_at: new Date().toISOString(),
+      mismatch_categories: mismatchCategories,
+      mismatch_examples: this.mismatchExamples,
     };
 
     return report;
@@ -529,7 +651,8 @@ export default class STTComparator {
     this.totalLatencyBus = 0;
     this.duplicatesDetected = 0;
     this.outOfOrderDetected = 0;
-    this.sessionCount = 0;
+    this.mismatchCounts.clear();
+    this.mismatchExamples = [];
   }
 
   /**

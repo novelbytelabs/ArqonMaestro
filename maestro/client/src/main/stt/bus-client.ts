@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import Log from "../log";
 import Settings from "../settings";
 import STTTracking from "./tracking";
+import VoiceOutput from "./voice-output";
 import {
   BusMessage,
   STTEnvelope,
@@ -128,12 +129,16 @@ export default class BusClient {
   // Execution mode state
   private executionMode: boolean = false;
 
+  // Voice output handler
+  private voiceOutput: VoiceOutput;
+
   constructor(
     private settings: Settings,
     private log: Log,
     private tracking: STTTracking
   ) {
     this.config = this.buildConfig();
+    this.voiceOutput = new VoiceOutput(log, tracking);
   }
 
   /**
@@ -438,6 +443,11 @@ export default class BusClient {
     // Process transcript responses for comparison
     this.processTranscriptResponse(message);
 
+    // Handle speech requests (always handled for testing/playback)
+    if (message.payload.type === "stt.speech.request") {
+      this.handleSpeechRequest(message.payload);
+    }
+
     // Handle execution mode
     if (this.executionMode && this.executionHandler) {
       this.processExecutionResponse(message);
@@ -452,6 +462,21 @@ export default class BusClient {
     // TODO: Handle responses from Bus if not in shadow mode
     // For now, we just log them
     this.log.logVerbose(`[BusClient] Received: ${message.payload.type}`);
+  }
+
+  /**
+   * Handle speech request (TTS) from the Bus
+   */
+  private handleSpeechRequest(payload: any): void {
+    if (!payload.payload || !payload.payload.audio_data) {
+      this.log.logVerbose(`[BusClient] Ignoring invalid speech request: ${payload.message_id}`);
+      return;
+    }
+
+    const { audio_data, audio_format, transcript } = payload.payload;
+    
+    // Voice output handles its own idempotency and replay deduping
+    this.voiceOutput.play(payload.message_id, audio_data, audio_format || "wav", transcript || "");
   }
 
   /**

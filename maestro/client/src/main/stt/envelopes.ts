@@ -21,6 +21,7 @@ export type STTMessageType =
   | "stt.transcript.final"
   | "stt.session.stop"
   | "stt.health.status"
+  | "stt.speech.request"  // New: voice output request
   | "stt.address.query";  // New: address-first routing message
 
 /**
@@ -229,6 +230,26 @@ export interface STTAddressQueryEnvelope extends STTCommonFields {
 }
 
 // ============================================================================
+// STT Speech Request (Voice Output)
+// ============================================================================
+
+export interface STTSpeechRequestPayload {
+  /** Base64-encoded audio data for playback */
+  audio_data: string;
+  /** Audio format (e.g., "wav", "pcm") */
+  audio_format: string;
+  /** The text that was synthesized (for UI/logs) */
+  transcript: string;
+  /** Duration of the audio in milliseconds */
+  duration_ms?: number;
+}
+
+export interface STTSpeechRequestEnvelope extends STTCommonFields {
+  type: "stt.speech.request";
+  payload: STTSpeechRequestPayload;
+}
+
+// ============================================================================
 // Union type for all STT envelopes
 // ============================================================================
 
@@ -240,6 +261,7 @@ export type STTEnvelope =
   | STTTranscriptFinalEnvelope
   | STTSessionStopEnvelope
   | STTHealthStatusEnvelope
+  | STTSpeechRequestEnvelope
   | STTAddressQueryEnvelope;  // New: address-first routing
 
 // ============================================================================
@@ -540,4 +562,34 @@ export function deserializeBusMessage(json: string): BusMessage | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Create a speech request envelope (voice output)
+ */
+export function createSpeechRequestEnvelope(
+  sessionId: string,
+  chunkId: string,
+  audioData: string,
+  audioFormat: string,
+  transcript: string,
+  durationMs?: number,
+  tenantId: string = "default"
+): STTSpeechRequestEnvelope {
+  return {
+    message_id: uuid(),
+    session_id: sessionId,
+    chunk_id: chunkId,
+    tenant_id: tenantId,
+    timestamp: new Date().toISOString(),
+    source: "maestro",
+    version: BUS_PROTOCOL_VERSION,
+    type: "stt.speech.request",
+    payload: {
+      audio_data: audioData,
+      audio_format: audioFormat,
+      transcript: transcript,
+      duration_ms: durationMs,
+    },
+  };
 }

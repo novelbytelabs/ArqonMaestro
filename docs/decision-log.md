@@ -406,6 +406,33 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-029: Gate 1 And Gate 2 Require Artifact-Template Hard-Close Evidence
+
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Gate 1 (Comparator Confidence Baseline) and Gate 2 (Address-First Pivot) may be marked hard-closed only when evidence uses the mandatory artifact template (`command`, `timestamp`, `exit_code`, `key_output`) and includes explicit decision-log and rollback-proof paths.
+- **Why**: Prior closeout language allowed implementation progress to be reported without fully normalized artifact structure, making hard-close status ambiguous and difficult to audit.
+- **Consequences**:
+  - Phase E evidence must include command-level artifacts for build, soak, parity, and rollback proof
+  - comparator evidence must publish mismatch categories with counts and concrete examples
+  - Gate 2 evidence must prove address-first emission and mirror-path coexistence
+  - hard-close claims are invalid if evidence omits decision-log or rollback-proof pathing
+
+---
+
+## ADM-030: Gate 3 Native Playback via Child Process
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Implemented native non-blocking audio playback (`VoiceOutput.ts`) via `child_process.spawn("aplay")` instead of bringing in an external audio library or native speaker Node.js addons.
+- **Why**: The existing microphone capture logic (`SpeechRecorder`) reliably leverages standard ALSA/PulseAudio binaries (`arecord`/`parec`). Reversing this pattern for playback natively avoids complex ABI bindings, prevents event-loop blocking during playback, and meets all latency targets cleanly for Linux targets.
+- **Consequences**:
+  - `VoiceOutput.ts` relies on `aplay` existing in the host environment
+  - Playback is fully asynchronous (non-blocking validation proved sub-200ms latency)
+  - Replay deduplication is handled in-memory within `VoiceOutput` to remain idempotent on startup
+  - Gate 3 can be hard-closed without introducing new native ABI risks
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

@@ -70,6 +70,26 @@ class MockArqonBusServer {
         return;
       }
 
+      if (sessionId === "test-transcript-mismatch") {
+        this.sendPartial(ws, sessionId, message.payload.chunk_id, "DIFFERENT transcript");
+        return;
+      }
+
+      if (sessionId === "test-command-mismatch") {
+        // Send a DIFFERENT command than expected or just a transcript that implies a command mismatch
+        this.sendPartial(ws, sessionId, message.payload.chunk_id, "mock partial transcript with pause"); 
+        return;
+      }
+
+      if (sessionId === "test-speech-replay") {
+        // Send speech requests multiple times for the same payload to simulate startup replay
+        const msgId = "speech-replay-msg-999";
+        for (let i = 0; i < 3; i++) {
+          this.sendSpeechRequest(ws, sessionId, message.payload.chunk_id, "mock synthesized speech", msgId);
+        }
+        return;
+      }
+
       this.sendPartial(ws, sessionId, message.payload.chunk_id, "mock partial transcript");
     }
     
@@ -77,6 +97,35 @@ class MockArqonBusServer {
     if (message.payload && message.payload.type === "stt.endpoint.request") {
       this.sendFinal(ws, message.payload.session_id, message.payload.chunk_id, "mock final transcript");
     }
+  }
+
+  private sendSpeechRequest(ws: WebSocket, sessionId: string, chunkId: string, transcript: string, explicitMsgId?: string) {
+    const response = {
+      version: "1.0",
+      id: `arq_${uuid()}`,
+      type: "event",
+      room: "stt",
+      channel: "transcription",
+      from: "mock-server",
+      timestamp: new Date().toISOString(),
+      payload: {
+        message_id: explicitMsgId || uuid(),
+        session_id: sessionId,
+        chunk_id: chunkId,
+        tenant_id: "default",
+        timestamp: new Date().toISOString(),
+        source: "bus",
+        version: "1.0",
+        type: "stt.speech.request",
+        payload: {
+          audio_data: Buffer.from("mock pcm data").toString("base64"),
+          audio_format: "pcm",
+          transcript: transcript,
+          duration_ms: 1000
+        }
+      }
+    };
+    ws.send(JSON.stringify(response));
   }
   
   private sendPartial(ws: WebSocket, sessionId: string, chunkId: string, transcript: string, explicitMsgId?: string) {
