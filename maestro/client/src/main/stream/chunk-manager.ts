@@ -352,8 +352,8 @@ export default class ChunkManager {
       dt: Date.now(),
       data,
     }, {
-      session_id: this.tracking.getCurrentSessionId(),
-      chunk_id: response.chunkId,
+      session_id: this.tracking.getCurrentSessionId() || undefined,
+      chunk_id: response.chunkId || undefined,
     });
 
     if (
@@ -542,16 +542,26 @@ export default class ChunkManager {
         .join(", ")}]`
     );
 
+    const chunkMetrics = this.tracking.getChunkMetrics(chunk.id);
+    const chunkLatencyMs = chunkMetrics?.received_at ? Date.now() - chunkMetrics.received_at : 0;
+
     // Track response latency
     if (response.final) {
       this.tracking.onFinalResponse(chunk.id);
       this.tracking.logLatencyMetrics(chunk.id);
       
       // Track WebSocket latency for comparison with Bus
-      this.websocketResponseLatency = metrics?.received_at ? Date.now() - metrics.received_at : 0;
+      this.websocketResponseLatency = chunkLatencyMs;
     } else {
       this.tracking.onPartialResponse(chunk.id);
     }
+
+    const busAlternatives = (response.alternatives || []).map((alt: any, index: number) => ({
+      transcript: alt.transcript || "",
+      rank: index,
+      score: alt.confidence || alt.score || 0,
+      is_final: !!response.final,
+    }));
 
     // Store WebSocket response for comparison with Bus
     if (this.comparator?.isEnabled()) {
@@ -560,30 +570,21 @@ export default class ChunkManager {
         this.comparator.storeWebSocketResponse(
           sessionId,
           chunk.id,
-          alternatives,
-          latencyMs,
-          response.final
+          busAlternatives,
+          chunkLatencyMs,
+          !!response.final
         );
       }
     }
 
     // Publish to Arqon Bus (shadow publish)
-    const metrics = this.tracking.getChunkMetrics(chunk.id);
-    const latencyMs = metrics?.received_at ? Date.now() - metrics.received_at : 0;
     const silenceThreshold = response.silenceThreshold || 0.3;
     const modelId = this.settings.getStreamingEndpoint()?.id || "default";
     
-    const alternatives = (response.alternatives || []).map((alt, index) => ({
-      transcript: alt.transcript || "",
-      rank: index,
-      score: alt.confidence || 0,
-      is_final: response.final || false,
-    }));
-    
     if (response.final) {
-      this.publishToBus("transcript_final", alternatives, latencyMs, silenceThreshold, modelId, false);
+      this.publishToBus("transcript_final", busAlternatives, chunkLatencyMs, silenceThreshold, modelId, false);
     } else {
-      this.publishToBus("transcript_partial", alternatives, latencyMs, silenceThreshold, modelId, false);
+      this.publishToBus("transcript_partial", busAlternatives, chunkLatencyMs, silenceThreshold, modelId, false);
     }
 
     if (response.final) {

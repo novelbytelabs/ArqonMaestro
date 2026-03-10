@@ -122,7 +122,7 @@ export default class STTTracking {
    */
   createCorrelation(chunkId: string): STTCorrelation {
     return {
-      session_id: this.currentSession?.session_id || "",
+      session_id: this.currentSession && this.currentSession.session_id || "",
       message_id: this.generateMessageId(),
       chunk_id: chunkId,
       correlation_trace: [],
@@ -219,7 +219,7 @@ export default class STTTracking {
    * Record audio being sent to the server.
    */
   onAudioSent(chunkId: string): void {
-    const metrics = this.currentSession?.chunks.get(chunkId);
+    const metrics = this.currentSession && this.currentSession.chunks.get(chunkId);
     if (metrics) {
       metrics.sent_at = Date.now();
       this.addTracePoint(metrics.correlation, "audio_sent");
@@ -231,7 +231,7 @@ export default class STTTracking {
    * Record a partial response from the server.
    */
   onPartialResponse(chunkId: string): void {
-    const metrics = this.currentSession?.chunks.get(chunkId);
+    const metrics = this.currentSession && this.currentSession.chunks.get(chunkId);
     if (metrics && metrics.received_at) {
       metrics.latency.audio_to_partial = Date.now() - metrics.received_at;
       metrics.partial_response_at = Date.now();
@@ -244,7 +244,7 @@ export default class STTTracking {
    * Record a final response from the server.
    */
   onFinalResponse(chunkId: string): void {
-    const metrics = this.currentSession?.chunks.get(chunkId);
+    const metrics = this.currentSession && this.currentSession.chunks.get(chunkId);
     if (metrics && metrics.received_at) {
       metrics.latency.audio_to_final = Date.now() - metrics.received_at;
       metrics.final_response_at = Date.now();
@@ -257,7 +257,7 @@ export default class STTTracking {
    * Record execution of a command.
    */
   onExecuted(chunkId: string): void {
-    const metrics = this.currentSession?.chunks.get(chunkId);
+    const metrics = this.currentSession && this.currentSession.chunks.get(chunkId);
     if (metrics) {
       metrics.executed_at = Date.now();
       this.addTracePoint(metrics.correlation, "executed");
@@ -269,7 +269,7 @@ export default class STTTracking {
    * Record endpoint detection timing.
    */
   onEndpointDetected(chunkId: string, detectionTime: number): void {
-    const metrics = this.currentSession?.chunks.get(chunkId);
+    const metrics = this.currentSession && this.currentSession.chunks.get(chunkId);
     if (metrics && metrics.received_at) {
       metrics.latency.endpoint_detection = detectionTime;
       this.addTracePoint(metrics.correlation, "endpoint_detected");
@@ -336,7 +336,7 @@ export default class STTTracking {
    */
   onDuplicateDetected(chunkId: string): void {
     this.logMetric("stt.duplicate.detected", {
-      session_id: this.currentSession?.session_id,
+      session_id: this.currentSession && this.currentSession.session_id,
       chunk_id: chunkId,
     });
   }
@@ -346,7 +346,7 @@ export default class STTTracking {
    */
   onMismatchDetected(chunkId: string, websocketTranscript: string, busTranscript: string): void {
     this.logMetric("stt.state.mismatch", {
-      session_id: this.currentSession?.session_id,
+      session_id: this.currentSession && this.currentSession.session_id,
       chunk_id: chunkId,
       websocket_transcript: websocketTranscript,
       bus_transcript: busTranscript,
@@ -357,14 +357,14 @@ export default class STTTracking {
    * Get current session ID.
    */
   getCurrentSessionId(): string | null {
-    return this.currentSession?.session_id || null;
+    return this.currentSession && this.currentSession.session_id || null;
   }
 
   /**
    * Get metrics for a specific chunk.
    */
   getChunkMetrics(chunkId: string): ChunkMetrics | undefined {
-    return this.currentSession?.chunks.get(chunkId);
+    return this.currentSession ? this.currentSession.chunks.get(chunkId) : undefined;
   }
 
   /**
@@ -455,7 +455,7 @@ export default class STTTracking {
       dt: Date.now(),
       data: {
         ...data,
-        session_id: this.currentSession?.session_id,
+        session_id: this.currentSession && this.currentSession.session_id,
       },
     });
   }
@@ -464,7 +464,7 @@ export default class STTTracking {
    * Log latency metrics for a chunk (called on final response).
    */
   logLatencyMetrics(chunkId: string): void {
-    const metrics = this.currentSession?.chunks.get(chunkId);
+    const metrics = this.currentSession && this.currentSession.chunks.get(chunkId);
     if (!metrics) {
       return;
     }

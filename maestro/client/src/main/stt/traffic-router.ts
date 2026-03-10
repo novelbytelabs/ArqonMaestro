@@ -188,7 +188,7 @@ export default class TrafficRouter {
     return {
       enabled: this.settings.getArqonBusCutoverEnabled(),
       busPercentage: this.settings.getArqonBusTrafficPercentage(),
-      currentStage: this.settings.getArqonBusCurrentStage(),
+      currentStage: this.settings.getArqonBusCurrentStage() as CutoverStage,
       rollbackEnabled: this.settings.getArqonBusRollbackEnabled(),
       stageThresholds: {
         minSessions: 50,
@@ -572,6 +572,11 @@ export default class TrafficRouter {
   private shouldPromote(stageMetrics: StageMetrics, latencyDelta: number, matchRate: number): boolean {
     const stageConfig = STAGE_CONFIG[this.config.currentStage];
     if (!stageConfig) {
+      return false;
+    }
+
+    // Require explicit approval to pass staging gates
+    if (!this.settings.getArqonBusStageApproval()) {
       return false;
     }
 

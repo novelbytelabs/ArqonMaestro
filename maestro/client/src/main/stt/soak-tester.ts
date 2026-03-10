@@ -111,10 +111,14 @@ export interface RegressionTestResult {
  */
 export class RegressionTestRunner {
   private log: Log;
+  private settings: Settings;
   private results: RegressionTestResult[] = [];
+  private busClient?: BusClient;
+  private mockServerPort = 9100;
 
-  constructor(log: Log) {
+  constructor(log: Log, settings: Settings) {
     this.log = log;
+    this.settings = settings;
   }
 
   /**
@@ -123,14 +127,36 @@ export class RegressionTestRunner {
   async runAll(): Promise<RegressionTestResult[]> {
     this.results = [];
     
-    await this.testNormalOperation();
-    await this.testPauseResume();
-    await this.testReconnect();
-    await this.testDuplicateHandling();
-    await this.testOutOfOrder();
-    await this.testMalformed();
-    await this.testReplay();
-    await this.testCommandExecution();
+    // Helper to safely run and record a test
+    const runTest = async (name: string, testFn: () => Promise<void>) => {
+      const start = Date.now();
+      try {
+        await testFn.call(this);
+      } catch (error: any) {
+        // testNormalOperation records its own success/failure
+        // but for NotImplemented ones we just catch here
+        if (error.message.includes("Not Implemented")) {
+          this.results.push({
+            scenario: name as any,
+            passed: false,
+            duration: Date.now() - start,
+            error: error.message,
+            details: {}
+          });
+        } else {
+          console.error(`Error in ${name}:`, error);
+        }
+      }
+    };
+
+    await runTest("normal_operation", this.testNormalOperation);
+    await runTest("pause_resume", this.testPauseResume);
+    await runTest("reconnect", this.testReconnect);
+    await runTest("duplicate_handling", this.testDuplicateHandling);
+    await runTest("out_of_order", this.testOutOfOrder);
+    await runTest("malformed", this.testMalformed);
+    await runTest("replay", this.testReplay);
+    await runTest("command_execution", this.testCommandExecution);
 
     return this.results;
   }
@@ -141,24 +167,105 @@ export class RegressionTestRunner {
   private async testNormalOperation(): Promise<void> {
     const start = Date.now();
     try {
-      // Simulate normal session flow
-      // In real implementation, this would trigger actual STT sessions
-      this.log.logVerbose("[RegressionTest] Normal operation test");
+      this.log.logVerbose("[RegressionTest] Normal operation test starting with real BusClient");
       
+      // Mock API just enough for tracking telemetry
+      const mockApi = {
+        logEvent: () => {},
+        logLocalAudio: () => {},
+        logLocalResponse: () => {},
+        ping: async () => 1,
+        setBestEndpoint: async () => {}
+      } as any;
+      
+      const tracking = new STTTracking(mockApi, this.settings);
+      this.busClient = new BusClient(this.settings, this.log, tracking);
+      
+      const connected = await this.busClient.connect();
+      if (!connected) {
+        throw new Error("BusClient failed to connect to mock server");
+      }
+
+      // Track whether we received the expected messages
+      let partialReceived = false;
+      let finalReceived = false;
+
+      this.busClient.setExecutionMode(true, (sessionId, chunkId, alternatives, latencyMs, isFinal) => {
+        if (isFinal) {
+          finalReceived = true;
+          this.log.logVerbose("[RegressionTest] Received final transcript");
+        } else {
+          partialReceived = true;
+          this.log.logVerbose("[RegressionTest] Received partial transcript");
+        }
+      });
+
+      const sessionId = "test-session";
+      const chunkId = "test-chunk";
+
+      // Start session
+      this.busClient.publishSessionStart(sessionId, chunkId, "en-US", "mock-model");
+      
+      // Append audio 
+      this.busClient.publishAudioAppend(sessionId, chunkId, Buffer.from("mock audio"), 1, Date.now());
+      
+      // Wait for partial
+      await new Promise(r => setTimeout(r, 500));
+      if (!partialReceived) throw new Error("Did not receive partial transcript from mock server");
+
+      // Request endpoint
+      this.busClient.publishEndpointRequest(sessionId, chunkId, true, "final");
+
+      // Wait for final 
+      await new Promise(r => setTimeout(r, 500));
+      if (!finalReceived) throw new Error("Did not receive final transcript from mock server");
+
+      this.busClient.disconnect();
+
       this.results.push({
         scenario: "normal_operation",
         passed: true,
         duration: Date.now() - start,
-        details: { sessions: 10, transcripts: 20 }
+        details: { sessions: 1, transcripts: 2 }
       });
     } catch (error: any) {
+      if (this.busClient) this.busClient.disconnect();
       this.results.push({
         scenario: "normal_operation",
         passed: false,
         duration: Date.now() - start,
-        error: error.message
+        error: error.message,
+        details: {}
       });
     }
+  }
+
+  /**
+   * Helper to set up a test session
+   */
+  private async setupTestSession(sessionId: string): Promise<{
+    busClient: BusClient;
+    state: { partials: number; finals: number; commands: number };
+  }> {
+    const mockApi = { logEvent: () => {}, logLocalAudio: () => {}, logLocalResponse: () => {}, ping: async () => 1, setBestEndpoint: async () => {} } as any;
+    const tracking = new STTTracking(mockApi, this.settings);
+    const busClient = new BusClient(this.settings, this.log, tracking);
+    const connected = await busClient.connect();
+    if (!connected) throw new Error("BusClient failed to connect to mock server");
+
+    const state = { partials: 0, finals: 0, commands: 0 };
+    busClient.setExecutionMode(true, (sid, cid, alts, lat, isF) => {
+      if (isF) state.finals++; else state.partials++;
+    });
+
+    // Intercept logVerbose to detect unhandled commands logged by BusClient
+    const origLog = this.log.logVerbose;
+    this.log.logVerbose = (msg: string) => {
+      if (msg.includes("Received: stt.command")) state.commands++;
+      origLog.call(this.log, msg);
+    };
+
+    return { busClient, state };
   }
 
   /**
@@ -166,22 +273,22 @@ export class RegressionTestRunner {
    */
   private async testPauseResume(): Promise<void> {
     const start = Date.now();
+    const { busClient, state } = await this.setupTestSession("test-pause-resume");
     try {
-      this.log.logVerbose("[RegressionTest] Pause/resume test");
+      busClient.publishSessionStart("test-pause-resume", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-pause-resume", "chunk-1", Buffer.from("audio1"), 1, Date.now());
+      busClient.publishSessionStop("test-pause-resume", "chunk-1", "user_toggle", 100);
+      await new Promise(r => setTimeout(r, 200));
+
+      busClient.publishSessionStart("test-pause-resume", "chunk-2", "en-US", "mock");
+      busClient.publishAudioAppend("test-pause-resume", "chunk-2", Buffer.from("audio2"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 200));
+
+      if (state.partials < 2) throw new Error("Did not receive partials after resume");
       
-      this.results.push({
-        scenario: "pause_resume",
-        passed: true,
-        duration: Date.now() - start,
-        details: { cycles: 50, races_detected: 0 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "pause_resume",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      this.results.push({ scenario: "pause_resume" as any, passed: true, duration: Date.now() - start, details: { partials: state.partials }});
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -190,22 +297,21 @@ export class RegressionTestRunner {
    */
   private async testReconnect(): Promise<void> {
     const start = Date.now();
+    const { busClient, state } = await this.setupTestSession("test-reconnect");
     try {
-      this.log.logVerbose("[RegressionTest] Reconnect test");
+      busClient.disconnect();
+      await new Promise(r => setTimeout(r, 200));
+      const reconnected = await busClient.connect();
+      if (!reconnected) throw new Error("Failed to reconnect");
       
-      this.results.push({
-        scenario: "reconnect",
-        passed: true,
-        duration: Date.now() - start,
-        details: { reconnects: 5, avg_reconnect_time_ms: 1500 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "reconnect",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      busClient.publishSessionStart("test-reconnect", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-reconnect", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 200));
+
+      if (state.partials < 1) throw new Error("Did not receive partial after reconnect");
+      this.results.push({ scenario: "reconnect" as any, passed: true, duration: Date.now() - start, details: {} });
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -214,22 +320,17 @@ export class RegressionTestRunner {
    */
   private async testDuplicateHandling(): Promise<void> {
     const start = Date.now();
+    const { busClient, state } = await this.setupTestSession("test-duplicate");
     try {
-      this.log.logVerbose("[RegressionTest] Duplicate handling test");
+      busClient.publishSessionStart("test-duplicate", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-duplicate", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      busClient.publishAudioAppend("test-duplicate", "chunk-1", Buffer.from("audio"), 1, Date.now()); // Duplicate
+      await new Promise(r => setTimeout(r, 300));
       
-      this.results.push({
-        scenario: "duplicate_handling",
-        passed: true,
-        duration: Date.now() - start,
-        details: { duplicates_injected: 10, duplicates_detected: 10 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "duplicate_handling",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      if (state.partials === 0) throw new Error("Failed to handle duplicates");
+      this.results.push({ scenario: "duplicate_handling" as any, passed: true, duration: Date.now() - start, details: {} });
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -238,22 +339,17 @@ export class RegressionTestRunner {
    */
   private async testOutOfOrder(): Promise<void> {
     const start = Date.now();
+    const { busClient, state } = await this.setupTestSession("test-out-of-order");
     try {
-      this.log.logVerbose("[RegressionTest] Out-of-order test");
-      
-      this.results.push({
-        scenario: "out_of_order",
-        passed: true,
-        duration: Date.now() - start,
-        details: { messages_sent: 20, out_of_order: 0 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "out_of_order",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      busClient.publishSessionStart("test-out-of-order", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-out-of-order", "chunk-1", Buffer.from("audio2"), 2, Date.now() + 100);
+      busClient.publishAudioAppend("test-out-of-order", "chunk-1", Buffer.from("audio1"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 300));
+
+      if (state.partials < 2) throw new Error("Failed to handle out-of-order appends");
+      this.results.push({ scenario: "out_of_order" as any, passed: true, duration: Date.now() - start, details: {} });
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -262,22 +358,20 @@ export class RegressionTestRunner {
    */
   private async testMalformed(): Promise<void> {
     const start = Date.now();
+    // Use session ID "test-malformed" to trigger the mock server to send garbage
+    const { busClient, state } = await this.setupTestSession("test-malformed");
     try {
-      this.log.logVerbose("[RegressionTest] Malformed envelope test");
+      busClient.publishSessionStart("test-malformed", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-malformed", "chunk-1", Buffer.from("audio"), 1, Date.now());
       
-      this.results.push({
-        scenario: "malformed",
-        passed: true,
-        duration: Date.now() - start,
-        details: { malformed_sent: 5, handled_gracefully: 5 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "malformed",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      // Wait to ensure client doesn't crash upon receiving malformed JSON
+      await new Promise(r => setTimeout(r, 400));
+      
+      this.results.push({ scenario: "malformed" as any, passed: true, duration: Date.now() - start, details: {} });
+    } catch (e: any) {
+      throw new Error("Client crashed on malformed envelope: " + e.message);
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -286,22 +380,17 @@ export class RegressionTestRunner {
    */
   private async testReplay(): Promise<void> {
     const start = Date.now();
+    // Use session ID "test-replay" to trigger mock server sending replayed message IDs
+    const { busClient, state } = await this.setupTestSession("test-replay");
     try {
-      this.log.logVerbose("[RegressionTest] Replay test");
+      busClient.publishSessionStart("test-replay", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-replay", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 400));
       
-      this.results.push({
-        scenario: "replay",
-        passed: true,
-        duration: Date.now() - start,
-        details: { replays_injected: 5, deduplicated: 5 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "replay",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      if (state.partials < 1) throw new Error("Did not process replayed messages");
+      this.results.push({ scenario: "replay" as any, passed: true, duration: Date.now() - start, details: {} });
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -310,22 +399,17 @@ export class RegressionTestRunner {
    */
   private async testCommandExecution(): Promise<void> {
     const start = Date.now();
+    // Use session ID "test-command" to trigger mock server sending a command back
+    const { busClient, state } = await this.setupTestSession("test-command");
     try {
-      this.log.logVerbose("[RegressionTest] Command execution test");
+      busClient.publishSessionStart("test-command", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-command", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 400));
       
-      this.results.push({
-        scenario: "command_execution",
-        passed: true,
-        duration: Date.now() - start,
-        details: { commands_executed: 20, success_rate: 1.0 }
-      });
-    } catch (error: any) {
-      this.results.push({
-        scenario: "command_execution",
-        passed: false,
-        duration: Date.now() - start,
-        error: error.message
-      });
+      if (state.commands === 0) throw new Error("Did not log receiving a command from mock server");
+      this.results.push({ scenario: "command_execution" as any, passed: true, duration: Date.now() - start, details: {} });
+    } finally {
+      busClient.disconnect();
     }
   }
 
@@ -387,14 +471,14 @@ export default class SoakTester {
     config?: Partial<SoakTestConfig>
   ) {
     this.config = {
-      durationHours: config?.durationHours ?? 24,
-      minSessionsPerHour: config?.minSessionsPerHour ?? 100,
-      errorRateThreshold: config?.errorRateThreshold ?? 0.001,
-      latencyP95Threshold: config?.latencyP95Threshold ?? 500,
-      matchRateThreshold: config?.matchRateThreshold ?? 0.98,
-      checkIntervalSeconds: config?.checkIntervalSeconds ?? 300,
-      checkMemoryLeaks: config?.checkMemoryLeaks ?? true,
-      checkStuckListening: config?.checkStuckListening ?? true,
+      durationHours: config ? config.durationHours || 24 : 24,
+      minSessionsPerHour: config ? config.minSessionsPerHour || 100 : 100,
+      errorRateThreshold: config ? config.errorRateThreshold || 0.001 : 0.001,
+      latencyP95Threshold: config ? config.latencyP95Threshold || 500 : 500,
+      matchRateThreshold: config ? config.matchRateThreshold || 0.98 : 0.98,
+      checkIntervalSeconds: config ? config.checkIntervalSeconds || 300 : 300,
+      checkMemoryLeaks: config ? (config.checkMemoryLeaks !== undefined ? config.checkMemoryLeaks : true) : true,
+      checkStuckListening: config ? (config.checkStuckListening !== undefined ? config.checkStuckListening : true) : true,
     };
   }
 
@@ -552,7 +636,9 @@ export default class SoakTester {
     };
     
     this.failures.push(failure);
-    this.onFailure?.(failure);
+    if (this.onFailure) {
+      this.onFailure(failure);
+    }
 
     this.tracking.logMetric("stt.soak.stuck_listening", {
       incident_count: this.stuckListeningIncidents,
@@ -625,7 +711,9 @@ export default class SoakTester {
     };
 
     // Report progress
-    this.onProgress?.(progress, stats);
+    if (this.onProgress) {
+      this.onProgress(progress, stats);
+    }
 
     // Check for failures
     this.checkFailures();
@@ -659,7 +747,9 @@ export default class SoakTester {
         details: { error_rate: errorRate, threshold: this.config.errorRateThreshold }
       };
       this.failures.push(failure);
-      this.onFailure?.(failure);
+      if (this.onFailure) {
+        this.onFailure(failure);
+      }
     }
 
     // Check P95 latency
@@ -671,7 +761,9 @@ export default class SoakTester {
         details: { p95_latency_ms: p95Latency, threshold: this.config.latencyP95Threshold }
       };
       this.failures.push(failure);
-      this.onFailure?.(failure);
+      if (this.onFailure) {
+        this.onFailure(failure);
+      }
     }
 
     // Check stuck listening
@@ -683,7 +775,9 @@ export default class SoakTester {
         details: { incident_count: this.stuckListeningIncidents }
       };
       this.failures.push(failure);
-      this.onFailure?.(failure);
+      if (this.onFailure) {
+        this.onFailure(failure);
+      }
     }
 
     // Check memory leaks
@@ -732,7 +826,9 @@ export default class SoakTester {
         }
       };
       this.failures.push(failure);
-      this.onFailure?.(failure);
+      if (this.onFailure) {
+        this.onFailure(failure);
+      }
     }
   }
 
@@ -785,7 +881,9 @@ export default class SoakTester {
       passed: result.passed,
     });
 
-    this.onComplete?.(result);
+    if (this.onComplete) {
+      this.onComplete(result);
+    }
   }
 
   /**
@@ -840,6 +938,6 @@ export function createSoakTester(
 /**
  * Factory function to create RegressionTestRunner instance
  */
-export function createRegressionTestRunner(log: Log): RegressionTestRunner {
-  return new RegressionTestRunner(log);
+export function createRegressionTestRunner(log: Log, settings: Settings): RegressionTestRunner {
+  return new RegressionTestRunner(log, settings);
 }

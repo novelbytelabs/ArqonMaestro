@@ -1,111 +1,60 @@
-# Phase E Closeout: Stabilization - Soak Testing and Final Cutover
+# Phase E Closeout: STT Migration Recovery Hard-Close
+
+> [!NOTE]
+> **Recovery hard-close completed on 2026-03-09.** Simulated validation logic was removed, build integrity was restored, and regression harness execution is now evidence-backed.
 
 ## Phase Summary
 
 - **Phase**: `E`
-- **Status**: `completed`
+- **Status**: `completed` (Recovery hard-close)
 - **Date**: `2026-03-09`
 - **Owner**: `Arqon (irbsurfer)`
-- **Objective**: Implement soak testing, automated regression checks, and final cutover for Arqon Bus STT migration
+- **Decision**: `GO` for **manual phased rollout**, not automatic 100% cutover
 
-## Scope Completed
+## What Was Verified
 
-### Core Implementation
+1. **Build integrity**
+   - Command: `npm run build:main`
+   - Result: success, zero TypeScript compile errors.
 
-1. **Soak Test Module** - Created comprehensive soak testing framework
-   - Configurable duration (24+ hours)
-   - Error rate monitoring (< 0.1% threshold)
-   - P95/P99 latency tracking (< 500ms threshold)
-   - Match rate validation (> 98%)
-   - Memory leak detection
-   - Stuck listening detection
+2. **Regression harness execution**
+   - Command: `npx ts-node test-soak.ts`
+   - Result: `8/8` scenarios passed:
+     - normal_operation
+     - pause_resume
+     - reconnect
+     - duplicate_handling
+     - out_of_order
+     - malformed
+     - replay
+     - command_execution
 
-2. **Automated Regression Tests** - Implemented 8 test scenarios
-   - Normal operation (start/stop, partial/final)
-   - Pause/Resume (rapid toggle, race handling)
-   - Reconnect (network drop and recovery)
-   - Duplicate handling
-   - Out-of-order message handling
-   - Malformed envelope handling
-   - Replay attack handling
-   - Command execution validation
+3. **Promotion safety controls**
+   - Stage progression requires explicit manual approval via `getArqonBusStageApproval()`.
+   - Rollback path remains available via traffic percentage and cutover controls.
 
-3. **Final Cutover Procedures**
-   - 100% traffic routing to Bus path
-   - WebSocket path retained for emergency rollback
-   - Production defaults configured
+## Runtime Safety Defaults (Verified in settings)
 
-### Documentation
+- `arqon_bus_enabled`: `false`
+- `arqon_bus_shadow_mode`: `true`
+- `arqon_bus_cutover_enabled`: `false`
+- `arqon_bus_traffic_percentage`: `0`
+- `arqon_bus_current_stage`: `"shadow"`
 
-4. **Migration Runbook**
-   - Stage progression procedures
-   - Rollback procedures
-   - Troubleshooting guide
-   - Monitoring dashboards reference
-
-5. **Migration Flags Reference**
-   - All configuration options documented
-   - Default values specified
-   - When to change each flag
-
-### Configuration
-
-6. **Production Defaults**
-   - `arqon_bus_enabled`: true
-   - `arqon_bus_shadow_mode`: false
-   - `arqon_bus_traffic_percentage`: 100
-   - `arqon_bus_current_stage`: "100pct"
-   - `arqon_bus_cutover_enabled`: true
-
-## Breaking Changes Introduced
-
-- None in runtime behavior
-- Default configuration changes (production-ready)
-
-## Compatibility Shims Added
-
-- WebSocket path preserved as fallback
-- Shadow mode can be re-enabled for comparison
-
-## Verification Performed
-
-- Code compiles successfully
-- Module exports verified
-- Settings defaults updated correctly
+These defaults keep production traffic on the existing path until deliberate operator promotion.
 
 ## Residual Risks
 
-1. Full 24-hour soak test not yet executed (requires production environment)
-2. Bus service dependency - requires operational Bus infrastructure
-3. Network conditions may affect latency in production
+1. Full 24-hour soak in production conditions is still pending.
+2. Bus-path behavior under sustained real network jitter is not yet fully characterized.
 
-## Rollback Point
+## Rollback Procedure
 
-- Set `arqon_bus_traffic_percentage = 0` to instantly route all traffic to WebSocket
-- WebSocket path remains fully functional as fallback
-
-## Files Created/Modified
-
-### New Files
-- `maestro/client/src/main/stt/soak-tester.ts`
-- `docs/operations/arqon-bus-migration-runbook.md`
-- `docs/operations/arqon-bus-migration-flags.md`
-- `docs/operations/phase-e-evidence.md`
-
-### Modified Files
-- `maestro/client/src/main/stt/index.ts` - Added SoakTester exports
-- `maestro/client/src/main/settings.ts` - Updated production defaults
-
-## Next Steps
-
-1. Execute 24-hour soak test in production environment
-2. Monitor metrics dashboards during soak period
-3. Verify all regression tests pass
-4. Confirm parity report shows >98% match rate
-5. Validate latency targets are met
-6. Confirm no stuck listening incidents
-7. Verify memory stability
+- Set `arqon_bus_traffic_percentage = 0`.
+- Keep `arqon_bus_cutover_enabled = false` if instability appears.
+- Leave `arqon_bus_enabled = false` to fully disable bus path.
 
 ## Handoff
 
-The Arqon Bus STT migration is complete and ready for production deployment. All documentation is in place for ongoing operations and emergency rollback procedures.
+Recovery work is hard-closed and documentation is now aligned with code defaults and verified command evidence.
+The project is ready for controlled manual rollout gates (shadow -> 1pct -> 10pct -> 50pct -> 100pct) with explicit approval at each stage.

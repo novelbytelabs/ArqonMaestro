@@ -474,8 +474,8 @@ export default class BusClient {
     const alternatives: TranscriptAlternative[] = transcriptPayload.payload.alternatives.map(
       (alt: any, index: number) => ({
         transcript: alt.transcript || "",
-        rank: alt.rank ?? index,
-        score: alt.score ?? 0,
+        rank: alt.rank !== undefined ? alt.rank : index,
+        score: alt.score !== undefined ? alt.score : 0,
         is_final: payloadType === "stt.transcript.final",
       })
     );
@@ -483,7 +483,7 @@ export default class BusClient {
     const latencyMs = transcriptPayload.payload.latency_ms || 0;
     const isFinal = payloadType === "stt.transcript.final";
 
-    this.log.logVerbose(`[BusClient] Transcript ${isFinal ? "final" : "partial"}: ${alternatives[0]?.transcript?.substring(0, 50)}...`);
+    this.log.logVerbose(`[BusClient] Transcript ${isFinal ? "final" : "partial"}: ${alternatives[0] && alternatives[0].transcript ? alternatives[0].transcript.substring(0, 50) : ""}...`);
 
     // Notify all registered callbacks
     for (const callback of this.transcriptCallbacks) {
@@ -522,8 +522,8 @@ export default class BusClient {
     const alternatives: TranscriptAlternative[] = transcriptPayload.payload.alternatives.map(
       (alt: any, index: number) => ({
         transcript: alt.transcript || "",
-        rank: alt.rank ?? index,
-        score: alt.score ?? 0,
+        rank: alt.rank !== undefined ? alt.rank : index,
+        score: alt.score !== undefined ? alt.score : 0,
         is_final: payloadType === "stt.transcript.final",
       })
     );

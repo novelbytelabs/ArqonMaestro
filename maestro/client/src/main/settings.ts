@@ -647,7 +647,7 @@ export default class Settings {
    * Production default: true (after cutover)
    */
   getArqonBusEnabled(): boolean {
-    return this.get("system", "arqon_bus_enabled", true);
+    return this.get("system", "arqon_bus_enabled", false);
   }
 
   /**
@@ -677,7 +677,7 @@ export default class Settings {
    * Production default: false (after cutover)
    */
   getArqonBusShadowMode(): boolean {
-    return this.get("system", "arqon_bus_shadow_mode", false);
+    return this.get("system", "arqon_bus_shadow_mode", true);
   }
 
   /**
@@ -784,7 +784,7 @@ export default class Settings {
    * Production default: true (after cutover)
    */
   getArqonBusCutoverEnabled(): boolean {
-    return this.get("system", "arqon_bus_cutover_enabled", true);
+    return this.get("system", "arqon_bus_cutover_enabled", false);
   }
 
   /**
@@ -799,7 +799,7 @@ export default class Settings {
    * Production default: 100 (after cutover)
    */
   getArqonBusTrafficPercentage(): number {
-    return this.get("system", "arqon_bus_traffic_percentage", 100);
+    return this.get("system", "arqon_bus_traffic_percentage", 0);
   }
 
   /**
@@ -814,7 +814,7 @@ export default class Settings {
    * Production default: 100pct (after cutover)
    */
   getArqonBusCurrentStage(): string {
-    return this.get("system", "arqon_bus_current_stage", "100pct");
+    return this.get("system", "arqon_bus_current_stage", "shadow");
   }
 
   /**
@@ -850,5 +850,19 @@ export default class Settings {
    */
   setArqonBusStageCheckInterval(intervalSeconds: number) {
     this.set("system", "arqon_bus_stage_check_interval_s", intervalSeconds);
+  }
+
+  /**
+   * Get explicit approval flag for stage promotion
+   */
+  getArqonBusStageApproval(): boolean {
+    return this.get("system", "arqon_bus_stage_approval", false);
+  }
+
+  /**
+   * Set explicit approval flag for stage promotion
+   */
+  setArqonBusStageApproval(approved: boolean) {
+    this.set("system", "arqon_bus_stage_approval", approved);
   }
 }
