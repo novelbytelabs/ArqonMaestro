@@ -78,6 +78,7 @@ nav:
       - Training Models: models/training-models.md
   - Operations:
       - Port Reference: operations/port-reference.md
+      - Gate 6 Kokoro Plan: operations/gate-6-kokoro-plan.md
       - Configuration: operations/configuration.md
       - Gotcha Registry: operations/gotcha-registry.md
       - Phase Closeout Template: operations/phase-closeout-template.md
