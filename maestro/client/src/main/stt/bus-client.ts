@@ -23,6 +23,7 @@ import {
   createTranscriptFinalEnvelope,
   createSessionStopEnvelope,
   createHealthStatusEnvelope,
+  createAddressQueryEnvelope,
   toBusMessage,
   BusMessageType,
 } from "./envelopes";
@@ -626,14 +627,17 @@ export default class BusClient {
     chunkId: string,
     audioData: Buffer,
     sequenceNumber: number,
-    timestampMs: number
+    timestampMs: number,
+    addrId?: string
   ): boolean {
     const envelope = createAudioAppendEnvelope(
       sessionId,
       chunkId,
       audioData,
       sequenceNumber,
-      timestampMs
+      timestampMs,
+      undefined, // tenantId
+      addrId
     );
     return this.publish(envelope);
   }
@@ -736,6 +740,60 @@ export default class BusClient {
       status,
       latencyMs,
       errorCount
+    );
+    return this.publish(envelope);
+  }
+
+  /**
+   * Publish an address query envelope for address-first routing.
+   * This is the proactive path that enables O(0) routing.
+   */
+  publishAddressQuery(
+    sessionId: string,
+    chunkId: string,
+    transcript: string,
+    addrId: string,
+    cfhSignature: string,
+    confidence: number,
+    isFinal: boolean,
+    options?: {
+      opcodeHint?: string;
+      slotsHint?: Record<string, string>;
+      tenantId?: string;
+    }
+  ): boolean {
+    const envelope = createAddressQueryEnvelope(
+      sessionId,
+      chunkId,
+      transcript,
+      addrId,
+      cfhSignature,
+      confidence,
+      isFinal,
+      options
+    );
+    return this.publish(envelope);
+  }
+
+  /**
+   * Publish a presence pulse (short heartbeat) with the current predictive address.
+   * Uses the stt.address.query envelope type for consistent routing.
+   */
+  publishPresencePulse(
+    sessionId: string,
+    chunkId: string,
+    addrId: string,
+    cfhSignature: string,
+    timestamp: number
+  ): boolean {
+    const envelope = createAddressQueryEnvelope(
+      sessionId,
+      chunkId,
+      "presence_pulse", // marker transcript
+      addrId,
+      cfhSignature,
+      1.0,  // full confidence in the hash itself
+      false // never final
     );
     return this.publish(envelope);
   }

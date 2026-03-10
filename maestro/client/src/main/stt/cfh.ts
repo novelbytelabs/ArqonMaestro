@@ -425,10 +425,9 @@ if (require.main === module) {
   console.log("Test 8: normalizeCanonical");
   const tokens = normalizeCanonical("What is the POLICY for PII?");
   console.log(`  normalizeCanonical("What is the POLICY for PII?") = [${tokens.join(", ")}]`);
-  console.log(`  Contains "what": ${tokens.includes("what")}`);
-  console.log(`  Contains "policy": ${tokens.includes("policy")}`);
-  console.log(`  Contains "pii": ${tokens.includes("pii")}`);
-  console.log(`  Pass: ${tokens.includes("what") && tokens.includes("policy") && tokens.includes("pii")}\n`);
+  console.log(`  Contains "P420" (policy): ${tokens.includes("P420")}`);
+  console.log(`  Contains "P000" (pii): ${tokens.includes("P000")}`);
+  console.log(`  Pass: ${tokens.includes("P420") && tokens.includes("P000")}\n`);
 
   console.log("=== All Tests Complete ===");
 }

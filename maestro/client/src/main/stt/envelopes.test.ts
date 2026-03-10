@@ -9,6 +9,7 @@
 
 import {
   createAudioAppendEnvelope,
+  createSessionStartEnvelope,
   createTranscriptPartialEnvelope,
   createTranscriptFinalEnvelope,
   createAddressQueryEnvelope,
@@ -113,6 +114,25 @@ test("createTranscriptFinalEnvelope creates valid envelope", () => {
   );
 });
 
+test("createAudioAppendEnvelope with addr_id supports vertical pivot", () => {
+  const audioData = Buffer.from("test audio data");
+  const env = createAudioAppendEnvelope(
+    "session-1",
+    "chunk-1",
+    audioData,
+    1,
+    1000,
+    "default",
+    "addr-pivot-123"
+  );
+  
+  return (
+    env.type === "stt.audio.append" &&
+    env.addr_id === "addr-pivot-123" &&
+    env.session_id === "session-1"
+  );
+});
+
 // ============================================================================
 // addr_id Envelope Tests
 // ============================================================================
@@ -185,6 +205,23 @@ test("TranscriptPayload accepts optional addr_id", () => {
   return (
     env.payload.addr_id === "addr-12345" &&
     env.payload.cfh_signature === "cfh-sig"
+  );
+});
+
+test("createSessionStartEnvelope supports vertical addr_id", () => {
+  const env = createSessionStartEnvelope(
+    "s1",
+    "c1",
+    "en",
+    "m1",
+    undefined,
+    "default",
+    "addr-start-1"
+  );
+  
+  return (
+    env.type === "stt.session.start" &&
+    env.addr_id === "addr-start-1"
   );
 });
 

@@ -17,6 +17,7 @@ import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
 import STTComparator from "../stt/comparator";
 import TrafficRouter, { RoutingDecision, RoutingPath } from "../stt/traffic-router";
+import { generateSignatureBytes, sigBytesToU64x16 } from "../stt/cfh";
 
 interface Request {
   requestType: "audio" | "editor" | "endpoint" | "initialize";
@@ -60,6 +61,20 @@ export default class ChunkManager {
   private currentRoutingDecision?: RoutingDecision;
   private busResponseLatency?: number;
   private websocketResponseLatency?: number;
+
+  // Phase 3: Predictive Resolution & Presence Pulse
+  private currentPredictiveAddrId?: string;
+  private currentPredictiveCFHSignature?: string;
+  private presencePulseInterval: number = 500; // ms
+  private presencePulseTimer?: NodeJS.Timeout;
+  
+  // Phase 3: Throttle/Debounce for SAS Precheck
+  private transcriptDebounceMs: number = 100;
+  private transcriptDebounceTimer?: NodeJS.Timeout;
+  private pendingTranscript?: { text: string; isFinal: boolean; chunkId: string };
+  private throttleMaxRequestsPerSecond: number = 10;
+  private throttleRequestTimestamps: number[] = [];
+  private lastSASPrecheckResult?: { addrId: string; timestamp: number; valid: boolean };
 
   listening: boolean = false;
 
@@ -199,6 +214,228 @@ export default class ChunkManager {
     return this.currentRoutingDecision?.path === "bus" && this.busClient?.isConnected();
   }
 
+  // ============================================================================
+  // Phase 3: Predictive Resolution (CFH-based addr_id computation)
+  // ============================================================================
+
+  /**
+   * Compute predictive addr_id from transcript text using CFH.
+   * This enables O(0) routing via pre-computed semantic address.
+   * 
+   * @param transcript - The transcript text to compute addr_id for
+   * @returns Promise<{ addrId: string, cfhSignature: string } | null>
+   */
+  private computeAddrIdFromTranscript(transcript: string): { addrId: string; cfhSignature: string } | null {
+    if (!transcript || transcript.trim().length === 0) {
+      return null;
+    }
+
+    try {
+      const startTime = performance.now();
+      
+      // Generate CFH signature (128 bytes = 1024 bits)
+      const sigBytes = generateSignatureBytes(transcript, 128);
+      const sigU64 = sigBytesToU64x16(sigBytes);
+      
+      // Convert signature to hex for transmission
+      const cfhSignature = Array.from(sigBytes)
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      
+      // Compute bucket-based addr_id from signature
+      // Using first 8 bytes of signature as hex string for addr_id
+      const addrId = 'addr_' + cfhSignature.substring(0, 16);
+      
+      const elapsed = performance.now() - startTime;
+      if (elapsed > 10) {
+        this.log.logVerbose(`[ChunkManager] CFH signature generation took ${elapsed.toFixed(2)}ms (exceeds 10ms threshold)`);
+      }
+      
+      return { addrId, cfhSignature };
+    } catch (error) {
+      this.log.logVerbose(`[ChunkManager] Error computing addr_id: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Update predictive addr_id on transcript events (partial/final).
+   * This should be called whenever a new transcript is received.
+   */
+  private updatePredictiveAddrId(transcript: string, isFinal: boolean): void {
+    const result = this.computeAddrIdFromTranscript(transcript);
+    if (result) {
+      this.currentPredictiveAddrId = result.addrId;
+      this.currentPredictiveCFHSignature = result.cfhSignature;
+      
+      this.log.logVerbose(
+        `[ChunkManager] Predictive addr_id updated: ${this.currentPredictiveAddrId} (final: ${isFinal})`
+      );
+    }
+  }
+
+  // ============================================================================
+  // Phase 3: Presence Pulse (Heartbeat mechanism)
+  // ============================================================================
+
+  /**
+   * Start the presence pulse heartbeat mechanism.
+   * Fires heartbeats with currentPredictiveAddrId at configured interval.
+   */
+  private startPresencePulse(): void {
+    if (this.presencePulseTimer) {
+      return; // Already running
+    }
+
+    this.log.logVerbose(`[ChunkManager] Starting presence pulse with ${this.presencePulseInterval}ms interval`);
+    
+    this.presencePulseTimer = setInterval(() => {
+      this.publishPresencePulse();
+    }, this.presencePulseInterval);
+  }
+
+  /**
+   * Stop the presence pulse heartbeat.
+   */
+  private stopPresencePulse(): void {
+    if (this.presencePulseTimer) {
+      clearInterval(this.presencePulseTimer);
+      this.presencePulseTimer = undefined;
+      this.log.logVerbose(`[ChunkManager] Stopped presence pulse`);
+    }
+  }
+
+  /**
+   * Publish a presence pulse (heartbeat) with currentPredictiveAddrId.
+   * Non-blocking execution should complete in < 10ms.
+   */
+  private publishPresencePulse(): void {
+    if (!this.currentPredictiveAddrId) {
+      return;
+    }
+
+    const startTime = performance.now();
+    
+    try {
+      // Publish presence pulse to bus
+      if (this.busClient && this.busClient.isEnabled() && this.tracking.getCurrentSessionId()) {
+        const sessionId = this.tracking.getCurrentSessionId()!;
+        const chunkId = this.chunkQueue.getIndex(0)?.id || uuid();
+        
+        // Publish as a special presence pulse message
+        this.busClient.publishPresencePulse(
+          sessionId,
+          chunkId,
+          this.currentPredictiveAddrId,
+          this.currentPredictiveCFHSignature || '',
+          Date.now()
+        );
+      }
+      
+      const elapsed = performance.now() - startTime;
+      if (elapsed > 10) {
+        this.log.logVerbose(`[ChunkManager] Presence pulse took ${elapsed.toFixed(2)}ms (exceeds 10ms threshold)`);
+      }
+    } catch (error) {
+      this.log.logVerbose(`[ChunkManager] Error publishing presence pulse: ${error}`);
+    }
+  }
+
+  // ============================================================================
+  // Phase 3: Throttle/Debounce for SAS Precheck
+  // ============================================================================
+
+  /**
+   * Check if we can send a new request based on throttle limits.
+   * Returns true if under the limit (10 req/s), false if throttled.
+   */
+  private canSendSASPrecheck(): boolean {
+    const now = Date.now();
+    const oneSecondAgo = now - 1000;
+    
+    // Remove timestamps older than 1 second
+    this.throttleRequestTimestamps = this.throttleRequestTimestamps.filter(ts => ts > oneSecondAgo);
+    
+    // Check if under limit
+    return this.throttleRequestTimestamps.length < this.throttleMaxRequestsPerSecond;
+  }
+
+  /**
+   * Record a SAS precheck request for throttle tracking.
+   */
+  private recordSASPrecheckRequest(): void {
+    this.throttleRequestTimestamps.push(Date.now());
+  }
+
+  /**
+   * Debounced SAS precheck - prevents flooding with rapid transcript changes.
+   * Uses 100ms debounce delay.
+   */
+  private scheduleSASPrecheck(transcript: string, isFinal: boolean, chunkId: string): void {
+    // Store pending transcript
+    this.pendingTranscript = { text: transcript, isFinal, chunkId };
+    
+    // Clear existing debounce timer
+    if (this.transcriptDebounceTimer) {
+      clearTimeout(this.transcriptDebounceTimer);
+    }
+    
+    // Set new debounce timer
+    this.transcriptDebounceTimer = setTimeout(() => {
+      this.executeSASPrecheck();
+    }, this.transcriptDebounceMs);
+  }
+
+  /**
+   * Execute the SAS precheck if not throttled.
+   * Implements fallback behavior when throttled.
+   */
+  private executeSASPrecheck(): void {
+    if (!this.pendingTranscript) {
+      return;
+    }
+    
+    const { text, isFinal, chunkId } = this.pendingTranscript;
+    this.pendingTranscript = undefined;
+    
+    // Check throttle limit
+    if (!this.canSendSASPrecheck()) {
+      this.log.logVerbose(`[ChunkManager] SAS precheck throttled, using fallback for: ${text.substring(0, 30)}...`);
+      // Fallback: use cached result if recent (< 5 seconds old)
+      if (this.lastSASPrecheckResult && 
+          Date.now() - this.lastSASPrecheckResult.timestamp < 5000) {
+        this.log.logVerbose(`[ChunkManager] Using cached SAS precheck result`);
+        return;
+      }
+      // If no cached result, proceed anyway (fallback to compute locally)
+    }
+    
+    // Record the request for throttle tracking
+    this.recordSASPrecheckRequest();
+    
+    // Perform the actual SAS precheck
+    // This would typically send to a precheck service
+    const result = this.computeAddrIdFromTranscript(text);
+    if (result) {
+      this.lastSASPrecheckResult = {
+        addrId: result.addrId,
+        timestamp: Date.now(),
+        valid: true
+      };
+    }
+  }
+
+  /**
+   * Clean up throttle/debounce resources.
+   */
+  private cleanupThrottleDebounce(): void {
+    if (this.transcriptDebounceTimer) {
+      clearTimeout(this.transcriptDebounceTimer);
+      this.transcriptDebounceTimer = undefined;
+    }
+    this.pendingTranscript = undefined;
+  }
+
   /**
    * Publish an STT envelope to the Bus if enabled
    */
@@ -227,7 +464,8 @@ export default class ChunkManager {
             chunkId,
             args[0], // audioData
             args[1], // sequenceNumber
-            args[2]  // timestampMs
+            args[2], // timestampMs
+            this.currentPredictiveAddrId // Vertical Pass
           );
           break;
         case "endpoint_request":
@@ -246,7 +484,9 @@ export default class ChunkManager {
             args[1], // latencyMs
             args[2], // silenceThreshold
             args[3], // modelId
-            args[4]  // redactionApplied
+            args[4], // redactionApplied
+            args[5], // addr_id (optional)
+            args[6]  // cfh_signature (optional)
           );
           break;
         case "transcript_final":
@@ -257,7 +497,9 @@ export default class ChunkManager {
             args[1], // latencyMs
             args[2], // silenceThreshold
             args[3], // modelId
-            args[4]  // redactionApplied
+            args[4], // redactionApplied
+            args[5], // addr_id (optional)
+            args[6]  // cfh_signature (optional)
           );
           break;
         case "session_stop":
@@ -581,10 +823,26 @@ export default class ChunkManager {
     const silenceThreshold = response.silenceThreshold || 0.3;
     const modelId = this.settings.getStreamingEndpoint()?.id || "default";
     
+    // Phase 3: Compute and attach predictive addr_id to transcript envelopes
+    const transcriptText = (response.alternatives || [])
+      .map((alt: any) => alt.transcript)
+      .filter(Boolean)
+      .join(" ");
+    
+    // Update predictive addr_id on transcript events
+    if (transcriptText) {
+      this.updatePredictiveAddrId(transcriptText, !!response.final);
+      
+      // Schedule SAS precheck with debounce (throttle/debounce)
+      this.scheduleSASPrecheck(transcriptText, !!response.final, chunk.id);
+    }
+    
     if (response.final) {
-      this.publishToBus("transcript_final", busAlternatives, chunkLatencyMs, silenceThreshold, modelId, false);
+      this.publishToBus("transcript_final", busAlternatives, chunkLatencyMs, silenceThreshold, modelId, false, 
+        this.currentPredictiveAddrId, this.currentPredictiveCFHSignature);
     } else {
-      this.publishToBus("transcript_partial", busAlternatives, chunkLatencyMs, silenceThreshold, modelId, false);
+      this.publishToBus("transcript_partial", busAlternatives, chunkLatencyMs, silenceThreshold, modelId, false,
+        this.currentPredictiveAddrId, this.currentPredictiveCFHSignature);
     }
 
     if (response.final) {
@@ -631,7 +889,13 @@ export default class ChunkManager {
       this.enqueue({ requestType: "audio", audio: Buffer.from(audio.buffer), chunkId: current.id });
 
       // Publish audio to Bus (shadow publish)
-      this.publishToBus("audio_append", Buffer.from(audio.buffer), this.audioSequenceNumber++, Date.now());
+      this.publishToBus(
+        "audio_append", 
+        Buffer.from(audio.buffer), 
+        this.audioSequenceNumber++, 
+        Date.now(),
+        this.currentPredictiveAddrId // Initial pass for sequence tracking
+      );
 
       if (!current.forceFinalized && current.audioSize >= this.maxAudioFramesPerChunk) {
         current.forceFinalized = true;
@@ -782,6 +1046,9 @@ export default class ChunkManager {
       if (sessionId) {
         this.routeSession(sessionId);
       }
+      
+      // Phase 3: Start presence pulse heartbeat
+      this.startPresencePulse();
     } else {
       // Publish session stop to Bus (shadow publish)
       const current = this.chunkQueue.getIndex(0);
@@ -790,6 +1057,14 @@ export default class ChunkManager {
         this.publishToBus("session_stop", current?.id || "", "user_toggle", durationMs);
       }
       this.tracking.endSession();
+      
+      // Phase 3: Stop presence pulse and cleanup throttle/debounce
+      this.stopPresencePulse();
+      this.cleanupThrottleDebounce();
+      
+      // Reset predictive addr_id
+      this.currentPredictiveAddrId = undefined;
+      this.currentPredictiveCFHSignature = undefined;
     }
     
     this.bridge.setState(

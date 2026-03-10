@@ -33,6 +33,11 @@ export interface STTCommonFields {
   session_id: string;
   /** Chunk identifier */
   chunk_id: string;
+  /** 
+   * Optional address identifier for address-first routing.
+   * Enables O(0) routing via pre-computed semantic address.
+   */
+  addr_id?: string;
   /** Tenant/organization identifier */
   tenant_id: string;
   /** ISO8601 timestamp */
@@ -270,12 +275,14 @@ export interface BusMessage {
 function createCommonFields(
   sessionId: string,
   chunkId: string,
-  tenantId: string = "default"
+  tenantId: string = "default",
+  addrId?: string
 ): STTCommonFields {
   return {
     message_id: uuid(),
     session_id: sessionId,
     chunk_id: chunkId,
+    addr_id: addrId,
     tenant_id: tenantId,
     timestamp: new Date().toISOString(),
     source: "maestro",
@@ -292,10 +299,11 @@ export function createSessionStartEnvelope(
   language: string,
   modelId: string,
   editorContext?: STTSessionStartPayload["editor_context"],
-  tenantId?: string
+  tenantId?: string,
+  addrId?: string
 ): STTSessionStartEnvelope {
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
     type: "stt.session.start",
     payload: {
       language,
@@ -314,10 +322,11 @@ export function createAudioAppendEnvelope(
   audioData: Buffer,
   sequenceNumber: number,
   timestampMs: number,
-  tenantId?: string
+  tenantId?: string,
+  addrId?: string
 ): STTAudioAppendEnvelope {
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
     type: "stt.audio.append",
     payload: {
       audio_data: audioData.toString("base64"),
@@ -335,10 +344,11 @@ export function createEndpointRequestEnvelope(
   chunkId: string,
   finalize: boolean,
   endpointType: "partial" | "final" | "force_final" = "partial",
-  tenantId?: string
+  tenantId?: string,
+  addrId?: string
 ): STTEndpointRequestEnvelope {
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
     type: "stt.endpoint.request",
     payload: {
       finalize,
@@ -358,10 +368,11 @@ export function createTranscriptPartialEnvelope(
   silenceThreshold: number,
   modelId: string,
   redactionApplied: boolean = false,
-  tenantId?: string
+  tenantId?: string,
+  addrId?: string
 ): STTTranscriptPartialEnvelope {
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
     type: "stt.transcript.partial",
     payload: {
       alternatives,
@@ -384,10 +395,11 @@ export function createTranscriptFinalEnvelope(
   silenceThreshold: number,
   modelId: string,
   redactionApplied: boolean = false,
-  tenantId?: string
+  tenantId?: string,
+  addrId?: string
 ): STTTranscriptFinalEnvelope {
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
     type: "stt.transcript.final",
     payload: {
       alternatives,
@@ -407,10 +419,11 @@ export function createSessionStopEnvelope(
   chunkId: string,
   reason: STTSessionStopPayload["reason"],
   durationMs: number,
-  tenantId?: string
+  tenantId?: string,
+  addrId?: string
 ): STTSessionStopEnvelope {
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
     type: "stt.session.stop",
     payload: {
       reason,
@@ -467,12 +480,12 @@ export function createAddressQueryEnvelope(
     tenantId?: string;
   }
 ): STTAddressQueryEnvelope {
-  const tenantId = options && options.tenantId ? options.tenantId : undefined;
-  const opcodeHint = options && options.opcodeHint ? options.opcodeHint : undefined;
-  const slotsHint = options && options.slotsHint ? options.slotsHint : undefined;
+  const tId = options && options.tenantId ? options.tenantId : undefined;
+  const oHint = options && options.opcodeHint ? options.opcodeHint : undefined;
+  const sHint = options && options.slotsHint ? options.slotsHint : undefined;
   
   return {
-    ...createCommonFields(sessionId, chunkId, tenantId),
+    ...createCommonFields(sessionId, chunkId, tId, addrId),
     type: "stt.address.query",
     payload: {
       transcript,
@@ -480,8 +493,8 @@ export function createAddressQueryEnvelope(
       cfh_signature: cfhSignature,
       confidence,
       is_final: isFinal,
-      opcode_hint: opcodeHint,
-      slots_hint: slotsHint,
+      opcode_hint: oHint,
+      slots_hint: sHint,
     },
   };
 }
