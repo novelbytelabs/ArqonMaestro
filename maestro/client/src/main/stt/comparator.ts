@@ -47,6 +47,7 @@ export interface ComparisonReport {
   total_comparisons: number;
   transcript_matches: number;
   transcript_mismatches: number;
+  commands_compared: number;
   command_matches: number;
   command_mismatches: number;
   avg_latency_websocket_ms: number;
@@ -54,7 +55,7 @@ export interface ComparisonReport {
   duplicates_detected: number;
   out_of_order_detected: number;
   transcript_match_rate: number;
-  command_match_rate: number;
+  command_match_rate: number | null; // Null if no commands compared
   latency_delta_avg_ms: number;
   generated_at: string;
 }
@@ -97,6 +98,9 @@ export default class STTComparator {
   private totalComparisons: number = 0;
   private transcriptMatches: number = 0;
   private transcriptMismatches: number = 0;
+  private commandsCompared: number = 0;
+  private commandMatches: number = 0;
+  private commandMismatches: number = 0;
   private totalLatencyWebsocket: number = 0;
   private totalLatencyBus: number = 0;
   private duplicatesDetected: number = 0;
@@ -409,19 +413,23 @@ export default class STTComparator {
     const transcriptMatchRate = this.totalComparisons > 0 
       ? this.transcriptMatches / this.totalComparisons 
       : 0;
+    const commandMatchRate = this.commandsCompared > 0
+      ? this.commandMatches / this.commandsCompared
+      : null;
 
     const report: ComparisonReport = {
       total_comparisons: this.totalComparisons,
       transcript_matches: this.transcriptMatches,
       transcript_mismatches: this.transcriptMismatches,
-      command_matches: 0, // Commands not yet compared
-      command_mismatches: 0,
+      commands_compared: this.commandsCompared,
+      command_matches: this.commandMatches,
+      command_mismatches: this.commandMismatches,
       avg_latency_websocket_ms: avgLatencyWebsocket,
       avg_latency_bus_ms: avgLatencyBus,
       duplicates_detected: this.duplicatesDetected,
       out_of_order_detected: this.outOfOrderDetected,
       transcript_match_rate: transcriptMatchRate,
-      command_match_rate: 1.0, // Commands not yet compared
+      command_match_rate: commandMatchRate,
       latency_delta_avg_ms: avgLatencyBus - avgLatencyWebsocket,
       generated_at: new Date().toISOString(),
     };
@@ -439,6 +447,12 @@ export default class STTComparator {
     this.log.logVerbose(`  Total Comparisons: ${report.total_comparisons}`);
     this.log.logVerbose(`  Transcript Matches: ${report.transcript_matches} (${(report.transcript_match_rate * 100).toFixed(1)}%)`);
     this.log.logVerbose(`  Transcript Mismatches: ${report.transcript_mismatches}`);
+    this.log.logVerbose(`  Commands Compared: ${report.commands_compared}`);
+    if (report.command_match_rate !== null) {
+      this.log.logVerbose(`  Command Match Rate: ${(report.command_match_rate * 100).toFixed(1)}%`);
+    } else {
+      this.log.logVerbose(`  Command Match Rate: N/A (Not Yet Compared)`);
+    }
     this.log.logVerbose(`  Avg Latency WS: ${report.avg_latency_websocket_ms.toFixed(0)}ms`);
     this.log.logVerbose(`  Avg Latency Bus: ${report.avg_latency_bus_ms.toFixed(0)}ms`);
     this.log.logVerbose(`  Latency Delta: ${report.latency_delta_avg_ms.toFixed(0)}ms`);
@@ -450,6 +464,7 @@ export default class STTComparator {
     this.tracking.logMetric("stt.comparison.report", {
       total_comparisons: report.total_comparisons,
       transcript_match_rate: report.transcript_match_rate,
+      command_match_rate: report.command_match_rate === null ? -1 : report.command_match_rate,
       avg_latency_websocket_ms: report.avg_latency_websocket_ms,
       avg_latency_bus_ms: report.avg_latency_bus_ms,
       latency_delta_avg_ms: report.latency_delta_avg_ms,

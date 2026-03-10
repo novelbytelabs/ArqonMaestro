@@ -113,7 +113,7 @@ function soundex(word: string): string {
 
   const chars: string[] = word.toLowerCase()
     .split("")
-    .filter(c => /[a-z]/.test(c));
+    .filter(c => c.trim().length > 0 && !/[^\w\u00C0-\u024F\u1E00-\u1EFF]/.test(c));
   
   if (chars.length === 0) {
     return "";
@@ -166,10 +166,11 @@ function soundex(word: string): string {
  */
 export function normalizeCanonical(q: string): string[] {
   const lower = q.toLowerCase();
-  // Keep only alphanumeric and spaces
+  
+  // Keep only alphanumeric and spaces (mimic Rust is_alphanumeric() || is_whitespace())
   let cleaned = "";
   for (const c of lower) {
-    if (/[a-z0-9]/.test(c) || /\s/.test(c)) {
+    if (/[a-z0-9]/i.test(c) || /\s/.test(c) || c.trim().length > 0 && !/[^\w\u00C0-\u024F\u1E00-\u1EFF]/.test(c)) {
       cleaned += c;
     } else {
       cleaned += ' ';
@@ -181,9 +182,9 @@ export function normalizeCanonical(q: string): string[] {
     .map(w => stemWord(w))
     .filter(w => !STOPWORDS.has(w) && w.length > 1)
     .map(w => {
-      // Only soundex pure alphabetic tokens.
+      // Only soundex pure alphabetic tokens. (matches Rust w.chars().all(|c| c.is_ascii_alphabetic()))
       // Keep numeric / alphanumeric tokens to prevent "doc 10" collapsing to "doc 72".
-      if (/^[a-z]+$/i.test(w)) {
+      if (/^[a-zA-Z]+$/.test(w)) {
         return soundex(w);
       } else {
         return w;

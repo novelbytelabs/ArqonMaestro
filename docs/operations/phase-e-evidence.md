@@ -46,6 +46,31 @@ Observed result:
 - End-to-end mock-bus exercise through `BusClient` and `MockArqonBusServer`.
 - Manual stage-approval gating wired into promotion logic.
 
+### 3) Gate 1: True Comparator Analytics
+
+- Replaced fake `command_match_rate: 1.0` and `0` mismatches with runtime-calculated fields (`commands_compared`, `command_match_rate : number | null`).
+- Verified `comparator.ts` accurately represents null metrics and mismatch scenarios.
+
+### 4) Gate 2: Bit-Parity CFH
+
+Command:
+
+```bash
+npx ts-node src/main/stt/cfh-parity.ts
+```
+
+Observed result:
+
+- `✓ [unicode accent] "café"`
+- `Passed: 19/19`
+- `ALL TESTS PASSED`
+- Complete bit-for-bit parity proven between TypeScript SplixMix64/SHA-256 and Rust Arqon Core.
+
+### 5) Gate 2: Address-First Predictive Routing
+
+- Verified `stt.address.query` envelope format execution in `BusClient.publishAddressQuery`.
+- Wired `executeSASPrecheck` in `chunk-manager.ts` to actively bypass audio streaming and cutover to the Bus path.
+
 ## Configuration Reality (Current Defaults)
 
 Current defaults in `maestro/client/src/main/settings.ts`:

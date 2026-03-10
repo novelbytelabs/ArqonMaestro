@@ -422,6 +422,19 @@ export default class ChunkManager {
         timestamp: Date.now(),
         valid: true
       };
+      
+      // Phase 3: Emit the Address Query (Zero-Copy routing path)
+      if (this.busClient && this.busClient.isEnabled() && this.tracking.getCurrentSessionId()) {
+        this.busClient.publishAddressQuery(
+          this.tracking.getCurrentSessionId()!,
+          chunkId,
+          text,
+          result.addrId,
+          result.cfhSignature,
+          1.0, // Precheck confidence
+          isFinal
+        );
+      }
     }
   }
 
