@@ -166,6 +166,33 @@ A hard-close declaration for Gate 1 or Gate 2 is valid only when all items below
 - **Exit evidence**
   - allow/block evidence pack and decision log entry
 
+### Gate 5: Control-Plane Coordinator (SpacetimeDB)
+
+- **Entry criteria**
+  - Gate 4 complete with evidence
+- **Deliverables**
+  - control-plane coordinator integrated in live request path before execution dispatch
+  - SpacetimeDB-backed authoritative operations for enqueue/lease/ack/fail/idempotency
+  - per-agent FIFO + fair-share round-robin arbitration with bounded inflight limits
+  - fail-closed behavior when coordinator backend is unavailable (when enabled)
+  - rollback knob proving Gate 5 can be disabled to restore Gate 4-safe behavior
+- **Required commands**
+  - `npm run build:main`
+  - `ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts`
+  - `npx ts-node test-integrity-smoke.ts`
+  - `npx ts-node src/main/stt/control-plane-coordinator.test.ts`
+  - `npx ts-node test-control-plane-smoke.ts`
+  - `npx ts-node test-control-plane-rollback.ts`
+- **Hard fail conditions**
+  - any execution path bypasses coordinator decision while Gate 5 is enabled
+  - coordinator-unavailable states execute requests in fail-closed mode
+  - queue fairness or per-agent ordering is unproven by executable tests
+  - evidence relies on placeholder/stub path instead of coordinator behavior
+- **Exit evidence**
+  - Gate 5 artifacts in `docs/operations/phase-e-evidence.md` using mandatory template
+  - decision log entry path and rollback proof path published
+  - residual risks explicitly listed and bounded
+
 ## Future/Research
 
 Roadmap topics remain out of immediate implementation scope unless promoted into an execution gate with explicit evidence requirements:

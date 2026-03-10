@@ -4,6 +4,11 @@ import Log from "../log";
 import Settings from "../settings";
 import STTTracking from "./tracking";
 import VoiceOutput from "./voice-output";
+import ControlPlaneCoordinator, {
+  ControlPlaneDispatchRequest,
+  MemoryControlPlaneStore,
+  SpacetimeDbControlPlaneStore,
+} from "./control-plane-coordinator";
 import {
   BusMessage,
   STTEnvelope,
@@ -152,6 +157,7 @@ export default class BusClient {
   // ACE Integrity Flow Handler
   private actionReviewHandler?: ActionReviewHandler;
   private actionBlockedHandler?: ActionBlockedHandler;
+  private controlPlane: ControlPlaneCoordinator;
 
   constructor(
     private settings: Settings,
@@ -160,6 +166,7 @@ export default class BusClient {
   ) {
     this.config = this.buildConfig();
     this.voiceOutput = new VoiceOutput(log, tracking);
+    this.controlPlane = this.buildControlPlaneCoordinator();
   }
 
   /**
@@ -177,6 +184,39 @@ export default class BusClient {
       maxReconnectAttempts: 10,
       pingInterval: 30000,
     };
+  }
+
+  private settingOrDefault<T>(settingName: string, defaultValue: T): T {
+    const candidate = (this.settings as any)[settingName];
+    if (typeof candidate !== "function") {
+      return defaultValue;
+    }
+    try {
+      return candidate.call(this.settings);
+    } catch {
+      return defaultValue;
+    }
+  }
+
+  private buildControlPlaneCoordinator(): ControlPlaneCoordinator {
+    const enabled = this.settingOrDefault<boolean>("getArqonControlPlaneEnabled", false);
+    const spacetimeUrl = this.settingOrDefault<string>("getArqonControlPlaneSpacetimeDbUrl", "http://localhost:3000");
+    const store = enabled ? new SpacetimeDbControlPlaneStore(spacetimeUrl) : new MemoryControlPlaneStore();
+    return new ControlPlaneCoordinator(
+      {
+        enabled,
+        spacetimeDbUrl: spacetimeUrl,
+        failClosed: this.settingOrDefault<boolean>("getArqonControlPlaneFailClosed", true),
+        agentInflightLimit: this.settingOrDefault<number>("getArqonControlPlaneAgentInflightLimit", 2),
+        globalInflightLimit: this.settingOrDefault<number>("getArqonControlPlaneGlobalInflightLimit", 8),
+        leaseMs: 5000,
+        maxRetries: 2,
+        ownerId: this.config.clientId,
+      },
+      store,
+      this.tracking,
+      this.log
+    );
   }
 
   /**
@@ -489,14 +529,20 @@ export default class BusClient {
     // Process transcript responses for comparison
     this.processTranscriptResponse(message);
 
-    // Handle speech requests (always handled for testing/playback)
+    // Handle speech requests through control-plane coordinator.
     if (message.payload.type === "stt.speech.request") {
-      this.handleSpeechRequest(message.payload);
+      this.submitControlPlaneRequest(message, "stt.speech.request", async () => {
+        this.handleSpeechRequest(message.payload);
+      });
+      return;
     }
     
-    // Handle constitutive action reviews
+    // Handle constitutive action reviews through control-plane coordinator.
     if (message.payload.type === "stt.action.review") {
-      this.handleActionReview(message.payload);
+      this.submitControlPlaneRequest(message, "stt.action.review", async () => {
+        await this.handleActionReview(message.payload);
+      });
+      return;
     }
 
     // Handle unilateral blocked actions
@@ -518,6 +564,33 @@ export default class BusClient {
     // TODO: Handle responses from Bus if not in shadow mode
     // For now, we just log them
     this.log.logVerbose(`[BusClient] Received: ${message.payload.type}`);
+  }
+
+  private submitControlPlaneRequest(
+    message: BusMessage,
+    requestType: "stt.speech.request" | "stt.action.review",
+    executor: () => Promise<void>
+  ): void {
+    const payload: any = message.payload;
+    const messageId = payload && payload.message_id ? String(payload.message_id) : uuid();
+    const agentId = message.from || (payload && payload.source) || "unknown-agent";
+    const request: ControlPlaneDispatchRequest = {
+      requestId: messageId,
+      requestType,
+      agentId: String(agentId),
+      sessionId: payload && payload.session_id ? String(payload.session_id) : "unknown-session",
+      chunkId: payload && payload.chunk_id ? String(payload.chunk_id) : "unknown-chunk",
+      fingerprint: `${requestType}:${messageId}`,
+      payload,
+    };
+
+    this.controlPlane.submit(request, executor).then((accepted) => {
+      if (!accepted) {
+        this.log.logVerbose(`[BusClient] Control-plane rejected request ${request.requestId}`);
+      }
+    }).catch((error) => {
+      this.log.logError(`[BusClient] Control-plane submit failed: ${error}`);
+    });
   }
 
   /**

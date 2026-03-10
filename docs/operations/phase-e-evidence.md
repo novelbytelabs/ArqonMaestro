@@ -1,10 +1,11 @@
-# Phase E Evidence: Gates 1-4 Hard-Close
+# Phase E Evidence: Gates 1-5 Hard-Close
 
 This evidence pack records hard-close artifacts for:
 - `Gate 1`: Comparator Confidence Baseline
 - `Gate 2`: Address-First Pivot (CFH + AddrId)
 - `Gate 3`: Voice Output and Replay Controls
 - `Gate 4`: Integrity Handshake (ACE/Anchor)
+- `Gate 5`: Control-Plane Coordinator (SpacetimeDB)
 
 All claims below are bounded to command output artifacts.
 
@@ -250,9 +251,121 @@ Interpretation:
 Gate 4 decision log path:
 - `docs/decision-log.md` (`ADM-032`)
 
+## Gate 5 Artifacts
+
+### Artifact G5-A: Build Integrity
+- `command`: `cd maestro/client && npm run build:main`
+- `timestamp`: `2026-03-10T14:36:17-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+> arqon-maestro@2.0.2 build:main
+> webpack --config main.webpack.ts --mode=production
+webpack 5.72.0 compiled successfully in 22955 ms
+```
+
+### Artifact G5-B: Regression Harness (No Gate 1-4 Regression)
+- `command`: `cd maestro/client && ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts`
+- `timestamp`: `2026-03-10T14:36:17-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+[PASS] normal_operation
+[PASS] pause_resume
+[PASS] reconnect
+[PASS] duplicate_handling
+[PASS] out_of_order
+[PASS] malformed
+[PASS] replay
+[PASS] command_execution
+[PASS] speech_replay
+[PASS] transcript_mismatch
+[PASS] command_mismatch
+[PASS] integrity_allow
+[PASS] integrity_block
+[PASS] integrity_policy_block
+Overall passing: true
+```
+
+### Artifact G5-C: Integrity Compatibility
+- `command`: `cd maestro/client && npx ts-node test-integrity-smoke.ts`
+- `timestamp`: `2026-03-10T14:36:17-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+[PASS] integrity_allow
+[PASS] integrity_block
+[PASS] integrity_policy_block
+[PASS] integrity_default_deny
+{
+  "probe": "stt.integrity.handshake",
+  "status": "OK"
+}
+```
+
+### Artifact G5-D: Coordinator Arbitration + Idempotency + Fail-Closed
+- `command`: `cd maestro/client && npx ts-node src/main/stt/control-plane-coordinator.test.ts`
+- `timestamp`: `2026-03-10T14:36:51-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+✓ per-agent FIFO + fair-share round-robin dispatch
+✓ idempotency dedupe blocks duplicate submissions
+✓ fail-closed blocks requests when backbone is unhealthy
+✓ retry then dead-letter after retry budget is exhausted
+Summary: 4 passed, 0 failed
+```
+
+### Artifact G5-E: Targeted Coordinator Smoke
+- `command`: `cd maestro/client && npx ts-node test-control-plane-smoke.ts`
+- `timestamp`: `2026-03-10T14:36:51-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+[ControlPlane] Blocking request cp-blocked: SpacetimeDB unavailable
+{
+  "probe": "stt.control_plane.coordinator",
+  "status": "OK",
+  "checks": {
+    "accepted_initial_requests": true,
+    "fair_dispatch_order": true,
+    "ack_success_recorded": true,
+    "fail_closed_block": true
+  }
+}
+```
+
+### Artifact G5-F: Rollback Proof (Gate 5 Disabled)
+- `command`: `cd maestro/client && npx ts-node test-control-plane-rollback.ts`
+- `timestamp`: `2026-03-10T14:37:12-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+{
+  "probe": "stt.control_plane.rollback",
+  "status": "OK",
+  "checks": {
+    "coordinator_disabled_accepts_request": true,
+    "request_executed_without_coordinator_path": true
+  }
+}
+```
+
+Interpretation:
+- Gate 5 enabled path enforces fail-closed behavior when coordinator backbone is unavailable.
+- Gate 5 disabled path preserves Gate 4-safe execution behavior (rollback knob works).
+
+Gate 5 decision log path:
+- `docs/decision-log.md` (`ADM-033`)
+
+Gate 5 residual risks:
+1. SpacetimeDB integration is validated with coordinator contract semantics; production cluster soak and failover drills remain follow-on operational work.
+2. Queue fairness and retry behavior are validated at test scale; sustained high-contention tuning of inflight limits remains an ops tuning task.
+
 ## Hard-Close Verdict
 
 - **Gate 1**: `HARD-CLOSED`
 - **Gate 2**: `HARD-CLOSED`
 - **Gate 3**: `HARD-CLOSED`
 - **Gate 4**: `HARD-CLOSED`
+- **Gate 5**: `HARD-CLOSED`

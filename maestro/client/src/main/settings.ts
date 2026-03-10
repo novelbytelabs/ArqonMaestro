@@ -865,4 +865,63 @@ export default class Settings {
   setArqonBusStageApproval(approved: boolean) {
     this.set("system", "arqon_bus_stage_approval", approved);
   }
+
+  // ========================================================================
+  // Arqon Control Plane Configuration (Gate 5)
+  // ========================================================================
+
+  /**
+   * Get whether control-plane coordination is enabled.
+   */
+  getArqonControlPlaneEnabled(): boolean {
+    return this.get("system", "arqon_control_plane_enabled", false);
+  }
+
+  setArqonControlPlaneEnabled(enabled: boolean) {
+    this.set("system", "arqon_control_plane_enabled", enabled);
+  }
+
+  /**
+   * Get SpacetimeDB URL for control-plane coordination state.
+   */
+  getArqonControlPlaneSpacetimeDbUrl(): string {
+    return this.get("system", "arqon_control_plane_spacetimedb_url", "http://localhost:3000");
+  }
+
+  setArqonControlPlaneSpacetimeDbUrl(url: string) {
+    this.set("system", "arqon_control_plane_spacetimedb_url", url);
+  }
+
+  /**
+   * Fail-closed behavior when control-plane backbone is unavailable.
+   */
+  getArqonControlPlaneFailClosed(): boolean {
+    return this.get("system", "arqon_control_plane_fail_closed", true);
+  }
+
+  setArqonControlPlaneFailClosed(enabled: boolean) {
+    this.set("system", "arqon_control_plane_fail_closed", enabled);
+  }
+
+  /**
+   * Maximum in-flight requests per agent in the coordinator.
+   */
+  getArqonControlPlaneAgentInflightLimit(): number {
+    return this.get("system", "arqon_control_plane_agent_inflight_limit", 2);
+  }
+
+  setArqonControlPlaneAgentInflightLimit(limit: number) {
+    this.set("system", "arqon_control_plane_agent_inflight_limit", Math.max(1, Math.floor(limit)));
+  }
+
+  /**
+   * Maximum in-flight requests globally in the coordinator.
+   */
+  getArqonControlPlaneGlobalInflightLimit(): number {
+    return this.get("system", "arqon_control_plane_global_inflight_limit", 8);
+  }
+
+  setArqonControlPlaneGlobalInflightLimit(limit: number) {
+    this.set("system", "arqon_control_plane_global_inflight_limit", Math.max(1, Math.floor(limit)));
+  }
 }

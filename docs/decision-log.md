@@ -462,6 +462,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
     - no-handler uncertainty paths fail closed (`default-deny`)
  
 ---
+
+## ADM-033: Gate 5 Control-Plane Coordinator Uses SpacetimeDB Contracts With Fail-Closed Arbitration
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Add `ControlPlaneCoordinator` on the STT request execution path with SpacetimeDB-backed control-plane operations (`enqueue`, `lease`, `ack`, `retry/dead-letter`, `idempotency`) and enforce per-agent FIFO + fair-share round-robin scheduling under bounded per-agent/global inflight limits.
+- **Why**: Multi-agent request contention needs a single authoritative arbitration layer to prevent duplicate execution, starvation, and unsafe execution during backend uncertainty.
+- **Consequences**:
+  - Gate 5-enabled mode has no execution bypass around coordinator decisions
+  - coordinator backend unavailability in fail-closed mode produces explicit refusal (`stt.control.blocked_fail_closed`) instead of optimistic execution
+  - rollback remains one switch: `arqon_control_plane_enabled=false` restores Gate 4-safe request flow
+  - telemetry now emits coordinator lifecycle signals (`enqueue`, `dispatch`, `retry`, `dead_letter`, queue latency)
+
+---
  
 ## Template for Future Decisions
 

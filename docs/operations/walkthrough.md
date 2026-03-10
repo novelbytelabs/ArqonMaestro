@@ -4,7 +4,7 @@
 
 - **Decision**: `GO` for manual phased rollout.
 - **Constraint**: Keep conservative defaults until explicit operator promotion.
-- **Gate Status**: `Gate 1 HARD-CLOSED`, `Gate 2 HARD-CLOSED`, `Gate 3 HARD-CLOSED`, `Gate 4 HARD-CLOSED` (see evidence pack).
+- **Gate Status**: `Gate 1 HARD-CLOSED`, `Gate 2 HARD-CLOSED`, `Gate 3 HARD-CLOSED`, `Gate 4 HARD-CLOSED`, `Gate 5 HARD-CLOSED` (see evidence pack).
 
 ## Recovery Walkthrough
 
@@ -16,6 +16,7 @@
 6. Implemented non-blocking native voice playback (`VoiceOutput`) with idempotency constraints.
 7. Hardened Gate 3 verification by isolating replay smoke onto a dedicated default port and enforcing honest playback failure handling.
 8. Completed Gate 4 integrity handshake validation with strict allow/block/policy/default-deny checks (no undefined payload pass-through).
+9. Implemented Gate 5 control-plane coordinator with SpacetimeDB-backed contract, per-agent FIFO + fair-share scheduling, bounded inflight limits, idempotency, retry/dead-letter flow, and fail-closed behavior.
 
 ## Evidence Snapshot
 
@@ -43,6 +44,19 @@ npx ts-node test-integrity-smoke.ts
 
 Result: `allow`, `block`, `policy block`, and `default deny` probes all pass with explicit signal verification, exit `0`.
 
+### Gate 5 Control-Plane Coordinator
+
+```bash
+npx ts-node src/main/stt/control-plane-coordinator.test.ts
+npx ts-node test-control-plane-smoke.ts
+npx ts-node test-control-plane-rollback.ts
+```
+
+Result:
+- Coordinator tests pass (`4/4`) for FIFO, fair-share, idempotency, fail-closed, retry/dead-letter.
+- Targeted smoke confirms dispatch and fail-closed refusal when backend is unavailable.
+- Rollback smoke confirms `arqon_control_plane_enabled=false` restores pre-coordinator execution path.
+
 ### CFH TS/Rust Parity
 
 ```bash
@@ -66,6 +80,8 @@ Current defaults remain conservative:
 - `arqon_bus_cutover_enabled = false`
 - `arqon_bus_traffic_percentage = 0`
 - `arqon_bus_current_stage = "shadow"`
+- `arqon_control_plane_enabled = false`
+- `arqon_control_plane_fail_closed = true`
 
 ## Rollout Recommendation
 
