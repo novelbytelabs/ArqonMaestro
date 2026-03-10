@@ -4,6 +4,7 @@ import STTTracking from "./tracking";
 import BusClient from "./bus-client";
 import TrafficRouter from "./traffic-router";
 import STTComparator from "./comparator";
+import { STTActionBlockedPayload, STTActionReviewPayload } from "./envelopes";
 
 /**
  * Soak test configuration
@@ -96,7 +97,10 @@ export type RegressionScenario =
   | "command_execution"
   | "speech_replay"
   | "transcript_mismatch"
-  | "command_mismatch";
+  | "command_mismatch"
+  | "integrity_allow"
+  | "integrity_block"
+  | "integrity_policy_block";
 
 /**
  * Regression test result
@@ -136,19 +140,15 @@ export class RegressionTestRunner {
       try {
         await testFn.call(this);
       } catch (error: any) {
-        // testNormalOperation records its own success/failure
-        // but for NotImplemented ones we just catch here
-        if (error.message.includes("Not Implemented")) {
-          this.results.push({
-            scenario: name as any,
-            passed: false,
-            duration: Date.now() - start,
-            error: error.message,
-            details: {}
-          });
-        } else {
-          console.error(`Error in ${name}:`, error);
-        }
+        const message = error && error.message ? error.message : String(error);
+        this.results.push({
+          scenario: name as any,
+          passed: false,
+          duration: Date.now() - start,
+          error: message,
+          details: {},
+        });
+        this.log.logError(`[RegressionTest] ${name} failed: ${message}`);
       }
     };
 
@@ -163,6 +163,9 @@ export class RegressionTestRunner {
     await runTest("speech_replay", this.testSpeechReplay);
     await runTest("transcript_mismatch", this.testTranscriptMismatch);
     await runTest("command_mismatch", this.testCommandMismatch);
+    await runTest("integrity_allow", this.testIntegrityAllow);
+    await runTest("integrity_block", this.testIntegrityBlock);
+    await runTest("integrity_policy_block", this.testIntegrityPolicyBlock);
 
     return this.results;
   }
@@ -499,6 +502,111 @@ export class RegressionTestRunner {
 
       this.results.push({ scenario: "command_mismatch" as any, passed: true, duration: Date.now() - start, details: report });
     } finally {
+      busClient.disconnect();
+    }
+  }
+
+  /**
+   * Test integrity handshake allow path.
+   */
+  private async testIntegrityAllow(): Promise<void> {
+    const start = Date.now();
+    const { busClient } = await this.setupTestSession("test-integrity-allow");
+    try {
+      let reviewPayload: STTActionReviewPayload | undefined;
+      busClient.setActionReviewHandler(async (payload) => {
+        reviewPayload = payload;
+        return true;
+      });
+
+      busClient.publishSessionStart("test-integrity-allow", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-integrity-allow", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 400));
+
+      if (!reviewPayload) throw new Error("Did not receive ACE review request");
+      if (reviewPayload.action_id !== "action-123") throw new Error(`Unexpected action_id: ${reviewPayload.action_id}`);
+      if (!reviewPayload.summary || !reviewPayload.summary.includes("Destructive")) {
+        throw new Error(`Unexpected summary: ${reviewPayload.summary}`);
+      }
+
+      this.results.push({
+        scenario: "integrity_allow",
+        passed: true,
+        duration: Date.now() - start,
+        details: { action_id: reviewPayload.action_id, decision: "allow" },
+      });
+    } finally {
+      busClient.clearActionReviewHandler();
+      busClient.disconnect();
+    }
+  }
+
+  /**
+   * Test integrity handshake block path.
+   */
+  private async testIntegrityBlock(): Promise<void> {
+    const start = Date.now();
+    const { busClient } = await this.setupTestSession("test-integrity-block");
+    try {
+      let reviewPayload: STTActionReviewPayload | undefined;
+      busClient.setActionReviewHandler(async (payload) => {
+        reviewPayload = payload;
+        return false;
+      });
+
+      busClient.publishSessionStart("test-integrity-block", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-integrity-block", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 400));
+
+      if (!reviewPayload) throw new Error("Did not receive ACE review request");
+      if (reviewPayload.action_id !== "action-123") throw new Error(`Unexpected action_id: ${reviewPayload.action_id}`);
+
+      this.results.push({
+        scenario: "integrity_block",
+        passed: true,
+        duration: Date.now() - start,
+        details: { action_id: reviewPayload.action_id, decision: "block" },
+      });
+    } finally {
+      busClient.clearActionReviewHandler();
+      busClient.disconnect();
+    }
+  }
+
+  /**
+   * Test unilateral policy block signal from the Bus.
+   */
+  private async testIntegrityPolicyBlock(): Promise<void> {
+    const start = Date.now();
+    const { busClient } = await this.setupTestSession("test-integrity-policy-block");
+    try {
+      let blockedPayload: STTActionBlockedPayload | undefined;
+      busClient.setActionBlockedHandler((payload) => {
+        blockedPayload = payload;
+      });
+
+      busClient.publishSessionStart("test-integrity-policy-block", "chunk-1", "en-US", "mock");
+      busClient.publishAudioAppend("test-integrity-policy-block", "chunk-1", Buffer.from("audio"), 1, Date.now());
+      await new Promise(r => setTimeout(r, 400));
+
+      if (!blockedPayload) throw new Error("Did not receive unilateral policy block");
+      if (blockedPayload.action_id !== "action-illegal") throw new Error(`Unexpected action_id: ${blockedPayload.action_id}`);
+      if (blockedPayload.reason !== "policy") throw new Error(`Unexpected reason: ${blockedPayload.reason}`);
+      if (!blockedPayload.message || !blockedPayload.message.includes("prohibited")) {
+        throw new Error(`Unexpected blocked message: ${blockedPayload.message}`);
+      }
+
+      this.results.push({
+        scenario: "integrity_policy_block",
+        passed: true,
+        duration: Date.now() - start,
+        details: {
+          action_id: blockedPayload.action_id,
+          reason: blockedPayload.reason,
+        },
+      });
+    } finally {
+      busClient.clearActionBlockedHandler();
       busClient.disconnect();
     }
   }

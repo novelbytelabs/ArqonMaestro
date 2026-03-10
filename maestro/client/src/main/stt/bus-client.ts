@@ -64,6 +64,10 @@ export type ActionReviewHandler = (
   payload: STTActionReviewPayload
 ) => Promise<boolean>;
 
+export type ActionBlockedHandler = (
+  payload: STTActionBlockedPayload
+) => void;
+
 /**
  * Connection state for the Arqon Bus client
  */
@@ -147,6 +151,7 @@ export default class BusClient {
 
   // ACE Integrity Flow Handler
   private actionReviewHandler?: ActionReviewHandler;
+  private actionBlockedHandler?: ActionBlockedHandler;
 
   constructor(
     private settings: Settings,
@@ -276,6 +281,17 @@ export default class BusClient {
    */
   clearActionReviewHandler(): void {
     this.actionReviewHandler = undefined;
+  }
+
+  /**
+   * Register a handler for unilateral blocked-action notifications.
+   */
+  setActionBlockedHandler(handler: ActionBlockedHandler): void {
+    this.actionBlockedHandler = handler;
+  }
+
+  clearActionBlockedHandler(): void {
+    this.actionBlockedHandler = undefined;
   }
 
   /**
@@ -523,7 +539,11 @@ export default class BusClient {
    * Handle constitutive action review request (ACE/Anchor)
    */
   private async handleActionReview(payload: any): Promise<void> {
-    const reviewPayload = payload as STTActionReviewPayload;
+    const reviewPayload = payload && payload.payload ? payload.payload as STTActionReviewPayload : undefined;
+    if (!reviewPayload || !reviewPayload.action_id) {
+      this.log.logError("[BusClient] Invalid stt.action.review payload received");
+      return;
+    }
     
     this.tracking.logMetric("stt.integrity.review_requested", {
       action_id: reviewPayload.action_id,
@@ -556,7 +576,11 @@ export default class BusClient {
    * Handle unilateral blocked action from Bus
    */
   private handleActionBlocked(payload: any): void {
-    const blockedPayload = payload as STTActionBlockedPayload;
+    const blockedPayload = payload && payload.payload ? payload.payload as STTActionBlockedPayload : undefined;
+    if (!blockedPayload || !blockedPayload.action_id) {
+      this.log.logError("[BusClient] Invalid stt.action.blocked payload received");
+      return;
+    }
     
     this.tracking.logMetric("stt.integrity.blocked_by_policy", {
       action_id: blockedPayload.action_id,
@@ -565,6 +589,14 @@ export default class BusClient {
     
     // Always log this explicitly since it's a security/policy decision
     this.log.logVerbose(`[BusClient] ACTION BLOCKED by Bus: ${blockedPayload.message}`);
+
+    if (this.actionBlockedHandler) {
+      try {
+        this.actionBlockedHandler(blockedPayload);
+      } catch (error) {
+        this.log.logError(`[BusClient] Action blocked handler error: ${error}`);
+      }
+    }
     
     // Fire a notification to the user
     try {

@@ -448,13 +448,18 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 ## ADM-032: Gate 4 Integrity Handshake (ACE) via Registered Handlers
 - **Date**: 2026-03-10
 - **Status**: Accepted
-- **Decision**: Implemented the Integrity Handshake (ACE/Anchor) using asynchronous registered handlers in `BusClient`. The client intercepts `stt.action.review` envelopes and delegates to a registered `ActionReviewHandler` (e.g., human-in-the-loop or local policy) before publishing `allow` or `block` signals back to the Bus.
-- **Why**: This pattern provides a strict constitutive gate between intent and execution. By keeping the handler asynchronous, we support complex decision-making processes (including UI interactions or remote policy checks) without blocking the core WebSocket pump.
+- **Decision**: Implemented the Integrity Handshake (ACE/Anchor) using asynchronous registered handlers in `BusClient`, strict nested envelope payload parsing, and a targeted integrity smoke command (`test-integrity-smoke.ts`) that verifies allow, block, policy-block, and default-deny behavior.
+- **Why**: A constitutive gate is only trustworthy when payload fields are parsed from the actual wire schema and tests assert concrete action IDs/signals. This prevents false green states caused by undefined payloads or shallow scenario checks.
 - **Consequences**:
   - `BusClient` now manages `actionReviewHandler` registration
+  - `BusClient` now supports `actionBlockedHandler` for blocked-action semantic signaling
+  - invalid `stt.action.review`/`stt.action.blocked` payloads are rejected instead of being treated as valid
   - Failure to register a handler results in automatic `block` for safety (constitutive by default)
-  - `stt.action.blocked` events trigger immediate user notifications via Electron's notification API
-  - Node 12 compatibility work was required across the audio stack to support current execution environments for these handlers
+  - targeted smoke validation now proves:
+    - `stt.action.allow` published for approved review
+    - `stt.action.block` published for rejected review
+    - `stt.action.blocked` policy events surface semantic failure details
+    - no-handler uncertainty paths fail closed (`default-deny`)
  
 ---
  

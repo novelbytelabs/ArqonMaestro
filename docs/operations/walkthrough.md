@@ -4,7 +4,7 @@
 
 - **Decision**: `GO` for manual phased rollout.
 - **Constraint**: Keep conservative defaults until explicit operator promotion.
-- **Gate Status**: `Gate 1 HARD-CLOSED`, `Gate 2 HARD-CLOSED`, `Gate 3 HARD-CLOSED` (see evidence pack).
+- **Gate Status**: `Gate 1 HARD-CLOSED`, `Gate 2 HARD-CLOSED`, `Gate 3 HARD-CLOSED`, `Gate 4 HARD-CLOSED` (see evidence pack).
 
 ## Recovery Walkthrough
 
@@ -15,6 +15,7 @@
 5. Reconciled documentation to reflect code reality and test evidence.
 6. Implemented non-blocking native voice playback (`VoiceOutput`) with idempotency constraints.
 7. Hardened Gate 3 verification by isolating replay smoke onto a dedicated default port and enforcing honest playback failure handling.
+8. Completed Gate 4 integrity handshake validation with strict allow/block/policy/default-deny checks (no undefined payload pass-through).
 
 ## Evidence Snapshot
 
@@ -32,7 +33,15 @@ Result: success (`webpack ... compiled successfully`, exit `0`).
 npx ts-node test-soak.ts
 ```
 
-Result: `11/11` passing, `Overall passing: true`, exit `0`.
+Result: `14/14` passing, `Overall passing: true`, exit `0`.
+
+### Integrity Handshake
+
+```bash
+npx ts-node test-integrity-smoke.ts
+```
+
+Result: `allow`, `block`, `policy block`, and `default deny` probes all pass with explicit signal verification, exit `0`.
 
 ### CFH TS/Rust Parity
 

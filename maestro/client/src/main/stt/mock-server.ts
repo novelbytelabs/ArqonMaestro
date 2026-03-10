@@ -6,6 +6,7 @@ import { v4 as uuid } from "uuid";
  */
 class MockArqonBusServer {
   private wss: Server;
+  private integritySignals: Array<{ type: "stt.action.allow" | "stt.action.block"; actionId: string }> = [];
   
   constructor(port: number) {
     this.wss = new Server({ port });
@@ -90,7 +91,40 @@ class MockArqonBusServer {
         return;
       }
 
+      if (sessionId === "test-integrity-allow" || sessionId === "test-integrity-block") {
+        this.sendActionReview(
+          ws,
+          sessionId,
+          message.payload.chunk_id,
+          "action-123",
+          "Destructive file deletion requested",
+          { path: "/tmp/foo", force: true }
+        );
+        return;
+      }
+
+      if (sessionId === "test-integrity-policy-block") {
+        this.sendActionBlocked(
+          ws,
+          sessionId,
+          message.payload.chunk_id,
+          "action-illegal",
+          "policy",
+          "Direct root access is prohibited by corporate security policy."
+        );
+        return;
+      }
+
       this.sendPartial(ws, sessionId, message.payload.chunk_id, "mock partial transcript");
+    }
+
+    if (message.payload && (message.payload.type === "stt.action.allow" || message.payload.type === "stt.action.block")) {
+      const actionId = message.payload.payload && message.payload.payload.action_id;
+      console.log(`[MockServer] Received integrity signal: ${message.payload.type} for action ${actionId}`);
+      this.integritySignals.push({
+        type: message.payload.type,
+        actionId,
+      });
     }
     
     // Auto-respond to endpoint requests with finals
@@ -200,8 +234,80 @@ class MockArqonBusServer {
     ws.send(JSON.stringify(response));
   }
 
+  private sendActionReview(ws: WebSocket, sessionId: string, chunkId: string, actionId: string, summary: string, context: any) {
+    const response = {
+      version: "1.0",
+      id: `arq_${uuid()}`,
+      type: "event",
+      room: "stt",
+      channel: "transcription",
+      from: "mock-server",
+      timestamp: new Date().toISOString(),
+      payload: {
+        message_id: uuid(),
+        session_id: sessionId,
+        chunk_id: chunkId,
+        tenant_id: "default",
+        timestamp: new Date().toISOString(),
+        source: "bus",
+        version: "1.0",
+        type: "stt.action.review",
+        payload: {
+          action_id: actionId,
+          summary,
+          context,
+          timeout_ms: 5000,
+        },
+      },
+    };
+    ws.send(JSON.stringify(response));
+  }
+
+  private sendActionBlocked(
+    ws: WebSocket,
+    sessionId: string,
+    chunkId: string,
+    actionId: string,
+    reason: "policy" | "timeout" | "user_rejected" | "unsupported",
+    message: string
+  ) {
+    const response = {
+      version: "1.0",
+      id: `arq_${uuid()}`,
+      type: "event",
+      room: "stt",
+      channel: "transcription",
+      from: "mock-server",
+      timestamp: new Date().toISOString(),
+      payload: {
+        message_id: uuid(),
+        session_id: sessionId,
+        chunk_id: chunkId,
+        tenant_id: "default",
+        timestamp: new Date().toISOString(),
+        source: "bus",
+        version: "1.0",
+        type: "stt.action.blocked",
+        payload: {
+          action_id: actionId,
+          reason,
+          message,
+        },
+      },
+    };
+    ws.send(JSON.stringify(response));
+  }
+
   public stop() {
     this.wss.close();
+  }
+
+  public getIntegritySignals(): Array<{ type: "stt.action.allow" | "stt.action.block"; actionId: string }> {
+    return [...this.integritySignals];
+  }
+
+  public clearIntegritySignals(): void {
+    this.integritySignals = [];
   }
 }
 

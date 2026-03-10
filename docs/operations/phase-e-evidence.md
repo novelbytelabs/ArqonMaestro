@@ -1,8 +1,10 @@
-# Phase E Evidence: Gate 1 & Gate 2 Hard-Close
+# Phase E Evidence: Gates 1-4 Hard-Close
 
 This evidence pack records hard-close artifacts for:
 - `Gate 1`: Comparator Confidence Baseline
 - `Gate 2`: Address-First Pivot (CFH + AddrId)
+- `Gate 3`: Voice Output and Replay Controls
+- `Gate 4`: Integrity Handshake (ACE/Anchor)
 
 All claims below are bounded to command output artifacts.
 
@@ -115,21 +117,21 @@ Rollback proof: rollback forces stage to `rollback`, traffic percentage to `0`, 
 ## Gate 3 Artifacts
 
 ### Artifact G3-A: Voice Output Compilation
-- `command`: `npm run build:main`
-- `timestamp`: `2026-03-10T10:49:04-04:00`
+- `command`: `cd maestro/client && npm run build:main`
+- `timestamp`: `2026-03-10T11:24:44-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
 > arqon-maestro@2.0.2 build:main
 > webpack --config main.webpack.ts --mode=production
 assets by status 195 KiB [cached] 20 assets
-asset main.js 949 KiB [emitted] [minimized] (name: main) 1 related asset
-webpack 5.72.0 compiled successfully in 21557 ms
+asset main.js 951 KiB [emitted] [minimized] (name: main) 1 related asset
+webpack 5.72.0 compiled successfully in 22208 ms
 ```
 
 ### Artifact G3-B: Gate 3 Regression Harness
-- `command`: `npx ts-node test-soak.ts`
-- `timestamp`: `2026-03-10T10:49:14-04:00`
+- `command`: `cd maestro/client && npx ts-node test-soak.ts`
+- `timestamp`: `2026-03-10T11:24:55-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
@@ -145,13 +147,16 @@ webpack 5.72.0 compiled successfully in 21557 ms
 [PASS] speech_replay
 [PASS] transcript_mismatch
 [PASS] command_mismatch
+[PASS] integrity_allow
+[PASS] integrity_block
+[PASS] integrity_policy_block
 
 Overall passing: true
 ```
 
 ### Artifact G3-C: Targeted Replay Smoke & Idempotency Proof
-- `command`: `npx ts-node test-replay-smoke.ts`
-- `timestamp`: `2026-03-10T10:49:25-04:00`
+- `command`: `cd maestro/client && npx ts-node test-replay-smoke.ts`
+- `timestamp`: `2026-03-10T11:24:56-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
@@ -162,7 +167,7 @@ Mock Arqon Bus Server listening on ws://localhost:9101
 [BusClient] Received: stt.speech.request
 [VoiceOutput] Ignoring replayed speech request: speech-replay-msg-999
 [BusClient] Received: stt.speech.request
-[VoiceOutput] Playback finished for speech-replay-msg-999 in 179ms (exit code 0)
+[VoiceOutput] Playback finished for speech-replay-msg-999 in 168ms (exit code 0)
 
 {
   "probe": "stt.speech.replay_deduplication",
@@ -175,8 +180,8 @@ Mock Arqon Bus Server listening on ws://localhost:9101
 Port isolation note: replay smoke uses a dedicated default port (`9101`) to avoid cross-test collisions with soak (`9100`).
 
 ### Artifact G3-D: Gate 3 Rollback Proof
-- `command`: `npx ts-node test-rollback-gate3.ts`
-- `timestamp`: `2026-03-10T10:49:34-04:00`
+- `command`: `cd maestro/client && npx ts-node test-rollback-gate3.ts`
+- `timestamp`: `2026-03-10T11:25:28-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
@@ -190,8 +195,64 @@ Error in speech_replay: Error: BusClient failed to connect to mock server
 Gate 3 decision log paths:
 - `docs/decision-log.md` (`ADM-030`, `ADM-031`)
 
+## Gate 4 Artifacts
+
+### Artifact G4-A: Integrated Regression Coverage (Allow/Block/Policy)
+- `command`: `cd maestro/client && npx ts-node test-soak.ts`
+- `timestamp`: `2026-03-10T11:24:55-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+[PASS] integrity_allow
+[PASS] integrity_block
+[PASS] integrity_policy_block
+Overall passing: true
+```
+
+### Artifact G4-B: Targeted Integrity Smoke
+- `command`: `cd maestro/client && npx ts-node test-integrity-smoke.ts`
+- `timestamp`: `2026-03-10T11:26:22-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+[PASS] integrity_allow
+[PASS] integrity_block
+[PASS] integrity_policy_block
+[PASS] integrity_default_deny
+
+{
+  "probe": "stt.integrity.handshake",
+  "status": "OK",
+  "checks": {
+    "allow": true,
+    "block": true,
+    "policy_block": true,
+    "default_deny": true
+  }
+}
+```
+
+### Artifact G4-C: Rollback / Uncertain-State Safety Proof (Default-Deny)
+- `command`: `cd maestro/client && npx ts-node test-integrity-smoke.ts`
+- `timestamp`: `2026-03-10T11:26:22-04:00`
+- `exit_code`: `0`
+- `key_output`:
+```text
+[BusClient] Action blocked (no review handler): action-123
+[MockServer] Received integrity signal: stt.action.block for action action-123
+[PASS] integrity_default_deny
+```
+
+Interpretation:
+- uncertain/no-handler states fail closed (`stt.action.block`) instead of bypassing the constitutive gate.
+- unilateral policy block from Bus is surfaced as semantic failure (`stt.action.blocked`) with user-facing message.
+
+Gate 4 decision log path:
+- `docs/decision-log.md` (`ADM-032`)
+
 ## Hard-Close Verdict
 
 - **Gate 1**: `HARD-CLOSED`
 - **Gate 2**: `HARD-CLOSED`
 - **Gate 3**: `HARD-CLOSED`
+- **Gate 4**: `HARD-CLOSED`
