@@ -50,6 +50,29 @@ curl -sS http://127.0.0.1:7781/healthz
 curl -sS http://127.0.0.1:7781/readyz
 ```
 
+## Step 2b: Validated Local Sidecar Bring-Up (2026-03-10)
+
+The following local run path is validated for development testing:
+
+```bash
+source /home/irbsurfer/miniconda3/etc/profile.d/conda.sh
+conda activate helios-gpu-118
+PYTHONPATH=/tmp python -m uvicorn kokoro_sidecar:app --host 127.0.0.1 --port 7781
+```
+
+Observed verification:
+- `GET /healthz` -> `{"status":"ok","service":"kokoro-sidecar"}`
+- `GET /readyz` -> `{"ready":true}`
+- `ARQON_KOKORO_SMOKE_URL=http://127.0.0.1:7781 npx ts-node test-kokoro-smoke.ts` -> PASS
+
+Note:
+- If you see `address already in use` on `127.0.0.1:7781`, a sidecar is already running.
+- Check owner with:
+
+```bash
+ss -ltnp | rg 7781
+```
+
 ## Step 3: Configure Maestro
 
 Set the following settings:
@@ -88,6 +111,39 @@ Immediate rollback:
 1. Set `arqon_tts_provider` to `fallback`.
 2. Confirm fallback playback works.
 3. Keep Kokoro VM running for diagnostics or stop it after incident capture.
+
+## Optional: Persistent Startup (systemd --user)
+
+Use a user service so Kokoro starts automatically after login/reboot.
+
+Service file path:
+- `~/.config/systemd/user/kokoro-sidecar.service`
+
+Example unit:
+
+```ini
+[Unit]
+Description=Kokoro Sidecar (Local Dev)
+After=network.target
+
+[Service]
+Type=simple
+Environment=PYTHONPATH=/tmp
+ExecStart=/home/irbsurfer/miniconda3/envs/helios-gpu-118/bin/python -m uvicorn kokoro_sidecar:app --host 127.0.0.1 --port 7781
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target
+```
+
+Enable:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now kokoro-sidecar.service
+systemctl --user status kokoro-sidecar.service
+```
 
 ## Troubleshooting
 

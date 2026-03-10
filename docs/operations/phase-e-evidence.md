@@ -382,8 +382,26 @@ Reason:
 
 Current implementation notes:
 1. `KokoroTtsProvider` now uses sidecar HTTP contract (`/synthesize`) and no longer uses simulated local placeholder execution.
-2. Targeted Gate 6 smoke files exist and fail when sidecar is unavailable (expected fail-closed behavior).
-3. Firecracker sidecar runtime proof artifacts are not yet published.
+2. Targeted Gate 6 smoke files pass against live sidecar (`stt.tts.kokoro.success`) and fail-closed when sidecar is unavailable.
+3. Firecracker microVM runtime proof artifacts are not yet published.
+
+### Gate 6 Preliminary Artifacts (Local Runtime Validation)
+
+`timestamp`: 2026-03-10
+
+`command`:
+```bash
+curl -sS http://127.0.0.1:7781/healthz
+curl -sS http://127.0.0.1:7781/readyz
+cd maestro/client && ARQON_KOKORO_SMOKE_URL=http://127.0.0.1:7781 npx ts-node test-kokoro-smoke.ts
+```
+
+`exit_code`: 0
+
+`key_output`:
+- `{"status":"ok","service":"kokoro-sidecar"}`
+- `{"ready":true}`
+- `[PASS] Kokoro sidecar synthesis + playback path verified.`
 
 Gate 6 must close against:
 - `docs/operations/gate-6-kokoro-plan.md`
