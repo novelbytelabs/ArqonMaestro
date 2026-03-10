@@ -1,101 +1,143 @@
-# Gate 6 Plan: Kokoro TTS Operational Hard-Close
+# Gate 6 Plan: Kokoro TTS Operational Hard-Close (Firecracker-Only)
+
+## Status
+
+`IN PROGRESS` (not hard-closed)
+
+## Context
+
+Gates 1–5 are hard-closed. Gate 6 operationalizes Kokoro TTS under a strict runtime boundary policy:
+- Firecracker microVM is the only supported Kokoro production runtime.
+- No host-native Kokoro binary path for production.
+
+Related context:
+- `docs/voice_plane_implementation_plan.md`
+- `docs/operations/phase-e-evidence.md`
+- `docs/operations/walkthrough.md`
+- `docs/operations/port-reference.md`
+- `docs/operations/kokoro-installation.md`
 
 ## Goal
 
-Promote Kokoro TTS from roadmap item to production-ready, evidence-backed runtime capability with explicit rollback.
+Deliver production-ready Kokoro TTS through a long-lived Firecracker sidecar with:
+- deterministic provider behavior
+- explicit fallback/fail-closed semantics
+- replay-safe and non-blocking audio path
+- command-level rollback proof
 
 ## Scope
 
-- Install and configure Kokoro runtime dependencies on target environment(s).
-- Add explicit runtime selection between:
-  - `kokoro` (primary)
-  - `fallback` (existing `aplay` speech path)
-- Validate non-blocking playback, replay safety, and failure semantics.
-- Prove rollback in under one minute with command artifacts.
+- Build and run Kokoro service inside Firecracker microVM (Ubuntu 24.04 guest).
+- Connect Maestro host to sidecar via local loopback proxy endpoint.
+- Keep fallback provider available for rollback and degraded operation.
 
 ## Non-Goals
 
 - Reopening Gates 1–5.
-- Replacing the Arqon Bus transport model.
+- Supporting host-native Kokoro binary as production path.
+- Replacing Arqon Bus/control-plane architecture.
+
+## Critical Files
+
+Core runtime:
+- `maestro/client/src/main/stt/voice-output.ts`
+- `maestro/client/src/main/stt/tts-providers.ts`
+- `maestro/client/src/main/settings.ts`
+- `maestro/client/src/main/stt/tracking.ts`
+
+Integration/config:
+- `maestro/client/src/main/windows/settings.ts`
+- `maestro/client/src/renderer/pages/settings.tsx`
+
+Gate 6 tests:
+- `maestro/client/test-kokoro-smoke.ts`
+- `maestro/client/test-kokoro-failure-smoke.ts`
+- `maestro/client/test-kokoro-rollback.ts`
+
+Ops docs:
+- `docs/operations/kokoro-installation.md`
+- `docs/operations/phase-e-evidence.md`
+- `docs/operations/walkthrough.md`
+- `docs/decision-log.md`
 
 ## Entry Criteria
 
-1. Gates 1–5 remain green on current `main`.
-2. Bus-only transport migration has no `17373` runtime dependency.
-3. Port reference is published in `docs/operations/port-reference.md`.
+1. Gates 1–5 test pack remains green on `main`.
+2. No active runtime dependency on `17373`.
+3. Firecracker host prerequisites available on target environment.
 
-## Required Implementation
+## Implementation Requirements
 
-1. Runtime Configuration
-- Add settings:
-  - `arqon_tts_provider` (`kokoro` | `fallback`, default `fallback`)
-  - `arqon_tts_kokoro_model_path`
-  - `arqon_tts_kokoro_voice`
-  - `arqon_tts_kokoro_timeout_ms`
-- Emit telemetry:
-  - `stt.tts.provider_selected`
-  - `stt.tts.kokoro.success`
-  - `stt.tts.kokoro.failure`
-  - `stt.tts.fallback.used`
-  - `stt.tts.latency_ms`
+### 1. Firecracker Sidecar Contract (Mandatory)
 
-2. Playback Execution Contract
-- `kokoro` path must remain non-blocking.
-- On Kokoro failure:
-  - if fallback enabled, execute fallback and emit explicit fallback telemetry.
-  - if fallback disabled, fail closed with clear error signal.
-- Replay dedupe behavior from Gate 3 must remain intact.
+- Kokoro service runs in a long-lived Firecracker VM, not per request.
+- Host reaches sidecar through local endpoint (for example `127.0.0.1:7781`).
+- Service exposes:
+  - `GET /healthz`
+  - `GET /readyz`
+  - `POST /synthesize` (text + voice + format)
 
-3. Rollback Control
-- Single-switch rollback:
-  - `arqon_tts_provider=fallback`
-- No process restarts required for rollback if runtime allows dynamic reload; if restart required, document exact restart command.
+### 2. Runtime Settings Contract
 
-## Required Validation Commands
+Required settings:
+- `arqon_tts_provider` (`kokoro` | `fallback`)
+- `arqon_tts_kokoro_url`
+- `arqon_tts_kokoro_voice`
+- `arqon_tts_kokoro_timeout_ms`
+- `arqon_tts_kokoro_fallback_enabled`
 
-1. Build and baseline regressions
+### 3. Playback and Failure Contract
+
+- Keep non-blocking behavior in playback path.
+- Preserve replay dedupe from Gate 3.
+- If Kokoro sidecar fails:
+  - fallback enabled: fallback path executes + telemetry
+  - fallback disabled: fail closed + explicit signal
+
+### 4. Telemetry Contract
+
+Emit:
+- `stt.tts.provider_selected`
+- `stt.tts.kokoro.success`
+- `stt.tts.kokoro.failure`
+- `stt.tts.fallback.used`
+- `stt.tts.latency_ms`
+- `stt.tts.fail_closed`
+
+### 5. Rollback Contract
+
+Single-switch rollback:
+- `arqon_tts_provider=fallback`
+
+## Validation Commands
+
+Baseline:
 - `cd maestro/client && npm run build:main`
 - `cd maestro/client && ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts`
 - `cd maestro/client && npx ts-node test-replay-smoke.ts`
 - `cd maestro/client && npx ts-node test-integrity-smoke.ts`
 
-2. Kokoro targeted smoke
+Gate 6:
 - `cd maestro/client && npx ts-node test-kokoro-smoke.ts`
-- Must prove:
-  - provider selection = `kokoro`
-  - successful synthesized playback
-  - latency captured
-
-3. Failure and fallback smoke
 - `cd maestro/client && npx ts-node test-kokoro-failure-smoke.ts`
-- Must prove:
-  - deterministic Kokoro failure handling
-  - fallback behavior if enabled
-  - explicit fail-closed if fallback disabled
-
-4. Rollback smoke
 - `cd maestro/client && npx ts-node test-kokoro-rollback.ts`
-- Must prove:
-  - switch to fallback works
-  - speech path still functions
-  - no duplicate execution/replay regressions
 
 ## Hard-Fail Conditions
 
-1. Any placeholder/stub in Kokoro execution path.
-2. Any blocking call that stalls main event loop.
-3. Missing explicit failure telemetry on Kokoro errors.
-4. Rollback path not proven by command artifact.
-5. Docs claim Kokoro-ready without install/config/test evidence.
+1. Any claim of Gate 6 hard-close while Kokoro sidecar is not running in Firecracker.
+2. Placeholder/stub path presented as production Kokoro execution.
+3. Blocking playback path or replay dedupe regression.
+4. Missing fallback/fail-closed telemetry on Kokoro failures.
+5. Rollback not proven by command artifact.
 
-## Evidence Pack Requirements
+## Evidence and Governance
 
-Update:
-- `docs/operations/phase-e-evidence.md` (or new Gate 6 evidence pack)
+Update on completion:
+- `docs/operations/phase-e-evidence.md`
 - `docs/operations/walkthrough.md`
-- `docs/decision-log.md` (new ADM for provider policy and rollback contract)
+- `docs/decision-log.md` (Gate 6 decision entries)
 
-Each artifact block must include:
+Mandatory artifact template:
 - `command`
 - `timestamp`
 - `exit_code`
@@ -103,8 +145,7 @@ Each artifact block must include:
 
 ## Exit Criteria (Hard-Close)
 
-1. All required commands exit `0`.
-2. Kokoro success path proven with runtime output.
-3. Kokoro failure semantics proven with fallback/fail-closed behavior.
-4. Rollback switch proven by targeted smoke.
-5. Residual risks documented with owners and follow-up date.
+1. Firecracker Kokoro sidecar path proven by command evidence.
+2. Gate 6 validation commands all exit `0`.
+3. Fallback/fail-closed and rollback paths proven.
+4. Residual risks are explicitly documented and owned.

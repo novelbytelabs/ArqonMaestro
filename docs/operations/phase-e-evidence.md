@@ -369,3 +369,22 @@ Gate 5 residual risks:
 - **Gate 3**: `HARD-CLOSED`
 - **Gate 4**: `HARD-CLOSED`
 - **Gate 5**: `HARD-CLOSED`
+
+---
+
+## Gate 6 Status Snapshot (Firecracker-Only Kokoro)
+
+Current Gate 6 status: `IN PROGRESS` (not hard-closed).
+
+Reason:
+- Kokoro production policy is Firecracker-only.
+- Hard-close requires proof of live Firecracker sidecar synthesis path plus fallback/fail-closed and rollback evidence.
+
+Current implementation notes:
+1. `KokoroTtsProvider` now uses sidecar HTTP contract (`/synthesize`) and no longer uses simulated local placeholder execution.
+2. Targeted Gate 6 smoke files exist and fail when sidecar is unavailable (expected fail-closed behavior).
+3. Firecracker sidecar runtime proof artifacts are not yet published.
+
+Gate 6 must close against:
+- `docs/operations/gate-6-kokoro-plan.md`
+- `docs/operations/kokoro-installation.md`

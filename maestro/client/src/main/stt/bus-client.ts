@@ -165,7 +165,7 @@ export default class BusClient {
     private tracking: STTTracking
   ) {
     this.config = this.buildConfig();
-    this.voiceOutput = new VoiceOutput(log, tracking);
+    this.voiceOutput = new VoiceOutput(log, tracking, settings);
     this.controlPlane = this.buildControlPlaneCoordinator();
   }
 

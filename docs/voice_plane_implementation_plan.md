@@ -167,7 +167,7 @@ Roadmap topics remain out of immediate implementation scope unless promoted into
 - O(0) skill execution path
 - broad HPO tuning loops
 - advanced cortex/omega orchestration
-- Kokoro TTS installation (currently uses cloud TTS via aplay)
+- Gate 6 Kokoro Firecracker sidecar operational hard-close
 
 ## Rollback Procedure
 
@@ -189,7 +189,7 @@ All questions answered in phase-e-evidence.md.
 
 ## Definition of Done (Evidence-Based)
 
-All four pillars satisfied for all 5 gates:
+All four pillars satisfied for Gates 1-5:
 
 1. ✅ **Implementation**: no placeholders or stubs in migration-critical paths
 2. ✅ **Verification**: executable tests with realistic payloads and session IDs
@@ -199,4 +199,4 @@ All four pillars satisfied for all 5 gates:
 ---
 
 **Last Updated**: 2026-03-10
-**Status**: ALL GATES COMPLETE
+**Status**: Gates 1-5 hard-closed; Gate 6 in progress (Firecracker-only Kokoro)

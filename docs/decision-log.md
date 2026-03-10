@@ -475,6 +475,49 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - telemetry now emits coordinator lifecycle signals (`enqueue`, `dispatch`, `retry`, `dead_letter`, queue latency)
 
 ---
+
+## ADM-034: TTS Provider Selection Policy
+
+- **Date**: 2026-03-10
+- **Status**: Superseded by ADM-036
+- **Decision**: Implemented interface-based TTS provider abstraction with runtime switching capability.
+- **Why**: This established the provider structure but originally shipped with a non-production Kokoro placeholder path.
+- **Consequences**:
+  - Created `TtsProvider` interface in `tts-providers.ts`
+  - `FallbackTtsProvider` wraps existing aplay behavior
+  - `KokoroTtsProvider` contract moved to Firecracker sidecar in ADM-036
+  - `createTtsProvider()` factory function instantiates providers from settings
+  - `VoiceOutput.refreshProvider()` enables runtime provider switching
+
+---
+
+## ADM-035: Fallback/Fail-Closed Semantics for TTS
+
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Define explicit failure/fallback behavior for TTS providers.
+- **Why**: Provides operational flexibility while maintaining fail-closed security posture when fallback is disabled.
+- **Consequences**:
+  - If Kokoro fails + fallback enabled: execute fallback (aplay)
+  - If Kokoro fails + fallback disabled: fail closed (no audio, log error)
+  - Telemetry events: `stt.tts.fallback.used`, `stt.tts.fail_closed`
+  - Implemented in `VoiceOutput.play()` with explicit conditional logic and no implicit persistent provider rewrite
+
+---
+
+## ADM-036: Firecracker-Only Kokoro Runtime Contract
+
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Kokoro production runtime is Firecracker-only. `KokoroTtsProvider` must call a sidecar HTTP contract (`GET /healthz`, `GET /readyz`, `POST /synthesize`) via `arqon_tts_kokoro_url`; host-native Kokoro binaries are not a production path.
+- **Why**: The Ubuntu 22.04 glibc mismatch on ONNX Runtime creates unstable host-native Kokoro behavior and encourages environment drift. Firecracker isolates runtime dependencies and keeps behavior reproducible.
+- **Consequences**:
+  - Runtime config uses `arqon_tts_kokoro_url`, `arqon_tts_kokoro_voice`, `arqon_tts_kokoro_timeout_ms`, `arqon_tts_kokoro_fallback_enabled`
+  - Placeholder or simulated Kokoro execution is invalid for Gate 6 hard-close
+  - Gate 6 smoke validation must run against a real sidecar endpoint, not mock-only claims
+  - Rollback remains single-switch: `arqon_tts_provider=fallback`
+
+---
  
 ## Template for Future Decisions
 

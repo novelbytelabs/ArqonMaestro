@@ -924,4 +924,66 @@ export default class Settings {
   setArqonControlPlaneGlobalInflightLimit(limit: number) {
     this.set("system", "arqon_control_plane_global_inflight_limit", Math.max(1, Math.floor(limit)));
   }
+
+  // ========================================================================
+  // Kokoro TTS Configuration (Gate 6)
+  // ========================================================================
+
+  /**
+   * Get TTS provider selection
+   * Options: "kokoro" | "fallback"
+   * Default: "fallback" (safe default - uses existing aplay path)
+   */
+  getArqonTtsProvider(): string {
+    return this.get("system", "arqon_tts_provider", "fallback");
+  }
+
+  setArqonTtsProvider(provider: string) {
+    this.set("system", "arqon_tts_provider", provider);
+  }
+
+  /**
+   * Get Kokoro sidecar base URL (Firecracker-hosted service).
+   */
+  getArqonTtsKokoroUrl(): string {
+    return this.get("system", "arqon_tts_kokoro_url", "http://127.0.0.1:7781");
+  }
+
+  setArqonTtsKokoroUrl(url: string) {
+    this.set("system", "arqon_tts_kokoro_url", url);
+  }
+
+  /**
+   * Get Kokoro voice selection
+   */
+  getArqonTtsKokoroVoice(): string {
+    return this.get("system", "arqon_tts_kokoro_voice", "af_heart");
+  }
+
+  setArqonTtsKokoroVoice(voice: string) {
+    this.set("system", "arqon_tts_kokoro_voice", voice);
+  }
+
+  /**
+   * Get Kokoro synthesis timeout in milliseconds
+   */
+  getArqonTtsKokoroTimeoutMs(): number {
+    return this.get("system", "arqon_tts_kokoro_timeout_ms", 5000);
+  }
+
+  setArqonTtsKokoroTimeoutMs(timeout: number) {
+    this.set("system", "arqon_tts_kokoro_timeout_ms", timeout);
+  }
+
+  /**
+   * Get whether fallback TTS is enabled when Kokoro fails
+   * Default: true (fallback to aplay path)
+   */
+  getArqonTtsKokoroFallbackEnabled(): boolean {
+    return this.get("system", "arqon_tts_kokoro_fallback_enabled", true);
+  }
+
+  setArqonTtsKokoroFallbackEnabled(enabled: boolean) {
+    this.set("system", "arqon_tts_kokoro_fallback_enabled", enabled);
+  }
 }

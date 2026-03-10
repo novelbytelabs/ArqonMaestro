@@ -1,106 +1,112 @@
-import { spawn } from "child_process";
 import Log from "../log";
+import Settings from "../settings";
 import STTTracking from "./tracking";
+import {
+  TtsProvider,
+  createTtsProvider,
+  FallbackTtsProvider,
+} from "./tts-providers";
 
 /**
  * Handles voice output requests (TTS) received from the Bus.
+ * Uses provider abstraction for TTS (Kokoro or Fallback).
  * Ensures non-blocking playback, replay handling, and idempotency.
+ * 
+ * Gate 6: Kokoro TTS integration with explicit failure/fallback semantics:
+ * - Kokoro fails + fallback enabled => fallback path executes
+ * - Kokoro fails + fallback disabled => fail closed with explicit signal
  */
 export default class VoiceOutput {
-  private playedMessages = new Set<string>();
-  private readonly MAX_TRACKED_MESSAGES = 100;
+  private provider: TtsProvider;
+  private settings: Settings;
 
-  constructor(private log: Log, private tracking: STTTracking) {}
+  constructor(private log: Log, private tracking: STTTracking, settings: Settings) {
+    this.settings = settings;
+    this.provider = createTtsProvider(log, tracking, settings);
+  }
 
   /**
-   * Play the given speech request.
-   * Handles replay deduping by message_id.
+   * Refresh the TTS provider (called when settings change)
    */
-  async play(messageId: string, audioDataB64: string, format: string, transcript: string): Promise<boolean> {
-    if (this.playedMessages.has(messageId)) {
-      this.log.logVerbose(`[VoiceOutput] Ignoring replayed speech request: ${messageId}`);
-      this.tracking.logMetric("stt.speech.replay_ignored", { message_id: messageId });
-      return false; // Ignored due to replay
-    }
+  refreshProvider(): void {
+    this.provider = createTtsProvider(this.log, this.tracking, this.settings);
+    this.log.logVerbose(`[VoiceOutput] Provider refreshed to: ${this.provider.getType()}`);
+  }
 
-    // Track for idempotency
-    this.playedMessages.add(messageId);
-    if (this.playedMessages.size > this.MAX_TRACKED_MESSAGES) {
-      const first = this.playedMessages.values().next().value;
-      if (first) {
-        this.playedMessages.delete(first);
+  /**
+   * Get current provider type
+   */
+  getProviderType(): string {
+    return this.provider.getType();
+  }
+
+  /**
+   * Play the given speech request using the configured TTS provider.
+   * Handles:
+   * - Replay deduplication
+   * - Provider selection based on settings
+   * - Fallback semantics (Kokoro → Fallback)
+   * - Telemetry emission
+   */
+  async play(
+    messageId: string,
+    audioDataB64: string,
+    format: string,
+    transcript: string
+  ): Promise<boolean> {
+    const startMs = Date.now();
+    const initialProvider = this.provider.getType();
+
+    this.log.logVerbose(
+      `[VoiceOutput] Playing speech request ${messageId} with provider: ${initialProvider}`
+    );
+
+    // Try primary provider
+    const result = await this.provider.play(messageId, audioDataB64, format, transcript);
+
+    // If primary provider failed and fallback is enabled, try fallback
+    if (!result.success && initialProvider === "kokoro") {
+      const fallbackEnabled = this.settings.getArqonTtsKokoroFallbackEnabled();
+      
+      if (fallbackEnabled) {
+        this.log.logVerbose(
+          `[VoiceOutput] Kokoro failed, falling back to aplay`
+        );
+
+        // Emit fallback telemetry
+        this.tracking.logMetric("stt.tts.fallback.used", {
+          message_id: messageId,
+          kokoro_error: result.error,
+          fallback_provider: "fallback",
+        });
+
+        // Keep configured provider unchanged; fallback is per-request.
+        const fallbackProvider = new FallbackTtsProvider(this.log, this.tracking, this.settings);
+        const fallbackResult = await fallbackProvider.play(
+          messageId,
+          audioDataB64,
+          format,
+          transcript
+        );
+
+        return fallbackResult.success;
+      } else {
+        // Fallback disabled - fail closed
+        this.log.logError(
+          `[VoiceOutput] Kokoro failed and fallback disabled, failing closed for ${messageId}`
+        );
+
+        this.tracking.logMetric("stt.tts.fail_closed", {
+          message_id: messageId,
+          provider: "kokoro",
+          reason: result.error,
+          fallback_enabled: false,
+        });
+
+        return false;
       }
     }
 
-    try {
-      const buffer = Buffer.from(audioDataB64, "base64");
-      this.log.logVerbose(`[VoiceOutput] Playing speech request ${messageId} (${buffer.length} bytes): "${transcript.substring(0, 30)}..."`);
-
-      const startMs = Date.now();
-      const args = ["-q"]; // quiet
-      if (format === "raw" || format === "pcm") {
-        args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
-      }
-
-      return new Promise<boolean>((resolve) => {
-        let resolved = false;
-        const resolveOnce = (value: boolean) => {
-          if (!resolved) {
-            resolved = true;
-            resolve(value);
-          }
-        };
-
-        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
-
-        proc.once("spawn", () => {
-          this.tracking.logMetric("stt.speech.playback_started", {
-            message_id: messageId,
-            bytes: buffer.length,
-          });
-          resolveOnce(true);
-        });
-
-        proc.once("error", (err) => {
-          this.playedMessages.delete(messageId);
-          this.log.logError(`[VoiceOutput] Playback error for ${messageId}: ${err.message}`);
-          this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: err.message });
-          resolveOnce(false);
-        });
-
-        proc.once("close", (code) => {
-          const duration = Date.now() - startMs;
-          this.log.logVerbose(`[VoiceOutput] Playback finished for ${messageId} in ${duration}ms (exit code ${code})`);
-          if (code !== 0) {
-            this.playedMessages.delete(messageId);
-            this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: `exit_${code}` });
-          } else {
-            this.tracking.logMetric("stt.speech.playback_completed", { message_id: messageId, duration_ms: duration });
-          }
-        });
-
-        if (!proc.stdin) {
-          this.playedMessages.delete(messageId);
-          this.log.logError(`[VoiceOutput] Playback error for ${messageId}: missing stdin pipe`);
-          this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: "stdin_unavailable" });
-          resolveOnce(false);
-          return;
-        }
-
-        proc.stdin.once("error", (err) => {
-          this.playedMessages.delete(messageId);
-          this.log.logError(`[VoiceOutput] Playback stdin error for ${messageId}: ${err.message}`);
-          this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: err.message });
-          resolveOnce(false);
-        });
-
-        proc.stdin.end(buffer);
-      });
-    } catch (e: any) {
-      this.playedMessages.delete(messageId);
-      this.log.logError(`[VoiceOutput] Failed to start playback: ${e.message}`);
-      this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: e.message });
-      return false;
-    }
+    return result.success;
   }
 }

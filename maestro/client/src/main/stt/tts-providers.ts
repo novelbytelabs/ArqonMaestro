@@ -1,0 +1,559 @@
+import { spawn } from "child_process";
+import * as http from "http";
+import * as https from "https";
+import Log from "../log";
+import STTTracking from "./tracking";
+import Settings from "../settings";
+
+/**
+ * TTS Provider types
+ */
+export type TtsProviderType = "kokoro" | "fallback";
+
+/**
+ * Result of a TTS playback operation
+ */
+export interface TtsPlaybackResult {
+  success: boolean;
+  provider: TtsProviderType;
+  latencyMs: number;
+  error?: string;
+}
+
+/**
+ * Interface for TTS providers
+ */
+export interface TtsProvider {
+  /**
+   * Get the provider type
+   */
+  getType(): TtsProviderType;
+
+  /**
+   * Play audio from base64-encoded data
+   * @param messageId Unique message identifier for deduplication
+   * @param audioDataB64 Base64-encoded audio data
+   * @param format Audio format (e.g., "raw", "pcm")
+   * @param transcript Text transcript for logging
+   * @returns Playback result
+   */
+  play(
+    messageId: string,
+    audioDataB64: string,
+    format: string,
+    transcript: string
+  ): Promise<TtsPlaybackResult>;
+}
+
+/**
+ * Base class for TTS providers with common functionality
+ */
+abstract class BaseTtsProvider implements TtsProvider {
+  protected log: Log;
+  protected tracking: STTTracking;
+  protected settings: Settings;
+  protected playedMessages = new Set<string>();
+  protected readonly MAX_TRACKED_MESSAGES = 100;
+
+  constructor(log: Log, tracking: STTTracking, settings: Settings) {
+    this.log = log;
+    this.tracking = tracking;
+    this.settings = settings;
+  }
+
+  abstract getType(): TtsProviderType;
+
+  /**
+   * Check and track message for replay deduplication
+   * Returns false if message was already played (replay)
+   */
+  protected checkAndTrackReplay(messageId: string): boolean {
+    if (this.playedMessages.has(messageId)) {
+      this.log.logVerbose(`[${this.getType()}] Ignoring replayed message: ${messageId}`);
+      return false;
+    }
+
+    // Track for idempotency
+    this.playedMessages.add(messageId);
+    if (this.playedMessages.size > this.MAX_TRACKED_MESSAGES) {
+      const first = this.playedMessages.values().next().value;
+      if (first) {
+        this.playedMessages.delete(first);
+      }
+    }
+    return true;
+  }
+
+  abstract play(
+    messageId: string,
+    audioDataB64: string,
+    format: string,
+    transcript: string
+  ): Promise<TtsPlaybackResult>;
+}
+
+/**
+ * Fallback TTS provider using aplay (existing implementation)
+ */
+export class FallbackTtsProvider extends BaseTtsProvider {
+  getType(): TtsProviderType {
+    return "fallback";
+  }
+
+  async play(
+    messageId: string,
+    audioDataB64: string,
+    format: string,
+    transcript: string
+  ): Promise<TtsPlaybackResult> {
+    // Check for replay
+    if (!this.checkAndTrackReplay(messageId)) {
+      this.tracking.logMetric("stt.tts.replay_ignored", {
+        message_id: messageId,
+        provider: "fallback",
+      });
+      return {
+        success: false,
+        provider: "fallback",
+        latencyMs: 0,
+        error: "replay ignored",
+      };
+    }
+
+    const startMs = Date.now();
+
+    try {
+      const buffer = Buffer.from(audioDataB64, "base64");
+      this.log.logVerbose(
+        `[FallbackTts] Playing speech request ${messageId} (${buffer.length} bytes): "${transcript.substring(0, 30)}..."`
+      );
+
+      const args = ["-q"]; // quiet
+      if (format === "raw" || format === "pcm") {
+        args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
+      }
+
+      return new Promise<TtsPlaybackResult>((resolve) => {
+        let resolved = false;
+        const resolveOnce = (result: TtsPlaybackResult) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(result);
+          }
+        };
+
+        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+
+        proc.once("spawn", () => {
+          this.tracking.logMetric("stt.tts.provider_selected", {
+            message_id: messageId,
+            provider: "fallback",
+          });
+          this.tracking.logMetric("stt.tts.playback_started", {
+            message_id: messageId,
+            bytes: buffer.length,
+            provider: "fallback",
+          });
+        });
+
+        proc.once("error", (err) => {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          this.log.logError(`[FallbackTts] Playback error for ${messageId}: ${err.message}`);
+          this.tracking.logMetric("stt.tts.playback_failed", {
+            message_id: messageId,
+            provider: "fallback",
+            reason: err.message,
+          });
+          resolveOnce({
+            success: false,
+            provider: "fallback",
+            latencyMs,
+            error: err.message,
+          });
+        });
+
+        proc.once("close", (code) => {
+          const latencyMs = Date.now() - startMs;
+          this.log.logVerbose(
+            `[FallbackTts] Playback finished for ${messageId} in ${latencyMs}ms (exit code ${code})`
+          );
+          if (code !== 0) {
+            this.playedMessages.delete(messageId);
+            this.tracking.logMetric("stt.tts.playback_failed", {
+              message_id: messageId,
+              provider: "fallback",
+              reason: `exit_${code}`,
+            });
+            resolveOnce({
+              success: false,
+              provider: "fallback",
+              latencyMs,
+              error: `exit code ${code}`,
+            });
+          } else {
+            this.tracking.logMetric("stt.tts.playback_completed", {
+              message_id: messageId,
+              provider: "fallback",
+              duration_ms: latencyMs,
+            });
+            this.tracking.logMetric("stt.tts.latency_ms", {
+              message_id: messageId,
+              provider: "fallback",
+              latency_ms: latencyMs,
+            });
+            resolveOnce({
+              success: true,
+              provider: "fallback",
+              latencyMs,
+            });
+          }
+        });
+
+        if (!proc.stdin) {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          this.log.logError(`[FallbackTts] Playback error for ${messageId}: missing stdin pipe`);
+          this.tracking.logMetric("stt.tts.playback_failed", {
+            message_id: messageId,
+            provider: "fallback",
+            reason: "stdin_unavailable",
+          });
+          resolveOnce({
+            success: false,
+            provider: "fallback",
+            latencyMs,
+            error: "stdin_unavailable",
+          });
+          return;
+        }
+
+        proc.stdin.once("error", (err) => {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          this.log.logError(`[FallbackTts] stdin error for ${messageId}: ${err.message}`);
+          this.tracking.logMetric("stt.tts.playback_failed", {
+            message_id: messageId,
+            provider: "fallback",
+            reason: err.message,
+          });
+          resolveOnce({
+            success: false,
+            provider: "fallback",
+            latencyMs,
+            error: err.message,
+          });
+        });
+
+        proc.stdin.end(buffer);
+      });
+    } catch (e: any) {
+      this.playedMessages.delete(messageId);
+      const latencyMs = Date.now() - startMs;
+      this.log.logError(`[FallbackTts] Failed to start playback: ${e.message}`);
+      this.tracking.logMetric("stt.tts.playback_failed", {
+        message_id: messageId,
+        provider: "fallback",
+        reason: e.message,
+      });
+      return {
+        success: false,
+        provider: "fallback",
+        latencyMs,
+        error: e.message,
+      };
+    }
+  }
+}
+
+interface KokoroSynthesizeResponse {
+  audio_data_b64?: string;
+  audio_b64?: string;
+  audio?: string;
+  format?: string;
+}
+
+/**
+ * Kokoro TTS provider using sidecar HTTP contract.
+ * Expected endpoint: POST <arqon_tts_kokoro_url>/synthesize
+ */
+export class KokoroTtsProvider extends BaseTtsProvider {
+  getType(): TtsProviderType {
+    return "kokoro";
+  }
+
+  private postJson(urlString: string, body: any, timeoutMs: number): Promise<any> {
+    const parsedUrl = new URL(urlString);
+    const client = parsedUrl.protocol === "https:" ? https : http;
+    const payload = JSON.stringify(body);
+    const headers = {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(payload),
+    };
+
+    return new Promise<any>((resolve, reject) => {
+      const req = client.request(
+        {
+          protocol: parsedUrl.protocol,
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port,
+          path: parsedUrl.pathname + parsedUrl.search,
+          method: "POST",
+          headers,
+        },
+        (res) => {
+          let responseBody = "";
+          res.setEncoding("utf8");
+          res.on("data", (chunk) => {
+            responseBody += chunk;
+          });
+          res.on("end", () => {
+            const statusCode = res.statusCode || 0;
+            if (statusCode < 200 || statusCode >= 300) {
+              reject(new Error(`HTTP_${statusCode}: ${responseBody.slice(0, 200)}`));
+              return;
+            }
+
+            try {
+              resolve(responseBody ? JSON.parse(responseBody) : {});
+            } catch (e: any) {
+              reject(new Error(`invalid_json: ${e.message}`));
+            }
+          });
+        }
+      );
+
+      req.setTimeout(timeoutMs, () => {
+        req.destroy(new Error("timeout"));
+      });
+      req.on("error", (err) => reject(err));
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  async play(
+    messageId: string,
+    audioDataB64: string,
+    format: string,
+    transcript: string
+  ): Promise<TtsPlaybackResult> {
+    // Check for replay
+    if (!this.checkAndTrackReplay(messageId)) {
+      this.tracking.logMetric("stt.tts.replay_ignored", {
+        message_id: messageId,
+        provider: "kokoro",
+      });
+      return {
+        success: false,
+        provider: "kokoro",
+        latencyMs: 0,
+        error: "replay ignored",
+      };
+    }
+
+    const startMs = Date.now();
+    const baseUrl = this.settings.getArqonTtsKokoroUrl();
+    const voice = this.settings.getArqonTtsKokoroVoice();
+    const timeoutMs = this.settings.getArqonTtsKokoroTimeoutMs();
+
+    if (!baseUrl) {
+      const latencyMs = Date.now() - startMs;
+      const error = "Kokoro sidecar URL not configured";
+      this.log.logError(`[KokoroTts] ${error}`);
+      this.tracking.logMetric("stt.tts.kokoro.failure", {
+        message_id: messageId,
+        reason: error,
+      });
+      return {
+        success: false,
+        provider: "kokoro",
+        latencyMs,
+        error,
+      };
+    }
+
+    try {
+      this.log.logVerbose(
+        `[KokoroTts] Synthesizing speech request ${messageId} using ${baseUrl}`
+      );
+
+      this.tracking.logMetric("stt.tts.provider_selected", {
+        message_id: messageId,
+        provider: "kokoro",
+      });
+      this.tracking.logMetric("stt.tts.kokoro.started", {
+        message_id: messageId,
+        voice,
+        url: baseUrl,
+      });
+
+      const response = (await this.postJson(
+        `${baseUrl.replace(/\/+$/, "")}/synthesize`,
+        {
+          request_id: messageId,
+          text: transcript,
+          voice,
+          format,
+          input_audio_b64: audioDataB64,
+        },
+        timeoutMs
+      )) as KokoroSynthesizeResponse;
+
+      const synthesizedAudioB64 =
+        response.audio_data_b64 || response.audio_b64 || response.audio;
+      const outputFormat = response.format || format;
+
+      if (!synthesizedAudioB64 || typeof synthesizedAudioB64 !== "string") {
+        const latencyMs = Date.now() - startMs;
+        const error = "missing_audio_data_b64";
+        this.playedMessages.delete(messageId);
+        this.log.logError(`[KokoroTts] Invalid synth response for ${messageId}: ${error}`);
+        this.tracking.logMetric("stt.tts.kokoro.failure", {
+          message_id: messageId,
+          reason: error,
+        });
+        return {
+          success: false,
+          provider: "kokoro",
+          latencyMs,
+          error,
+        };
+      }
+
+      const args = ["-q"];
+      if (outputFormat === "raw" || outputFormat === "pcm") {
+        args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
+      }
+
+      return await new Promise<TtsPlaybackResult>((resolve) => {
+        let resolved = false;
+        const resolveOnce = (result: TtsPlaybackResult) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(result);
+          }
+        };
+
+        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+        const buffer = Buffer.from(synthesizedAudioB64, "base64");
+
+        proc.once("error", (err) => {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          this.log.logError(`[KokoroTts] Playback error for ${messageId}: ${err.message}`);
+          this.tracking.logMetric("stt.tts.kokoro.failure", {
+            message_id: messageId,
+            reason: err.message,
+          });
+          resolveOnce({
+            success: false,
+            provider: "kokoro",
+            latencyMs,
+            error: err.message,
+          });
+        });
+
+        proc.once("close", (code) => {
+          const latencyMs = Date.now() - startMs;
+          if (code !== 0) {
+            this.playedMessages.delete(messageId);
+            const error = `exit code ${code}`;
+            this.tracking.logMetric("stt.tts.kokoro.failure", {
+              message_id: messageId,
+              reason: `exit_${code}`,
+            });
+            resolveOnce({
+              success: false,
+              provider: "kokoro",
+              latencyMs,
+              error,
+            });
+            return;
+          }
+
+          this.tracking.logMetric("stt.tts.kokoro.success", {
+            message_id: messageId,
+            latency_ms: latencyMs,
+          });
+          this.tracking.logMetric("stt.tts.latency_ms", {
+            message_id: messageId,
+            provider: "kokoro",
+            latency_ms: latencyMs,
+          });
+          resolveOnce({
+            success: true,
+            provider: "kokoro",
+            latencyMs,
+          });
+        });
+
+        if (!proc.stdin) {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          const error = "stdin_unavailable";
+          this.tracking.logMetric("stt.tts.kokoro.failure", {
+            message_id: messageId,
+            reason: error,
+          });
+          resolveOnce({
+            success: false,
+            provider: "kokoro",
+            latencyMs,
+            error,
+          });
+          return;
+        }
+
+        proc.stdin.once("error", (err) => {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          this.tracking.logMetric("stt.tts.kokoro.failure", {
+            message_id: messageId,
+            reason: err.message,
+          });
+          resolveOnce({
+            success: false,
+            provider: "kokoro",
+            latencyMs,
+            error: err.message,
+          });
+        });
+
+        proc.stdin.end(buffer);
+      });
+    } catch (e: any) {
+      this.playedMessages.delete(messageId);
+      const latencyMs = Date.now() - startMs;
+      this.log.logError(`[KokoroTts] Failed to start playback: ${e.message}`);
+      this.tracking.logMetric("stt.tts.kokoro.failure", {
+        message_id: messageId,
+        reason: e.message,
+      });
+      return {
+        success: false,
+        provider: "kokoro",
+        latencyMs,
+        error: e.message,
+      };
+    }
+  }
+}
+
+/**
+ * Factory function to create TTS provider based on settings
+ */
+export function createTtsProvider(
+  log: Log,
+  tracking: STTTracking,
+  settings: Settings
+): TtsProvider {
+  const provider = settings.getArqonTtsProvider();
+  
+  if (provider === "kokoro") {
+    return new KokoroTtsProvider(log, tracking, settings);
+  }
+  
+  // Default to fallback
+  return new FallbackTtsProvider(log, tracking, settings);
+}
