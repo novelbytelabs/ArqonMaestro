@@ -30,7 +30,7 @@ Result: success (`webpack ... compiled successfully`, exit `0`).
 ### Regression Harness
 
 ```bash
-npx ts-node test-soak.ts
+ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts
 ```
 
 Result: `14/14` passing, `Overall passing: true`, exit `0`.

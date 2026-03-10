@@ -130,7 +130,7 @@ webpack 5.72.0 compiled successfully in 22208 ms
 ```
 
 ### Artifact G3-B: Gate 3 Regression Harness
-- `command`: `cd maestro/client && npx ts-node test-soak.ts`
+- `command`: `cd maestro/client && ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts`
 - `timestamp`: `2026-03-10T11:24:55-04:00`
 - `exit_code`: `0`
 - `key_output`:
@@ -198,7 +198,7 @@ Gate 3 decision log paths:
 ## Gate 4 Artifacts
 
 ### Artifact G4-A: Integrated Regression Coverage (Allow/Block/Policy)
-- `command`: `cd maestro/client && npx ts-node test-soak.ts`
+- `command`: `cd maestro/client && ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts`
 - `timestamp`: `2026-03-10T11:24:55-04:00`
 - `exit_code`: `0`
 - `key_output`:

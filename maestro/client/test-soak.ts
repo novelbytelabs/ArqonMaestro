@@ -5,7 +5,8 @@ import Settings from "./src/main/settings";
 
 async function main() {
   console.log("Starting Mock Arqon Bus Server...");
-  const server = new MockArqonBusServer(9100);
+  const soakPort = Number(process.env.ARQON_SOAK_PORT || "9100");
+  const server = new MockArqonBusServer(soakPort);
 
   console.log("Initializing Test Dependencies...");
   const mockLog = {
@@ -16,7 +17,7 @@ async function main() {
   } as any as Log;
   
   const mockSettings = {
-    getArqonBusWsUrl: () => "ws://localhost:9100",
+    getArqonBusWsUrl: () => `ws://localhost:${soakPort}`,
     getArqonBusRoom: () => "stt",
     getArqonBusChannel: () => "transcription",
     getArqonBusShadowMode: () => false,
