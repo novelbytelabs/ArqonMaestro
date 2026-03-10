@@ -433,6 +433,31 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-031: Gate 3 Reliability Hardening For Replay Smoke And Playback Failures
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Isolate replay smoke from soak by defaulting replay validation to port `9101`, and treat `aplay` startup/pipe failures as real playback failures by removing the message from dedupe tracking.
+- **Why**: Gate 3 hard-close requires reproducible command evidence. Shared fixed ports created intermittent `EADDRINUSE` failures, and optimistic playback success on spawn errors could silently suppress valid retries.
+- **Consequences**:
+  - `test-replay-smoke.ts` now runs on an isolated default port and can still be overridden via `ARQON_REPLAY_SMOKE_PORT`
+  - `VoiceOutput` reports startup/pipeline failures via telemetry/logging and does not keep failed `message_id` entries deduped
+  - Gate 3 evidence reflects deterministic replay-smoke execution and honest playback state
+
+---
+ 
+## ADM-032: Gate 4 Integrity Handshake (ACE) via Registered Handlers
+- **Date**: 2026-03-10
+- **Status**: Accepted
+- **Decision**: Implemented the Integrity Handshake (ACE/Anchor) using asynchronous registered handlers in `BusClient`. The client intercepts `stt.action.review` envelopes and delegates to a registered `ActionReviewHandler` (e.g., human-in-the-loop or local policy) before publishing `allow` or `block` signals back to the Bus.
+- **Why**: This pattern provides a strict constitutive gate between intent and execution. By keeping the handler asynchronous, we support complex decision-making processes (including UI interactions or remote policy checks) without blocking the core WebSocket pump.
+- **Consequences**:
+  - `BusClient` now manages `actionReviewHandler` registration
+  - Failure to register a handler results in automatic `block` for safety (constitutive by default)
+  - `stt.action.blocked` events trigger immediate user notifications via Electron's notification API
+  - Node 12 compatibility work was required across the audio stack to support current execution environments for these handlers
+ 
+---
+ 
 ## Template for Future Decisions
 
 ```markdown

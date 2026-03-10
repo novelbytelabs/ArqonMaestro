@@ -22,7 +22,11 @@ export type STTMessageType =
   | "stt.session.stop"
   | "stt.health.status"
   | "stt.speech.request"  // New: voice output request
-  | "stt.address.query";  // New: address-first routing message
+  | "stt.address.query"   // New: address-first routing message
+  | "stt.action.review"   // New: constitutive action review request
+  | "stt.action.allow"    // New: human approval response
+  | "stt.action.block"    // New: human rejection response
+  | "stt.action.blocked"; // New: unilateral policy rejection
 
 /**
  * Common fields shared across all STT envelopes
@@ -250,6 +254,72 @@ export interface STTSpeechRequestEnvelope extends STTCommonFields {
 }
 
 // ============================================================================
+// STT Action Review (ACE/Anchor Integrity Handshake)
+// ============================================================================
+
+export interface STTActionReviewPayload {
+  /** The semantic action identifier or intended command */
+  action_id: string;
+  /** Summary of the action for human review */
+  summary: string;
+  /** Context required for decision (e.g., destructive flags, scope) */
+  context: Record<string, any>;
+  /** Timeout in milliseconds for manual review before default-deny */
+  timeout_ms: number;
+}
+
+export interface STTActionReviewEnvelope extends STTCommonFields {
+  type: "stt.action.review";
+  payload: STTActionReviewPayload;
+}
+
+// ============================================================================
+// STT Action Allow
+// ============================================================================
+
+export interface STTActionAllowPayload {
+  /** The action_id being allowed */
+  action_id: string;
+}
+
+export interface STTActionAllowEnvelope extends STTCommonFields {
+  type: "stt.action.allow";
+  payload: STTActionAllowPayload;
+}
+
+// ============================================================================
+// STT Action Block
+// ============================================================================
+
+export interface STTActionBlockPayload {
+  /** The action_id being explicitly rejected by human */
+  action_id: string;
+}
+
+export interface STTActionBlockEnvelope extends STTCommonFields {
+  type: "stt.action.block";
+  payload: STTActionBlockPayload;
+}
+
+// ============================================================================
+// STT Action Blocked (Unilateral execution rejection)
+// ============================================================================
+
+export interface STTActionBlockedPayload {
+  /** The action_id that was blocked by policy or timeout */
+  action_id: string;
+  /** Reason for the block */
+  reason: "policy" | "timeout" | "user_rejected" | "unsupported";
+  /** User-friendly message explaining the block */
+  message: string;
+}
+
+export interface STTActionBlockedEnvelope extends STTCommonFields {
+  type: "stt.action.blocked";
+  payload: STTActionBlockedPayload;
+}
+
+// ============================================================================
 // Union type for all STT envelopes
 // ============================================================================
 
@@ -262,7 +332,11 @@ export type STTEnvelope =
   | STTSessionStopEnvelope
   | STTHealthStatusEnvelope
   | STTSpeechRequestEnvelope
-  | STTAddressQueryEnvelope;  // New: address-first routing
+  | STTAddressQueryEnvelope   // New: address-first routing
+  | STTActionReviewEnvelope   // New: constitutive action review
+  | STTActionAllowEnvelope    // New: human approval
+  | STTActionBlockEnvelope    // New: human rejection
+  | STTActionBlockedEnvelope; // New: unilateral policy rejection
 
 // ============================================================================
 // Arqon Bus Message Wrapper
@@ -590,6 +664,92 @@ export function createSpeechRequestEnvelope(
       audio_format: audioFormat,
       transcript: transcript,
       duration_ms: durationMs,
+    },
+  };
+}
+
+/**
+ * Create a constitutive action review envelope (ACE/Anchor)
+ */
+export function createActionReviewEnvelope(
+  sessionId: string,
+  chunkId: string,
+  actionId: string,
+  summary: string,
+  context: Record<string, any>,
+  timeoutMs: number,
+  tenantId?: string,
+  addrId?: string
+): STTActionReviewEnvelope {
+  return {
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
+    type: "stt.action.review",
+    payload: {
+      action_id: actionId,
+      summary,
+      context,
+      timeout_ms: timeoutMs,
+    },
+  };
+}
+
+/**
+ * Create a constitutive action allow envelope
+ */
+export function createActionAllowEnvelope(
+  sessionId: string,
+  chunkId: string,
+  actionId: string,
+  tenantId?: string,
+  addrId?: string
+): STTActionAllowEnvelope {
+  return {
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
+    type: "stt.action.allow",
+    payload: {
+      action_id: actionId,
+    },
+  };
+}
+
+/**
+ * Create a constitutive action block envelope
+ */
+export function createActionBlockEnvelope(
+  sessionId: string,
+  chunkId: string,
+  actionId: string,
+  tenantId?: string,
+  addrId?: string
+): STTActionBlockEnvelope {
+  return {
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
+    type: "stt.action.block",
+    payload: {
+      action_id: actionId,
+    },
+  };
+}
+
+/**
+ * Create a unilateral action blocked envelope
+ */
+export function createActionBlockedEnvelope(
+  sessionId: string,
+  chunkId: string,
+  actionId: string,
+  reason: STTActionBlockedPayload["reason"],
+  message: string,
+  tenantId?: string,
+  addrId?: string
+): STTActionBlockedEnvelope {
+  return {
+    ...createCommonFields(sessionId, chunkId, tenantId, addrId),
+    type: "stt.action.blocked",
+    payload: {
+      action_id: actionId,
+      reason,
+      message,
     },
   };
 }

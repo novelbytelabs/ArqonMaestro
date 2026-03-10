@@ -14,6 +14,7 @@
 4. Enforced explicit stage-approval requirement in traffic promotion logic.
 5. Reconciled documentation to reflect code reality and test evidence.
 6. Implemented non-blocking native voice playback (`VoiceOutput`) with idempotency constraints.
+7. Hardened Gate 3 verification by isolating replay smoke onto a dedicated default port and enforcing honest playback failure handling.
 
 ## Evidence Snapshot
 

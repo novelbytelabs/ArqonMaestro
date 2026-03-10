@@ -116,20 +116,20 @@ Rollback proof: rollback forces stage to `rollback`, traffic percentage to `0`, 
 
 ### Artifact G3-A: Voice Output Compilation
 - `command`: `npm run build:main`
-- `timestamp`: `2026-03-10T14:36:12Z`
+- `timestamp`: `2026-03-10T10:49:04-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
 > arqon-maestro@2.0.2 build:main
 > webpack --config main.webpack.ts --mode=production
 assets by status 195 KiB [cached] 20 assets
-asset main.js 948 KiB [emitted] [minimized] (name: main) 1 related asset
-webpack 5.72.0 compiled successfully in 23111 ms
+asset main.js 949 KiB [emitted] [minimized] (name: main) 1 related asset
+webpack 5.72.0 compiled successfully in 21557 ms
 ```
 
 ### Artifact G3-B: Gate 3 Regression Harness
 - `command`: `npx ts-node test-soak.ts`
-- `timestamp`: `2026-03-10T14:41:25Z`
+- `timestamp`: `2026-03-10T10:49:14-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
@@ -151,17 +151,18 @@ Overall passing: true
 
 ### Artifact G3-C: Targeted Replay Smoke & Idempotency Proof
 - `command`: `npx ts-node test-replay-smoke.ts`
-- `timestamp`: `2026-03-10T14:48:30Z`
+- `timestamp`: `2026-03-10T10:49:25-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
+Mock Arqon Bus Server listening on ws://localhost:9101
 [VoiceOutput] Playing speech request speech-replay-msg-999 (13 bytes): "mock synthesized speech..."
 [BusClient] Received: stt.speech.request
 [VoiceOutput] Ignoring replayed speech request: speech-replay-msg-999
 [BusClient] Received: stt.speech.request
 [VoiceOutput] Ignoring replayed speech request: speech-replay-msg-999
 [BusClient] Received: stt.speech.request
-[VoiceOutput] Playback finished for speech-replay-msg-999 in 202ms (exit code 0)
+[VoiceOutput] Playback finished for speech-replay-msg-999 in 179ms (exit code 0)
 
 {
   "probe": "stt.speech.replay_deduplication",
@@ -171,10 +172,11 @@ Overall passing: true
   }
 }
 ```
+Port isolation note: replay smoke uses a dedicated default port (`9101`) to avoid cross-test collisions with soak (`9100`).
 
 ### Artifact G3-D: Gate 3 Rollback Proof
 - `command`: `npx ts-node test-rollback-gate3.ts`
-- `timestamp`: `2026-03-10T14:52:10Z`
+- `timestamp`: `2026-03-10T10:49:34-04:00`
 - `exit_code`: `0`
 - `key_output`:
 ```text
@@ -184,6 +186,9 @@ Error in speech_replay: Error: BusClient failed to connect to mock server
 [Rollback Proof] BusClient correctly aborted connection due to getArqonBusEnabled=false.
 [Rollback Proof] VoiceOutput path is completely isolated and cannot be triggered.
 ```
+
+Gate 3 decision log paths:
+- `docs/decision-log.md` (`ADM-030`, `ADM-031`)
 
 ## Hard-Close Verdict
 

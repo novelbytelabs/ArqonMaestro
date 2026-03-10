@@ -1,7 +1,4 @@
 import { spawn } from "child_process";
-import fs from "fs";
-import os from "os";
-import path from "path";
 import Log from "../log";
 import STTTracking from "./tracking";
 
@@ -38,43 +35,71 @@ export default class VoiceOutput {
     try {
       const buffer = Buffer.from(audioDataB64, "base64");
       this.log.logVerbose(`[VoiceOutput] Playing speech request ${messageId} (${buffer.length} bytes): "${transcript.substring(0, 30)}..."`);
-      
+
       const startMs = Date.now();
-      
-      // We spawn a process to play to avoid blocking the Node.js event loop
-      // E.g., paplay for wav, aplay for raw/wav on Linux
-      // Since this is run in a mocked test environment sometimes, we ensure we handle failures gracefully
-      let command = "aplay";
-      let args = ["-q"]; // quiet
-      
+      const args = ["-q"]; // quiet
       if (format === "raw" || format === "pcm") {
-         args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
+        args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
       }
 
-      const proc = spawn(command, args, { stdio: ["pipe", "ignore", "ignore"] });
-      
-      proc.on("error", (err) => {
-        this.log.logError(`[VoiceOutput] Playback error for ${messageId}: ${err.message}`);
+      return new Promise<boolean>((resolve) => {
+        let resolved = false;
+        const resolveOnce = (value: boolean) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(value);
+          }
+        };
+
+        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+
+        proc.once("spawn", () => {
+          this.tracking.logMetric("stt.speech.playback_started", {
+            message_id: messageId,
+            bytes: buffer.length,
+          });
+          resolveOnce(true);
+        });
+
+        proc.once("error", (err) => {
+          this.playedMessages.delete(messageId);
+          this.log.logError(`[VoiceOutput] Playback error for ${messageId}: ${err.message}`);
+          this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: err.message });
+          resolveOnce(false);
+        });
+
+        proc.once("close", (code) => {
+          const duration = Date.now() - startMs;
+          this.log.logVerbose(`[VoiceOutput] Playback finished for ${messageId} in ${duration}ms (exit code ${code})`);
+          if (code !== 0) {
+            this.playedMessages.delete(messageId);
+            this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: `exit_${code}` });
+          } else {
+            this.tracking.logMetric("stt.speech.playback_completed", { message_id: messageId, duration_ms: duration });
+          }
+        });
+
+        if (!proc.stdin) {
+          this.playedMessages.delete(messageId);
+          this.log.logError(`[VoiceOutput] Playback error for ${messageId}: missing stdin pipe`);
+          this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: "stdin_unavailable" });
+          resolveOnce(false);
+          return;
+        }
+
+        proc.stdin.once("error", (err) => {
+          this.playedMessages.delete(messageId);
+          this.log.logError(`[VoiceOutput] Playback stdin error for ${messageId}: ${err.message}`);
+          this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: err.message });
+          resolveOnce(false);
+        });
+
+        proc.stdin.end(buffer);
       });
-
-      proc.on("close", (code) => {
-        const duration = Date.now() - startMs;
-        this.log.logVerbose(`[VoiceOutput] Playback finished for ${messageId} in ${duration}ms (exit code ${code})`);
-      });
-
-      // Write audio to process stdin
-      proc.stdin.write(buffer);
-      proc.stdin.end();
-
-      this.tracking.logMetric("stt.speech.playback_started", { 
-        message_id: messageId, 
-        bytes: buffer.length 
-      });
-      
-      return true;
-
     } catch (e: any) {
+      this.playedMessages.delete(messageId);
       this.log.logError(`[VoiceOutput] Failed to start playback: ${e.message}`);
+      this.tracking.logMetric("stt.speech.playback_failed", { message_id: messageId, reason: e.message });
       return false;
     }
   }

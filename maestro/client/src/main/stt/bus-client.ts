@@ -25,6 +25,10 @@ import {
   createSessionStopEnvelope,
   createHealthStatusEnvelope,
   createAddressQueryEnvelope,
+  STTActionReviewPayload,
+  STTActionBlockedPayload,
+  createActionAllowEnvelope,
+  createActionBlockEnvelope,
   toBusMessage,
   BusMessageType,
 } from "./envelopes";
@@ -50,6 +54,15 @@ export type ExecutionResponseHandler = (
   latencyMs: number,
   isFinal: boolean
 ) => void;
+
+/**
+ * Action Review (ACE/Anchor) handler function.
+ * Called when the Bus requires client-side human or policy review.
+ * Returns true to allow, false to block.
+ */
+export type ActionReviewHandler = (
+  payload: STTActionReviewPayload
+) => Promise<boolean>;
 
 /**
  * Connection state for the Arqon Bus client
@@ -131,6 +144,9 @@ export default class BusClient {
 
   // Voice output handler
   private voiceOutput: VoiceOutput;
+
+  // ACE Integrity Flow Handler
+  private actionReviewHandler?: ActionReviewHandler;
 
   constructor(
     private settings: Settings,
@@ -246,6 +262,20 @@ export default class BusClient {
       clearTimeout(pending.timeout);
       this.pendingRequests.delete(requestId);
     }
+  }
+
+  /**
+   * Register a handler for constitutive action review (ACE)
+   */
+  setActionReviewHandler(handler: ActionReviewHandler): void {
+    this.actionReviewHandler = handler;
+  }
+
+  /**
+   * Remove the action review handler
+   */
+  clearActionReviewHandler(): void {
+    this.actionReviewHandler = undefined;
   }
 
   /**
@@ -447,6 +477,16 @@ export default class BusClient {
     if (message.payload.type === "stt.speech.request") {
       this.handleSpeechRequest(message.payload);
     }
+    
+    // Handle constitutive action reviews
+    if (message.payload.type === "stt.action.review") {
+      this.handleActionReview(message.payload);
+    }
+
+    // Handle unilateral blocked actions
+    if (message.payload.type === "stt.action.blocked") {
+      this.handleActionBlocked(message.payload);
+    }
 
     // Handle execution mode
     if (this.executionMode && this.executionHandler) {
@@ -477,6 +517,67 @@ export default class BusClient {
     
     // Voice output handles its own idempotency and replay deduping
     this.voiceOutput.play(payload.message_id, audio_data, audio_format || "wav", transcript || "");
+  }
+
+  /**
+   * Handle constitutive action review request (ACE/Anchor)
+   */
+  private async handleActionReview(payload: any): Promise<void> {
+    const reviewPayload = payload as STTActionReviewPayload;
+    
+    this.tracking.logMetric("stt.integrity.review_requested", {
+      action_id: reviewPayload.action_id,
+      summary: reviewPayload.summary,
+    });
+
+    if (!this.actionReviewHandler) {
+      this.log.logVerbose(`[BusClient] Action blocked (no review handler): ${reviewPayload.action_id}`);
+      this.publishActionBlock(payload.session_id, payload.chunk_id, reviewPayload.action_id);
+      return;
+    }
+
+    try {
+      const allowed = await this.actionReviewHandler(reviewPayload);
+      if (allowed) {
+        this.publishActionAllow(payload.session_id, payload.chunk_id, reviewPayload.action_id);
+        this.tracking.logMetric("stt.integrity.allow", { action_id: reviewPayload.action_id });
+      } else {
+        this.publishActionBlock(payload.session_id, payload.chunk_id, reviewPayload.action_id);
+        this.tracking.logMetric("stt.integrity.block", { action_id: reviewPayload.action_id });
+      }
+    } catch (error) {
+      this.log.logError(`[BusClient] Review handler failed: ${error}`);
+      this.publishActionBlock(payload.session_id, payload.chunk_id, reviewPayload.action_id);
+      this.tracking.logMetric("stt.integrity.block", { action_id: reviewPayload.action_id, reason: "handler_error" });
+    }
+  }
+
+  /**
+   * Handle unilateral blocked action from Bus
+   */
+  private handleActionBlocked(payload: any): void {
+    const blockedPayload = payload as STTActionBlockedPayload;
+    
+    this.tracking.logMetric("stt.integrity.blocked_by_policy", {
+      action_id: blockedPayload.action_id,
+      reason: blockedPayload.reason,
+    });
+    
+    // Always log this explicitly since it's a security/policy decision
+    this.log.logVerbose(`[BusClient] ACTION BLOCKED by Bus: ${blockedPayload.message}`);
+    
+    // Fire a notification to the user
+    try {
+      const { Notification } = require("electron");
+      if (Notification.isSupported()) {
+        new Notification({
+          title: "Action Blocked",
+          body: blockedPayload.message || "An automated action was prevented for safety.",
+        }).show();
+      }
+    } catch {
+      // Ignore if not running in electron or mock
+    }
   }
 
   /**
@@ -653,7 +754,7 @@ export default class BusClient {
     audioData: Buffer,
     sequenceNumber: number,
     timestampMs: number,
-    addrId?: string
+    tenantId?: string
   ): boolean {
     const envelope = createAudioAppendEnvelope(
       sessionId,
@@ -661,9 +762,34 @@ export default class BusClient {
       audioData,
       sequenceNumber,
       timestampMs,
-      undefined, // tenantId
-      addrId
+      tenantId
     );
+    return this.publish(envelope);
+  }
+
+  /**
+   * Publish constitutive action allow response
+   */
+  publishActionAllow(
+    sessionId: string,
+    chunkId: string,
+    actionId: string,
+    tenantId?: string
+  ): boolean {
+    const envelope = createActionAllowEnvelope(sessionId, chunkId, actionId, tenantId);
+    return this.publish(envelope);
+  }
+
+  /**
+   * Publish constitutive action block response
+   */
+  publishActionBlock(
+    sessionId: string,
+    chunkId: string,
+    actionId: string,
+    tenantId?: string
+  ): boolean {
+    const envelope = createActionBlockEnvelope(sessionId, chunkId, actionId, tenantId);
     return this.publish(envelope);
   }
 

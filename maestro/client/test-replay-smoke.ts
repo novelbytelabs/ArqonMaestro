@@ -4,7 +4,8 @@ import Log from "./src/main/log";
 import Settings from "./src/main/settings";
 
 async function main() {
-  const server = new MockArqonBusServer(9100);
+  const replayPort = Number(process.env.ARQON_REPLAY_SMOKE_PORT || "9101");
+  const server = new MockArqonBusServer(replayPort);
 
   const mockLog = {
     logInfo: console.log,
@@ -14,7 +15,7 @@ async function main() {
   } as any as Log;
   
   const mockSettings = {
-    getArqonBusWsUrl: () => "ws://localhost:9100",
+    getArqonBusWsUrl: () => `ws://localhost:${replayPort}`,
     getArqonBusRoom: () => "stt",
     getArqonBusChannel: () => "transcription",
     getArqonBusShadowMode: () => false,
