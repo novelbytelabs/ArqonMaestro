@@ -77,6 +77,7 @@ nav:
       - Model Architecture: models/model-architecture.md
       - Training Models: models/training-models.md
   - Operations:
+      - Port Reference: operations/port-reference.md
       - Configuration: operations/configuration.md
       - Gotcha Registry: operations/gotcha-registry.md
       - Phase Closeout Template: operations/phase-closeout-template.md

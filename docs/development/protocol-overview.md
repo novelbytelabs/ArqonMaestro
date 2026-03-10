@@ -4,12 +4,16 @@ Arqon Maestro communicates with editor plugins over a local WebSocket protocol. 
 
 > Video placeholder: desktop app to plugin protocol walkthrough.
 
+Port scope:
+- plugin/bus protocol: `ws://localhost:9100/`
+- core stream endpoint (`/stream/`) is a separate path on `17200`
+
 ## Connection Model
 
 The VS Code implementation connects to:
 
 ```text
-ws://localhost:17373/
+ws://localhost:9100/
 ```
 
 On connection:

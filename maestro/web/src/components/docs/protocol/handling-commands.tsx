@@ -179,7 +179,7 @@ const connect = () => {
     return;
   }
 
-  websocket = new WebSocket("ws://localhost:17373");
+  websocket = new WebSocket("ws://localhost:9100/");
 
   websocket.on("open", () => {
     send("active", {

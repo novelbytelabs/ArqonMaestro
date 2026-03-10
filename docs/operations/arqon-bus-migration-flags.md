@@ -4,6 +4,8 @@
 
 All migration-related configuration flags for the Arqon Bus STT migration.
 
+See also: `docs/operations/port-reference.md` for canonical local port assignments.
+
 ## Bus Core Settings
 
 ### `arqon_bus_enabled`

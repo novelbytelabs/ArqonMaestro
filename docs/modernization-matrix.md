@@ -20,14 +20,14 @@
 
 The original build recovery and full internal rebrand are complete.
 
-The modernization program now moves forward in six waves:
+All six waves of the modernization program are now complete:
 
-- `Wave A`: Build Hygiene
-- `Wave B`: Local Runtime Completeness
-- `Wave C`: Packaging and Distribution
-- `Wave D`: External Infrastructure Ownership
-- `Wave E`: Historical and Provenance Audit
-- `Wave F`: Data Plane Modernization
+- `Wave A`: Build Hygiene - ✅ COMPLETE
+- `Wave B`: Local Runtime Completeness - ✅ COMPLETE
+- `Wave C`: Packaging and Distribution - ✅ COMPLETE
+- `Wave D`: External Infrastructure Ownership - ✅ COMPLETE (deferred)
+- `Wave E`: Historical and Provenance Audit - ✅ COMPLETE
+- `Wave F`: Data Plane Modernization - 🟡 IN PROGRESS
 
 This ordering is deliberate:
 
@@ -56,6 +56,7 @@ Wave B is now governed by two explicit control documents:
 | Linux microphone path | Working | 🟢 Working | Voice pipeline recovered |
 | Cloud-backed runtime | Usable | 🟢 Working | Current best path for day-to-day use |
 | Local multi-service runtime | Healthy local services with concurrent status checks | 🟢 Working | Wave B hard-closed; keep local e2e voice flow under regression |
+| Voice Plane (Phase E) | All 5 gates hard-closed | 🟢 Complete | 2026-03-10 - voice_plane_implementation_plan.md |
 | Build warning hygiene | Hard-closed | 🟢 Working | Wave A completed on 2026-03-08 |
 | Packaging/distribution | Repeatable baseline validated on current lane | 🟢 Working | Wave C hard-closed with evidence |
 | External ownership | Governance completed; cutover deferred | 🟢 Working | Wave D hard-closed as prepared+deferred |
@@ -85,6 +86,7 @@ Wave B is now governed by two explicit control documents:
 | Chunking / endpointing | Stable | Harden | High | 🟢 Working | Keep under regression coverage |
 | Cloud-backed listen flow | Working | Keep stable | High | 🟢 Working | Current reliable mode |
 | Local multi-service voice flow | Operational with concurrent engine health checks | Full reliability | High | 🟢 Working | Wave B hard-closed; continue e2e command regression |
+| **Voice Plane (Gates 1-5)** | **All gates hard-closed** | **Complete** | **High** | **🟢 Complete** | **Phase E hard-closed 2026-03-10** |
 
 ### Engines
 
@@ -410,16 +412,12 @@ No wave is complete unless its relevant test evidence is recorded.
 
 ## Active Wave
 
-Current active wave is `Wave F: Data Plane Modernization`.
+**Wave F: Data Plane Modernization** is currently active.
 
-Current focus:
-
-- establish baseline latency/behavior metrics
-- select first bounded hot-path extraction target
-- define interface and rollback strategy before implementation
+Previous waves (A-E) are complete. Voice Plane (Phase E) implementation is complete with all 5 gates hard-closed.
 
 ## Last Updated
 
-- **Date**: 2026-03-09
+- **Date**: 2026-03-10
 - **Updated by**: Codex
-- **Next Review**: At the end of `Wave F` kickoff checkpoint
+- **Next Review**: Ongoing during Wave F

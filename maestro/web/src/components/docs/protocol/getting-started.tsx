@@ -35,9 +35,9 @@ export const Concepts: React.FC = () => (
     <p>
       Serenade works by detecting which application on your desktop has focus, and then sending data
       over a WebSocket to the plugin listening for that application. The Serenade app runs a
-      WebSocket server on <code>localhost:17373</code>, and "registering" your plugin with the
+      WebSocket server on <code>localhost:9100</code>, and "registering" your plugin with the
       Serenade app is as simple as opening a new WebSocket connection to{" "}
-      <code>localhost:17373</code>. Each Serenade plugin also defines a regular expression that
+      <code>localhost:9100</code>. Each Serenade plugin also defines a regular expression that
       specifies which proesss it corresponds to. For instance, our Atom plugin tells the Serenade
       app that it should receive messages when an application whose process name matches{" "}
       <code>atom</code> is focused.
@@ -127,7 +127,7 @@ export const Connecting: React.FC = () => (
       code={`const WebSocket = require("ws");
 
 let id = Math.random().toString();
-let websocket = new WebSocket("ws://localhost:17373");
+let websocket = new WebSocket("ws://localhost:9100/");
 websocket.on("open", () => {
   websocket.send(JSON.stringify({
     message: "active",
@@ -140,7 +140,7 @@ websocket.on("open", () => {
 });`}
     />
     <p>
-      If the Serenade app isn't running yet, then trying to connect to <code>localhost:17373</code>{" "}
+      If the Serenade app isn't running yet, then trying to connect to <code>localhost:9100</code>{" "}
       will naturally fail. So, you might want your plugin to automatically try to reconnect, so it
       connects as soon as the Serenade app is started. Or, you might want to display an error to the
       user, with a button to manually reconnect. Which approach you use is up to you, and may be

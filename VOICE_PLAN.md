@@ -1,9 +1,14 @@
 # Arqon Maestro: Universal Voice Plane (UVP)
+
+> **Status**: Implementation complete as of 2026-03-10. All 5 gates hard-closed.
+> See: [`docs/voice_plane_implementation_plan.md`](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/voice_plane_implementation_plan.md)
+
 ## The Big Picture: "The Nervous System of Arqon"
 
 Maestro is the high-performance interaction layer for Arqon, providing a full-duplex, zero-latency feedback loop between Human Speech and System Action. It leverages the Arqon ecosystem's specialized Tiers to achieve **The Holy Grail** (sub-200ms TTFS) with industrial-grade safety and memory.
 
 ### 1. The Tiered Intelligence Model
+
 Maestro operates across the Arqon Tiers to optimize for speed, safety, and persistence:
 
 - **Tier 0: The Guardian (CASIL Edge)**:
@@ -20,24 +25,29 @@ Maestro operates across the Arqon Tiers to optimize for speed, safety, and persi
 ---
 
 ### Phase A: Input (The Pulse)
+
 1. **Audio Capture**: Maestro Client (Electron) captures PCM audio.
 2. **Stream Processing**: Maestro Core (Java) receives audio via Protobuf.
 3. **Reflex & CASIL**: Maestro performs a local **SAS lookup** and the Bus applies **CASIL hygiene**.
 4. **Broadcast**: An **`AddrId`** (Pointer) is emitted to the `arqon.speech.transcript` channel.
 
 ### Phase B: Intent (The Sync)
+
 1. **Shared Memory**: Agents (Ollama) pull the intent context from the shared **Reflex Subconscious** using the `AddrId`.
 2. **Action**: The agent executes the command. If high-risk, it triggers an **Omega Tier** sandbox execution.
 
 ### Phase C: Feedback (The Voice)
+
 1. **Continuum Projection**: The successful action is automatically projected to **Continuum** long-term memory via the Bus.
 2. **Speech Request**: Tool emits an `Arqon.Speech.Request` event.
-3. **Kokoro Service**: Resident Python module (`modules/kokoro`) synthesizes and plays audio via hardware direct out.
+3. **Voice Output**: Audio is received via Bus and played through aplay (non-blocking).
 4. **History Replay**: On client crash/resume, Maestro uses `op.history.replay` to instantly restore auditory context.
+
+> **Note**: Kokoro TTS is not yet installed. Current implementation uses cloud TTS with audio returned via Bus.
 
 ---
 
-## 2. Technical Environment (Frozen)
+## Technical Environment (Frozen)
 
 | Component | Target Version |
 | :--- | :--- |
@@ -50,13 +60,15 @@ Maestro operates across the Arqon Tiers to optimize for speed, safety, and persi
 
 ---
 
-## 2. Technical Specifications
+## Technical Specifications
 
 ### ArqonBus Event Routing
+
 - **Room**: `pilot` (Universal ecosystem room)
 - **Channel**: `speech` (Dedicated auditory interaction channel)
 
 ### Event Schema
+
 ```json
 {
   "type": "telemetry",
@@ -74,11 +86,13 @@ Maestro operates across the Arqon Tiers to optimize for speed, safety, and persi
 ```
 
 ### Semantic Memory (Arqon Reflex)
+
 - **CFH (Canonical Fingerprint Hashing)**: Queries are normalized into 1024-bit signatures for 1.0 stability.
 - **Predictive Addressing**: Maestro uses `AddrId` pointers to avoid re-sending large text payloads across the Bus.
 - **The Subconscious (Layer 0)**: Uses the `arqon-reflex` RAM/SAS layer for <1ms context lookups.
 
 ### Optimization Levers (Arqon HPO)
+
 - **Model Quantization**: FP16 vs INT8 (balancing quality vs. latency).
 - **Audio Batch Size**: Tuning the synthesis chunking for immediate playback.
 - **Buffer Warmth**: Maintaining an initialized `cpal` or `rodio` stream to avoid device initialization lag.
@@ -86,31 +100,57 @@ Maestro operates across the Arqon Tiers to optimize for speed, safety, and persi
 
 ---
 
-## 3. Implementation Checklist
+## Implementation Status
 
-- [ ] **STT Bridge**: Update `StreamManager.java` to emit bus events.
-- [ ] **Kokoro Daemon**: Implement the persistent Python service in `modules/kokoro`.
-- [ ] **Bus Listener**: Set up the Rust-based bus listener for speech requests.
-- [ ] **HPO Rig**: Integrate Arqon HPO to optimize Kokoro parameters.
-- [ ] **Earcon Cache**: Pre-load PCM chimes for <50ms "Acknowledgement" feedback.
+### Completed ✅
+
+- [x] **STT Bridge**: Stream processing emits bus events
+- [x] **Bus Listener**: Arqon Bus client for speech requests
+- [x] **Comparator**: Transcript and command comparison
+- [x] **CFH Implementation**: TypeScript CFH matching Rust output (19/19 parity)
+- [x] **Address-First**: AddrId emission in live flow
+- [x] **Voice Output**: Non-blocking playback via aplay
+- [x] **Replay Handling**: Idempotency and deduplication
+- [x] **Integrity Handshake**: Allow/block/default-deny
+- [x] **Control-Plane Coordinator**: SpacetimeDB-backed coordination
+- [x] **Rollback**: All gates have verified rollback paths
+
+### Not Yet Implemented ❌
+
+- [ ] **Kokoro Daemon**: Local TTS (uses cloud TTS currently)
+- [ ] **Earcon Cache**: Pre-loaded acknowledgment sounds
+- [ ] **HPO Rig**: Optimization tuning
 
 ---
 
-## 4. Technical Gotchas & Implementation Tips
+## Technical Gotchas & Implementation Tips
 
 ### Audio Device Contention
-- **Problem**: Maestro's Java core (STT) and Kokoro's Python daemon (TTS) both need hardware access.
-- **Solution**: Use **PipeWire** or **PulseAudio** as the intermediary. Ensure the Kokoro daemon uses a non-blocking output (like `rodio` in Rust or `sounddevice` in Python with shared streams) to avoid locking the device and causing STT capture failures.
+
+- **Current State**: Using aplay (ALSA) for audio output
+- **Future**: When Kokoro is added, use PipeWire/PulseAudio as intermediary
 
 ### VRAM & Model Warmth
-- **Resident Memory**: Kokoro-82M must remain in VRAM. However, Ollama (Qwen 2.5 Coder 7B) also consumes GPU resources.
-- **Tip**: Set `OLLAMA_MAX_VRAM` or similar constraints to prevent the OS from offloading Kokoro to System RAM, which would spike the TTFS from 150ms to >2000ms.
-- **Warmup Inference**: Execute a "silent" inference (e.g., synthesizing a space character) on startup to ensure the GPU kernels are compiled and the model is fully localized in memory.
+
+- **Current**: No local TTS model loaded
+- **Future**: Kokoro-82M requires VRAM management with Ollama
 
 ### ArqonBus Latency
-- **Serialization**: The Bus is JSON-based. Avoid sending raw audio samples over the Bus; send only transcriptions and metadata.
-- **WebSocket Handshake**: Maestro should maintain a *persistent* WebSocket connection to the Bus (localhost:9100) rather than spawning `pilot bus` CLI commands for every event.
 
-### Full-Duplex state (The "Barge-in" Problem)
-- **Logic**: If the user starts speaking while Kokoro is still reporting a result, the system should immediately "duck" or mute the TTS.
-- **Tip**: Maestro Core should emit a `Speech.Mute` event to the Bus when Voice Activity Detection (VAD) triggers.
+- **Serialization**: The Bus is JSON-based. Avoid sending raw audio samples over the Bus; send only transcriptions and metadata.
+- **WebSocket Handshake**: Maestro maintains a persistent WebSocket connection to the Bus.
+
+### Full-Duplex State (The "Barge-in" Problem)
+
+- **Logic**: If the user starts speaking while TTS is playing, the system should immediately "duck" or mute the TTS.
+- **Implementation**: VAD triggers should emit a `Speech.Mute` event to the Bus.
+
+---
+
+## Evidence
+
+All 5 gates hard-closed with full evidence:
+
+- [`docs/operations/phase-e-evidence.md`](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-e-evidence.md)
+- [`docs/operations/phase-e-closeout.md`](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/operations/phase-e-closeout.md)
+- [`docs/voice_plane_implementation_plan.md`](/home/irbsurfer/Projects/arqon/ArqonMaestro/docs/voice_plane_implementation_plan.md)

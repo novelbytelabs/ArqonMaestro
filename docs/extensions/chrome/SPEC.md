@@ -15,15 +15,19 @@ This document provides the technical specification for the ArqonMaestro Chrome E
 The source code exists at https://github.com/serenadeai/chrome and contains:
 - Manifest V3 extension (v2.0.4)
 - Full TypeScript source with webpack build
-- WebSocket connection to backend at `ws://localhost:17373/`
+- WebSocket connection to backend at `ws://localhost:9100/`
 - Support for Chrome, Edge, and Brave browsers
 
 ### 1.2 Goals
 
 - Rebrand from "Serenade" to "ArqonMaestro"
-- Update WebSocket port from 17373 to Maestro's port (17200)
+- Update WebSocket port from legacy plugin socket to Arqon Bus port (9100)
 - Integrate with ArqonMaestro backend
 - Maintain all existing features
+- Keep port scope explicit: Chrome extension uses Arqon Bus (`9100`), not core stream (`17200/stream/`)
+
+Port matrix reference:
+- `docs/operations/port-reference.md`
 
 ---
 
@@ -72,7 +76,7 @@ flowchart TB
     
     IPC <-->|chrome.runtime messaging| CS
     
-    IPC <-->|WebSocket| Backend[Maestro Backend<br/>ws://localhost:17200]
+    IPC <-->|WebSocket| Backend[Arqon Bus<br/>ws://localhost:9100]
 ```
 
 ### 2.3 Key Components
@@ -86,7 +90,7 @@ flowchart TB
 
 #### ipc.ts (Communication Layer)
 - WebSocket client connecting to backend
-- Default URL: `ws://localhost:17373/` (needs update to 17200 for ArqonMaestro)
+- Default URL: `ws://localhost:9100/` (Arqon Bus canonical local endpoint)
 - Routes commands between background and content scripts
 - Manages connection state
 - Updates toolbar icon based on connection status
@@ -138,10 +142,10 @@ Simple popup with:
 
 ```typescript
 // Current (Serenade)
-const URL = "ws://localhost:17373/";
+const URL = "ws://localhost:9100/";
 
 // Should be updated for ArqonMaestro
-const URL = "ws://localhost:17200/";
+const URL = "ws://localhost:9100/";
 ```
 
 ### 3.2 Message Format
@@ -208,7 +212,7 @@ When user says `click <text>`:
 
 | Item | Current | Change To |
 |------|---------|-----------|
-| WebSocket URL | ws://localhost:17373/ | ws://localhost:17200/ |
+| WebSocket URL | ws://localhost:9100/ | ws://localhost:9100/ |
 | Storage Keys | serenade_* | arqon_* |
 
 ### 5.3 Visual Updates
@@ -236,7 +240,7 @@ When user says `click <text>`:
 - [ ] Copy chrome-extension source to this repository
 - [ ] Update manifest.json with ArqonMaestro branding
 - [ ] Update package.json
-- [ ] Update WebSocket URL from 17373 to 17200
+- [x] Update WebSocket URL to 9100 (Arqon Bus)
 - [ ] Update all Serenade references to ArqonMaestro
 - [ ] Replace icons with Arqon branding
 

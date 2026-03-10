@@ -1,9 +1,9 @@
-import WebSocket from "ws";
 import * as child_process from "child_process";
 import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
 import Settings from "../settings";
+import { PluginTransport } from "./plugin-manager";
 
 export default class Custom {
   private primaryServerFilename = "arqon-maestro-custom-commands-server.js";
@@ -37,7 +37,7 @@ For more information, check out the ArqonMaestro API documentation: https://nove
   private keepAliveTimeout?: NodeJS.Timeout;
   private process?: child_process.ChildProcess;
   private resolveStart?: () => void;
-  public socket?: WebSocket;
+  public socket?: PluginTransport;
 
   constructor(private settings: Settings) {}
 
@@ -54,7 +54,7 @@ For more information, check out the ArqonMaestro API documentation: https://nove
     }
   }
 
-  connect(socket: WebSocket) {
+  connect(socket: PluginTransport) {
     if (this.socket) {
       return;
     }
@@ -188,7 +188,11 @@ For more information, check out the ArqonMaestro API documentation: https://nove
     }
 
     if (this.socket) {
-      this.socket.terminate();
+      if (typeof (this.socket as any).terminate === "function") {
+        (this.socket as any).terminate();
+      } else {
+        this.socket.close();
+      }
       this.socket = undefined;
     }
 

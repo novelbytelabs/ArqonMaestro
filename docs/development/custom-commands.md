@@ -4,6 +4,8 @@ Arqon Maestro supports a programmable custom-commands layer backed by a local Ja
 
 > Video placeholder: writing and reloading a custom command.
 
+Transport note: this path uses Arqon Bus on `ws://localhost:9100/`, not the core stream endpoint on `17200`.
+
 ## Where Custom Commands Live
 
 The app creates a scripts directory under the user config path and loads `custom.js` plus any other JavaScript files found there.
@@ -46,7 +48,7 @@ Available builder methods include:
 ```mermaid
 flowchart LR
   S[Scripts directory] --> R[Custom command sidecar]
-  R --> W[WebSocket on localhost:17373]
+  R --> W[WebSocket on localhost:9100]
   W --> A[Arqon Maestro app]
 ```
 

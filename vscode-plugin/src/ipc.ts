@@ -7,7 +7,11 @@ export default class IPC {
   private connected: boolean = false;
   private id: string = "";
   private websocket?: WebSocket | NodeWebSocket;
-  private url: string = "ws://localhost:17373/";
+  private url: string = "ws://localhost:9100/";
+  private readonly room: string = "maestro";
+  private readonly channel: string = "plugin.chrome";
+  private readonly protocol: string = "maestro-plugin-v1";
+  private messageCounter: number = 0;
 
   constructor(commandHandler: any, app: string) {
     this.commandHandler = commandHandler;
@@ -27,7 +31,8 @@ export default class IPC {
     if (typeof message === "string") {
       let request;
       try {
-        request = JSON.parse(message);
+        const parsed = JSON.parse(message);
+        request = parsed && parsed.payload && parsed.payload.message ? parsed.payload : parsed;
       } catch (e) {
         return;
       }
@@ -119,8 +124,28 @@ export default class IPC {
       return false;
     }
 
+    this.messageCounter += 1;
+    const envelope = {
+      id: `arq_${Date.now()}_${this.messageCounter}`,
+      timestamp: new Date().toISOString(),
+      type: "message",
+      version: "1.0",
+      room: this.room,
+      channel: this.channel,
+      payload: {
+        protocol: this.protocol,
+        app: this.app,
+        id: this.id,
+        message,
+        data,
+      },
+      metadata: {
+        transport: "arqonbus",
+      },
+    };
+
     try {
-      this.websocket!.send(JSON.stringify({ message, data }));
+      this.websocket!.send(JSON.stringify(envelope));
       return true;
     } catch (e) {
       this.connected = false;

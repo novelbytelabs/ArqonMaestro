@@ -2,13 +2,13 @@ import { globalShortcut, nativeTheme } from "electron";
 import fetch from "electron-fetch";
 import Active from "./active";
 import API from "./api";
+import BusPluginServer from "./ipc/bus-plugin-server";
 import { ChunkQueue } from "./stream/chunk-queue";
 import ChunkManager from "./stream/chunk-manager";
 import CommandHandler from "./execute/command-handler";
 import Custom from "./ipc/custom";
 import Executor from "./execute/executor";
 import InsertHistory from "./execute/insert-history";
-import IPCServer from "./ipc/server";
 import LanguageSwitcherWindow from "./windows/language-switcher";
 import Local from "./ipc/local";
 import Log from "./log";
@@ -36,11 +36,11 @@ import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
 export default class App {
+  private busPluginServer?: BusPluginServer;
   private bridge?: RendererBridge;
   private chunkManager?: ChunkManager;
   private custom?: Custom;
   private executor?: Executor;
-  private ipcServer?: IPCServer;
   private languageSwitcherWindow?: Promise<LanguageSwitcherWindow>;
   private local?: Local;
   private mainWindow?: MainWindow;
@@ -169,7 +169,8 @@ export default class App {
       settings
     );
 
-    instance.ipcServer = new IPCServer(
+    instance.busPluginServer = new BusPluginServer(
+      settings,
       active,
       bridge,
       custom,
@@ -463,7 +464,7 @@ export default class App {
     this.local?.stop();
     this.custom?.stop();
     this.microphone?.stop();
-    this.ipcServer?.stop();
+    this.busPluginServer?.stop();
   }
 
   registerPushToTalk() {

@@ -1,15 +1,20 @@
 import { v4 as uuid } from "uuid";
-import WebSocket from "ws";
 import Settings from "../settings";
 import { core } from "../../gen/core";
 import { commandTypeToString } from "../../shared/alternatives";
+
+export interface PluginTransport {
+  readyState: number;
+  send(data: string): void;
+  close(): void;
+}
 
 export type Plugin = {
   id: string;
   app: string;
   lastHeartbeat: number;
   lastActive: number;
-  websocket: WebSocket;
+  websocket: PluginTransport;
   match?: string;
   icon?: string;
 };
@@ -36,7 +41,7 @@ export default class PluginManager {
     this.plugins = result;
   }
 
-  private updatePlugin(websocket: WebSocket, id: string, app: string, match?: string, icon?: string) {
+  private updatePlugin(websocket: PluginTransport, id: string, app: string, match?: string, icon?: string) {
     const plugin = this.fromId(id);
     if (plugin) {
       plugin.websocket = websocket;
@@ -156,17 +161,17 @@ export default class PluginManager {
     });
   }
 
-  updateActive(websocket: WebSocket, id: string, app: string, match?: string, icon?: string) {
+  updateActive(websocket: PluginTransport, id: string, app: string, match?: string, icon?: string) {
     this.updatePlugin(websocket, id, app, match, icon);
     this.fromId(id)!.lastActive = Date.now();
   }
 
-  updateHeartbeat(websocket: WebSocket, id: string, app: string) {
+  updateHeartbeat(websocket: PluginTransport, id: string, app: string) {
     this.updatePlugin(websocket, id, app);
     this.fromId(id)!.lastHeartbeat = Date.now();
   }
 
-  removeWebSocket(websocket: WebSocket) {
+  removeWebSocket(websocket: PluginTransport) {
     this.removePluginsWhere((e) => e.websocket === websocket);
   }
 }

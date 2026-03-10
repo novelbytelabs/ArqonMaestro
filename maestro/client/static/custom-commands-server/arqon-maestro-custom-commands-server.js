@@ -16,6 +16,12 @@ const scriptRoots = [
 ];
 let websocket;
 let resolvers = {};
+let messageCounter = 0;
+
+const nextMessageId = () => {
+  messageCounter += 1;
+  return `arq_custom_${Date.now()}_${messageCounter}`;
+};
 
 const createBuilder = (applications, languages, extensions, urls) => {
   if (typeof applications === "string") {
@@ -275,8 +281,22 @@ const send = (message, data) => {
 
   websocket.send(
     JSON.stringify({
-      message,
-      data,
+      id: nextMessageId(),
+      timestamp: new Date().toISOString(),
+      type: "message",
+      version: "1.0",
+      room: "maestro",
+      channel: "plugin.chrome",
+      payload: {
+        protocol: "maestro-plugin-v1",
+        app: "custom",
+        id: "custom-commands-server",
+        message,
+        data,
+      },
+      metadata: {
+        transport: "arqonbus",
+      },
     })
   );
 };
@@ -338,9 +358,13 @@ const main = () => {
   driver.evaluateInPlugin = evaluateInPlugin;
   driver.runCommand = runCommand;
 
-  websocket = new WebSocket("ws://localhost:17373");
+  websocket = new WebSocket("ws://localhost:9100");
   websocket.on("message", async (message) => {
-    const request = JSON.parse(typeof message === "string" ? message : message.toString());
+    const parsed = JSON.parse(typeof message === "string" ? message : message.toString());
+    const request = parsed && parsed.payload && parsed.payload.message ? parsed.payload : parsed;
+    if (!request || !request.message) {
+      return;
+    }
     if (request.message == "execute") {
       if (Object.keys(commands).includes(request.data.id)) {
         await commands[request.data.id].callback(driver, request.data.matches);

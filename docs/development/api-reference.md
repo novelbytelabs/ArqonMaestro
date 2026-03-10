@@ -67,7 +67,8 @@ Based on the current sidecar wiring, callbacks can access capabilities such as:
 
 ## Transport Model
 
-The sidecar communicates with the desktop app over a WebSocket on `ws://localhost:17373`.
+The sidecar communicates with the desktop app over a WebSocket on `ws://localhost:9100/`.
+This is the Arqon Bus path; it is distinct from the core stream endpoint on `ws://localhost:17200/stream/`.
 
 Messages include:
 

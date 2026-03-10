@@ -6,11 +6,18 @@ Arqon Maestro is a voice-native control layer built on top of an inherited engin
 - **Java Server** (Jetty + custom speech processing)
 - **Electron Client** (React + TypeScript UI)
 
+Port mapping source of truth:
+- `docs/operations/port-reference.md`
+
 ## Current Status
 
 - ✅ Java server builds and runs on port 17200
 - ✅ Electron client builds and runs
 - 🔄 VS Code extension - needs to be built and installed
+
+Port scope reminder:
+- `9100` = Arqon Bus (plugin/control-plane/STT bus transport)
+- `17200` = core stream endpoint (`/stream/`)
 
 ## System Environment
 
