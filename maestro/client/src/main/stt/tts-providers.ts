@@ -273,6 +273,14 @@ interface KokoroSynthesizeResponse {
   format?: string;
 }
 
+interface KokoroStreamChunk {
+  audio_chunk_b64?: string;
+  audio_data_b64?: string;
+  done?: boolean;
+  format?: string;
+  error?: string;
+}
+
 /**
  * Kokoro TTS provider using sidecar HTTP contract.
  * Expected endpoint: POST <arqon_tts_kokoro_url>/synthesize
@@ -332,6 +340,278 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     });
   }
 
+  private postNdjsonStream(
+    urlString: string,
+    body: any,
+    timeoutMs: number,
+    onChunk: (chunk: KokoroStreamChunk) => void
+  ): Promise<void> {
+    const parsedUrl = new URL(urlString);
+    const client = parsedUrl.protocol === "https:" ? https : http;
+    const payload = JSON.stringify(body);
+    const headers = {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(payload),
+      Accept: "application/x-ndjson",
+    };
+
+    return new Promise<void>((resolve, reject) => {
+      const req = client.request(
+        {
+          protocol: parsedUrl.protocol,
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port,
+          path: parsedUrl.pathname + parsedUrl.search,
+          method: "POST",
+          headers,
+        },
+        (res) => {
+          let responseBody = "";
+          let pending = "";
+          const statusCode = res.statusCode || 0;
+          res.setEncoding("utf8");
+
+          res.on("data", (chunk) => {
+            responseBody += chunk;
+            if (statusCode < 200 || statusCode >= 300) {
+              return;
+            }
+            pending += chunk;
+            let newlineIndex = pending.indexOf("\n");
+            while (newlineIndex >= 0) {
+              const line = pending.slice(0, newlineIndex).trim();
+              pending = pending.slice(newlineIndex + 1);
+              if (line.length > 0) {
+                try {
+                  const parsed = JSON.parse(line) as KokoroStreamChunk;
+                  try {
+                    onChunk(parsed);
+                  } catch (e: any) {
+                    reject(new Error(`stream_chunk_error: ${e.message}`));
+                    return;
+                  }
+                } catch (e: any) {
+                  reject(new Error(`invalid_stream_json: ${e.message}`));
+                  return;
+                }
+              }
+              newlineIndex = pending.indexOf("\n");
+            }
+          });
+
+          res.on("end", () => {
+            if (statusCode < 200 || statusCode >= 300) {
+              reject(new Error(`HTTP_${statusCode}: ${responseBody.slice(0, 200)}`));
+              return;
+            }
+            if (pending.trim().length > 0) {
+              try {
+                const parsed = JSON.parse(pending.trim()) as KokoroStreamChunk;
+                try {
+                  onChunk(parsed);
+                } catch (e: any) {
+                  reject(new Error(`stream_chunk_error: ${e.message}`));
+                  return;
+                }
+              } catch (e: any) {
+                reject(new Error(`invalid_stream_json: ${e.message}`));
+                return;
+              }
+            }
+            resolve();
+          });
+        }
+      );
+
+      req.setTimeout(timeoutMs, () => {
+        req.destroy(new Error("timeout"));
+      });
+      req.on("error", (err) => reject(err));
+      req.write(payload);
+      req.end();
+    });
+  }
+
+  private async playStreaming(
+    messageId: string,
+    audioDataB64: string,
+    transcript: string,
+    baseUrl: string,
+    voice: string,
+    timeoutMs: number,
+    startMs: number
+  ): Promise<TtsPlaybackResult> {
+    const args = ["-q", "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw"];
+    const streamUrl = `${baseUrl.replace(/\/+$/, "")}/synthesize_stream`;
+
+    return await new Promise<TtsPlaybackResult>((resolve) => {
+      let resolved = false;
+      let streamComplete = false;
+      let closeCode: number | null = null;
+      let sawAudioChunk = false;
+
+      const resolveOnce = (result: TtsPlaybackResult) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(result);
+        }
+      };
+
+      const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+
+      const maybeResolveOnClose = () => {
+        if (closeCode === null || !streamComplete) {
+          return;
+        }
+        const latencyMs = Date.now() - startMs;
+        if (closeCode !== 0 || !sawAudioChunk) {
+          this.playedMessages.delete(messageId);
+          const reason = closeCode !== 0 ? `exit_${closeCode}` : "stream_empty";
+          this.tracking.logMetric("stt.tts.kokoro.failure", {
+            message_id: messageId,
+            reason,
+          });
+          resolveOnce({
+            success: false,
+            provider: "kokoro",
+            latencyMs,
+            error: reason,
+          });
+          return;
+        }
+
+        this.tracking.logMetric("stt.tts.kokoro.success", {
+          message_id: messageId,
+          latency_ms: latencyMs,
+        });
+        this.tracking.logMetric("stt.tts.latency_ms", {
+          message_id: messageId,
+          provider: "kokoro",
+          latency_ms: latencyMs,
+        });
+        resolveOnce({
+          success: true,
+          provider: "kokoro",
+          latencyMs,
+        });
+      };
+
+      proc.once("error", (err) => {
+        this.playedMessages.delete(messageId);
+        const latencyMs = Date.now() - startMs;
+        this.tracking.logMetric("stt.tts.kokoro.failure", {
+          message_id: messageId,
+          reason: err.message,
+        });
+        resolveOnce({
+          success: false,
+          provider: "kokoro",
+          latencyMs,
+          error: err.message,
+        });
+      });
+
+      proc.once("close", (code) => {
+        closeCode = code === null ? -1 : code;
+        maybeResolveOnClose();
+      });
+
+      if (!proc.stdin) {
+        this.playedMessages.delete(messageId);
+        const latencyMs = Date.now() - startMs;
+        this.tracking.logMetric("stt.tts.kokoro.failure", {
+          message_id: messageId,
+          reason: "stdin_unavailable",
+        });
+        resolveOnce({
+          success: false,
+          provider: "kokoro",
+          latencyMs,
+          error: "stdin_unavailable",
+        });
+        return;
+      }
+
+      proc.stdin.once("error", (err) => {
+        this.playedMessages.delete(messageId);
+        const latencyMs = Date.now() - startMs;
+        this.tracking.logMetric("stt.tts.kokoro.failure", {
+          message_id: messageId,
+          reason: err.message,
+        });
+        resolveOnce({
+          success: false,
+          provider: "kokoro",
+          latencyMs,
+          error: err.message,
+        });
+      });
+
+      this.tracking.logMetric("stt.tts.kokoro.stream_started", {
+        message_id: messageId,
+        url: streamUrl,
+      });
+
+      this.postNdjsonStream(
+        streamUrl,
+        {
+          request_id: messageId,
+          text: transcript,
+          voice,
+          format: "raw",
+          stream: true,
+          input_audio_b64: audioDataB64,
+        },
+        timeoutMs,
+        (chunk) => {
+          if (chunk.error) {
+            throw new Error(chunk.error);
+          }
+          const audioB64 = chunk.audio_chunk_b64 || chunk.audio_data_b64;
+          if (audioB64 && proc.stdin && !proc.stdin.destroyed) {
+            sawAudioChunk = true;
+            const buffer = Buffer.from(audioB64, "base64");
+            proc.stdin.write(buffer);
+            this.tracking.logMetric("stt.tts.kokoro.stream_chunk", {
+              message_id: messageId,
+              bytes: buffer.length,
+            });
+          }
+          if (chunk.done === true && proc.stdin && !proc.stdin.destroyed) {
+            proc.stdin.end();
+          }
+        }
+      )
+        .then(() => {
+          streamComplete = true;
+          this.tracking.logMetric("stt.tts.kokoro.stream_completed", {
+            message_id: messageId,
+          });
+          if (proc.stdin && !proc.stdin.destroyed) {
+            proc.stdin.end();
+          }
+          maybeResolveOnClose();
+        })
+        .catch((err) => {
+          this.playedMessages.delete(messageId);
+          const latencyMs = Date.now() - startMs;
+          this.tracking.logMetric("stt.tts.kokoro.failure", {
+            message_id: messageId,
+            reason: err.message,
+          });
+          if (!proc.killed) {
+            proc.kill();
+          }
+          resolveOnce({
+            success: false,
+            provider: "kokoro",
+            latencyMs,
+            error: err.message,
+          });
+        });
+    });
+  }
+
   async play(
     messageId: string,
     audioDataB64: string,
@@ -356,6 +636,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     const baseUrl = this.settings.getArqonTtsKokoroUrl();
     const voice = this.settings.getArqonTtsKokoroVoice();
     const timeoutMs = this.settings.getArqonTtsKokoroTimeoutMs();
+    const streamingEnabled = this.settings.getArqonTtsKokoroStreamingEnabled();
 
     if (!baseUrl) {
       const latencyMs = Date.now() - startMs;
@@ -387,6 +668,28 @@ export class KokoroTtsProvider extends BaseTtsProvider {
         voice,
         url: baseUrl,
       });
+
+      if (streamingEnabled) {
+        const streamingResult = await this.playStreaming(
+          messageId,
+          audioDataB64,
+          transcript,
+          baseUrl,
+          voice,
+          timeoutMs,
+          startMs
+        );
+        if (streamingResult.success) {
+          return streamingResult;
+        }
+        if (streamingResult.error && streamingResult.error.indexOf("HTTP_404") < 0) {
+          return streamingResult;
+        }
+        this.tracking.logMetric("stt.tts.kokoro.stream_fallback", {
+          message_id: messageId,
+          reason: streamingResult.error || "stream_unavailable",
+        });
+      }
 
       const response = (await this.postJson(
         `${baseUrl.replace(/\/+$/, "")}/synthesize`,

@@ -986,4 +986,16 @@ export default class Settings {
   setArqonTtsKokoroFallbackEnabled(enabled: boolean) {
     this.set("system", "arqon_tts_kokoro_fallback_enabled", enabled);
   }
+
+  /**
+   * Enable streamed Kokoro synthesis/playback path.
+   * Falls back to non-streaming endpoint if stream endpoint is unavailable.
+   */
+  getArqonTtsKokoroStreamingEnabled(): boolean {
+    return this.get("system", "arqon_tts_kokoro_streaming_enabled", true);
+  }
+
+  setArqonTtsKokoroStreamingEnabled(enabled: boolean) {
+    this.set("system", "arqon_tts_kokoro_streaming_enabled", enabled);
+  }
 }

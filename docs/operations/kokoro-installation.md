@@ -34,6 +34,7 @@ Expected service contract in guest:
 - `GET /healthz` -> process healthy
 - `GET /readyz` -> model loaded and ready
 - `POST /synthesize` -> returns audio payload or file path
+- `POST /synthesize_stream` -> NDJSON audio chunk stream for low-latency playback
 
 ## Step 2: Start Long-Lived Kokoro MicroVM
 
@@ -57,13 +58,15 @@ The following local run path is validated for development testing:
 ```bash
 source /home/irbsurfer/miniconda3/etc/profile.d/conda.sh
 conda activate helios-gpu-118
-PYTHONPATH=/tmp python -m uvicorn kokoro_sidecar:app --host 127.0.0.1 --port 7781
+PYTHONPATH=/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/scripts \
+python -m uvicorn kokoro_sidecar:app --host 127.0.0.1 --port 7781
 ```
 
 Observed verification:
 - `GET /healthz` -> `{"status":"ok","service":"kokoro-sidecar"}`
 - `GET /readyz` -> `{"ready":true}`
 - `ARQON_KOKORO_SMOKE_URL=http://127.0.0.1:7781 npx ts-node test-kokoro-smoke.ts` -> PASS
+- `npx ts-node test-kokoro-stream-smoke.ts` -> PASS
 
 Note:
 - If you see `address already in use` on `127.0.0.1:7781`, a sidecar is already running.
@@ -83,6 +86,7 @@ Set the following settings:
   "arqon_tts_kokoro_url": "http://127.0.0.1:7781",
   "arqon_tts_kokoro_voice": "af_heart",
   "arqon_tts_kokoro_timeout_ms": 10000,
+  "arqon_tts_kokoro_streaming_enabled": true,
   "arqon_tts_kokoro_fallback_enabled": true
 }
 ```
@@ -101,6 +105,7 @@ ARQON_SOAK_PORT=9103 npx ts-node test-soak.ts
 npx ts-node test-replay-smoke.ts
 npx ts-node test-integrity-smoke.ts
 npx ts-node test-kokoro-smoke.ts
+npx ts-node test-kokoro-stream-smoke.ts
 npx ts-node test-kokoro-failure-smoke.ts
 npx ts-node test-kokoro-rollback.ts
 ```
@@ -128,7 +133,7 @@ After=network.target
 
 [Service]
 Type=simple
-Environment=PYTHONPATH=/tmp
+Environment=PYTHONPATH=/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/scripts
 ExecStart=/home/irbsurfer/miniconda3/envs/helios-gpu-118/bin/python -m uvicorn kokoro_sidecar:app --host 127.0.0.1 --port 7781
 Restart=always
 RestartSec=2

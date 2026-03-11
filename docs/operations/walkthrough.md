@@ -17,7 +17,7 @@
 7. Hardened Gate 3 verification by isolating replay smoke onto a dedicated default port and enforcing honest playback failure handling.
 8. Completed Gate 4 integrity handshake validation with strict allow/block/policy/default-deny checks (no undefined payload pass-through).
 9. Implemented Gate 5 control-plane coordinator with SpacetimeDB-backed contract, per-agent FIFO + fair-share scheduling, bounded inflight limits, idempotency, retry/dead-letter flow, and fail-closed behavior.
-10. Gate 6 Kokoro runtime path validated against live sidecar endpoint (`127.0.0.1:7781`) with successful smoke proof while keeping final hard-close pending Firecracker runtime artifacts.
+10. Gate 6 Kokoro runtime path validated against live sidecar endpoint (`127.0.0.1:7781`) including streamed playback support (`/synthesize_stream`) with successful smoke proof while keeping final hard-close pending Firecracker runtime artifacts.
 
 ## Evidence Snapshot
 

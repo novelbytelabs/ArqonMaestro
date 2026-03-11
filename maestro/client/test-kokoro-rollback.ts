@@ -18,6 +18,7 @@ async function main() {
     getArqonTtsKokoroVoice: () => "af_heart",
     getArqonTtsKokoroTimeoutMs: () => 1000,
     getArqonTtsKokoroFallbackEnabled: () => false,
+    getArqonTtsKokoroStreamingEnabled: () => true,
     getDisableAnalytics: () => false,
   } as any as Settings;
 

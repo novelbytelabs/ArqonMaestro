@@ -17,6 +17,7 @@ async function runCase(fallbackEnabled: boolean): Promise<void> {
     getArqonTtsKokoroVoice: () => "af_heart",
     getArqonTtsKokoroTimeoutMs: () => 1000,
     getArqonTtsKokoroFallbackEnabled: () => fallbackEnabled,
+    getArqonTtsKokoroStreamingEnabled: () => true,
     getDisableAnalytics: () => false,
   } as any as Settings;
 

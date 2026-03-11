@@ -51,6 +51,7 @@ Integration/config:
 
 Gate 6 tests:
 - `maestro/client/test-kokoro-smoke.ts`
+- `maestro/client/test-kokoro-stream-smoke.ts`
 - `maestro/client/test-kokoro-failure-smoke.ts`
 - `maestro/client/test-kokoro-rollback.ts`
 
@@ -84,6 +85,7 @@ Required settings:
 - `arqon_tts_kokoro_url`
 - `arqon_tts_kokoro_voice`
 - `arqon_tts_kokoro_timeout_ms`
+- `arqon_tts_kokoro_streaming_enabled`
 - `arqon_tts_kokoro_fallback_enabled`
 
 ### 3. Playback and Failure Contract
@@ -100,6 +102,9 @@ Emit:
 - `stt.tts.provider_selected`
 - `stt.tts.kokoro.success`
 - `stt.tts.kokoro.failure`
+- `stt.tts.kokoro.stream_started`
+- `stt.tts.kokoro.stream_chunk`
+- `stt.tts.kokoro.stream_completed`
 - `stt.tts.fallback.used`
 - `stt.tts.latency_ms`
 - `stt.tts.fail_closed`
@@ -119,6 +124,7 @@ Baseline:
 
 Gate 6:
 - `cd maestro/client && npx ts-node test-kokoro-smoke.ts`
+- `cd maestro/client && npx ts-node test-kokoro-stream-smoke.ts`
 - `cd maestro/client && npx ts-node test-kokoro-failure-smoke.ts`
 - `cd maestro/client && npx ts-node test-kokoro-rollback.ts`
 

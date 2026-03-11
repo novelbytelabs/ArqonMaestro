@@ -14,6 +14,7 @@ async function main() {
     getArqonTtsKokoroVoice: () => "af_heart",
     getArqonTtsKokoroTimeoutMs: () => 10000,
     getArqonTtsKokoroFallbackEnabled: () => false,
+    getArqonTtsKokoroStreamingEnabled: () => true,
     getDisableAnalytics: () => false,
   } as any as Settings;
 
@@ -47,6 +48,7 @@ async function main() {
   }
 
   console.log("\n[PASS] Kokoro sidecar synthesis + playback path verified.");
+  process.exit(0);
 }
 
 main().catch((e) => {
