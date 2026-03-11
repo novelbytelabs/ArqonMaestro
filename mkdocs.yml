@@ -46,6 +46,7 @@ nav:
   - Overview: index.md
   - Ecosystem:
       - Maestro In Arqon: overview/ecosystem.md
+      - Arqon Ecosystem Technotes: overview/arqon-ecosystem-technotes.md
   - Decision Log: decision-log.md
   - Modernization Matrix: modernization-matrix.md
   - Guides:
@@ -72,6 +73,7 @@ nav:
   - Architecture:
       - Codebase Layout: architecture/codebase-layout.md
       - Request Lifecycle: architecture/request-lifecycle.md
+      - Ultimate VOS Reference Architecture: architecture/ultimate-vos-reference-architecture.md
   - Models:
       - Generating Data: models/generating-data.md
       - Model Architecture: models/model-architecture.md
