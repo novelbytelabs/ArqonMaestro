@@ -104,12 +104,21 @@ export default class BusPluginServer {
     return null;
   }
 
+  private pluginSocketKey(id: string, app: string): string {
+    return `${app}:${id}`;
+  }
+
   private getPluginSocket(id: string, app: string): VirtualPluginSocket {
-    const key = `${app}:${id}`;
+    const key = this.pluginSocketKey(id, app);
     const existing = this.pluginSockets.get(key);
-    if (existing) {
+    if (existing && existing.readyState === WebSocket.OPEN) {
       return existing;
     }
+
+    if (existing) {
+      this.pluginSockets.delete(key);
+    }
+
     const socket = new VirtualPluginSocket(this, id, app);
     this.pluginSockets.set(key, socket);
     return socket;

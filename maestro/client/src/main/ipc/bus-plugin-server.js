@@ -80,11 +80,17 @@ var BusPluginServer = /** @class */ (function () {
         }
         return null;
     };
+    BusPluginServer.prototype.pluginSocketKey = function (id, app) {
+        return "".concat(app, ":").concat(id);
+    };
     BusPluginServer.prototype.getPluginSocket = function (id, app) {
-        var key = "".concat(app, ":").concat(id);
+        var key = this.pluginSocketKey(id, app);
         var existing = this.pluginSockets.get(key);
-        if (existing) {
+        if (existing && existing.readyState === ws_1["default"].OPEN) {
             return existing;
+        }
+        if (existing) {
+            this.pluginSockets["delete"](key);
         }
         var socket = new VirtualPluginSocket(this, id, app);
         this.pluginSockets.set(key, socket);
