@@ -174,8 +174,26 @@ async function benchmarkTts(baseUrl: string, runs: number, timeoutMs: number) {
   const streamTotals: number[] = [];
   let streamErrors = 0;
 
+  // Segmented tracking
+  const ackShortTtfa: number[] = [];
+  const normalTtfa: number[] = [];
+  const longTtfa: number[] = [];
+
   for (let i = 0; i < runs; i++) {
-    const text = `Arqon benchmark sample ${i + 1}.`;
+    // Generate variable length text to hit different classification buckets
+    // bucket 0, 3, 6 = ack_short (approx 3 words)
+    // bucket 1, 4, 7 = normal (approx 10 words)
+    // bucket 2, 5, 8 = long (approx 20 words)
+    const textType = i % 3;
+    let text = "";
+    if (textType === 0) {
+      text = `Upload complete now.`;
+    } else if (textType === 1) {
+      text = `This is a normal length response that spans about ten words.`;
+    } else {
+      text = `This is a much longer response that goes on and on for many words to test the streaming capacity of the chunk manager and Kokoro synthesizer when we need it.`;
+    }
+
     const start = Date.now();
     await postJson(
       `${baseUrl.replace(/\/+$/, "")}/synthesize`,
@@ -192,6 +210,14 @@ async function benchmarkTts(baseUrl: string, runs: number, timeoutMs: number) {
       );
       streamTtfa.push(stream.ttfa_ms);
       streamTotals.push(stream.total_ms);
+
+      if (textType === 0) {
+        ackShortTtfa.push(stream.ttfa_ms);
+      } else if (textType === 1) {
+        normalTtfa.push(stream.ttfa_ms);
+      } else {
+        longTtfa.push(stream.ttfa_ms);
+      }
     } catch (e) {
       streamErrors++;
     }
@@ -201,6 +227,9 @@ async function benchmarkTts(baseUrl: string, runs: number, timeoutMs: number) {
     non_stream_total_ms: computeStats(synthLatencies),
     stream_ttfa_ms: computeStats(streamTtfa),
     stream_total_ms: computeStats(streamTotals),
+    stream_ack_short_ttfa_ms: computeStats(ackShortTtfa),
+    stream_normal_ttfa_ms: computeStats(normalTtfa),
+    stream_long_ttfa_ms: computeStats(longTtfa),
     stream_errors: streamErrors,
   };
 }

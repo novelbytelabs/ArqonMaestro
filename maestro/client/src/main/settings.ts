@@ -639,6 +639,40 @@ export default class Settings {
   }
 
   // ========================================================================
+  // ArqonHPO Configuration
+  // ========================================================================
+
+  /**
+   * Get whether ArqonHPO homeostatic tuning is enabled
+   * Gate 6B default: false (fail-closed)
+   */
+  getArqonHpoHomeostasisEnabled(): boolean {
+    return this.get("system", "arqon_hpo_homeostasis_enabled", false);
+  }
+
+  /**
+   * Set ArqonHPO homeostatic tuning enabled state
+   */
+  setArqonHpoHomeostasisEnabled(enabled: boolean) {
+    this.set("system", "arqon_hpo_homeostasis_enabled", enabled);
+  }
+
+  /**
+   * Get whether ArqonHPO is in dry-run mode
+   * Gate 6B default: true
+   */
+  getArqonHpoDryRun(): boolean {
+    return this.get("system", "arqon_hpo_dry_run", true);
+  }
+
+  /**
+   * Set ArqonHPO dry-run mode
+   */
+  setArqonHpoDryRun(dryRun: boolean) {
+    this.set("system", "arqon_hpo_dry_run", dryRun);
+  }
+
+  // ========================================================================
   // Arqon Bus Configuration
   // ========================================================================
 

@@ -56,6 +56,23 @@ export interface STTStateMetrics {
 }
 
 /**
+ * Scenario classification for tuning loops
+ */
+export type STTScenarioClass = "ack_short" | "normal" | "long";
+
+/**
+ * Helper to classify a transcript into a scenario class
+ */
+export function classifyTranscript(transcript: string): STTScenarioClass {
+  if (!transcript) return "normal";
+  const words = transcript.trim().split(/\s+/).length;
+  if (words >= 2 && words <= 5) return "ack_short";
+  if (words > 5 && words <= 15) return "normal";
+  if (words > 15) return "long";
+  return "normal";
+}
+
+/**
  * Complete metrics for a chunk.
  */
 export interface ChunkMetrics {

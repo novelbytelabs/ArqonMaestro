@@ -1,6 +1,7 @@
 import Log from "../log";
 import Settings from "../settings";
-import STTTracking from "./tracking";
+import STTTracking, { classifyTranscript } from "./tracking";
+import HPOTuner from "./hpo-tuner";
 import {
   TtsProvider,
   createTtsProvider,
@@ -19,9 +20,11 @@ import {
 export default class VoiceOutput {
   private provider: TtsProvider;
   private settings: Settings;
+  private tuner?: HPOTuner;
 
-  constructor(private log: Log, private tracking: STTTracking, settings: Settings) {
+  constructor(private log: Log, private tracking: STTTracking, settings: Settings, tuner?: HPOTuner) {
     this.settings = settings;
+    this.tuner = tuner;
     this.provider = createTtsProvider(log, tracking, settings);
   }
 
@@ -63,6 +66,8 @@ export default class VoiceOutput {
 
     // Try primary provider
     const result = await this.provider.play(messageId, audioDataB64, format, transcript);
+    const ttfaMs = Date.now() - startMs;
+    const scenario = classifyTranscript(transcript);
 
     // If primary provider failed and fallback is enabled, try fallback
     if (!result.success && initialProvider === "kokoro") {
@@ -107,6 +112,12 @@ export default class VoiceOutput {
       }
     }
 
+    if (this.tuner) {
+      this.tuner.recordTelemetry(scenario, ttfaMs, result.success);
+      // Let iteration cycle run asynchronously after tracking completion
+      this.tuner.runLoopCycle().catch((e) => this.log.logError(`[VoiceOutput] Error running tuner loop: ${e}`));
+    }
+    
     return result.success;
   }
 }

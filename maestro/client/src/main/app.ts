@@ -32,6 +32,7 @@ import STTTracking from "./stt/tracking";
 import { createBusClient } from "./stt/bus-client";
 import { createSTTComparator } from "./stt/comparator";
 import { createTrafficRouter } from "./stt/traffic-router";
+import HPOTuner from "./stt/hpo-tuner";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
@@ -50,6 +51,7 @@ export default class App {
   private settingsWindow?: Promise<SettingsWindow>;
   private stream?: Stream;
   private textInputWindow?: Promise<TextInputWindow>;
+  private hpoTuner?: HPOTuner;
 
   private previousShouldUseDarkColors?: boolean;
 
@@ -156,6 +158,9 @@ export default class App {
     
     // Create STT tracking instance for correlation IDs and metrics
     const tracking = new STTTracking(api, settings);
+    
+    // Create HPOTuner for online optimization
+    const hpoTuner = (instance.hpoTuner = new HPOTuner(settings, log, tracking));
     
     const stream = (instance.stream = new Stream(active, api, log, settings, tracking));
     const local = (instance.local = new Local(bridge, log, mainWindow, metadata, settings));
@@ -268,6 +273,9 @@ export default class App {
       system,
       () => languageSwitcherWindow
     );
+
+    // Initialise HPO service if enabled
+    await hpoTuner.start();
 
     new RendererProcessEventHandlers(
       active,
@@ -465,6 +473,7 @@ export default class App {
     this.custom?.stop();
     this.microphone?.stop();
     this.busPluginServer?.stop();
+    this.hpoTuner?.stop();
   }
 
   registerPushToTalk() {
