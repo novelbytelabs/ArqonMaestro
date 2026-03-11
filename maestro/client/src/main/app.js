@@ -173,7 +173,7 @@ var App = /** @class */ (function () {
                         _g.sent();
                         executor = (instance.executor = new executor_1["default"](active, api, bridge, insertHistory, log, mainWindow, miniModeWindow, nativeCommands, nux, pluginManager, revisionBoxWindow, settings, stream, system, function () { return commandHandler; }));
                         chunkManager = (instance.chunkManager = new chunk_manager_1["default"](active, api, instance, bridge, chunkQueue, custom, executor, log, mainWindow, microphone, miniModeWindow, settings, stream, tracking));
-                        busClient = (0, bus_client_1.createBusClient)(settings, log, tracking);
+                        busClient = (0, bus_client_1.createBusClient)(settings, log, tracking, hpoTuner);
                         chunkManager.setBusClient(busClient);
                         comparator = (0, comparator_1.createSTTComparator)(log, settings, tracking);
                         chunkManager.setComparator(comparator);
@@ -264,18 +264,7 @@ var App = /** @class */ (function () {
                         initialLoggedIn = initialLoggedIn && speechHealthy && codeHealthy;
                         if (!!initialLoggedIn) return [3 /*break*/, 14];
                         console.warn("[ArqonMaestro] Local endpoint selected but local backend is not fully healthy yet.");
-                        remoteEndpoints = settings.getStreamingEndpoints().filter(function (e) { return e.id != "local"; });
-                        if (!(tokenPresent && remoteEndpoints.length > 0)) return [3 /*break*/, 14];
-                        return [4 /*yield*/, Promise.all(remoteEndpoints.map(function (e) { return api.ping(e, false); }))];
-                    case 13:
-                        pings = _g.sent();
-                        index = Math.max(0, pings.indexOf(Math.min.apply(Math, pings)));
-                        fallback = remoteEndpoints[index];
-                        settings.setStreamingEndpoint(fallback.id);
-                        endpoint = settings.getStreamingEndpoint();
-                        initialLoggedIn = true;
-                        console.warn("[ArqonMaestro] Falling back to remote endpoint:", fallback.id, fallback.address);
-                        bridge.setState({ endpoint: endpoint, latency: pings[index] }, [mainWindow, miniModeWindow]);
+                        console.warn("[ArqonMaestro] Local endpoint is configured fail-closed. Remote fallback disabled.");
                         _g.label = 14;
                     case 14:
                         console.log("[ArqonMaestro] Setting loggedIn state:", initialLoggedIn);

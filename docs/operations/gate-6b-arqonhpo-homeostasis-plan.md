@@ -2,7 +2,23 @@
 
 ## Status
 
-`PLANNED` (implementation not started)
+`IN PROGRESS` (online integration in-flight; latency target not yet met)
+
+## Latest Evidence Snapshot (2026-03-10)
+
+Most recent benchmark run (real Kokoro sidecar on `127.0.0.1:7781`):
+
+- `stream_ack_short_ttfa_ms.p95 = 658ms`
+- `stream_total_ms.p95 = 3253ms`
+- `stream_errors = 0`
+- `stt.bus_audio_to_final_ms.p95 = 3ms`
+
+Target verdict:
+- `p95_ack_tts_ttfa_ms < 200`: `NOT MET`
+- `p95_ack_tts_total_ms < 200`: `NOT MET`
+
+Interpretation:
+- Online integration and telemetry are progressing, but the latency hard target is not yet achieved in current Kokoro path.
 
 ## Intent Clarification (Locked)
 
@@ -244,6 +260,10 @@ Acceptance:
 ### Gotcha 8: Gaming benchmark workload
 - Problem: synthetic workload too easy, not representative.
 - Requirement: include mixed scenario bundle with realistic ack, command, and long utterance cases.
+
+### Gotcha 9: `.js` shadowing `.ts` during ts-node runs
+- Problem: generated/committed `.js` files can be imported instead of latest `.ts`, masking fixes.
+- Requirement: run validation commands with `TS_NODE_PREFER_TS_EXTS=1` or ensure stale generated JS is removed from test paths.
 
 ## Hard-Close Command Pack (Minimum)
 

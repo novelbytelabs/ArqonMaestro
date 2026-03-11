@@ -1,4 +1,15 @@
 "use strict";
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -71,6 +82,9 @@ exports.__esModule = true;
 var child_process_1 = require("child_process");
 var http = __importStar(require("http"));
 var HPO_PORT = 7782;
+var MAX_FAILURE_PENALTY = 100000;
+var MIN_SAMPLE_COUNT = 5;
+var LOOP_INTERVAL_MS = 10000;
 var HPOTuner = /** @class */ (function () {
     function HPOTuner(settings, log, tracking) {
         this.serviceProcess = null;
@@ -79,6 +93,7 @@ var HPOTuner = /** @class */ (function () {
         this.ackShortLatencies = [];
         this.recentFailures = 0;
         this.maxLatenciesWindow = 20;
+        this.lastLoopTime = 0;
         // Actuation safety state
         this.lastActuationTime = 0;
         this.COOLDOWN_MS = 15000;
@@ -89,7 +104,7 @@ var HPOTuner = /** @class */ (function () {
     }
     HPOTuner.prototype.start = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var _a;
+            var serviceHealthy, _a;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
@@ -116,18 +131,26 @@ var HPOTuner = /** @class */ (function () {
                             _this.log.logError("[HPOTuner] Service exited with code ".concat(code));
                             _this.isReady = false;
                         });
-                        _a = this;
                         return [4 /*yield*/, this.waitForReady()];
                     case 1:
-                        _a.isReady = _b.sent();
-                        if (!this.isReady) return [3 /*break*/, 3];
+                        serviceHealthy = _b.sent();
+                        if (!serviceHealthy) {
+                            return [2 /*return*/];
+                        }
                         return [4 /*yield*/, this.initializeSolver()];
                     case 2:
                         _b.sent();
+                        _a = this;
+                        return [4 /*yield*/, this.waitForSolverReady()];
+                    case 3:
+                        _a.isReady = _b.sent();
+                        if (!this.isReady) {
+                            this.log.logError("[HPOTuner] Solver failed readiness after initialization.");
+                            return [2 /*return*/];
+                        }
                         // Record baseline
                         this.lastBaselineConfig = this.getCurrentConfig();
-                        _b.label = 3;
-                    case 3: return [2 /*return*/];
+                        return [2 /*return*/];
                 }
             });
         });
@@ -147,7 +170,27 @@ var HPOTuner = /** @class */ (function () {
             var interval = setInterval(function () {
                 if (Date.now() - start > timeoutMs) {
                     clearInterval(interval);
-                    _this.log.logError("[HPOTuner] Timeout waiting for Python service readyz.");
+                    _this.log.logError("[HPOTuner] Timeout waiting for Python service healthz.");
+                    resolve(false);
+                    return;
+                }
+                var req = http.get("http://127.0.0.1:".concat(HPO_PORT, "/healthz"), function (res) {
+                    if (res.statusCode === 200) {
+                        clearInterval(interval);
+                        resolve(true);
+                    }
+                });
+                req.on("error", function () { }); // Ignore connection refused while starting up
+            }, 500);
+        });
+    };
+    HPOTuner.prototype.waitForSolverReady = function (timeoutMs) {
+        if (timeoutMs === void 0) { timeoutMs = 5000; }
+        return new Promise(function (resolve) {
+            var start = Date.now();
+            var interval = setInterval(function () {
+                if (Date.now() - start > timeoutMs) {
+                    clearInterval(interval);
                     resolve(false);
                     return;
                 }
@@ -157,8 +200,8 @@ var HPOTuner = /** @class */ (function () {
                         resolve(true);
                     }
                 });
-                req.on("error", function () { }); // Ignore connection refused while starting up
-            }, 500);
+                req.on("error", function () { });
+            }, 250);
         });
     };
     HPOTuner.prototype.postJson = function (endpoint, body) {
@@ -213,9 +256,10 @@ var HPOTuner = /** @class */ (function () {
                             seed: 42,
                             budget: 1000,
                             bounds: {
-                                chunk_silence_threshold: { min: 50, max: 2000 },
-                                chunk_speech_threshold: { min: 10, max: 500 },
-                                execute_silence_threshold: { min: 300, max: 4000 },
+                                arqon_tts_kokoro_timeout_ms: { min: 150, max: 5000 },
+                                chunk_silence_threshold: { min: 0.05, max: 0.95 },
+                                chunk_speech_threshold: { min: 0.05, max: 0.95 },
+                                execute_silence_threshold: { min: 0.2, max: 2.5 },
                                 arqon_bus_compare_threshold: { min: 0.5, max: 1.0 }
                             }
                         };
@@ -228,9 +272,8 @@ var HPOTuner = /** @class */ (function () {
         });
     };
     HPOTuner.prototype.getCurrentConfig = function () {
-        // Note settings might not have getters implemented for all so defaults used
         return {
-            arqon_tts_kokoro_timeout_ms: 10000,
+            arqon_tts_kokoro_timeout_ms: this.settings.getArqonTtsKokoroTimeoutMs(),
             chunk_silence_threshold: this.settings.getChunkSilenceThreshold(),
             chunk_speech_threshold: this.settings.getChunkSpeechThreshold(),
             execute_silence_threshold: this.settings.getExecuteSilenceThreshold(),
@@ -242,8 +285,9 @@ var HPOTuner = /** @class */ (function () {
      * Objective Function Computation
      */
     HPOTuner.prototype.computeLoss = function () {
-        if (this.ackShortLatencies.length === 0)
+        if (this.ackShortLatencies.length < MIN_SAMPLE_COUNT) {
             return null;
+        }
         // Sort and calculate p95
         var latencies = __spreadArray([], this.ackShortLatencies, true).sort(function (a, b) { return a - b; });
         var p95Idx = Math.floor(latencies.length * 0.95);
@@ -252,7 +296,7 @@ var HPOTuner = /** @class */ (function () {
         var loss = p95Ttfa * 0.5;
         // Penalty for recent failures (e.g. Kokoro crash or timeout resulting in fail-closed/fallback)
         if (this.recentFailures > 0) {
-            loss += (this.recentFailures * 10000);
+            loss += Math.min(MAX_FAILURE_PENALTY, this.recentFailures * 10000);
         }
         return loss;
     };
@@ -269,6 +313,21 @@ var HPOTuner = /** @class */ (function () {
             }
         }
     };
+    HPOTuner.prototype.clamp = function (value, min, max) {
+        return Math.min(max, Math.max(min, value));
+    };
+    HPOTuner.prototype.sanitizeCandidate = function (candidate) {
+        var chunkSilence = this.clamp(candidate.chunk_silence_threshold, 0.05, 0.95);
+        var chunkSpeech = this.clamp(candidate.chunk_speech_threshold, 0.05, 0.95);
+        var executeSilence = this.clamp(candidate.execute_silence_threshold, 0.2, 2.5);
+        return {
+            arqon_tts_kokoro_timeout_ms: Math.round(this.clamp(candidate.arqon_tts_kokoro_timeout_ms, 150, 5000)),
+            chunk_silence_threshold: chunkSilence,
+            chunk_speech_threshold: chunkSpeech,
+            execute_silence_threshold: Math.max(executeSilence, chunkSilence + 0.1),
+            arqon_bus_compare_threshold: this.clamp(candidate.arqon_bus_compare_threshold, 0.5, 1.0)
+        };
+    };
     HPOTuner.prototype.isSafeToActuate = function (candidate) {
         var current = this.getCurrentConfig();
         var now = Date.now();
@@ -276,10 +335,25 @@ var HPOTuner = /** @class */ (function () {
         if (now - this.lastActuationTime < this.COOLDOWN_MS) {
             return { safe: false, reason: "cooldown_active" };
         }
-        // 2. Max delta enforcement (e.g., don't jump more than 10% or absolute thresholds)
-        // To simplify, ensuring thresholds do not invert
+        // 2. Ensure thresholds do not invert
         if (candidate.execute_silence_threshold <= candidate.chunk_silence_threshold) {
             return { safe: false, reason: "execute_silence <= chunk_silence" };
+        }
+        // 3. Max delta guardrails per cycle.
+        if (Math.abs(candidate.chunk_silence_threshold - current.chunk_silence_threshold) > 0.1) {
+            return { safe: false, reason: "chunk_silence_delta_too_large" };
+        }
+        if (Math.abs(candidate.chunk_speech_threshold - current.chunk_speech_threshold) > 0.1) {
+            return { safe: false, reason: "chunk_speech_delta_too_large" };
+        }
+        if (Math.abs(candidate.execute_silence_threshold - current.execute_silence_threshold) > 0.5) {
+            return { safe: false, reason: "execute_silence_delta_too_large" };
+        }
+        if (Math.abs(candidate.arqon_bus_compare_threshold - current.arqon_bus_compare_threshold) > 0.05) {
+            return { safe: false, reason: "compare_threshold_delta_too_large" };
+        }
+        if (Math.abs(candidate.arqon_tts_kokoro_timeout_ms - current.arqon_tts_kokoro_timeout_ms) > 500) {
+            return { safe: false, reason: "kokoro_timeout_delta_too_large" };
         }
         return { safe: true };
     };
@@ -291,8 +365,9 @@ var HPOTuner = /** @class */ (function () {
     };
     HPOTuner.prototype.applyCandidate = function (candidate, force) {
         if (force === void 0) { force = false; }
+        var sanitized = this.sanitizeCandidate(candidate);
         if (!force) {
-            var safety = this.isSafeToActuate(candidate);
+            var safety = this.isSafeToActuate(sanitized);
             if (!safety.safe) {
                 this.log.logVerbose("[HPOTuner] Actuation blocked by guardrails: ".concat(safety.reason));
                 this.tracking.logMetric("stt.hpo.actuate_blocked", { reason: safety.reason });
@@ -300,14 +375,13 @@ var HPOTuner = /** @class */ (function () {
             }
         }
         var dryRun = this.settings.getArqonHpoDryRun();
-        this.tracking.logMetric("stt.hpo.actuate", { dryRun: dryRun, candidate: candidate });
+        this.tracking.logMetric("stt.hpo.actuate", { dryRun: dryRun, candidate: sanitized });
         if (!dryRun) {
-            // Need setter for this one or assume it acts purely via observation layer
-            // this.settings.set("system", "arqon_tts_kokoro_timeout_ms", candidate.arqon_tts_kokoro_timeout_ms);
-            this.settings.setChunkSilenceThreshold(candidate.chunk_silence_threshold);
-            this.settings.setChunkSpeechThreshold(candidate.chunk_speech_threshold);
-            this.settings.setExecuteSilenceThreshold(candidate.execute_silence_threshold);
-            this.settings.setArqonBusCompareThreshold(candidate.arqon_bus_compare_threshold);
+            this.settings.setArqonTtsKokoroTimeoutMs(sanitized.arqon_tts_kokoro_timeout_ms);
+            this.settings.setChunkSilenceThreshold(sanitized.chunk_silence_threshold);
+            this.settings.setChunkSpeechThreshold(sanitized.chunk_speech_threshold);
+            this.settings.setExecuteSilenceThreshold(sanitized.execute_silence_threshold);
+            this.settings.setArqonBusCompareThreshold(sanitized.arqon_bus_compare_threshold);
             this.lastActuationTime = Date.now();
         }
         else {
@@ -316,12 +390,17 @@ var HPOTuner = /** @class */ (function () {
     };
     HPOTuner.prototype.runLoopCycle = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var loss, currentParams, seedPayload, seedRes, askRes, e_1;
+            var now, loss, currentParams, seedPayload, seedRes, askRes, current, candidate, e_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!this.isReady || !this.settings.getArqonHpoHomeostasisEnabled())
                             return [2 /*return*/];
+                        now = Date.now();
+                        if (now - this.lastLoopTime < LOOP_INTERVAL_MS) {
+                            return [2 /*return*/];
+                        }
+                        this.lastLoopTime = now;
                         _a.label = 1;
                     case 1:
                         _a.trys.push([1, 5, , 6]);
@@ -342,8 +421,16 @@ var HPOTuner = /** @class */ (function () {
                     case 4:
                         askRes = _a.sent();
                         if (askRes.candidate) {
-                            this.log.logVerbose("[HPOTuner] Proposed candidate: ".concat(JSON.stringify(askRes.candidate)));
-                            this.applyCandidate(askRes.candidate);
+                            current = this.getCurrentConfig();
+                            candidate = __assign(__assign({}, current), askRes.candidate);
+                            if (typeof candidate.chunk_silence_threshold === "number" &&
+                                typeof candidate.chunk_speech_threshold === "number" &&
+                                typeof candidate.execute_silence_threshold === "number" &&
+                                typeof candidate.arqon_bus_compare_threshold === "number" &&
+                                typeof candidate.arqon_tts_kokoro_timeout_ms === "number") {
+                                this.log.logVerbose("[HPOTuner] Proposed candidate: ".concat(JSON.stringify(candidate)));
+                                this.applyCandidate(candidate);
+                            }
                         }
                         // Reset window metrics after evaluation epoch
                         this.recentFailures = 0;

@@ -66,6 +66,7 @@ async function main() {
   );
 
   console.log("\n[PASS] Provider rollback switch verified.");
+  process.exit(0);
 }
 
 main().catch((e) => {

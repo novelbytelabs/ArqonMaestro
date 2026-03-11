@@ -35,11 +35,12 @@ export default class API {
       timeout = 0;
     }
 
+    const selectedEndpoint = this.settings.getStreamingEndpoint();
     const endpoint = process.env.ENDPOINT
       ? process.env.ENDPOINT
-      : this.settings.getStreamingEndpoint().id == "local"
-      ? "https://stream-us-west-2.serenade.ai"
-      : `https://${this.settings.getStreamingEndpoint().address}`;
+      : selectedEndpoint.id == "local"
+      ? `http://${selectedEndpoint.address}`
+      : `https://${selectedEndpoint.address}`;
 
     try {
       const response = await fetch(`${endpoint}${url}`, {
@@ -123,20 +124,21 @@ export default class API {
     }
 
     const unreachable = 1000;
-    const url = endpoint.address.split(":")[0];
-    console.log("[ArqonMaestro] Pinging endpoint:", url);
+    const isLocal = endpoint.address.startsWith("localhost:") || endpoint.address.startsWith("127.0.0.1:");
+    const baseUrl = isLocal ? `http://${endpoint.address}` : `https://${endpoint.address.split(":")[0]}`;
+    console.log("[ArqonMaestro] Pinging endpoint:", baseUrl);
     try {
       const start = Date.now();
-      await fetch(`https://${url}/api/status`, { method: "POST", timeout: unreachable });
+      await fetch(`${baseUrl}/api/status`, { method: "POST", timeout: unreachable });
       const latency = Math.round(Date.now() - start);
-      console.log("[ArqonMaestro] Ping success:", url, "latency:", latency);
+      console.log("[ArqonMaestro] Ping success:", baseUrl, "latency:", latency);
       if (updateRenderer) {
         this.bridge.setState({ latency }, [this.mainWindow, this.settingsWindow()]);
       }
 
       return latency;
     } catch (e) {
-      console.log("[ArqonMaestro] Ping failed:", url, "error:", e);
+      console.log("[ArqonMaestro] Ping failed:", baseUrl, "error:", e);
       return unreachable;
     }
   }

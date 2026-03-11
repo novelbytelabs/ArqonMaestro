@@ -4,6 +4,7 @@ import Log from "../log";
 import Settings from "../settings";
 import STTTracking from "./tracking";
 import VoiceOutput from "./voice-output";
+import HPOTuner from "./hpo-tuner";
 import ControlPlaneCoordinator, {
   ControlPlaneDispatchRequest,
   MemoryControlPlaneStore,
@@ -162,10 +163,11 @@ export default class BusClient {
   constructor(
     private settings: Settings,
     private log: Log,
-    private tracking: STTTracking
+    private tracking: STTTracking,
+    private tuner?: HPOTuner
   ) {
     this.config = this.buildConfig();
-    this.voiceOutput = new VoiceOutput(log, tracking, settings);
+    this.voiceOutput = new VoiceOutput(log, tracking, settings, tuner);
     this.controlPlane = this.buildControlPlaneCoordinator();
   }
 
@@ -1061,7 +1063,8 @@ export default class BusClient {
 export function createBusClient(
   settings: Settings,
   log: Log,
-  tracking: STTTracking
+  tracking: STTTracking,
+  tuner?: HPOTuner
 ): BusClient {
-  return new BusClient(settings, log, tracking);
+  return new BusClient(settings, log, tracking, tuner);
 }

@@ -2,9 +2,12 @@ import { spawn, ChildProcess } from "child_process";
 import * as http from "http";
 import Settings from "../settings";
 import Log from "../log";
-import STTTracking, { STTScenarioClass, classifyTranscript } from "./tracking";
+import STTTracking, { STTScenarioClass } from "./tracking";
 
 const HPO_PORT = 7782;
+const MAX_FAILURE_PENALTY = 100000;
+const MIN_SAMPLE_COUNT = 5;
+const LOOP_INTERVAL_MS = 10000;
 
 interface TuningCandidate {
   arqon_tts_kokoro_timeout_ms: number;
@@ -37,6 +40,7 @@ export default class HPOTuner {
   private ackShortLatencies: number[] = [];
   private recentFailures = 0;
   private maxLatenciesWindow = 20;
+  private lastLoopTime = 0;
 
   // Actuation safety state
   private lastActuationTime = 0;
@@ -80,13 +84,20 @@ export default class HPOTuner {
       this.isReady = false;
     });
 
-    this.isReady = await this.waitForReady();
-
-    if (this.isReady) {
-      await this.initializeSolver();
-      // Record baseline
-      this.lastBaselineConfig = this.getCurrentConfig();
+    const serviceHealthy = await this.waitForReady();
+    if (!serviceHealthy) {
+      return;
     }
+
+    await this.initializeSolver();
+    this.isReady = await this.waitForSolverReady();
+    if (!this.isReady) {
+      this.log.logError("[HPOTuner] Solver failed readiness after initialization.");
+      return;
+    }
+
+    // Record baseline
+    this.lastBaselineConfig = this.getCurrentConfig();
   }
 
   stop(): void {
@@ -103,12 +114,12 @@ export default class HPOTuner {
       const interval = setInterval(() => {
         if (Date.now() - start > timeoutMs) {
           clearInterval(interval);
-          this.log.logError("[HPOTuner] Timeout waiting for Python service readyz.");
+          this.log.logError("[HPOTuner] Timeout waiting for Python service healthz.");
           resolve(false);
           return;
         }
 
-        const req = http.get(`http://127.0.0.1:${HPO_PORT}/readyz`, (res) => {
+        const req = http.get(`http://127.0.0.1:${HPO_PORT}/healthz`, (res) => {
           if (res.statusCode === 200) {
             clearInterval(interval);
             resolve(true);
@@ -116,6 +127,26 @@ export default class HPOTuner {
         });
         req.on("error", () => {}); // Ignore connection refused while starting up
       }, 500);
+    });
+  }
+
+  private waitForSolverReady(timeoutMs = 5000): Promise<boolean> {
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const interval = setInterval(() => {
+        if (Date.now() - start > timeoutMs) {
+          clearInterval(interval);
+          resolve(false);
+          return;
+        }
+        const req = http.get(`http://127.0.0.1:${HPO_PORT}/readyz`, (res) => {
+          if (res.statusCode === 200) {
+            clearInterval(interval);
+            resolve(true);
+          }
+        });
+        req.on("error", () => {});
+      }, 250);
     });
   }
 
@@ -158,14 +189,15 @@ export default class HPOTuner {
   }
 
   private async initializeSolver() {
-    // Defines the tuning surface max/min per gate 6b
+    // Defines bounded tuning surface aligned with real settings units.
     const config: HpoConfig = {
       seed: 42,
       budget: 1000,
       bounds: {
-        chunk_silence_threshold: { min: 50, max: 2000 },
-        chunk_speech_threshold: { min: 10, max: 500 },
-        execute_silence_threshold: { min: 300, max: 4000 },
+        arqon_tts_kokoro_timeout_ms: { min: 150, max: 5000 },
+        chunk_silence_threshold: { min: 0.05, max: 0.95 },
+        chunk_speech_threshold: { min: 0.05, max: 0.95 },
+        execute_silence_threshold: { min: 0.2, max: 2.5 },
         arqon_bus_compare_threshold: { min: 0.5, max: 1.0 },
       },
     };
@@ -173,9 +205,8 @@ export default class HPOTuner {
   }
 
   getCurrentConfig(): TuningCandidate {
-    // Note settings might not have getters implemented for all so defaults used
     return {
-      arqon_tts_kokoro_timeout_ms: 10000,
+      arqon_tts_kokoro_timeout_ms: this.settings.getArqonTtsKokoroTimeoutMs(),
       chunk_silence_threshold: this.settings.getChunkSilenceThreshold(),
       chunk_speech_threshold: this.settings.getChunkSpeechThreshold(),
       execute_silence_threshold: this.settings.getExecuteSilenceThreshold(),
@@ -189,7 +220,9 @@ export default class HPOTuner {
    * Objective Function Computation
    */
   private computeLoss(): number | null {
-    if (this.ackShortLatencies.length === 0) return null;
+    if (this.ackShortLatencies.length < MIN_SAMPLE_COUNT) {
+      return null;
+    }
     
     // Sort and calculate p95
     const latencies = [...this.ackShortLatencies].sort((a,b) => a - b);
@@ -201,7 +234,7 @@ export default class HPOTuner {
     
     // Penalty for recent failures (e.g. Kokoro crash or timeout resulting in fail-closed/fallback)
     if (this.recentFailures > 0) {
-      loss += (this.recentFailures * 10000); 
+      loss += Math.min(MAX_FAILURE_PENALTY, this.recentFailures * 10000);
     }
     
     return loss;
@@ -220,6 +253,25 @@ export default class HPOTuner {
     }
   }
 
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private sanitizeCandidate(candidate: TuningCandidate): TuningCandidate {
+    const chunkSilence = this.clamp(candidate.chunk_silence_threshold, 0.05, 0.95);
+    const chunkSpeech = this.clamp(candidate.chunk_speech_threshold, 0.05, 0.95);
+    const executeSilence = this.clamp(candidate.execute_silence_threshold, 0.2, 2.5);
+    return {
+      arqon_tts_kokoro_timeout_ms: Math.round(
+        this.clamp(candidate.arqon_tts_kokoro_timeout_ms, 150, 5000)
+      ),
+      chunk_silence_threshold: chunkSilence,
+      chunk_speech_threshold: chunkSpeech,
+      execute_silence_threshold: Math.max(executeSilence, chunkSilence + 0.1),
+      arqon_bus_compare_threshold: this.clamp(candidate.arqon_bus_compare_threshold, 0.5, 1.0),
+    };
+  }
+
   private isSafeToActuate(candidate: TuningCandidate): { safe: boolean; reason?: string } {
     const current = this.getCurrentConfig();
     const now = Date.now();
@@ -229,10 +281,28 @@ export default class HPOTuner {
       return { safe: false, reason: "cooldown_active" };
     }
 
-    // 2. Max delta enforcement (e.g., don't jump more than 10% or absolute thresholds)
-    // To simplify, ensuring thresholds do not invert
+    // 2. Ensure thresholds do not invert
     if (candidate.execute_silence_threshold <= candidate.chunk_silence_threshold) {
       return { safe: false, reason: "execute_silence <= chunk_silence" };
+    }
+
+    // 3. Max delta guardrails per cycle.
+    if (Math.abs(candidate.chunk_silence_threshold - current.chunk_silence_threshold) > 0.1) {
+      return { safe: false, reason: "chunk_silence_delta_too_large" };
+    }
+    if (Math.abs(candidate.chunk_speech_threshold - current.chunk_speech_threshold) > 0.1) {
+      return { safe: false, reason: "chunk_speech_delta_too_large" };
+    }
+    if (Math.abs(candidate.execute_silence_threshold - current.execute_silence_threshold) > 0.5) {
+      return { safe: false, reason: "execute_silence_delta_too_large" };
+    }
+    if (
+      Math.abs(candidate.arqon_bus_compare_threshold - current.arqon_bus_compare_threshold) > 0.05
+    ) {
+      return { safe: false, reason: "compare_threshold_delta_too_large" };
+    }
+    if (Math.abs(candidate.arqon_tts_kokoro_timeout_ms - current.arqon_tts_kokoro_timeout_ms) > 500) {
+      return { safe: false, reason: "kokoro_timeout_delta_too_large" };
     }
 
     return { safe: true };
@@ -246,8 +316,9 @@ export default class HPOTuner {
   }
 
   private applyCandidate(candidate: TuningCandidate, force: boolean = false) {
+    const sanitized = this.sanitizeCandidate(candidate);
     if (!force) {
-      const safety = this.isSafeToActuate(candidate);
+      const safety = this.isSafeToActuate(sanitized);
       if (!safety.safe) {
         this.log.logVerbose(`[HPOTuner] Actuation blocked by guardrails: ${safety.reason}`);
         this.tracking.logMetric("stt.hpo.actuate_blocked", { reason: safety.reason });
@@ -256,15 +327,14 @@ export default class HPOTuner {
     }
 
     const dryRun = this.settings.getArqonHpoDryRun();
-    this.tracking.logMetric("stt.hpo.actuate", { dryRun, candidate });
+    this.tracking.logMetric("stt.hpo.actuate", { dryRun, candidate: sanitized });
 
     if (!dryRun) {
-      // Need setter for this one or assume it acts purely via observation layer
-      // this.settings.set("system", "arqon_tts_kokoro_timeout_ms", candidate.arqon_tts_kokoro_timeout_ms);
-      this.settings.setChunkSilenceThreshold(candidate.chunk_silence_threshold);
-      this.settings.setChunkSpeechThreshold(candidate.chunk_speech_threshold);
-      this.settings.setExecuteSilenceThreshold(candidate.execute_silence_threshold);
-      this.settings.setArqonBusCompareThreshold(candidate.arqon_bus_compare_threshold);
+      this.settings.setArqonTtsKokoroTimeoutMs(sanitized.arqon_tts_kokoro_timeout_ms);
+      this.settings.setChunkSilenceThreshold(sanitized.chunk_silence_threshold);
+      this.settings.setChunkSpeechThreshold(sanitized.chunk_speech_threshold);
+      this.settings.setExecuteSilenceThreshold(sanitized.execute_silence_threshold);
+      this.settings.setArqonBusCompareThreshold(sanitized.arqon_bus_compare_threshold);
       this.lastActuationTime = Date.now();
     } else {
       this.log.logVerbose("[HPOTuner] Dry-run actuate - skipping runtime state mutation.");
@@ -273,6 +343,11 @@ export default class HPOTuner {
 
   public async runLoopCycle(): Promise<void> {
     if (!this.isReady || !this.settings.getArqonHpoHomeostasisEnabled()) return;
+    const now = Date.now();
+    if (now - this.lastLoopTime < LOOP_INTERVAL_MS) {
+      return;
+    }
+    this.lastLoopTime = now;
 
     try {
       const loss = this.computeLoss();
@@ -292,8 +367,21 @@ export default class HPOTuner {
       // Propose new candidate
       const askRes = await this.postJson("/ask_one", {});
       if (askRes.candidate) {
-        this.log.logVerbose(`[HPOTuner] Proposed candidate: ${JSON.stringify(askRes.candidate)}`);
-        this.applyCandidate(askRes.candidate as TuningCandidate);
+        const current = this.getCurrentConfig();
+        const candidate = {
+          ...current,
+          ...askRes.candidate,
+        } as TuningCandidate;
+        if (
+          typeof candidate.chunk_silence_threshold === "number" &&
+          typeof candidate.chunk_speech_threshold === "number" &&
+          typeof candidate.execute_silence_threshold === "number" &&
+          typeof candidate.arqon_bus_compare_threshold === "number" &&
+          typeof candidate.arqon_tts_kokoro_timeout_ms === "number"
+        ) {
+          this.log.logVerbose(`[HPOTuner] Proposed candidate: ${JSON.stringify(candidate)}`);
+          this.applyCandidate(candidate);
+        }
       }
       
       // Reset window metrics after evaluation epoch

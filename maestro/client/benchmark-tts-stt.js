@@ -210,7 +210,7 @@ function postNdjsonStream(urlString, body, timeoutMs) {
 }
 function benchmarkTts(baseUrl, runs, timeoutMs) {
     return __awaiter(this, void 0, void 0, function () {
-        var synthLatencies, streamTtfa, streamTotals, streamErrors, ackShortTtfa, normalTtfa, longTtfa, i, textType, text, start, stream, e_1;
+        var synthLatencies, streamTtfa, streamTotals, streamErrors, ackShortTtfa, normalTtfa, longTtfa, i, textType, text, start, e_1, stream, e_2;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -224,7 +224,7 @@ function benchmarkTts(baseUrl, runs, timeoutMs) {
                     i = 0;
                     _a.label = 1;
                 case 1:
-                    if (!(i < runs)) return [3 /*break*/, 7];
+                    if (!(i < runs)) return [3 /*break*/, 9];
                     textType = i % 3;
                     text = "";
                     if (textType === 0) {
@@ -237,15 +237,22 @@ function benchmarkTts(baseUrl, runs, timeoutMs) {
                         text = "This is a much longer response that goes on and on for many words to test the streaming capacity of the chunk manager and Kokoro synthesizer when we need it.";
                     }
                     start = Date.now();
-                    return [4 /*yield*/, postJson("".concat(baseUrl.replace(/\/+$/, ""), "/synthesize"), { request_id: "tts-nonstream-".concat(i), text: text, voice: "af_heart", format: "raw" }, timeoutMs)];
+                    _a.label = 2;
                 case 2:
+                    _a.trys.push([2, 4, , 5]);
+                    return [4 /*yield*/, postJson("".concat(baseUrl.replace(/\/+$/, ""), "/synthesize"), { request_id: "tts-nonstream-".concat(i), text: text, voice: "af_heart", format: "raw" }, timeoutMs)];
+                case 3:
                     _a.sent();
                     synthLatencies.push(Date.now() - start);
-                    _a.label = 3;
-                case 3:
-                    _a.trys.push([3, 5, , 6]);
-                    return [4 /*yield*/, postNdjsonStream("".concat(baseUrl.replace(/\/+$/, ""), "/synthesize_stream"), { request_id: "tts-stream-".concat(i), text: text, voice: "af_heart", format: "raw", stream: true }, timeoutMs)];
+                    return [3 /*break*/, 5];
                 case 4:
+                    e_1 = _a.sent();
+                    console.error("[Benchmark] Failed non-stream TTS: ".concat(e_1.message));
+                    return [3 /*break*/, 5];
+                case 5:
+                    _a.trys.push([5, 7, , 8]);
+                    return [4 /*yield*/, postNdjsonStream("".concat(baseUrl.replace(/\/+$/, ""), "/synthesize_stream"), { request_id: "tts-stream-".concat(i), text: text, voice: "af_heart", format: "raw", stream: true }, timeoutMs)];
+                case 6:
                     stream = _a.sent();
                     streamTtfa.push(stream.ttfa_ms);
                     streamTotals.push(stream.total_ms);
@@ -258,15 +265,15 @@ function benchmarkTts(baseUrl, runs, timeoutMs) {
                     else {
                         longTtfa.push(stream.ttfa_ms);
                     }
-                    return [3 /*break*/, 6];
-                case 5:
-                    e_1 = _a.sent();
+                    return [3 /*break*/, 8];
+                case 7:
+                    e_2 = _a.sent();
                     streamErrors++;
-                    return [3 /*break*/, 6];
-                case 6:
+                    return [3 /*break*/, 8];
+                case 8:
                     i++;
                     return [3 /*break*/, 1];
-                case 7: return [2 /*return*/, {
+                case 9: return [2 /*return*/, {
                         non_stream_total_ms: computeStats(synthLatencies),
                         stream_ttfa_ms: computeStats(streamTtfa),
                         stream_total_ms: computeStats(streamTotals),
@@ -278,6 +285,29 @@ function benchmarkTts(baseUrl, runs, timeoutMs) {
             }
         });
     });
+}
+function evaluateP95Target(stats, targetMs, streamErrors) {
+    if (streamErrors > 0) {
+        return {
+            passed: false,
+            target_ms: targetMs,
+            observed_p95_ms: null,
+            reason: "stream_errors_".concat(streamErrors)
+        };
+    }
+    if (!stats.n) {
+        return {
+            passed: false,
+            target_ms: targetMs,
+            observed_p95_ms: null,
+            reason: "no_samples"
+        };
+    }
+    return {
+        passed: stats.p95_ms < targetMs,
+        target_ms: targetMs,
+        observed_p95_ms: stats.p95_ms
+    };
 }
 function benchmarkSttBus(runs, port) {
     return __awaiter(this, void 0, void 0, function () {
@@ -420,6 +450,10 @@ function main() {
                             bus_audio_to_final_ms: sttBus,
                             websocket_audio_to_final_ms: null,
                             note: "WebSocket head-to-head not included in this harness without a live comparable WS backend endpoint."
+                        },
+                        verdicts: {
+                            target_ack_short_stream_ttfa_under_200ms: evaluateP95Target(tts.stream_ack_short_ttfa_ms, 200, tts.stream_errors),
+                            target_stream_total_under_200ms: evaluateP95Target(tts.stream_total_ms, 200, tts.stream_errors)
                         }
                     };
                     console.log(JSON.stringify(result, null, 2));

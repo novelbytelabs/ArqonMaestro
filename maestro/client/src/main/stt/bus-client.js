@@ -96,10 +96,11 @@ var BusConnectionState;
  * WebSocket as the primary execution path.
  */
 var BusClient = /** @class */ (function () {
-    function BusClient(settings, log, tracking) {
+    function BusClient(settings, log, tracking, tuner) {
         this.settings = settings;
         this.log = log;
         this.tracking = tracking;
+        this.tuner = tuner;
         this.state = BusConnectionState.DISCONNECTED;
         this.reconnectAttempts = 0;
         this.metrics = {
@@ -115,7 +116,7 @@ var BusClient = /** @class */ (function () {
         // Execution mode state
         this.executionMode = false;
         this.config = this.buildConfig();
-        this.voiceOutput = new voice_output_1["default"](log, tracking, settings);
+        this.voiceOutput = new voice_output_1["default"](log, tracking, settings, tuner);
         this.controlPlane = this.buildControlPlaneCoordinator();
     }
     /**
@@ -804,7 +805,7 @@ exports["default"] = BusClient;
 /**
  * Factory function to create BusClient instance
  */
-function createBusClient(settings, log, tracking) {
-    return new BusClient(settings, log, tracking);
+function createBusClient(settings, log, tracking, tuner) {
+    return new BusClient(settings, log, tracking, tuner);
 }
 exports.createBusClient = createBusClient;

@@ -223,7 +223,7 @@ export default class App {
     ));
 
     // Initialize Arqon Bus client for shadow publishing
-    const busClient = createBusClient(settings, log, tracking);
+    const busClient = createBusClient(settings, log, tracking, hpoTuner);
     chunkManager.setBusClient(busClient);
     
     // Initialize STT Comparator for dual-run comparison
@@ -348,22 +348,7 @@ export default class App {
         console.warn(
           "[ArqonMaestro] Local endpoint selected but local backend is not fully healthy yet."
         );
-
-        const remoteEndpoints = settings.getStreamingEndpoints().filter((e) => e.id != "local");
-        if (tokenPresent && remoteEndpoints.length > 0) {
-          const pings = await Promise.all(remoteEndpoints.map((e) => api.ping(e, false)));
-          const index = Math.max(0, pings.indexOf(Math.min(...pings)));
-          const fallback = remoteEndpoints[index];
-          settings.setStreamingEndpoint(fallback.id!);
-          endpoint = settings.getStreamingEndpoint();
-          initialLoggedIn = true;
-          console.warn(
-            "[ArqonMaestro] Falling back to remote endpoint:",
-            fallback.id,
-            fallback.address
-          );
-          bridge.setState({ endpoint, latency: pings[index] }, [mainWindow, miniModeWindow]);
-        }
+        console.warn("[ArqonMaestro] Local endpoint is configured fail-closed. Remote fallback disabled.");
       }
     }
 

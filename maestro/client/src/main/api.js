@@ -68,18 +68,19 @@ var API = /** @class */ (function () {
     }
     API.prototype.request = function (url, data, requestClass, responseClass, timeout) {
         return __awaiter(this, void 0, void 0, function () {
-            var endpoint, response, buffer, e_1;
+            var selectedEndpoint, endpoint, response, buffer, e_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!timeout) {
                             timeout = 0;
                         }
+                        selectedEndpoint = this.settings.getStreamingEndpoint();
                         endpoint = process.env.ENDPOINT
                             ? process.env.ENDPOINT
-                            : this.settings.getStreamingEndpoint().id == "local"
-                                ? "https://stream-us-west-2.serenade.ai"
-                                : "https://".concat(this.settings.getStreamingEndpoint().address);
+                            : selectedEndpoint.id == "local"
+                                ? "http://".concat(selectedEndpoint.address)
+                                : "https://".concat(selectedEndpoint.address);
                         _a.label = 1;
                     case 1:
                         _a.trys.push([1, 4, , 5]);
@@ -134,7 +135,7 @@ var API = /** @class */ (function () {
     API.prototype.ping = function (endpoint, updateRenderer) {
         if (updateRenderer === void 0) { updateRenderer = true; }
         return __awaiter(this, void 0, void 0, function () {
-            var unreachable, url, start, latency, e_2;
+            var unreachable, isLocal, baseUrl, start, latency, e_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -142,24 +143,25 @@ var API = /** @class */ (function () {
                             return [2 /*return*/, 1];
                         }
                         unreachable = 1000;
-                        url = endpoint.address.split(":")[0];
-                        console.log("[ArqonMaestro] Pinging endpoint:", url);
+                        isLocal = endpoint.address.startsWith("localhost:") || endpoint.address.startsWith("127.0.0.1:");
+                        baseUrl = isLocal ? "http://".concat(endpoint.address) : "https://".concat(endpoint.address.split(":")[0]);
+                        console.log("[ArqonMaestro] Pinging endpoint:", baseUrl);
                         _a.label = 1;
                     case 1:
                         _a.trys.push([1, 3, , 4]);
                         start = Date.now();
-                        return [4 /*yield*/, (0, electron_fetch_1["default"])("https://".concat(url, "/api/status"), { method: "POST", timeout: unreachable })];
+                        return [4 /*yield*/, (0, electron_fetch_1["default"])("".concat(baseUrl, "/api/status"), { method: "POST", timeout: unreachable })];
                     case 2:
                         _a.sent();
                         latency = Math.round(Date.now() - start);
-                        console.log("[ArqonMaestro] Ping success:", url, "latency:", latency);
+                        console.log("[ArqonMaestro] Ping success:", baseUrl, "latency:", latency);
                         if (updateRenderer) {
                             this.bridge.setState({ latency: latency }, [this.mainWindow, this.settingsWindow()]);
                         }
                         return [2 /*return*/, latency];
                     case 3:
                         e_2 = _a.sent();
-                        console.log("[ArqonMaestro] Ping failed:", url, "error:", e_2);
+                        console.log("[ArqonMaestro] Ping failed:", baseUrl, "error:", e_2);
                         return [2 /*return*/, unreachable];
                     case 4: return [2 /*return*/];
                 }

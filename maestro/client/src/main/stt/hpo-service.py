@@ -28,14 +28,11 @@ class HpoServer(BaseHTTPRequestHandler):
     def do_GET(self):
         global global_solver
         if self.path == "/healthz" or self.path == "/readyz":
-            if global_solver is not None:
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "ok", "history_len": global_solver.get_history_len()}).encode())
-            else:
-                self.send_response(503)
-                self.end_headers()
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            history_len = global_solver.get_history_len() if global_solver is not None else 0
+            self.wfile.write(json.dumps({"status": "ok", "history_len": history_len}).encode())
         else:
             self.send_response(404)
             self.end_headers()
@@ -66,8 +63,12 @@ class HpoServer(BaseHTTPRequestHandler):
                     status_code = 400
                     response_data = {"error": "Solver not initialized"}
                 else:
-                    global_solver.seed(json.dumps([req_data]))
-                    response_data = {"status": "seeded", "history_len": global_solver.get_history_len()}
+                    if not isinstance(req_data, dict):
+                        status_code = 400
+                        response_data = {"error": "seed payload must be an object"}
+                    else:
+                        global_solver.seed(json.dumps([req_data]))
+                        response_data = {"status": "seeded", "history_len": global_solver.get_history_len()}
 
             elif self.path == "/ask_one":
                 if global_solver is None:
@@ -75,7 +76,12 @@ class HpoServer(BaseHTTPRequestHandler):
                     response_data = {"error": "Solver not initialized"}
                 else:
                     candidate = global_solver.ask_one()
-                    response_data = {"candidate": candidate if isinstance(candidate, dict) else json.loads(candidate)}
+                    if candidate is None:
+                        response_data = {"candidate": None}
+                    elif isinstance(candidate, dict):
+                        response_data = {"candidate": candidate}
+                    else:
+                        response_data = {"candidate": json.loads(candidate)}
             else:
                 status_code = 404
         except Exception as e:

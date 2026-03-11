@@ -21,6 +21,13 @@ interface TtsStreamSample {
   total_ms: number;
 }
 
+interface TargetVerdict {
+  passed: boolean;
+  target_ms: number;
+  observed_p95_ms: number | null;
+  reason?: string;
+}
+
 function percentile(values: number[], p: number): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -195,12 +202,16 @@ async function benchmarkTts(baseUrl: string, runs: number, timeoutMs: number) {
     }
 
     const start = Date.now();
-    await postJson(
-      `${baseUrl.replace(/\/+$/, "")}/synthesize`,
-      { request_id: `tts-nonstream-${i}`, text, voice: "af_heart", format: "raw" },
-      timeoutMs
-    );
-    synthLatencies.push(Date.now() - start);
+    try {
+      await postJson(
+        `${baseUrl.replace(/\/+$/, "")}/synthesize`,
+        { request_id: `tts-nonstream-${i}`, text, voice: "af_heart", format: "raw" },
+        timeoutMs
+      );
+      synthLatencies.push(Date.now() - start);
+    } catch (e: any) {
+      console.error(`[Benchmark] Failed non-stream TTS: ${e.message}`);
+    }
 
     try {
       const stream = await postNdjsonStream(
@@ -231,6 +242,30 @@ async function benchmarkTts(baseUrl: string, runs: number, timeoutMs: number) {
     stream_normal_ttfa_ms: computeStats(normalTtfa),
     stream_long_ttfa_ms: computeStats(longTtfa),
     stream_errors: streamErrors,
+  };
+}
+
+function evaluateP95Target(stats: Stats, targetMs: number, streamErrors: number): TargetVerdict {
+  if (streamErrors > 0) {
+    return {
+      passed: false,
+      target_ms: targetMs,
+      observed_p95_ms: null,
+      reason: `stream_errors_${streamErrors}`,
+    };
+  }
+  if (!stats.n) {
+    return {
+      passed: false,
+      target_ms: targetMs,
+      observed_p95_ms: null,
+      reason: "no_samples",
+    };
+  }
+  return {
+    passed: stats.p95_ms < targetMs,
+    target_ms: targetMs,
+    observed_p95_ms: stats.p95_ms,
   };
 }
 
@@ -337,6 +372,18 @@ async function main() {
         bus_audio_to_final_ms: sttBus,
         websocket_audio_to_final_ms: null,
         note: "WebSocket head-to-head not included in this harness without a live comparable WS backend endpoint.",
+      },
+      verdicts: {
+        target_ack_short_stream_ttfa_under_200ms: evaluateP95Target(
+          tts.stream_ack_short_ttfa_ms,
+          200,
+          tts.stream_errors
+        ),
+        target_stream_total_under_200ms: evaluateP95Target(
+          tts.stream_total_ms,
+          200,
+          tts.stream_errors
+        ),
       },
     };
 
