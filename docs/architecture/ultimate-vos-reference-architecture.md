@@ -29,6 +29,58 @@ It should evolve into a voice-native operating substrate with:
 8. ArqonMCP is the unified control plane, but hot execution should remain distributable.
 9. MCP may be JSON-RPC at the edge, but internal Arqon contracts should trend protobuf-first.
 
+## Maestro Identity
+
+Arqon Maestro should be treated as an AGO whose identity is the Voice Operating System.
+
+Its job is to answer:
+
+- how speech becomes command
+- how spoken command becomes governed action
+- how wake, barge-in, dictation, and mode switching behave
+- how users operate software, code, and tools by voice
+
+This is a narrower and stronger identity than "assistant."
+
+Architectural rule:
+
+- Maestro is the spoken operating substrate
+- it should not collapse into a generic personal assistant
+
+## Maestro And Nexus
+
+If Arqon Nexus emerges as the intelligent personal assistant AGO, then the clean relationship is:
+
+- `Maestro = the Voice Operating System`
+- `Nexus = the intelligent personal assistant`
+
+These should be modeled as sibling AGOs and co-processors on Arqon Bus.
+
+Maestro should own:
+
+- the hot voice-operating path
+- interruption-safe command handling
+- spoken operating grammar
+- deterministic execution handoff
+
+Nexus should own:
+
+- personal context
+- assistant continuity
+- long-horizon planning
+- contextual suggestions
+- agentic guidance
+
+Architectural rule:
+
+- Nexus must not swallow Maestro
+- Maestro must not try to absorb the whole assistant role
+
+The clean division is:
+
+`Maestro speaks, hears, commands, and operates.`
+`Nexus knows, assists, remembers, and guides.`
+
 ## Current Anchors
 
 This reference architecture is grounded in the current repository and runtime evidence:

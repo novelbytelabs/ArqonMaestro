@@ -10,6 +10,7 @@ dev_addr: 127.0.0.1:8089
 
 theme:
   name: "material"
+  custom_dir: overrides
   logo: assets/favicon.ico
   favicon: assets/favicon.ico
   features:
@@ -74,6 +75,8 @@ nav:
       - Codebase Layout: architecture/codebase-layout.md
       - Request Lifecycle: architecture/request-lifecycle.md
       - Ultimate VOS Reference Architecture: architecture/ultimate-vos-reference-architecture.md
+  - Policies:
+      - Chrome Extension Privacy Policy: privacy-policy/maestro-chrome-extension/index.md
   - Models:
       - Generating Data: models/generating-data.md
       - Model Architecture: models/model-architecture.md

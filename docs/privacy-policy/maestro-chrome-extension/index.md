@@ -18,4 +18,4 @@ Maestro’s desktop app delivers the control scripts over the local, authenticat
 The extension does not collect personal data (names, emails, passwords, IP addresses, etc.), does not track users across sites, and does not sell or share data with third parties. All command execution is bounded to the routines and policies described above.
 
 ## Contact
-For questions or requests regarding this policy, contact novelbytelabs@gmail.com
+For questions or requests regarding this policy, contact support@arqon.ai
