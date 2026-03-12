@@ -2,174 +2,358 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/decision-log/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/modernization-matrix/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/voice_plane_implementation_plan/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/architecture/codebase-layout/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/architecture/request-lifecycle/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/architecture/ultimate-vos-reference-architecture/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/browser/editing-text-and-code/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/browser/getting-started/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/browser/links-and-inputs/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/browser/navigation/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/api-reference/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/custom-commands/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/extending-maestro/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/plugin-lifecycle/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/protocol-messages/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/protocol-overview/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/development/snippets/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/extensions/chrome/IMPLEMENTATION_PLAN/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/extensions/chrome/SPEC/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/adding-and-inserting-code/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/alternatives-and-corrections/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/application-control/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/browser-and-system-control/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/building/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/command-modes/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/common-commands/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/dictation-and-raw-text/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/editing-and-refactoring/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/editor-integrations/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/getting-started/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/how-commands-work/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/in-app-tutorials/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/navigation-and-selection/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/guides/revision-box-and-text-input/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/models/generating-data/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/models/model-architecture/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/models/training-models/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/arqon-bus-migration-flags/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/arqon-bus-migration-runbook/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/configuration/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/decision_log/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/external-infrastructure-ownership/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/frozen-requirements-registry/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/gate-6-kokoro-plan/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/gate-6b-arqonhpo-homeostasis-plan/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/gotcha-registry/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/historical-provenance-audit/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/kokoro-installation/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-1-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-2-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-3-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-4-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-4-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-5-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-5-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-6-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-6-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-7-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-7-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-closeout-template/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-e-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/phase-e-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/port-reference/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/rebrand-program/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/rollback_proof/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/troubleshooting-map/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/walkthrough/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-a-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-a-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-b-compatibility-matrix/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-b-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-c-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-c-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-c-plan/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-d-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-d-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-d-ownership-inventory/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-d-readiness-checklist/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-e-closeout/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-e-evidence/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-e-inventory/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/operations/wave-e-scope/</loc>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/overview/arqon-ecosystem-technotes/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/overview/ecosystem/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/parsing/grammars/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
+    </url>
+    <url>
+         <loc>https://novelbytelabs.github.io/ArqonMaestro/privacy-policy/maestro-chrome-extension/PRIVACY_POLICY/</loc>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/reference/formatting-and-symbols/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
     <url>
          <loc>https://novelbytelabs.github.io/ArqonMaestro/reference/selectors/</loc>
-         <lastmod>2026-03-08</lastmod>
+         <lastmod>2026-03-12</lastmod>
     </url>
 </urlset>
