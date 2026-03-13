@@ -518,6 +518,33 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - Rollback remains single-switch: `arqon_tts_provider=fallback`
 
 ---
+
+## ADM-037: Maestro Master Plan Is The Canonical Forward Roadmap
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Treat `docs/overview/maestro-master-plan.md` as the canonical forward-looking roadmap for Arqon Maestro.
+- **Why**: Maestro's direction was spread across architecture notes, ecosystem framing, modernization trackers, and operational plans. A single strategic roadmap is required so product identity, near-term priorities, and long-term architecture do not drift apart.
+- **Consequences**:
+  - top-level docs should point to the master plan as the main roadmap
+  - evidence and closeout docs remain the truth source for completed work
+  - future roadmap changes should reconcile with the master plan rather than introducing parallel strategic narratives
+
+---
+
+## ADM-038: Near-Term Maestro Prioritizes New Operator GUI Over Legacy Shell Hardening
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Short-term Maestro work prioritizes the new operator-facing GUI, shell/runtime boundary extraction, and Kokoro-backed two-way interaction over deep hardening of the inherited Electron shell.
+- **Why**: The current Electron client is a functioning compatibility shell, but not the intended long-term product host. Near-term effort should build migration leverage and operator excitement rather than overinvesting in a shell that is intended to be replaced.
+- **Consequences**:
+  - Electron is treated as a temporary compatibility shell
+  - Tauri is treated as the intended shell target
+  - Wave 2 becomes the shell-contract gate before serious GUI implementation
+  - legacy `core`, `speech-engine`, and `code-engine` remain continuity bridges rather than the long-term architectural center
+
+---
  
 ## Template for Future Decisions
 

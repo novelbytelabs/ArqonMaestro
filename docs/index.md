@@ -41,6 +41,7 @@ flowchart LR
 - [Decision Log](decision-log.md): key decisions and rationale
 - [Modernization Matrix](modernization-matrix.md): current status of major modules and priorities
 - [Maestro In Arqon](overview/ecosystem.md): how Maestro fits the larger ecosystem
+- [Wave 1 Closeout](operations/maestro-master-plan-wave-1-closeout.md): hard-close record for the roadmap and alignment wave
 
 ## Current Focus
 

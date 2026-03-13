@@ -83,6 +83,8 @@ nav:
       - Model Architecture: models/model-architecture.md
       - Training Models: models/training-models.md
   - Operations:
+      - Maestro Master Plan Wave 1 Evidence: operations/maestro-master-plan-wave-1-evidence.md
+      - Maestro Master Plan Wave 1 Closeout: operations/maestro-master-plan-wave-1-closeout.md
       - Port Reference: operations/port-reference.md
       - Gate 6 Kokoro Plan: operations/gate-6-kokoro-plan.md
       - Configuration: operations/configuration.md

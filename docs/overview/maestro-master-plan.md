@@ -106,9 +106,9 @@ Brief summary:
 
 #### Wave 1 Status
 
-`in progress`
+`completed (hard-close)`
 
-Wave 1 begins by publishing this master plan and then continues through the first alignment pass across the top-level docs.
+Wave 1 published this master plan, aligned the top-level docs around it, and hard-closed the product-identity and roadmap boundary for the next stage of work.
 
 #### Wave 1 Locked Decisions
 
@@ -130,6 +130,8 @@ The following decisions are now treated as locked unless a later explicit decisi
 - product identity language aligned around Maestro as the Voice Operating System
 - short-, mid-, and long-term direction expressed as seven waves
 - the immediate near-term posture made explicit: new GUI first, Electron temporary, Tauri next
+- [Wave 1 Evidence](../operations/maestro-master-plan-wave-1-evidence.md)
+- [Wave 1 Closeout](../operations/maestro-master-plan-wave-1-closeout.md)
 
 #### Wave 1 Exit Criteria
 
@@ -144,6 +146,8 @@ Wave 1 is complete when all of these are true:
   - the new operator GUI
   - Kokoro-backed two-way interaction
   - temporary Electron compatibility rather than deep shell hardening
+
+Wave 1 is now hard-closed for the current cycle.
 
 #### Wave 1 Out Of Scope
 
