@@ -120,6 +120,7 @@ nav:
       - Wave A Closeout: operations/wave-a-closeout.md
   - Development:
       - Extending Maestro: development/extending-maestro.md
+      - Codex UI/UX Workflow: development/codex-ui-ux-workflow.md
       - Custom Commands: development/custom-commands.md
       - Snippets: development/snippets.md
       - API Reference: development/api-reference.md
