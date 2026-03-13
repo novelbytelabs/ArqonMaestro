@@ -46,6 +46,7 @@ theme:
 nav:
   - Overview: index.md
   - Ecosystem:
+      - Maestro Master Plan: overview/maestro-master-plan.md
       - Maestro In Arqon: overview/ecosystem.md
       - Arqon Ecosystem Technotes: overview/arqon-ecosystem-technotes.md
   - Decision Log: decision-log.md

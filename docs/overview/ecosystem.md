@@ -2,6 +2,8 @@
 
 Arqon Maestro is the voice-native operating layer of the Arqon ecosystem.
 
+For the canonical roadmap that turns this identity into short-, mid-, and long-term execution waves, see the [Maestro Master Plan](maestro-master-plan.md).
+
 It is not a voice assistant and it is not just a speech UI. It is the layer that turns spoken intent into governed operating action across editors, tools, desktop surfaces, and Bus-connected services.
 
 ## Ecosystem Role

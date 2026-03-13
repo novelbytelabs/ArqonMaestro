@@ -34,6 +34,7 @@ flowchart LR
 
 ## Start Here
 
+- [Maestro Master Plan](overview/maestro-master-plan.md): canonical roadmap for short-, mid-, and long-term direction
 - [Getting Started](guides/getting-started.md): launch Maestro and issue your first commands
 - [How Commands Work](guides/how-commands-work.md): understand action, selector, alternatives, and chaining
 - [Revision Box and Text Input](guides/revision-box-and-text-input.md): use bridge surfaces between apps
@@ -45,10 +46,10 @@ flowchart LR
 
 The current work in this repository is centered on:
 
-- keeping the desktop voice pipeline operational
-- modernizing the build and runtime stack
-- aligning branding and documentation with Arqon Maestro
-- preparing the codebase for deeper ecosystem integration
+- short-term transition toward a new operator-facing desktop shell
+- extracting shell and runtime boundaries that support Tauri migration
+- making two-way voice interaction a flagship product experience
+- continuing modernization without overinvesting in legacy shell assumptions
 
 ## Documentation Shape
 

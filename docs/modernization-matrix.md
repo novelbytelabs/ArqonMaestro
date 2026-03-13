@@ -2,6 +2,8 @@
 
 > **Purpose**: Track the current state, modernization sequence, and verification standard for each major subsystem in Arqon Maestro.
 
+For the canonical forward-looking roadmap that now organizes the next stage of Maestro into product and architecture waves, see the [Maestro Master Plan](overview/maestro-master-plan.md).
+
 ---
 
 ## Status Legend
