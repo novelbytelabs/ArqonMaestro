@@ -17,3 +17,4 @@ export const AccessibilityPermission = () => (
     </div>
   </div>
 );
+ 

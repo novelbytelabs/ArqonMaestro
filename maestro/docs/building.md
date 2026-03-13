@@ -22,7 +22,7 @@ Install platform dependencies from the setup scripts:
 
 ```bash
 scripts/setup/setup-ubuntu.sh
-# or
+# or 
 scripts/setup/setup-mac.sh
 ```
 
