@@ -95,6 +95,107 @@ This reference architecture is grounded in the current repository and runtime ev
 
 These anchors must be preserved while the system evolves.
 
+## Technology Baseline And Intake
+
+Maestro now carries an explicit external stack posture.
+
+This section is the canonical matrix for stack baselines and project intake status.
+
+### Baseline Stack Direction
+
+- shell target: Tauri (Electron remains compatibility shell during migration)
+- wake: openWakeWord-class local wake layer
+- VAD: Silero-class hot-path speech gating
+- STT: faster-whisper class dual-profile model (`command-fast`, `dictation-accurate`)
+- turn + interruption: semantic turn detection above VAD evidence
+- audio processing: WebRTC APM baseline, optional stronger denoise mode
+- routing substrate: ArqonMCP + Sense + Sentinel/ACE
+- deterministic lane: Reflex + Zero patterns
+- cognitive lane: Cortex (L4) with governed escalation
+- TTS: Kokoro-class primary through provider broker, fallback provider path retained
+- protocol boundary: MCP at edge, internal contracts trending protobuf-first
+
+### Project Intake Posture
+
+- adopt-now projects should support hot-path correctness, local sovereignty, and swap-safe contracts
+- borrow-pattern projects can shape design without becoming hard runtime dependencies
+- deprecated/archived projects may inform protocol decisions but should not become core anchors
+- any intake candidate must declare lane assignment, boundary impact, failure mode, and rollback path before baseline promotion
+
+### Baseline Stack Matrix
+
+| Layer | Primary | Fallback / Alternate | Notes |
+| --- | --- | --- | --- |
+| Desktop shell | Tauri target | Electron compatibility shell | Keep shell thin; do not collapse runtime into shell code. |
+| Wake | openWakeWord | Porcupine-class engine if needed | Local-first default. |
+| VAD | Silero VAD | WebRTC VAD | Hot-path gating before STT. |
+| STT command profile | faster-whisper (fast tier) | smaller local profile | Prioritize latency and command reliability. |
+| STT dictation profile | faster-whisper (accurate tier) | larger local profile | Prioritize quality for long text and dictation. |
+| Turn detection | semantic turn layer + VAD evidence | VAD-only fallback | Barge-in and interruption correctness are mandatory. |
+| Audio processing | WebRTC APM | APM + DeepFilterNet mode | Keep latency budget strict. |
+| Routing substrate | ArqonMCP + Sense + Sentinel/ACE | none | This is the governance/control boundary. |
+| Deterministic lane | Reflex + Zero patterns | N/A | First-class reflex/hot path. |
+| Cognitive lane | Cortex (L4) | N/A | Proposal/synthesis lane; not kernel authority. |
+| TTS primary | Kokoro sidecar | Provider swap via broker | Keep provider abstraction strict. |
+| TTS fallback | fallback provider class (Piper-capable) | fail-closed if required | Preserve runtime resilience and policy control. |
+| Voice protocol boundary | MCP edge + Arqon internal contracts | JSON-RPC edge compatibility | Internal contracts should trend protobuf-first. |
+
+### Project Intake Matrix
+
+#### Adopt Now
+
+| Project | Role In Maestro | Lane | Intake Status |
+| --- | --- | --- | --- |
+| `tauri-apps/tauri` | long-term desktop shell host | shell | Adopt target |
+| `SYSTRAN/faster-whisper` | local STT backbone | hot + cognitive ingress | Adopt target |
+| `snakers4/silero-vad` | fast speech gating | hot ingress | Adopt target |
+| `dscripka/openWakeWord` | local wake-word layer | hot ingress | Adopt target |
+| `modelcontextprotocol/*` | external capability protocol boundary | command fabric edge | Adopt target |
+
+#### Borrow Patterns (Selective Integration)
+
+| Project | Pattern To Borrow | Why |
+| --- | --- | --- |
+| `livekit/agents` | turn-taking and interruption pipeline design | Strong realtime orchestration patterns. |
+| `talonvoice` | command ergonomics and voice grammar ideas | Valuable control UX patterns for coding/system use. |
+| `Rikorose/DeepFilterNet` | noisy-environment enhancement mode | Useful optional denoise path, not default hot-path dependency. |
+| `openai/whisper` | baseline and evaluation reference | Benchmark and regression comparison surface. |
+
+#### Integrate Via Provider Strategy
+
+| Project | Role | Strategy |
+| --- | --- | --- |
+| `hexgrad/Kokoro-82M` | primary premium local TTS path | Keep broker contract provider-agnostic. |
+| `rhasspy/piper` (or maintained successor) | fallback / voice pack depth | Integrate as optional provider under broker contract. |
+
+#### Defer Or Use With Caution
+
+| Project | Reason |
+| --- | --- |
+| `rhasspy/wyoming-satellite` | archived/deprecated status; do not hard-anchor runtime to this repo. |
+| full hosted assistant stacks (Rasa/Leon/Alexa-style coupling) | can blur Maestro/Nexus boundary and risk turning Maestro into a generic assistant shell. |
+
+### Intake Rules
+
+Any new external project considered for Maestro must include:
+
+1. lane assignment (`hot`, `cognitive`, `shell`, `provider`, or `tooling`)
+2. boundary impact (`none`, `adapter-only`, or `core-contract`)
+3. failure mode (`fallback`, `fail-closed`, or `degraded-service`)
+4. replacement strategy (how to swap without architectural rewrite)
+5. explicit owner and rollback plan
+
+If a candidate cannot satisfy these, it stays in evaluation and is not promoted to baseline.
+
+### Current Gaps
+
+As of this revision:
+
+- concrete STT/VAD/wake project choices are not yet fully encoded in implementation docs
+- turn-detection contract needs a dedicated implementation spec
+- provider matrix for multi-voice routing needs a production schema document
+- Maestro/Nexus shared event taxonomy still needs a canonical bus contract page
+
 ## Architectural Thesis
 
 The core split is:

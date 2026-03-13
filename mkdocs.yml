@@ -124,9 +124,11 @@ nav:
       - Wave B Compatibility Matrix: operations/wave-b-compatibility-matrix.md
       - Wave A Closeout: operations/wave-a-closeout.md
   - Development:
+      - Development Runbook: development/development-runbook.md
       - Extending Maestro: development/extending-maestro.md
       - Codex UI/UX Workflow: development/codex-ui-ux-workflow.md
       - Renderer Shell Contract: development/renderer-shell-contract.md
+      - Operator Shell V1: development/operator-shell-v1.md
       - Custom Commands: development/custom-commands.md
       - Snippets: development/snippets.md
       - API Reference: development/api-reference.md

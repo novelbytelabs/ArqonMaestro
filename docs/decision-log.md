@@ -559,6 +559,19 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - Wave 3 GUI work should build on the shell contract rather than reopening host-specific coupling
 
 ---
+
+## ADM-040: Ultimate VOS Stack Intake Matrix Is Canonical For External Technology Choices
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Treat `docs/architecture/ultimate-vos-reference-architecture.md` (`Technology Baseline And Intake` section) as the canonical source for Maestro external stack baselines and project intake status (`adopt`, `borrow`, `integrate-via-provider`, `defer`).
+- **Why**: Strategic architecture language was captured, but concrete external project choices were not consistently documented in one governed place. A canonical intake matrix is required to prevent stack drift and accidental hard-coupling.
+- **Consequences**:
+  - external stack choices must be reflected in the intake matrix before being treated as baseline
+  - architecture updates should modify the canonical architecture section instead of splitting project status across multiple docs
+  - intake candidates require explicit lane assignment, boundary impact, failure mode, and rollback path
+
+---
  
 ## Template for Future Decisions
 

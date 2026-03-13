@@ -3,6 +3,36 @@
 ## Mission
 Build polished, production-ready interfaces with strong UX, clear hierarchy, and clean implementation.
 
+## Current Product Priority
+
+For current Maestro work, these rules override generic UI defaults:
+
+- Arqon Maestro is the Voice Operating System for Arqon, not a generic assistant UI.
+- The current Electron-era UI is not the long-term design authority.
+- Do not preserve legacy product patterns if they conflict with the new operator-shell direction.
+- The new desktop GUI must be shell-portable and prepared for Tauri migration.
+- Avoid introducing Electron-specific renderer assumptions into new UI architecture.
+- Prioritize the operator experience of the live voice loop:
+  - listening
+  - transcript
+  - interpretation
+  - execution state
+  - spoken response
+  - runtime health
+- Kokoro-backed two-way voice interaction is a flagship short-term product experience.
+- Prefer durable architectural seams over quick UI-only wins.
+- Do not use placeholders, fake states, or speculative controls to imply missing backend capability.
+
+## Instruction Precedence
+
+When UI guidance conflicts, use this order:
+
+1. Maestro Master Plan
+2. active architecture and operations constraints
+3. this AGENTS.md
+4. local UI skills
+5. existing legacy UI patterns
+
 ## Stack defaults
 - Prefer React + TypeScript when the repo already uses them.
 - Prefer Tailwind CSS when the repo already uses it.

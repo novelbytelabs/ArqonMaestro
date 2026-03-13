@@ -235,6 +235,34 @@ Brief summary:
 - make the UI clearly show voice state, command state, target/app state, and recent activity
 - keep Electron only as a temporary compatibility host if needed
 
+#### Wave 3 Status
+
+`in progress`
+
+Wave 3 starts from the Wave 2 shell boundary and focuses on the compact operator shell as the primary daily desktop surface for Maestro.
+
+#### Wave 3 Current Direction
+
+- keep the compact desktop footprint rather than expanding into a large dashboard
+- use the Arqon Pilot visual language as an ecosystem reference
+- shift Maestro to a darker neon-orange operator palette
+- keep the GUI honest to live state that exists today
+- reserve transcript, richer response, and Kokoro playback surfaces for the next state exposure pass instead of faking them
+
+#### Wave 3 Initial Deliverables
+
+- [Operator Shell V1 Spec](../development/operator-shell-v1.md)
+- a compact operator-shell layout built on the Wave 2 shell contract
+- visual modernization of the current Electron-hosted renderer without reintroducing raw Electron coupling
+
+#### Wave 3 Immediate Exit Gate
+
+Before deeper GUI iteration, Wave 3 must keep all of these true:
+
+- the compact app remains usable at roughly current footprint
+- the renderer stays on the Wave 2 shell contract
+- the visual redesign strengthens operator awareness without inventing unsupported runtime behavior
+
 ### Wave 4: Two-Way Voice Loop With Kokoro
 
 Make Maestro feel alive and exciting through visible and audible interaction.
