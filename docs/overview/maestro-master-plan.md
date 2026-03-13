@@ -104,6 +104,56 @@ Brief summary:
 - define truth-source order so strategy does not outrun evidence
 - lock the ecosystem boundary: Maestro feeds ArqonMCP and does not become a generic assistant
 
+#### Wave 1 Status
+
+`in progress`
+
+Wave 1 begins by publishing this master plan and then continues through the first alignment pass across the top-level docs.
+
+#### Wave 1 Locked Decisions
+
+The following decisions are now treated as locked unless a later explicit decision log entry changes them:
+
+- Maestro is the Voice Operating System AGO for Arqon
+- Maestro must not collapse into a generic personal assistant
+- Maestro feeds ArqonMCP rather than building a parallel execution fabric
+- Electron is a temporary compatibility shell, not the long-term product shell
+- Tauri is the intended shell target
+- the inherited `core`, `speech-engine`, and `code-engine` stack is compatibility-only for the transition
+- the new operator-facing GUI is a top short-term priority
+- Kokoro-backed two-way interaction is a flagship short-term milestone
+
+#### Wave 1 Deliverables
+
+- this master plan as the canonical roadmap
+- top-level docs updated to point to the master plan
+- product identity language aligned around Maestro as the Voice Operating System
+- short-, mid-, and long-term direction expressed as seven waves
+- the immediate near-term posture made explicit: new GUI first, Electron temporary, Tauri next
+
+#### Wave 1 Exit Criteria
+
+Wave 1 is complete when all of these are true:
+
+- the master plan is present in the docs and navigation
+- top-level docs do not contradict the master plan on identity or direction
+- Maestro is consistently described as the voice-native operating layer / Voice Operating System
+- the roadmap clearly distinguishes current reality from target architecture
+- the short-term plan clearly prioritizes:
+  - shell/runtime boundary extraction
+  - the new operator GUI
+  - Kokoro-backed two-way interaction
+  - temporary Electron compatibility rather than deep shell hardening
+
+#### Wave 1 Out Of Scope
+
+Wave 1 does not yet implement:
+
+- the shell contract itself
+- the new GUI itself
+- the Tauri shell itself
+- runtime service extraction beyond what is needed for documentation clarity
+
 ### Wave 2: Shell Contract And Operator Model
 
 Define the boundary that the new GUI will depend on.
@@ -215,6 +265,21 @@ It is:
 - enough continuity and safety to keep the current product usable
 - enough contract extraction to avoid redesigning the GUI later
 - enough product polish to make the new shell worth using daily
+
+## Immediate Next Step
+
+The next execution wave after Wave 1 is Wave 2: Shell Contract And Operator Model.
+
+Wave 2 should define the stable shell-facing interface for:
+
+- listening and mode state
+- transcript and interpretation state
+- command and result history
+- runtime health and connection state
+- TTS and spoken-response state
+- the minimum shell actions needed by the new operator GUI
+
+That shell contract is the gate between roadmap alignment and productive GUI implementation.
 
 ## Guardrails
 
