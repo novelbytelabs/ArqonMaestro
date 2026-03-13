@@ -1,11 +1,11 @@
 import React from "react";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { core } from "../../../gen/core";
 import { languages } from "../../../shared/languages";
 import { plugins } from "../../../shared/plugins";
 import { Row } from "../settings";
 import { Select } from "../../components/select";
+import { shell } from "../../shell";
 
 const stylersForLanguage = {
   [core.Language.LANGUAGE_CPLUSPLUS]: [
@@ -159,7 +159,7 @@ const PluginsComponent: React.FC<{ installed: string[]; stylers: any }> = ({
           className="primary-button"
           onClick={(e: React.MouseEvent) => {
             e.preventDefault();
-            ipcRenderer.send("openCustomCommands");
+            shell.openCustomCommands();
           }}
         >
           Edit
@@ -207,7 +207,7 @@ const PluginsComponent: React.FC<{ installed: string[]; stylers: any }> = ({
                     }
 
                     stylers[language] = styler;
-                    ipcRenderer.send("setSettings", { stylers });
+                    shell.setSettings({ stylers });
                   }}
                 />
               </div>

@@ -545,6 +545,20 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - legacy `core`, `speech-engine`, and `code-engine` remain continuity bridges rather than the long-term architectural center
 
 ---
+
+## ADM-039: Renderer GUI Must Depend On A Shell Contract Rather Than Raw Electron IPC
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Treat `maestro/client/src/renderer/shell` as the renderer boundary for host interactions and prohibit direct raw Electron IPC usage in renderer UI modules outside that adapter layer.
+- **Why**: The next operator GUI must survive migration from the current Electron compatibility host to a future Tauri host. That requires a stable shell-facing interface rather than renderer components encoding Electron event and windowing details directly.
+- **Consequences**:
+  - renderer components and pages should call the shell contract instead of `ipcRenderer`
+  - Electron remains the active compatibility adapter for now
+  - future shell swaps should replace the adapter rather than the renderer component tree
+  - Wave 3 GUI work should build on the shell contract rather than reopening host-specific coupling
+
+---
  
 ## Template for Future Decisions
 

@@ -1,8 +1,8 @@
 import React from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { Step } from "../../shared/tutorial";
+import { shell } from "../shell";
 
 const NuxComponent: React.FC<{
   miniMode: boolean;
@@ -12,28 +12,28 @@ const NuxComponent: React.FC<{
 }> = ({ miniMode, nuxHintShown, nuxNextButtonEnabled, nuxStep }) => {
   const back = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("nuxBack");
+    shell.nuxBack();
   };
 
   const close = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setNuxCompleted", true);
+    shell.setNuxCompleted(true);
   };
 
   const next = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("nuxNext");
+    shell.nuxNext();
   };
 
   const reset = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setNuxCompleted", true);
-    ipcRenderer.send("setNuxCompleted", false);
+    shell.setNuxCompleted(true);
+    shell.setNuxCompleted(false);
   };
 
   const showHint = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("showNuxHint");
+    shell.showNuxHint();
   };
 
   if (!nuxStep) {

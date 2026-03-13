@@ -1,7 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
+import { shell } from "../shell";
 
 const ListenStatusComponent: React.FC<{
   listening: boolean;
@@ -14,7 +14,7 @@ const ListenStatusComponent: React.FC<{
       return;
     }
 
-    ipcRenderer.send("toggleChunkManager", !listening);
+    shell.toggleChunkManager(!listening);
   };
 
   const active = listening && statusText == "Listening";
@@ -29,8 +29,8 @@ const ListenStatusComponent: React.FC<{
     <a
       href="#"
       onClick={toggle}
-      className={classNames("block font-medium drop-shadow-sm text-sm", {
-        "text-violet-600 dark:text-violet-400": active,
+      className={classNames("operator-listen-status", {
+        "operator-listen-status--active": active,
         "ml-2": localLoading,
       })}
     >

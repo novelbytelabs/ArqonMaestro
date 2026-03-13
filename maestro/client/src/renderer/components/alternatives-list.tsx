@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLightbulb } from "@fortawesome/free-regular-svg-icons";
 import {
@@ -16,6 +15,7 @@ import { Spinner } from "./spinner";
 import { UpdateNotification } from "./update-notification";
 import { isValidAlternative } from "../../shared/alternatives";
 import { tutorials } from "../../shared/tutorial";
+import { shell } from "../shell";
 const reactStringReplace = require("react-string-replace");
 
 const Alternative: React.FC<{
@@ -52,10 +52,7 @@ const Alternative: React.FC<{
   };
 
   const onClick = () => {
-    ipcRenderer.send("sendTextRequest", {
-      text: `use ${index}`,
-      includeAlternatives: false,
-    });
+    shell.sendTextRequest(`use ${index}`, false);
   };
 
   if (!alternative || !alternative.description) {
@@ -91,9 +88,10 @@ const Alternative: React.FC<{
         return (
           <div
             className={classNames("rounded px-2 py-1 mt-1", {
-              "bg-blue-600 group-hover:bg-blue-700 dark:bg-indigo-800 dark:group-hover:bg-indigo-900": usable,
-              "bg-blue-500 dark:bg-indigo-600": unusable,
-              "bg-violet-700 dark:bg-violet-900": highlighted,
+              "operator-code-chip": true,
+              "operator-code-chip--active": usable,
+              "operator-code-chip--muted": unusable,
+              "operator-code-chip--highlighted": highlighted,
             })}
             key={i}
           >
@@ -111,9 +109,10 @@ const Alternative: React.FC<{
       return (
         <pre
           className={classNames("inline rounded px-1 py-0.5 whitespace-pre-wrap", {
-            "bg-blue-600 group-hover:bg-blue-700 dark:bg-indigo-800 dark:group-hover:bg-indigo-900": usable,
-            "bg-blue-500 dark:bg-indigo-600": unusable,
-            "bg-violet-700 dark:bg-violet-900": highlighted,
+            "operator-inline-code": true,
+            "operator-inline-code--active": usable,
+            "operator-inline-code--muted": unusable,
+            "operator-inline-code--highlighted": highlighted,
           })}
           key={i}
         >
@@ -131,36 +130,31 @@ const Alternative: React.FC<{
     <a
       onClick={onClick}
       className={classNames(
-        "alternative-row block flex items-center text-white p-2 rounded-md transition-colors group",
+        "alternative-row operator-alternative group",
         {
-          "bg-blue-500 hover:bg-blue-600 dark:bg-indigo-700 dark:hover:bg-indigo-800 cursor-pointer": usable,
-          "bg-blue-400 dark:bg-indigo-500 cursor-default": unusable,
-          "bg-violet-500 dark:bg-violet-700 cursor-default": highlighted,
-          "mb-1 mx-1 shadow": !miniMode,
+          "operator-alternative--usable cursor-pointer": usable,
+          "operator-alternative--unusable cursor-default": unusable,
+          "operator-alternative--highlighted cursor-default": highlighted,
+          "mb-2 mx-1": !miniMode,
           "mt-1": index > 1 || (miniMode && miniModeBottomUp && miniModeReversed),
         }
       )}
     >
-      <div className="mr-2 rainbow h-[28px] w-[28px] text-center rounded-full">
+      <div className="operator-alternative__badge-shell">
         <div
           className={classNames(
-            "rounded-full font-bold h-[22px] w-[22px] m-[3px] flex justify-center items-center",
+            "operator-alternative__badge",
             {
-              "bg-blue-600 group-hover:bg-blue-700 dark:bg-blue-800 dark:group-hover:bg-blue-900": usable,
-              "text-xs bg-blue-500 dark:bg-indigo-600": unusable,
-              "text-xs bg-violet-700 dark:bg-violet-900": highlighted,
+              "operator-alternative__badge--usable": usable,
+              "operator-alternative__badge--unusable": unusable,
+              "operator-alternative__badge--highlighted": highlighted,
             }
           )}
         >
           {circle}
         </div>
       </div>
-      <div
-        style={{
-          fontSize: "0.9rem",
-          lineHeight: "1.2rem",
-        }}
-      >
+      <div className="operator-alternative__text">
         {description}
       </div>
     </a>
@@ -170,12 +164,12 @@ const Alternative: React.FC<{
 const TutorialSelection = () => {
   const click = (e: React.MouseEvent, name: string) => {
     e.preventDefault();
-    ipcRenderer.send("loadTutorial", { name });
+    shell.loadTutorial(name);
   };
 
   const close = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setNuxCompleted", true);
+    shell.setNuxCompleted(true);
   };
 
   return (
@@ -257,11 +251,7 @@ const AlternativesListComponent: React.FC<{
     .map((e: any, i: number) => (
       <div
         key={i}
-        className="bg-blue-400 text-white m-0.5 px-2 py-3 rounded-md shadow dark:bg-blue-700"
-        style={{
-          fontSize: "0.9rem",
-          lineHeight: "1.2rem",
-        }}
+        className="operator-suggestion-example"
       >
         {e.description}
       </div>
@@ -307,7 +297,7 @@ const AlternativesListComponent: React.FC<{
     examples.length > 0 ? (
       <>
         <h3 className="font-light text-sm mx-2 mt-1.5 mb-2 pb-1 border-b dark:border-neutral-500">
-          Try saying:
+          Suggested Commands
         </h3>
         {examples}
       </>
@@ -319,13 +309,13 @@ const AlternativesListComponent: React.FC<{
   const suggestionSection = (
     <div
       id="suggestion"
-      className={classNames("rounded-md p-3 text-sm bg-white dark:bg-slate-800", {
-        "border shadow mt-2 mb-4 mx-2": !miniMode,
+      className={classNames("operator-card operator-card--notice", {
+        "mt-2 mb-4 mx-2": !miniMode,
         "mb-2": miniMode,
         "border shadow": miniMode && process.arch != "darwin",
       })}
     >
-      <div className="flex items-center">
+      <div className="operator-card__headline">
         <FontAwesomeIcon
           icon={syntaxError || scriptError ? faExclamationTriangle : faLightbulb}
           className="block"
@@ -339,7 +329,7 @@ const AlternativesListComponent: React.FC<{
         </h4>
       </div>
       <div
-        className={classNames("pt-1", { scriptError: "break-all" })}
+        className={classNames("pt-2 text-sm leading-6 text-slate-200", { scriptError: "break-all" })}
         dangerouslySetInnerHTML={{ __html: scriptError || suggestion }}
       />
     </div>
@@ -348,17 +338,17 @@ const AlternativesListComponent: React.FC<{
   const backendIssueSection = backendIssue ? (
     <div
       id="backend-issue"
-      className={classNames("rounded-md p-3 text-sm bg-white dark:bg-slate-800", {
-        "border shadow mt-2 mb-4 mx-2": !miniMode,
+      className={classNames("operator-card operator-card--warning", {
+        "mt-2 mb-4 mx-2": !miniMode,
         "mb-2": miniMode,
         "border shadow": miniMode && process.arch != "darwin",
       })}
     >
-      <div className="flex items-center">
+      <div className="operator-card__headline">
         <FontAwesomeIcon icon={faExclamationTriangle} className="block" />
         <h4 className="font-bold pl-2">Voice Backend Issue</h4>
       </div>
-      <div className="pt-1 break-words">{backendIssue}</div>
+      <div className="pt-2 break-words text-sm leading-6 text-slate-200">{backendIssue}</div>
     </div>
   ) : null;
 
@@ -375,7 +365,7 @@ const AlternativesListComponent: React.FC<{
 
   return (
     <div
-      className={classNames("flex overflow-y-auto", {
+      className={classNames("flex overflow-y-auto operator-list", {
         "flex-1": !miniMode,
         "flex-col": !miniMode || !miniModeBottomUp || !miniModeReversed,
         "flex-col-reverse": miniMode && miniModeBottomUp && miniModeReversed,

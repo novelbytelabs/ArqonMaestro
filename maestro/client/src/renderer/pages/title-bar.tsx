@@ -1,18 +1,23 @@
 import React, { useState } from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
+import { withRouter } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTimes, faMinus } from "@fortawesome/free-solid-svg-icons";
 import { faSquare } from "@fortawesome/free-regular-svg-icons";
 import logoSymbol from "../../../static/img/symbol_small.png";
+import { shell } from "../shell";
 
-const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
+const TitleBarComponent: React.FC<{ miniMode: boolean; location: { pathname: string } }> = ({
+  miniMode,
+  location,
+}) => {
   const [maximized, setMaximized] = useState(false);
+  const route = location.pathname || "/";
 
   const minimize = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setWindowState", { state: "minimize", url: window.location.href });
+    shell.setWindowState("minimize", route);
   };
 
   const maximize = (e: React.MouseEvent) => {
@@ -22,9 +27,9 @@ const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
     }
 
     if (maximized) {
-      ipcRenderer.send("setWindowState", { state: "unmaximize", url: window.location.href });
+      shell.setWindowState("unmaximize", route);
     } else {
-      ipcRenderer.send("setWindowState", { state: "maximize", url: window.location.href });
+      shell.setWindowState("maximize", route);
     }
 
     setMaximized((e) => !e);
@@ -32,37 +37,37 @@ const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
 
   const close = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setWindowState", { state: "close", url: window.location.href });
+    shell.setWindowState("close", route);
   };
 
-  if (window.location.href.endsWith("input") || window.location.href.endsWith("minimode")) {
+  if (route.endsWith("input") || route.endsWith("minimode")) {
     return null;
   }
 
   return process.platform != "darwin" ? (
-    <div className="w-full h-[32px] absolute z-10 top-0 left-0 bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800">
+    <div className="operator-titlebar">
       <div className="w-full h-full flex items-center px-2">
         <img src={logoSymbol} className="h-5 w-5 mr-2" alt="Logo" />
-        <span className="text-xs font-semibold text-gray-500 dark:text-neutral-400">Arqon Maestro</span>
+        <span className="operator-titlebar__name">Arqon Maestro</span>
         <div className="flex-1 draggable h-full" />
         <div>
           <a
             href="#"
-            className="h-[24px] w-[32px] inline-block text-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors cursor-pointer outline-none"
+            className="operator-titlebar__button"
             onClick={minimize}
           >
             <FontAwesomeIcon icon={faMinus} />
           </a>
           <a
             href="#"
-            className="h-[24px] w-[32px] inline-block text-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors cursor-pointer outline-none"
+            className="operator-titlebar__button"
             onClick={maximize}
           >
             <FontAwesomeIcon icon={faSquare} className={classNames({ disabled: miniMode })} />
           </a>
           <a
             href="#"
-            className="h-[24px] w-[32px] inline-block text-center hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors cursor-pointer outline-none"
+            className="operator-titlebar__button operator-titlebar__button--danger"
             onClick={close}
           >
             <FontAwesomeIcon icon={faTimes} />
@@ -75,4 +80,7 @@ const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
   );
 };
 
-export const TitleBar = connect((state: any) => ({ miniMode: state.miniMode }))(TitleBarComponent);
+const mapState = (state: any) => ({ miniMode: state.miniMode });
+
+// @ts-ignore
+export const TitleBar = withRouter(connect(mapState)(TitleBarComponent));

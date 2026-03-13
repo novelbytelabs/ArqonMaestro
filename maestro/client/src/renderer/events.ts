@@ -1,14 +1,19 @@
-import { ipcRenderer } from "electron";
 import * as revisionBox from "./pages/revision-box";
 import { updateMiniModeWindowHeight } from "./pages/mini-mode";
 import store from "./state/store";
+import { shell } from "./shell";
+
+const routeToHash = (url: string) => {
+  const normalized = url.startsWith("#") ? url.slice(1) : url;
+  window.location.hash = normalized.startsWith("/") ? normalized : `/${normalized}`;
+};
 
 export const register = () => {
-  ipcRenderer.on("focusRevisionBox", (_event: any, data: any) => {
+  shell.onFocusRevisionBox(() => {
     revisionBox.focus();
   });
 
-  ipcRenderer.on("focusTextInput", (_event: any, _data: any) => {
+  shell.onFocusTextInput(() => {
     const input: any = document.getElementById("text-input");
     if (!input) {
       return;
@@ -17,37 +22,31 @@ export const register = () => {
     input.focus();
   });
 
-  ipcRenderer.on("getRevisionBoxState", (_event: any, data: { id: string }) => {
-    ipcRenderer.send("revisionBoxState", {
+  shell.onRequestRevisionBoxState((data) => {
+    shell.sendRevisionBoxState({
       id: data.id,
       ...revisionBox.getEditorState(),
     });
   });
 
-  ipcRenderer.on(
-    "setRevisionBoxState",
-    (
-      _event: any,
-      data: { allEditors?: boolean; source: string; cursor: number; cursorEnd: number }
-    ) => {
-      revisionBox.setEditorState(
-        { source: data.source, cursor: data.cursor, cursorEnd: data.cursorEnd },
-        data.allEditors
-      );
-    }
-  );
+  shell.onSetRevisionBoxState((data) => {
+    revisionBox.setEditorState(
+      { source: data.source, cursor: data.cursor, cursorEnd: data.cursorEnd },
+      data.allEditors
+    );
+  });
 
-  ipcRenderer.on("setState", (_event: any, data: any) => {
+  shell.onStatePatch((data) => {
     for (const k of Object.keys(data)) {
       store.dispatch({ type: k, [k]: data[k] });
     }
   });
 
-  ipcRenderer.on("setURL", (_event: any, data: { url: string }) => {
-    history.pushState(data.url, "ArqonMaestro");
+  shell.onRouteChange((data) => {
+    routeToHash(data.url);
   });
 
-  ipcRenderer.on("updateMiniModeWindowHeight", (_event: any, _data: any) => {
+  shell.onMiniModeHeightUpdate(() => {
     updateMiniModeWindowHeight();
   });
 };

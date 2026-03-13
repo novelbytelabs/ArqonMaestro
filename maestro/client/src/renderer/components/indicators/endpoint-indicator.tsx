@@ -1,18 +1,18 @@
 import React from "react";
-import { ipcRenderer } from "electron";
 import { connect } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCloud, faLock } from "@fortawesome/free-solid-svg-icons";
 import { Endpoint } from "../../../shared/endpoint";
+import { shell } from "../../shell";
 
 const EndpointIndicatorComponent: React.FC<{ endpoint: Endpoint }> = ({ endpoint }) => (
   <a
     href="#"
-    className="inline-block text-slate-600 bg-gray-200 rounded text-xs px-1.5 py-0.5 mr-0.5 drop-shadow-sm transition-colors hover:bg-gray-300 dark:bg-gray-600 dark:text-neutral-100 dark:hover:bg-gray-700"
+    className="operator-pill operator-pill--interactive"
     onClick={(e: React.MouseEvent) => {
       e.preventDefault();
-      ipcRenderer.send("setSettingsPage", "server");
-      ipcRenderer.send("showSettingsWindow");
+      shell.setSettingsPage("server");
+      shell.showSettingsWindow();
     }}
   >
     <div className="indicator-inner">

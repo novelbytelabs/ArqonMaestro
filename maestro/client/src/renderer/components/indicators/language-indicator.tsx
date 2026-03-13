@@ -1,10 +1,10 @@
 import React from "react";
-import { ipcRenderer } from "electron";
 import { connect } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileAlt, faGlobe } from "@fortawesome/free-solid-svg-icons";
 import { languages } from "../../../shared/languages";
 import { core } from "../../../gen/core";
+import { shell } from "../../shell";
 
 const LanguageIndicatorComponent: React.FC<{
   language: core.Language;
@@ -33,7 +33,7 @@ const LanguageIndicatorComponent: React.FC<{
       href="#"
       onClick={(e: React.MouseEvent) => {
         e.preventDefault();
-        ipcRenderer.send("showLanguageSwitcher");
+        shell.showLanguageSwitcher();
       }}
     >
       {icon} {name}

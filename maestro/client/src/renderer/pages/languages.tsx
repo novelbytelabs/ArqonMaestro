@@ -1,11 +1,11 @@
 import React from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faFileAlt, faSearch } from "@fortawesome/free-solid-svg-icons";
 import { core } from "../../gen/core";
 import { languages } from "../../shared/languages";
+import { shell } from "../shell";
 
 const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language }> = ({
   languageSwitcherLanguage,
@@ -44,9 +44,9 @@ const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language
           )}
           onClick={(e) => {
             e.preventDefault();
-            ipcRenderer.send("setLanguage", language);
+            shell.setLanguage(language);
             setTimeout(() => {
-              ipcRenderer.send("closeLanguages");
+              shell.closeLanguages();
             }, 100);
           }}
         >

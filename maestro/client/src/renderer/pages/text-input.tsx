@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ipcRenderer } from "electron";
+import { shell } from "../shell";
 
 export const TextInputPage = () => {
   const [text, setText] = useState("");
@@ -18,7 +18,7 @@ export const TextInputPage = () => {
           // escape
           if (e.keyCode == 27) {
             e.preventDefault();
-            ipcRenderer.send("hideTextInput");
+            shell.hideTextInput();
             setText("");
           }
           // enter
@@ -26,13 +26,10 @@ export const TextInputPage = () => {
             e.preventDefault();
 
             if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
-              ipcRenderer.send("hideTextInput");
+              shell.hideTextInput();
             }
 
-            ipcRenderer.send("sendTextRequest", {
-              text,
-              includeAlternatives: true,
-            });
+            shell.sendTextRequest(text, true);
 
             setText("");
           }

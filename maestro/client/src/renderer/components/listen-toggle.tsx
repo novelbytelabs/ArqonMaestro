@@ -1,8 +1,8 @@
 import React, { useRef } from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { Spinner } from "./spinner";
+import { shell } from "../shell";
 
 const ListenToggleComponent: React.FC<{
   darkTheme: boolean;
@@ -12,7 +12,7 @@ const ListenToggleComponent: React.FC<{
 }> = ({ darkTheme, listening, localLoading, volume }) => {
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("toggleChunkManager", !listening);
+    shell.toggleChunkManager(!listening);
   };
 
   const color = 210 - 70 * (listening ? volume : 0);
@@ -31,7 +31,7 @@ const ListenToggleComponent: React.FC<{
       </div>
       <div
         onClick={toggle}
-        className={classNames("cursor-pointer mr-[5px] relative", {
+        className={classNames("cursor-pointer mr-[5px] relative operator-toggle", {
           listening,
           hidden: localLoading,
         })}
@@ -41,7 +41,7 @@ const ListenToggleComponent: React.FC<{
         }}
       >
         <div
-          className="rainbow"
+          className="operator-toggle__track"
           style={{
             borderRadius: height / 2 + "px",
             width: width + "px",
@@ -51,14 +51,14 @@ const ListenToggleComponent: React.FC<{
           <div
             className="absolute"
             style={{
-              background: listening ? `rgb(255, ${color}, ${color})` : "white",
+              background: listening ? `rgb(255, ${Math.max(color - 45, 92)}, 92)` : "#fff6ec",
               zIndex: 4,
               top: -offset / 2 + "px",
               left: listening ? width - height - offset / 2 + "px" : -offset / 2 + "px",
               width: height + offset + "px",
               height: height + offset + "px",
               borderRadius: height + "px",
-              boxShadow: "0 0 4px #333",
+              boxShadow: listening ? "0 0 12px rgba(255, 120, 40, 0.45)" : "0 0 6px rgba(0,0,0,0.45)",
               transition:
                 "background 0.3s ease-in-out, box-shadow 0.3s ease-in-out, left 0.3s ease-in-out",
             }}
@@ -68,11 +68,11 @@ const ListenToggleComponent: React.FC<{
             style={{
               background: listening
                 ? darkTheme
-                  ? "#6b7280"
-                  : "white"
+                  ? "#39271b"
+                  : "#fff6ec"
                 : darkTheme
-                ? "#4b5563"
-                : "#ddd",
+                ? "#2a2330"
+                : "#d9d1c9",
               position: "absolute",
               zIndex: 3,
               width: width - borderPadding + "px",

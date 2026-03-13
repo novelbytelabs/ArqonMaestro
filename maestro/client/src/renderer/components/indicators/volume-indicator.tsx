@@ -14,7 +14,7 @@ const VolumeIndicatorComponent: React.FC<{
   return (
     <div
       className={classNames(
-        "inline-block bg-gray-200 rounded text-center drop-shadow-sm mr-1 dark:bg-gray-600 dark:text-neutral-100",
+        "operator-pill",
         {
           hidden:
             !speaking ||
@@ -23,11 +23,6 @@ const VolumeIndicatorComponent: React.FC<{
             (speakingVolume > low && speakingVolume < high),
         }
       )}
-      style={{
-        fontSize: "0.6rem",
-        lineHeight: "1.2rem",
-        padding: "0.1rem 0.2rem",
-      }}
       title={`${direction} Volume`}
     >
       <FontAwesomeIcon icon={speakingVolume > low ? faVolumeUp : faVolumeDown} /> {direction} Volume

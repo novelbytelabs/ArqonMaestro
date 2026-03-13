@@ -1,7 +1,6 @@
 import React from "react";
 import classNames from "classnames";
 import { Link } from "react-router-dom";
-import { ipcRenderer } from "electron";
 import { connect } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBookOpen, faCloud, faCog, faPlug, faTools } from "@fortawesome/free-solid-svg-icons";
@@ -11,6 +10,7 @@ import { Plugins } from "./settings/plugins";
 import { Server } from "./settings/server";
 import { Advanced } from "./settings/advanced";
 import { Endpoint as EndpointType } from "../../shared/endpoint";
+import { shell } from "../shell";
 
 const Section: React.FC<{
   current: string;
@@ -20,7 +20,7 @@ const Section: React.FC<{
 }> = ({ current, icon, page, title }) => {
   const showPage = (e: React.MouseEvent, page: string) => {
     e.preventDefault();
-    ipcRenderer.send("setSettingsPage", page);
+    shell.setSettingsPage(page);
   };
 
   return (
@@ -48,7 +48,7 @@ export const setValue = (key: string, e: any) => {
     value = e.target.type == "checkbox" ? e.target.checked : e.target.value;
   }
 
-  ipcRenderer.send("setSettings", { [key]: value });
+  shell.setSettings({ [key]: value });
 };
 
 export const Row: React.FC<{

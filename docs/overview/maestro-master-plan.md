@@ -169,6 +169,61 @@ Brief summary:
 - isolate the minimum shell actions: start and stop, mode changes, settings, history, and runtime status
 - make GUI work Tauri-ready before serious UI implementation begins
 
+#### Wave 2 Status
+
+`completed (hard-close)`
+
+Wave 2 introduced a renderer shell contract, moved renderer IPC usage behind that contract, and established the operator-facing model boundary that the next GUI work should depend on.
+
+#### Wave 2 Locked Decisions
+
+The following decisions are now treated as locked unless a later explicit decision log entry changes them:
+
+- the renderer must not depend directly on raw Electron IPC outside the shell adapter
+- the current Electron shell remains the active compatibility host during the transition
+- the renderer shell contract is the portability seam for future Tauri migration
+- operator-facing state and actions should be expressed as shell-facing UI concerns rather than Electron event details
+- title bar and window actions should route through the shell contract rather than renderer-owned Electron assumptions
+
+#### Wave 2 Deliverables
+
+- a concrete renderer shell contract under `maestro/client/src/renderer/shell`
+- the Electron-backed shell adapter as the only renderer module using direct `ipcRenderer`
+- renderer pages and components moved onto the shell API for:
+  - listening and chunk-manager control
+  - settings and settings-page routing
+  - tutorials and NUX flows
+  - language switching
+  - text input submission
+  - mini-mode sizing
+  - window state actions
+  - local endpoint controls
+  - dictate-mode toggling
+- [Renderer Shell Contract](../development/renderer-shell-contract.md)
+- [Wave 2 Evidence](../operations/maestro-master-plan-wave-2-evidence.md)
+- [Wave 2 Closeout](../operations/maestro-master-plan-wave-2-closeout.md)
+
+#### Wave 2 Exit Criteria
+
+Wave 2 is complete when all of these are true:
+
+- raw `ipcRenderer` usage is isolated to the shell adapter layer
+- renderer UI components talk to a shell-facing interface rather than Electron directly
+- the operator model exposes the current live GUI concerns without inventing fake runtime states
+- the current Electron-hosted renderer still uses a compatibility-safe path through the new shell contract
+- the next wave can build the GUI on top of this contract rather than coupling new UI work to Electron
+
+Wave 2 is now hard-closed for the current cycle.
+
+#### Wave 2 Out Of Scope
+
+Wave 2 does not yet implement:
+
+- transcript and TTS playback state beyond existing live state exposure
+- the Tauri shell itself
+- runtime-service extraction beyond the renderer boundary
+- the full Wave 3 operator GUI redesign
+
 ### Wave 3: New Operator GUI
 
 Build the new primary desktop GUI as the product-facing Maestro shell.

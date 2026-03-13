@@ -59,14 +59,14 @@ const ActiveAppIndicatorComponent: React.FC<{
 
   const icon = customIcon || (Object.keys(apps).includes(app) ? apps[app].icon : windowIcon);
   return (
-    <div className="block text-xs drop-shadow-sm px-1.5 py-0.5 ">
+    <div className="operator-context-badge">
       <img
-        className="w-4 h-4 inline-block mr-1"
+        className="w-4 h-4 inline-block mr-2 rounded-sm"
         src={icon}
         alt={name}
         style={{ marginTop: "-2px" }}
       />{" "}
-      {name}
+      <span>{name}</span>
     </div>
   );
 };

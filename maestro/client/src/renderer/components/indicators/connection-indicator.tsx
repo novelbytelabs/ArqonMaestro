@@ -11,16 +11,11 @@ const ConnectionIndicatorComponent: React.FC<{
 }> = ({ endpoint, latency }) => (
   <div
     className={classNames(
-      "inline-block text-slate-600 bg-gray-200 rounded text-center drop-shadow-sm mr-1",
+      "operator-pill",
       {
         hidden: !endpoint || endpoint.id == "local" || latency < 500,
       }
     )}
-    style={{
-      fontSize: "0.6rem",
-      lineHeight: "1.2rem",
-      padding: "0.1rem 0.2rem",
-    }}
     title="Slow Connection"
   >
     <FontAwesomeIcon icon={faWifi} /> Slow

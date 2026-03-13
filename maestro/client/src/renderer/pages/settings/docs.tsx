@@ -1,7 +1,7 @@
 import React from "react";
-import { ipcRenderer } from "electron";
 import { tutorials } from "../../../shared/tutorial";
 import { Row } from "../settings";
+import { shell } from "../../shell";
 
 const DocsLink: React.FC<{
   title: string;
@@ -26,7 +26,7 @@ const TutorialLink: React.FC<{
 }> = ({ title, subtitle, name }) => {
   const click = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("loadTutorial", { name });
+    shell.loadTutorial(name);
   };
 
   return (

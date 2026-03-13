@@ -85,6 +85,8 @@ nav:
   - Operations:
       - Maestro Master Plan Wave 1 Evidence: operations/maestro-master-plan-wave-1-evidence.md
       - Maestro Master Plan Wave 1 Closeout: operations/maestro-master-plan-wave-1-closeout.md
+      - Maestro Master Plan Wave 2 Evidence: operations/maestro-master-plan-wave-2-evidence.md
+      - Maestro Master Plan Wave 2 Closeout: operations/maestro-master-plan-wave-2-closeout.md
       - Port Reference: operations/port-reference.md
       - Gate 6 Kokoro Plan: operations/gate-6-kokoro-plan.md
       - Configuration: operations/configuration.md
@@ -124,6 +126,7 @@ nav:
   - Development:
       - Extending Maestro: development/extending-maestro.md
       - Codex UI/UX Workflow: development/codex-ui-ux-workflow.md
+      - Renderer Shell Contract: development/renderer-shell-contract.md
       - Custom Commands: development/custom-commands.md
       - Snippets: development/snippets.md
       - API Reference: development/api-reference.md

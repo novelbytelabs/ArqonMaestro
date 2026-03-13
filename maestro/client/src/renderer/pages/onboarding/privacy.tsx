@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { connect } from "react-redux";
 import classNames from "classnames";
-import { ipcRenderer } from "electron";
 import { Link } from "react-router-dom";
 import { Row } from "../settings";
 import { Toggle } from "../../components/toggle";
 import onboardingPrivacy from "../../../../static/img/onboarding-privacy.svg";
+import { shell } from "../../shell";
 
 const PrivacyPageComponent: React.FC<{ logAudio: boolean; logSource: boolean }> = ({
   logAudio,
@@ -30,7 +30,7 @@ const PrivacyPageComponent: React.FC<{ logAudio: boolean; logSource: boolean }> 
                 <Toggle
                   value={logAudio}
                   onChange={(e) =>
-                    ipcRenderer.send("setSettings", {
+                    shell.setSettings({
                       logAudio: e,
                     })
                   }
@@ -43,7 +43,7 @@ const PrivacyPageComponent: React.FC<{ logAudio: boolean; logSource: boolean }> 
                 <Toggle
                   value={logSource}
                   onChange={(e) =>
-                    ipcRenderer.send("setSettings", {
+                    shell.setSettings({
                       logSource: e,
                     })
                   }
