@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLightbulb } from "@fortawesome/free-regular-svg-icons";
 import {
@@ -16,6 +15,7 @@ import { Spinner } from "./spinner";
 import { UpdateNotification } from "./update-notification";
 import { isValidAlternative } from "../../shared/alternatives";
 import { tutorials } from "../../shared/tutorial";
+import { shell } from "../shell";
 const reactStringReplace = require("react-string-replace");
 
 const Alternative: React.FC<{
@@ -52,7 +52,7 @@ const Alternative: React.FC<{
   };
 
   const onClick = () => {
-    ipcRenderer.send("sendTextRequest", {
+    shell.send("sendTextRequest", {
       text: `use ${index}`,
       includeAlternatives: false,
     });
@@ -170,12 +170,12 @@ const Alternative: React.FC<{
 const TutorialSelection = () => {
   const click = (e: React.MouseEvent, name: string) => {
     e.preventDefault();
-    ipcRenderer.send("loadTutorial", { name });
+    shell.send("loadTutorial", { name });
   };
 
   const close = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setNuxCompleted", true);
+    shell.send("setNuxCompleted", true);
   };
 
   return (

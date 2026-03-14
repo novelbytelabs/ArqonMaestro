@@ -1,7 +1,7 @@
 import React from "react";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { AlternativesList } from "../components/alternatives-list";
+import { shell } from "../shell";
 
 let miniModeWindowHeight = 0;
 export const updateMiniModeWindowHeight = () => {
@@ -34,7 +34,7 @@ export const updateMiniModeWindowHeight = () => {
 
   if (height != miniModeWindowHeight) {
     miniModeWindowHeight = height;
-    ipcRenderer.send("setMiniModeWindowHeight", {
+    shell.send("setMiniModeWindowHeight", {
       height,
     });
   }

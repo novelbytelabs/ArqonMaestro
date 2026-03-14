@@ -1,9 +1,9 @@
 import React from "react";
 import classNames from "classnames";
-import { ipcRenderer } from "electron";
 import { connect } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faICursor } from "@fortawesome/free-solid-svg-icons";
+import { shell } from "../../shell";
 
 const ModeIndicatorComponent: React.FC<{ dictateMode: boolean }> = ({ dictateMode }) => (
   <a
@@ -14,7 +14,7 @@ const ModeIndicatorComponent: React.FC<{ dictateMode: boolean }> = ({ dictateMod
     href="#"
     onClick={(e: React.MouseEvent) => {
       e.preventDefault();
-      ipcRenderer.send("toggleDictateMode");
+      shell.send("toggleDictateMode");
     }}
   >
     <FontAwesomeIcon icon={faICursor} /> Dictate

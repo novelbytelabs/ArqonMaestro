@@ -1,8 +1,8 @@
 import React, { useRef } from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { Spinner } from "./spinner";
+import { shell } from "../shell";
 
 const ListenToggleComponent: React.FC<{
   darkTheme: boolean;
@@ -12,7 +12,7 @@ const ListenToggleComponent: React.FC<{
 }> = ({ darkTheme, listening, localLoading, volume }) => {
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("toggleChunkManager", !listening);
+    shell.send("toggleChunkManager", !listening);
   };
 
   const color = 210 - 70 * (listening ? volume : 0);

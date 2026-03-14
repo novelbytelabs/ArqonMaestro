@@ -1,9 +1,9 @@
 import React from "react";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { Row, setValue } from "../settings";
 import { Select } from "../../components/select";
 import { Toggle } from "../../components/toggle";
+import { shell } from "../../shell";
 
 const AdvancedComponent: React.FC<{
   animations: boolean;
@@ -61,7 +61,7 @@ const AdvancedComponent: React.FC<{
           <Toggle
             value={showRevisionBox && showRevisionBox["default"] != "never"}
             onChange={(e) =>
-              ipcRenderer.send("setSettings", {
+              shell.send("setSettings", {
                 showRevisionBox: { default: e ? "auto" : "never" },
               })
             }
@@ -132,7 +132,7 @@ const AdvancedComponent: React.FC<{
               className="underline"
               onClick={(e) => {
                 e.preventDefault();
-                ipcRenderer.send("setSettings", {
+                shell.send("setSettings", {
                   executeSilenceThreshold: 1,
                 });
               }}
@@ -150,7 +150,7 @@ const AdvancedComponent: React.FC<{
             step="0.1"
             value={executeSilenceThreshold}
             onChange={(e) =>
-              ipcRenderer.send("setSettings", {
+              shell.send("setSettings", {
                 executeSilenceThreshold: parseFloat(e.target.value),
               })
             }
@@ -167,7 +167,7 @@ const AdvancedComponent: React.FC<{
               className="underline"
               onClick={(e) => {
                 e.preventDefault();
-                ipcRenderer.send("setSettings", {
+                shell.send("setSettings", {
                   chunkSpeechThreshold: 0.3,
                 });
               }}
@@ -185,7 +185,7 @@ const AdvancedComponent: React.FC<{
             step="0.1"
             value={chunkSpeechThreshold}
             onChange={(e) =>
-              ipcRenderer.send("setSettings", {
+              shell.send("setSettings", {
                 chunkSpeechThreshold: parseFloat(e.target.value),
               })
             }
@@ -202,7 +202,7 @@ const AdvancedComponent: React.FC<{
               className="underline"
               onClick={(e) => {
                 e.preventDefault();
-                ipcRenderer.send("setSettings", {
+                shell.send("setSettings", {
                   chunkSilenceThreshold: 0.1,
                 });
               }}
@@ -220,7 +220,7 @@ const AdvancedComponent: React.FC<{
             step="0.1"
             value={chunkSilenceThreshold}
             onChange={(e) =>
-              ipcRenderer.send("setSettings", {
+              shell.send("setSettings", {
                 chunkSilenceThreshold: parseFloat(e.target.value),
               })
             }
@@ -250,7 +250,7 @@ const AdvancedComponent: React.FC<{
               className="underline"
               onClick={(e) => {
                 e.preventDefault();
-                ipcRenderer.send("openLogDirectory");
+                shell.send("openLogDirectory");
               }}
             >
               View logs

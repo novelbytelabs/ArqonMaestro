@@ -1,10 +1,10 @@
 import React from "react";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import Metadata from "../../../shared/metadata";
 import { Row, setValue } from "../settings";
 import { Select } from "../../components/select";
 import { Toggle } from "../../components/toggle";
+import { shell } from "../../shell";
 
 const GeneralComponent: React.FC<{
   darkMode: string;
@@ -55,7 +55,7 @@ const GeneralComponent: React.FC<{
                 items={microphones.map((e: any) => e.name)}
                 value={microphones.filter((e: any) => e.selected)[0].name}
                 onChange={(value: any) =>
-                  ipcRenderer.send("setSettings", {
+                  shell.send("setSettings", {
                     microphone: microphones.filter((e: any) => e.name == value)[0],
                   })
                 }
@@ -112,7 +112,7 @@ const GeneralComponent: React.FC<{
                   return;
                 }
 
-                ipcRenderer.send("setSettings", { miniModeHideTimeout: value });
+                shell.send("setSettings", { miniModeHideTimeout: value });
               }}
             />{" "}
             seconds
@@ -141,7 +141,7 @@ const GeneralComponent: React.FC<{
                   return;
                 }
 
-                ipcRenderer.send("setSettings", { miniModeFewerAlternativesCount: value });
+                shell.send("setSettings", { miniModeFewerAlternativesCount: value });
               }}
             />{" "}
             alternatives

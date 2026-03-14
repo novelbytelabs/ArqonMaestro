@@ -519,6 +519,57 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-037: Maestro Master Plan Is The Canonical Forward Roadmap
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Treat `docs/overview/maestro-master-plan.md` as the canonical forward-looking roadmap for Arqon Maestro.
+- **Why**: Maestro's direction was spread across architecture notes, ecosystem framing, modernization trackers, and operational plans. A single strategic roadmap is required so product identity, near-term priorities, and long-term architecture do not drift apart.
+- **Consequences**:
+  - top-level docs should point to the master plan as the main roadmap
+  - evidence and closeout docs remain the truth source for completed work
+  - future roadmap changes should reconcile with the master plan rather than introducing parallel strategic narratives
+
+---
+
+## ADM-038: Near-Term Maestro Prioritizes New Operator GUI Over Legacy Shell Hardening
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Short-term Maestro work prioritizes the new operator-facing GUI, shell/runtime boundary extraction, and Kokoro-backed two-way interaction over deep hardening of the inherited Electron shell.
+- **Why**: The current Electron client is a functioning compatibility shell, but not the intended long-term product host. Near-term effort should build migration leverage and operator excitement rather than overinvesting in a shell that is intended to be replaced.
+- **Consequences**:
+  - Electron is treated as a temporary compatibility shell
+  - Tauri is treated as the intended shell target
+  - Wave 2 becomes the shell-contract gate before serious GUI implementation
+  - legacy `core`, `speech-engine`, and `code-engine` remain continuity bridges rather than the long-term architectural center
+
+---
+
+## ADM-039: Renderer GUI Must Depend On A Shell Contract Rather Than Raw Electron IPC
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Treat `maestro/client/src/renderer/shell` as the renderer boundary for host interactions and prohibit direct raw Electron IPC usage in renderer UI modules outside that adapter layer.
+- **Why**: The next operator GUI must survive migration from the current Electron compatibility host to a future Tauri host. That requires a stable shell-facing interface rather than renderer components encoding Electron event and windowing details directly.
+- **Consequences**:
+  - renderer components and pages should call the shell contract instead of `ipcRenderer`
+  - Electron remains the active compatibility adapter for now
+  - future shell swaps should replace the adapter rather than the renderer component tree
+  - Wave 3 GUI work should build on the shell contract rather than reopening host-specific coupling
+
+---
+
+## ADM-040: Ultimate VOS Stack Intake Matrix Is Canonical For External Technology Choices
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Treat `docs/architecture/ultimate-vos-reference-architecture.md` (`Technology Baseline And Intake` section) as the canonical source for Maestro external stack baselines and project intake status (`adopt`, `borrow`, `integrate-via-provider`, `defer`).
+- **Why**: Strategic architecture language was captured, but concrete external project choices were not consistently documented in one governed place. A canonical intake matrix is required to prevent stack drift and accidental hard-coupling.
+- **Consequences**:
+  - external stack choices must be reflected in the intake matrix before being treated as baseline
+  - architecture updates should modify the canonical architecture section instead of splitting project status across multiple docs
+  - intake candidates require explicit lane assignment, boundary impact, failure mode, and rollback path
 ## ADM-037: Shell Strategy Uses Electron Now, Tauri Behind Startup Gates
 
 - **Date**: 2026-03-13

@@ -1,17 +1,17 @@
 import React, { useState } from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTimes, faMinus } from "@fortawesome/free-solid-svg-icons";
 import { faSquare } from "@fortawesome/free-regular-svg-icons";
+import { shell } from "../shell";
 
 const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
   const [maximized, setMaximized] = useState(false);
 
   const minimize = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setWindowState", { state: "minimize", url: window.location.href });
+    shell.send("setWindowState", { state: "minimize", url: window.location.href });
   };
 
   const maximize = (e: React.MouseEvent) => {
@@ -21,9 +21,9 @@ const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
     }
 
     if (maximized) {
-      ipcRenderer.send("setWindowState", { state: "unmaximize", url: window.location.href });
+      shell.send("setWindowState", { state: "unmaximize", url: window.location.href });
     } else {
-      ipcRenderer.send("setWindowState", { state: "maximize", url: window.location.href });
+      shell.send("setWindowState", { state: "maximize", url: window.location.href });
     }
 
     setMaximized((e) => !e);
@@ -31,7 +31,7 @@ const TitleBarComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => {
 
   const close = (e: React.MouseEvent) => {
     e.preventDefault();
-    ipcRenderer.send("setWindowState", { state: "close", url: window.location.href });
+    shell.send("setWindowState", { state: "close", url: window.location.href });
   };
 
   if (window.location.href.endsWith("input") || window.location.href.endsWith("minimode")) {

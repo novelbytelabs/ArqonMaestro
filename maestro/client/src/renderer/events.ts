@@ -1,14 +1,14 @@
-import { ipcRenderer } from "electron";
 import * as revisionBox from "./pages/revision-box";
 import { updateMiniModeWindowHeight } from "./pages/mini-mode";
+import { shell } from "./shell";
 import store from "./state/store";
 
 export const register = () => {
-  ipcRenderer.on("focusRevisionBox", (_event: any, data: any) => {
+  shell.on("focusRevisionBox", (_data: any) => {
     revisionBox.focus();
   });
 
-  ipcRenderer.on("focusTextInput", (_event: any, _data: any) => {
+  shell.on("focusTextInput", (_data: any) => {
     const input: any = document.getElementById("text-input");
     if (!input) {
       return;
@@ -17,19 +17,16 @@ export const register = () => {
     input.focus();
   });
 
-  ipcRenderer.on("getRevisionBoxState", (_event: any, data: { id: string }) => {
-    ipcRenderer.send("revisionBoxState", {
+  shell.on("getRevisionBoxState", (data: { id: string }) => {
+    shell.send("revisionBoxState", {
       id: data.id,
       ...revisionBox.getEditorState(),
     });
   });
 
-  ipcRenderer.on(
+  shell.on(
     "setRevisionBoxState",
-    (
-      _event: any,
-      data: { allEditors?: boolean; source: string; cursor: number; cursorEnd: number }
-    ) => {
+    (data: { allEditors?: boolean; source: string; cursor: number; cursorEnd: number }) => {
       revisionBox.setEditorState(
         { source: data.source, cursor: data.cursor, cursorEnd: data.cursorEnd },
         data.allEditors
@@ -37,17 +34,17 @@ export const register = () => {
     }
   );
 
-  ipcRenderer.on("setState", (_event: any, data: any) => {
+  shell.on("setState", (data: any) => {
     for (const k of Object.keys(data)) {
       store.dispatch({ type: k, [k]: data[k] });
     }
   });
 
-  ipcRenderer.on("setURL", (_event: any, data: { url: string }) => {
+  shell.on("setURL", (data: { url: string }) => {
     history.pushState(data.url, "ArqonMaestro");
   });
 
-  ipcRenderer.on("updateMiniModeWindowHeight", (_event: any, _data: any) => {
+  shell.on("updateMiniModeWindowHeight", (_data: any) => {
     updateMiniModeWindowHeight();
   });
 };

@@ -1,7 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
+import { shell } from "../shell";
 
 const ListenStatusComponent: React.FC<{
   listening: boolean;
@@ -14,7 +14,7 @@ const ListenStatusComponent: React.FC<{
       return;
     }
 
-    ipcRenderer.send("toggleChunkManager", !listening);
+    shell.send("toggleChunkManager", !listening);
   };
 
   const active = listening && statusText == "Listening";

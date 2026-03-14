@@ -1,7 +1,7 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCog } from "@fortawesome/free-solid-svg-icons";
-import { ipcRenderer } from "electron";
+import { shell } from "../shell";
 
 export const SettingsButton = () => (
   <a
@@ -10,7 +10,7 @@ export const SettingsButton = () => (
     title="Settings"
     onClick={(e: React.MouseEvent) => {
       e.preventDefault();
-      ipcRenderer.send("showSettingsWindow");
+      shell.send("showSettingsWindow");
     }}
   >
     <FontAwesomeIcon icon={faCog} className="settings-icon" />

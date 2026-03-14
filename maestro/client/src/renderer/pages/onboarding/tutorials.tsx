@@ -1,13 +1,13 @@
 import React from "react";
-import { ipcRenderer } from "electron";
 import { Link } from "react-router-dom";
 import { tutorials } from "../../../shared/tutorial";
 import onboardingTutorials from "../../../../static/img/onboarding-tutorials.svg";
+import { shell } from "../../shell";
 
 export const TutorialsPage = () => {
   const click = (e: React.MouseEvent, name: string) => {
-    ipcRenderer.send("generateToken");
-    ipcRenderer.send("loadTutorial", { name, resize: true });
+    shell.send("generateToken");
+    shell.send("loadTutorial", { name, resize: true });
   };
 
   return (

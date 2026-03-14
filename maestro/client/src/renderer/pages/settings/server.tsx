@@ -1,12 +1,12 @@
 import React from "react";
 import { connect } from "react-redux";
-import { ipcRenderer } from "electron";
 import { Row } from "../settings";
 import { LoadingBar } from "../../components/loading-bar";
 import { Select } from "../../components/select";
 import { Spinner } from "../../components/spinner";
 import { Toggle } from "../../components/toggle";
 import { Endpoint as EndpointType } from "../../../shared/endpoint";
+import { shell } from "../../shell";
 
 const ServerComponent: React.FC<{
   endpoint: EndpointType;
@@ -34,8 +34,8 @@ const ServerComponent: React.FC<{
   requiresWsl,
 }) => {
   const setEndpoint = (endpoint: string) => {
-    ipcRenderer.send("setSettings", { endpoint });
-    ipcRenderer.send(endpoint == "local" ? "startLocal" : "stopLocal");
+    shell.send("setSettings", { endpoint });
+    shell.send(endpoint == "local" ? "startLocal" : "stopLocal");
   };
 
   const endpointOptions = endpoints.map((e: EndpointType) => ({
@@ -106,7 +106,7 @@ const ServerComponent: React.FC<{
           <Toggle
             value={logAudio}
             onChange={(e) =>
-              ipcRenderer.send("setSettings", {
+              shell.send("setSettings", {
                 logAudio: e,
               })
             }
@@ -120,7 +120,7 @@ const ServerComponent: React.FC<{
           <Toggle
             value={logSource}
             onChange={(e) =>
-              ipcRenderer.send("setSettings", {
+              shell.send("setSettings", {
                 logSource: e,
               })
             }

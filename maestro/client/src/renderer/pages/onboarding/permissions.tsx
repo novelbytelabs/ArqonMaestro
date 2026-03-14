@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import classNames from "classnames";
-import { ipcRenderer } from "electron";
 import { Link } from "react-router-dom";
 import onboardingPermissions from "../../../../static/img/onboarding-permissions.svg";
+import { shell } from "../../shell";
 
 export const PermissionsPage = () => {
   const [accessibilityClicked, setAccessibilityClicked] = useState(false);
@@ -27,7 +27,7 @@ export const PermissionsPage = () => {
                   disabled: microphoneClicked,
                 })}
                 onClick={() => {
-                  ipcRenderer.send("microphonePermission");
+                  shell.send("microphonePermission");
                   setMicrophoneClicked(true);
                 }}
               >
@@ -38,7 +38,7 @@ export const PermissionsPage = () => {
                   disabled: accessibilityClicked,
                 })}
                 onClick={() => {
-                  ipcRenderer.send("accessibilityPermission");
+                  shell.send("accessibilityPermission");
                   setAccessibilityClicked(true);
                 }}
               >
