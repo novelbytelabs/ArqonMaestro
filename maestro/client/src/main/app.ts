@@ -28,13 +28,10 @@ import Stream from "./stream/stream";
 import System from "./execute/system";
 import TextInputWindow from "./windows/text-input";
 import Window from "./windows/window";
-import STTTracking from "./stt/tracking";
-import { createBusClient } from "./stt/bus-client";
-import { createSTTComparator } from "./stt/comparator";
-import { createTrafficRouter } from "./stt/traffic-router";
 import HPOTuner from "./stt/hpo-tuner";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
+import RuntimeSpine from "./runtime/runtime-spine";
 
 export default class App {
   private busPluginServer?: BusPluginServer;
@@ -52,6 +49,7 @@ export default class App {
   private stream?: Stream;
   private textInputWindow?: Promise<TextInputWindow>;
   private hpoTuner?: HPOTuner;
+  private runtimeSpine?: RuntimeSpine;
 
   private previousShouldUseDarkColors?: boolean;
 
@@ -156,13 +154,14 @@ export default class App {
     const nativeCommands = new NativeCommands(active, insertHistory, revisionBoxWindow, system);
     const api = new API(active, bridge, log, mainWindow, metadata, settings, () => settingsWindow);
     
-    // Create STT tracking instance for correlation IDs and metrics
-    const tracking = new STTTracking(api, settings);
-    
-    // Create HPOTuner for online optimization
-    const hpoTuner = (instance.hpoTuner = new HPOTuner(settings, log, tracking));
-    
-    const stream = (instance.stream = new Stream(active, api, log, settings, tracking));
+    const runtimeSpine = (instance.runtimeSpine = new RuntimeSpine({
+      active,
+      api,
+      log,
+      settings,
+    }));
+    const hpoTuner = (instance.hpoTuner = runtimeSpine.hpoTuner);
+    const stream = (instance.stream = runtimeSpine.stream);
     const local = (instance.local = new Local(bridge, log, mainWindow, metadata, settings));
     const nux = new NUX(
       active,
@@ -205,10 +204,10 @@ export default class App {
       () => commandHandler
     ));
 
-    const chunkManager: ChunkManager = (instance.chunkManager = new ChunkManager(
+    const chunkManager: ChunkManager = (instance.chunkManager = runtimeSpine.attachChunkManager({
       active,
       api,
-      instance,
+      app: instance,
       bridge,
       chunkQueue,
       custom,
@@ -218,44 +217,7 @@ export default class App {
       microphone,
       miniModeWindow,
       settings,
-      stream,
-      tracking
-    ));
-
-    // Initialize Arqon Bus client for shadow publishing
-    const busClient = createBusClient(settings, log, tracking, hpoTuner);
-    chunkManager.setBusClient(busClient);
-    
-    // Initialize STT Comparator for dual-run comparison
-    const comparator = createSTTComparator(log, settings, tracking);
-    chunkManager.setComparator(comparator);
-    
-    // Initialize Traffic Router for gradual cutover
-    const trafficRouter = createTrafficRouter(settings, log, tracking);
-    chunkManager.setTrafficRouter(trafficRouter);
-    
-    // Start stage check if cutover is enabled
-    if (trafficRouter.isEnabled()) {
-      trafficRouter.startStageCheck(
-        (stage) => {
-          log.logVerbose(`[App] Cutover promoted to stage: ${stage}`);
-        },
-        (reason) => {
-          log.logError(`[App] Cutover rolled back: ${reason}`);
-        }
-      );
-    }
-    
-    // Start health check if Bus is enabled
-    if (busClient.isEnabled()) {
-      busClient.startHealthCheck(() => {
-        return {
-          status: busClient.isConnected() ? "healthy" : "unhealthy",
-          latency: 0,
-          errors: 0,
-        };
-      });
-    }
+    }));
 
     const commandHandler: CommandHandler = new CommandHandler(
       active,
@@ -275,7 +237,7 @@ export default class App {
     );
 
     // Initialise HPO service if enabled
-    await hpoTuner.start();
+    await runtimeSpine.start();
 
     new RendererProcessEventHandlers(
       active,
@@ -458,7 +420,7 @@ export default class App {
     this.custom?.stop();
     this.microphone?.stop();
     this.busPluginServer?.stop();
-    this.hpoTuner?.stop();
+    this.runtimeSpine?.stop();
   }
 
   registerPushToTalk() {

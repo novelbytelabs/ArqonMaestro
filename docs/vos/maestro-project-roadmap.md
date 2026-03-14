@@ -162,6 +162,11 @@ Current status:
 * started
 * renderer shell contract extraction completed
 * first main-process runtime-spine extraction completed
+* first execution trace artifact completed
+* first listening-session service extraction completed
+* first chunk-evaluation service extraction completed
+* first command-response service extraction completed
+* first normalized command emission artifact completed
 * deeper local service decomposition still pending
 
 Exit evidence:

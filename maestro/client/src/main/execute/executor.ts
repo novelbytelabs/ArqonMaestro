@@ -15,6 +15,7 @@ import Stream from "../stream/stream";
 import System from "./system";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
+import ExecutionTrace from "../runtime/execution-trace";
 
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
@@ -22,6 +23,7 @@ export default class Executor {
   private miniModeHideTimeout?: NodeJS.Timeout;
   private pending?: core.ICommandsResponse;
   private resolveChainFinished = () => {};
+  private executionTrace?: ExecutionTrace;
 
   constructor(
     private active: Active,
@@ -41,6 +43,10 @@ export default class Executor {
     private commandHandler: () => any
   ) {
     this.newChainFinishedPromise();
+  }
+
+  setExecutionTrace(executionTrace: ExecutionTrace) {
+    this.executionTrace = executionTrace;
   }
 
   private addToHistory(response: core.ICommandsResponse) {
@@ -412,6 +418,10 @@ export default class Executor {
       this.showAlternativesIfPresent(response);
     }
 
+    if (!updateRenderer && this.hasExecute(response) && response.chunkId) {
+      this.executionTrace?.recordFirstFeedback(response.chunkId, "execute_only");
+    }
+
     if (response.alternatives && response.alternatives.length > 0) {
       this.nativeCommands.useNeedsUndo = false;
     }
@@ -571,6 +581,9 @@ export default class Executor {
         },
         [this.mainWindow, this.miniModeWindow]
       );
+      if (response.chunkId) {
+        this.executionTrace?.recordFirstFeedback(response.chunkId, "alternatives_shown");
+      }
 
       if (response.final) {
         this.savePendingResponseIfNeeded(response);

@@ -109,3 +109,15 @@ This means a full client TypeScript pass may fail on dependency typing noise eve
 Use with care:
 
 Treat this as a known verification constraint until the dependency typing issue is cleaned up.
+
+### G-007: Focused Main-Process Checks Can Pass With `--skipLibCheck` Even When Full Client TypeScript Still Has Dependency Noise
+
+Useful command:
+
+```bash
+./maestro/client/node_modules/.bin/tsc -p maestro/client/tsconfig.json --noEmit --pretty false --skipLibCheck
+```
+
+Why:
+
+This is a practical verification path for local Phase 1A code while the broader dependency typing issue is still present.

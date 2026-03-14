@@ -33,6 +33,14 @@ This file owns the live execution snapshot.
 * Verified that raw `ipcRenderer` usage in `maestro/client/src/renderer` is now isolated to the shell adapter itself
 * Extracted the first main-process runtime-spine module at [`maestro/client/src/main/runtime/runtime-spine.ts`](../../maestro/client/src/main/runtime/runtime-spine.ts)
 * Moved hot-path/STT cluster wiring out of inline `App.create()` boot code and into the runtime-spine module
+* Added a minimal hot-path execution trace artifact at [`maestro/client/src/main/runtime/execution-trace.ts`](../../maestro/client/src/main/runtime/execution-trace.ts)
+* Wired parse outcome, route choice, executor handoff, and first feedback into the execution trace path
+* Simplified the listening-session lifecycle inside [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) by extracting start/stop helpers out of the large `toggle()` path
+* Extracted the first explicit listening-session boundary into [`maestro/client/src/main/runtime/listening-session-service.ts`](../../maestro/client/src/main/runtime/listening-session-service.ts)
+* Extracted chunk execution gating into [`maestro/client/src/main/runtime/chunk-evaluation-service.ts`](../../maestro/client/src/main/runtime/chunk-evaluation-service.ts)
+* Extracted command-response post-processing and renderer presentation into [`maestro/client/src/main/runtime/command-response-service.ts`](../../maestro/client/src/main/runtime/command-response-service.ts)
+* Added a first normalized command emission seam at [`maestro/client/src/main/runtime/runtime-command-emitter.ts`](../../maestro/client/src/main/runtime/runtime-command-emitter.ts)
+* Verified the updated main-process path with a focused TypeScript pass and a successful `npm run build:main` build in `maestro/client`
 
 ## Current in-progress area
 
@@ -42,12 +50,16 @@ Completed inside Phase 1A:
 
 * renderer shell contract extraction
 * first main-process runtime-spine extraction
+* first execution trace artifact
+* first listening-session service extraction
+* first chunk-evaluation service extraction
+* first command-response service extraction
+* first normalized command emission artifact
 
 Not completed yet inside Phase 1A:
 
-* minimal hot-path local service boundary
-* command execution trace artifact
-* normalized command emission path
+* final tightening of the hot-path local service boundary
+* replacement of legacy `core.ICommandsResponse` dominance with the fuller runtime command contract
 
 ## Next implementation target
 
@@ -55,8 +67,8 @@ The next best move is:
 
 1. identify the main-process runtime spine in the current Electron client
 2. define the smallest local service boundary for audio ingress, utterance boundary, STT handoff, interpretation handoff, and dispatch
-3. create one minimal execution trace path that records parse outcome, route choice, executor handoff, and first feedback
-4. keep trimming `App.create()` until it is orchestration rather than runtime assembly
+3. keep trimming `App.create()` and `ChunkManager` until they are orchestration and session control rather than mixed runtime assembly
+4. replace more of the direct legacy `CommandsResponse` handling with runtime-command contract paths and explicit dispatch seams
 
 ## Suggested next files to inspect
 
@@ -86,6 +98,16 @@ rg -n 'ipcRenderer' maestro/client/src/renderer
 Expected result:
 
 * only [`maestro/client/src/renderer/shell/index.ts`](../../maestro/client/src/renderer/shell/index.ts) should appear
+
+Then verify the focused main-process work with:
+
+```bash
+./maestro/client/node_modules/.bin/tsc -p maestro/client/tsconfig.json --noEmit --pretty false --skipLibCheck
+```
+
+Expected result:
+
+* success
 
 ## When to lower reasoning
 
