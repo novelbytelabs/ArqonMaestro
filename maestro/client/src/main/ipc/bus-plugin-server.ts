@@ -40,6 +40,7 @@ export default class BusPluginServer {
   private socket?: WebSocket;
   private reconnectTimer?: NodeJS.Timeout;
   private pluginSockets: Map<string, VirtualPluginSocket> = new Map();
+  private messageCounter: number = 0;
 
   constructor(
     private settings: Settings,
@@ -56,7 +57,25 @@ export default class BusPluginServer {
   }
 
   private getBusUrl(): string {
-    return this.settings.getArqonBusWsUrl();
+    const raw = this.settings.getArqonBusWsUrl();
+    try {
+      const url = new URL(raw);
+      if (!url.searchParams.get("room")) {
+        url.searchParams.set("room", "maestro");
+      }
+      if (!url.searchParams.get("channel")) {
+        url.searchParams.set("channel", "plugin.chrome");
+      }
+      return url.toString();
+    } catch {
+      return raw;
+    }
+  }
+
+  private nextMessageId(): string {
+    this.messageCounter += 1;
+    const short = uuid().replace(/-/g, "").slice(0, 6);
+    return `arq_${Date.now()}_${this.messageCounter}_${short}`;
   }
 
   private connect() {
@@ -272,9 +291,9 @@ export default class BusPluginServer {
     }
 
     const envelope = {
-      id: `maestro_${uuid().replace(/-/g, "")}`,
+      id: this.nextMessageId(),
       timestamp: new Date().toISOString(),
-      type: "event",
+      type: "message",
       version: "1.0",
       room: "maestro",
       channel: "plugin.chrome",

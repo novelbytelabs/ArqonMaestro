@@ -1,6 +1,5 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import onboardingBrand from "../../../../static/img/onboarding-brand.png";
 import onboardingWelcome from "../../../../static/img/onboarding-welcome.png";
 
 export const WelcomePage = () => (
@@ -11,8 +10,7 @@ export const WelcomePage = () => (
     >
       <div className="w-full h-full flex items-center">
         <div className="w-7/12 mx-auto pl-6 pr-4">
-          <img className="w-20 block" src={onboardingBrand} alt="Arqon Maestro" />
-          <h2 className="text-xl font-light pt-4">Welcome to Arqon Maestro</h2>
+          <h2 className="text-xl font-light">Welcome to Arqon Maestro</h2>
           <p className="pt-2">
             Let's start writing code with voice. We'll walk through setting Arqon Maestro up with your
             favorite tools.

@@ -4,6 +4,12 @@ This document captures the target architecture for Arqon Maestro as the universa
 
 It is intentionally a living design document. It records the current strategic shape, the target-state runtime boundaries, and the architectural decisions that should guide iteration. It does not claim that every component described here is already implemented.
 
+## Candidate Stack Options (Exploratory)
+
+The stack options discussed during architecture exploration are possibilities only. They are not approved defaults, implementation commitments, or final decisions for Arqon Maestro.
+
+They should be treated as candidate directions to evaluate against runtime evidence, operational constraints, and governance requirements before adoption.
+
 ## Purpose
 
 Arqon Maestro should not evolve into a generic voice assistant.
@@ -94,6 +100,18 @@ This reference architecture is grounded in the current repository and runtime ev
 - provider-based TTS abstraction with Kokoro sidecar direction
 
 These anchors must be preserved while the system evolves.
+
+## Near-Term Named Defaults
+
+The following stack elements are explicitly selected as near-term defaults for Maestro:
+
+- Wake word: `openWakeWord`
+- VAD: `Silero VAD`
+- STT (`command-fast`): `whisper.cpp` as leading local default
+- STT (`dictation-accurate`): separate benchmark-driven provider track (not locked)
+- TTS: `Kokoro` (primary) with `Piper` as local fallback
+
+These defaults are implementation targets, not a permanent lock-in. They still sit behind provider/service contracts so components can evolve without rewriting core runtime boundaries.
 
 ## Architectural Thesis
 
@@ -226,6 +244,11 @@ Future optional profiles:
 - `noisy-environment`
 - `low-power`
 - `secure-speaker-verified`
+
+Near-term baseline:
+
+- `command-fast` should target `whisper.cpp`
+- `dictation-accurate` remains provider-flexible and benchmark-selected
 
 Architectural rule:
 
@@ -370,6 +393,7 @@ Architectural rule:
 
 - this lane must not sit in front of all commands
 - it is invoked when needed, not by default
+- Cortex is for novelty, synthesis, and skill creation; it is not the default route for operating commands.
 
 ### `maestro-integrity`
 

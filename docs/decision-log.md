@@ -248,7 +248,7 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 ---
 
 
-## ADM-019: Wave B Must Obey A Frozen Requirements Contract
+## ADM-018: Wave B Must Obey A Frozen Requirements Contract
 
 - **Date**: 2026-03-08
 - **Status**: Accepted
@@ -262,7 +262,7 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
-## ADM-018: Post-Rebrand Work Splits Into Two Explicit Programs
+## ADM-019: Post-Rebrand Work Splits Into Two Explicit Programs
 
 - **Date**: 2026-03-08
 - **Status**: Accepted
@@ -275,7 +275,7 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
-## ADM-019: Internal Python Tooling Slug Uses `arqon_maestro`
+## ADM-038: Internal Python Tooling Slug Uses `arqon_maestro`
 
 - **Date**: 2026-03-08
 - **Status**: Accepted
@@ -516,6 +516,144 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - Placeholder or simulated Kokoro execution is invalid for Gate 6 hard-close
   - Gate 6 smoke validation must run against a real sidecar endpoint, not mock-only claims
   - Rollback remains single-switch: `arqon_tts_provider=fallback`
+
+---
+
+## ADM-037: Shell Strategy Uses Electron Now, Tauri Behind Startup Gates
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Keep Electron as the active shell for current delivery, and treat Tauri as an adoption target only after passing explicit startup-time and parity gates.
+- **Why**: Shell migration is architecture-shaping and costly to reverse. Startup feel is a first-order UX requirement for a voice OS, so migration must be decided by measured boot behavior, not assumptions.
+- **Consequences**:
+  - Electron remains the shipping shell during current runtime stabilization
+  - Tauri work proceeds as a compatibility-track prototype, not a forced cutover
+  - promote-to-default gate requires launch metrics on the same machine/profile:
+    - cold launch: click-to-interactive no worse than Electron baseline
+    - warm launch: click-to-interactive no worse than Electron baseline
+    - no regression on tray lifecycle, permissions UX, plugin bridge, and bus connectivity
+  - if gates are missed, remain on Electron and continue contract extraction until parity is proven
+
+---
+
+## ADM-039: `whisper.cpp` Is The Near-Term Command-Lane STT Baseline
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Adopt `whisper.cpp` as the near-term default implementation target for Maestro's `command-fast` STT profile, while keeping `maestro-stt` as a provider contract and preserving an independent provider track for `dictation-accurate`.
+- **Why**: Maestro's hot operating path prioritizes local-first execution, predictable latency, portable deployment, and systems-friendly integration. `whisper.cpp` best fits those command-lane requirements without forcing a single engine across all speech modes.
+- **Consequences**:
+  - `command-fast` STT should target `whisper.cpp` first
+  - `dictation-accurate` remains separately benchmarked and may use a different provider
+  - STT architecture remains contract-first, not single-engine lock-in
+  - routing keeps explicit mode/profile split (`command-fast` versus `dictation-accurate`)
+
+---
+
+## ADM-040: Maestro Is A Voice Operating System, Not A Personal Assistant
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Arqon Maestro is formally defined as a Voice Operating System (VOS) runtime rather than a personal assistant product role.
+- **Why**: The operating boundary is the core identity moat of Maestro and determines routing, governance, execution, and UX behavior.
+- **Consequences**:
+  - architecture and roadmap decisions prioritize operating reliability over assistant theatrics
+  - command/governance/runtime contracts remain first-class
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-041: Maestro And Nexus Are Separate Sibling AGOs
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Maestro and Nexus are separate sibling AGOs with distinct responsibilities.
+- **Why**: Separating VOS operation from assistant continuity preserves clean boundaries, prevents scope collapse, and improves system legibility.
+- **Consequences**:
+  - Maestro owns spoken operating and governed actuation
+  - Nexus owns assistant continuity and long-horizon guidance
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-042: Maestro Uses A Multi-Layer Actuation Strategy
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Maestro uses a layered actuation strategy instead of a single automation technology.
+- **Why**: Real operating surfaces span browser, desktop, and mixed interfaces where no single layer is reliably sufficient.
+- **Consequences**:
+  - Talon is adopted as the global desktop control layer
+  - Playwright is adopted as the structured browser/web automation layer
+  - UI.Vision is retained as the visual/OCR fallback layer
+  - actuation policy is layer-aware and fallback-aware
+  - future integrations must fit the layered control model
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-043: Talon Is The Global Desktop Control Layer
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Talon is adopted as the global desktop control layer for cross-application OS interaction.
+- **Why**: Desktop-wide control requires a dedicated global layer when stronger semantic interfaces are unavailable.
+- **Consequences**:
+  - desktop actuation policy can target a defined global control backend
+  - Talon is scoped as a layer role, not a universal replacement for all control paths
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-044: Playwright Is The Structured Web Automation Layer
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Playwright is adopted as the structured web automation layer for semantic selector-driven browser control.
+- **Why**: Structured web automation needs deterministic DOM-level interaction and repeatable automation contracts.
+- **Consequences**:
+  - web control favors structured Playwright paths before visual fallback
+  - browser automation capabilities can be tested and versioned with explicit selectors
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-045: UI.Vision Is The Visual/OCR Fallback Layer
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: UI.Vision is retained as a bounded visual/OCR fallback layer, not the primary universal controller.
+- **Why**: Visual/OCR control is useful but less deterministic than semantic/native layers and should be explicitly constrained.
+- **Consequences**:
+  - fallback policy invokes UI.Vision only when stronger layers are unavailable or insufficient
+  - architecture avoids visual-first coupling for standard operating paths
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-046: Voice Identity Is A First-Class VOS Security Capability
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Voice identity and speaker-aware controls are first-class security capabilities in Maestro.
+- **Why**: High-impact voice actuation must include identity-aware policy enforcement to remain trustworthy.
+- **Consequences**:
+  - high-impact action paths must support speaker-aware authorization checks where required
+  - uncertain identity/policy states fail closed
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
+
+---
+
+## ADM-047: Native/Semantic Automation Is Preferred Before Visual Fallback
+
+- **Date**: 2026-03-13
+- **Status**: Accepted
+- **Decision**: Maestro automation policy prefers native/semantic control paths before visual/OCR fallback paths.
+- **Why**: Native/semantic control is generally more deterministic, auditable, and governance-compatible for a Voice OS.
+- **Consequences**:
+  - routing policy must prioritize higher-confidence semantic routes
+  - visual/OCR actuation is treated as a bounded fallback lane
+  - see: `docs/architecture/maestro-actuation-and-control-stack.md`
 
 ---
  
