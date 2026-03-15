@@ -210,3 +210,31 @@ Add or run focused integration assertions that exercise:
 * outcome classification
 * execution-trace recording
 * non-executable flow behavior
+
+### G-013: xdotool Focus Commands Need Chained Format on Linux
+
+**Status**: FIXED (2026-03-15)
+
+Symptom:
+
+The "focus code" / "focus chrome" voice commands do not switch application windows, even though the command is recognized correctly.
+
+**Root Causes**:
+
+1. The driver in `stub.ts` was a stub - no actual implementation
+2. Using separate xdotool commands (`search` then `windowactivate`) is unreliable
+3. Window class names differ from what was assumed (e.g., "chrome" vs "google-chrome")
+
+**Fix Applied**:
+- Use CHAINED command format: `xdotool search --onlyvisible --class <window-class> windowactivate`
+- Map app names to correct X11 window classes using `xprop WM_CLASS`:
+  - VS Code: `code`
+  - Chrome: `google-chrome`
+  - Firefox: `firefox`
+  - Terminal: `gnome-terminal`
+- Explicitly set DISPLAY environment variable for xdotool spawned from Electron
+
+**Check**:
+
+* [`maestro/client/src/main/driver/stub.ts`](../../maestro/client/src/main/driver/stub.ts)
+* `focusApplication(...)` function - uses chained xdotool with classMap

@@ -7,9 +7,16 @@ export default class System {
   // some applications don't have what they're commonly referred to in their application bundle,
   // so create a set of aliases to allow people to refer to apps more naturally
   private aliases: { [key: string]: string } = {
-    terminal: "term",
+    terminal: "terminal",
+    term: "terminal",
+    shell: "terminal",
+    console: "terminal",
     vscode: "code",
     "visual studio code": "code",
+    chrome: "chrome",
+    google: "chrome",
+    browser: "chrome",
+    firefox: "firefox",
   };
 
   constructor(private settings: Settings) {}
