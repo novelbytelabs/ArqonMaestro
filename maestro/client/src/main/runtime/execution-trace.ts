@@ -1,5 +1,6 @@
 import Log from "../log";
 import { RuntimeOutcome, RuntimeOutcomeType } from "./runtime-outcome";
+import { PolicyDecision, PolicyDecisionType, TrustTier, RouteExplanation } from "./actuation-policy-service";
 
 type ParseOutcome =
   | "partial_response"
@@ -20,6 +21,7 @@ type DispatchRoute =
   | "mixed_plugin_assisted"
   | "mixed_legacy"
   | "navigation_plugin"
+  | "talon_fallback"
   | "unknown_legacy"
   | "system_plugin"
   | "legacy_executor"
@@ -52,6 +54,12 @@ interface TraceState {
   firstFeedbackKind?: FeedbackKind;
   firstFeedbackAt?: number;
   outcome?: RuntimeOutcome;
+  // Phase 1C: Policy decision fields
+  policyDecision?: PolicyDecision;
+  policyDecisionAt?: number;
+  trustTierEffective?: TrustTier;
+  confirmationRequired?: boolean;
+  chooserRequired?: boolean;
 }
 
 // Minimal structured trace for the hot path. This is intentionally small and
@@ -142,6 +150,45 @@ export default class ExecutionTrace {
     this.emit("outcome", state);
   }
 
+  /**
+   * Record the policy decision for the current dispatch.
+   * This enables Phase 1C: route explanation and blocked route auditing.
+   */
+  recordPolicyDecision(chunkId: string, decision: PolicyDecision, sessionId?: string) {
+    const state = this.trackChunk(chunkId, sessionId);
+    state.policyDecision = decision;
+    state.policyDecisionAt = Date.now();
+    state.trustTierEffective = decision.approvedTrustTier;
+    state.confirmationRequired = decision.confirmationRequired;
+    state.chooserRequired = decision.chooserRequired;
+    this.emit("policy_decision", state);
+  }
+
+  /**
+   * Get the policy explanation for a given chunk.
+   * Used for "why" questions and audit trails.
+   */
+  getPolicyExplanation(chunkId: string): RouteExplanation | undefined {
+    const state = this.traces.get(chunkId);
+    return state?.policyDecision?.explanation;
+  }
+
+  /**
+   * Check if confirmation is required for a given chunk.
+   */
+  isConfirmationRequired(chunkId: string): boolean {
+    const state = this.traces.get(chunkId);
+    return state?.confirmationRequired ?? false;
+  }
+
+  /**
+   * Check if chooser is required for a given chunk.
+   */
+  isChooserRequired(chunkId: string): boolean {
+    const state = this.traces.get(chunkId);
+    return state?.chooserRequired ?? false;
+  }
+
   private emit(event: string, state: TraceState) {
     const elapsedSinceTraceStartMs = Date.now() - state.traceStartedAt;
     const parseToDispatchMs =
@@ -155,6 +202,10 @@ export default class ExecutionTrace {
     const parseToFirstFeedbackMs =
       state.parseOutcomeAt != null && state.firstFeedbackAt != null
         ? state.firstFeedbackAt - state.parseOutcomeAt
+        : undefined;
+    const policyToDispatchMs =
+      state.policyDecisionAt != null && state.dispatchPlannedAt != null
+        ? state.dispatchPlannedAt - state.policyDecisionAt
         : undefined;
 
     this.log.logVerbose(
@@ -177,6 +228,18 @@ export default class ExecutionTrace {
         parseToDispatchMs,
         dispatchToHandoffMs,
         parseToFirstFeedbackMs,
+        // Phase 1C policy fields
+        policyDecision: state.policyDecision ? {
+          decision: state.policyDecision.decision,
+          approvedRoute: state.policyDecision.approvedRoute,
+          trustTier: state.policyDecision.approvedTrustTier,
+          confirmationRequired: state.policyDecision.confirmationRequired,
+          chooserRequired: state.policyDecision.chooserRequired,
+          summary: state.policyDecision.explanation?.summary,
+        } : undefined,
+        policyDecisionAt: state.policyDecisionAt,
+        trustTierEffective: state.trustTierEffective,
+        policyToDispatchMs,
       })}`
     );
   }

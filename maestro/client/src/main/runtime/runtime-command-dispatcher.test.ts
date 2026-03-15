@@ -244,6 +244,64 @@ function run(): void {
     );
   });
 
+  // Phase 1C Gap 2: Talon fallback route tests
+  test("pure PRESS routes to talon_fallback", () => {
+    const dispatcher = createDispatcher();
+    const plan = dispatcher.plan(responseWith([core.CommandType.COMMAND_TYPE_PRESS]));
+
+    assert(plan.route === "talon_fallback", `expected talon_fallback, got ${plan.route}`);
+    assert(
+      plan.reason === "talon_fallback_selected_no_higher_route",
+      `unexpected reason: ${plan.reason}`
+    );
+  });
+
+  test("pure SCROLL routes to talon_fallback", () => {
+    const dispatcher = createDispatcher();
+    const plan = dispatcher.plan(responseWith([core.CommandType.COMMAND_TYPE_SCROLL]));
+
+    assert(plan.route === "talon_fallback", `expected talon_fallback, got ${plan.route}`);
+    assert(
+      plan.reason === "talon_fallback_selected_no_higher_route",
+      `unexpected reason: ${plan.reason}`
+    );
+  });
+
+  test("pure CLICK routes to talon_fallback", () => {
+    const dispatcher = createDispatcher();
+    const plan = dispatcher.plan(responseWith([core.CommandType.COMMAND_TYPE_CLICK]));
+
+    assert(plan.route === "talon_fallback", `expected talon_fallback, got ${plan.route}`);
+    assert(
+      plan.reason === "talon_fallback_selected_no_higher_route",
+      `unexpected reason: ${plan.reason}`
+    );
+  });
+
+  test("mixed PRESS and SCROLL routes to talon_fallback (all talon-eligible)", () => {
+    const dispatcher = createDispatcher();
+    const plan = dispatcher.plan(
+      responseWith([core.CommandType.COMMAND_TYPE_PRESS, core.CommandType.COMMAND_TYPE_SCROLL])
+    );
+
+    assert(plan.route === "talon_fallback", `expected talon_fallback, got ${plan.route}`);
+    assert(
+      plan.reason === "talon_fallback_selected_no_higher_route",
+      `unexpected reason: ${plan.reason}`
+    );
+  });
+
+  test("PRESS mixed with INSERT does not route to talon_fallback (INSERT not talon-eligible)", () => {
+    const dispatcher = createDispatcher();
+    const plan = dispatcher.plan(
+      responseWith([core.CommandType.COMMAND_TYPE_PRESS, core.CommandType.COMMAND_TYPE_INSERT])
+    );
+
+    // INSERT is not talon-eligible, so supportsTalonFallbackRoute() returns false.
+    // The bundle falls through to the plugin-assisted path.
+    assert(plan.route !== "talon_fallback", `expected non-talon route, got ${plan.route}`);
+  });
+
   console.log(`\nSummary: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);
@@ -251,3 +309,4 @@ function run(): void {
 }
 
 run();
+

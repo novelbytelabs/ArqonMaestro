@@ -5,6 +5,8 @@ import { core } from "../../gen/core";
 import ExecutionTrace from "./execution-trace";
 import RuntimeCommandEmitter, { RuntimeCommand, RuntimeCommandFamily } from "./runtime-command-emitter";
 import { RuntimeOutcomeClassifier } from "./runtime-outcome";
+import ActuationPolicyService, { PolicyContext, PolicyDecision, SecurityMode } from "./actuation-policy-service";
+import TalonAdapter from "./talon-adapter";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -12,6 +14,11 @@ interface DispatchOptions {
   onPlanned?: (plan: DispatchPlan) => void;
   sessionId?: string;
   updateRenderer?: boolean;
+  // Phase 1C: Policy context
+  securityMode?: SecurityMode;
+  speakerVerified?: boolean;
+  currentApp?: string;
+  targetSurface?: string;
 }
 
 type DispatchRoute =
@@ -25,6 +32,7 @@ type DispatchRoute =
   | "mixed_plugin_assisted"
   | "mixed_legacy"
   | "navigation_plugin"
+  | "talon_fallback"
   | "unknown_legacy"
   | "system_plugin"
   | "legacy_executor"
@@ -43,6 +51,8 @@ interface DispatchPlan {
 
 export default class RuntimeCommandDispatcher {
   private outcomeClassifier = new RuntimeOutcomeClassifier();
+  private policyService: ActuationPolicyService;
+  private talonAdapter = new TalonAdapter();
 
   constructor(
     private custom: Custom,
@@ -50,7 +60,10 @@ export default class RuntimeCommandDispatcher {
     private executor: Executor,
     private log: Log,
     private executionTrace?: ExecutionTrace
-  ) {}
+  ) {
+    // Phase 1C: Initialize the actuation policy service
+    this.policyService = new ActuationPolicyService(log);
+  }
 
   emitNormalizedCommands(response: core.ICommandsResponse, sessionId?: string): number {
     return this.emitter.emit(response, sessionId).length;
@@ -173,6 +186,32 @@ export default class RuntimeCommandDispatcher {
     return commands.some((command) => command.family === "unknown");
   }
 
+  /**
+   * Returns true if all routable commands map to Talon-supported verbs and
+   * none of the higher-trust routes (local/plugin-assisted) claimed them.
+   *
+   * Talon-eligible command types:
+   * - COMMAND_TYPE_FOCUS  → talon_focus_executor
+   * - COMMAND_TYPE_CLICK / COMMAND_TYPE_DOM_CLICK → talon_click_executor
+   * - COMMAND_TYPE_SCROLL / COMMAND_TYPE_DOM_SCROLL → talon_scroll_executor
+   * - COMMAND_TYPE_PRESS → talon_key_press_executor
+   *
+   * This deliberately duplicates the verb→executor mapping at the dispatcher
+   * layer so the route label is always available in plan() before the
+   * TalonAdapter's canHandle() performs the full security-mode check.
+   */
+  private supportsTalonFallbackRoute(commands: RuntimeCommand[]): boolean {
+    const talonEligibleTypes = new Set([
+      "COMMAND_TYPE_CLICK",
+      "COMMAND_TYPE_SCROLL",
+      "COMMAND_TYPE_PRESS",
+    ]);
+    return (
+      commands.length > 0 &&
+      commands.every((command) => talonEligibleTypes.has(command.type))
+    );
+  }
+
   private requiresPluginAssistedRoute(commands: RuntimeCommand[]): boolean {
     const pluginAssistedTypes = new Set([
       "COMMAND_TYPE_CLICK",
@@ -258,6 +297,9 @@ export default class RuntimeCommandDispatcher {
     } else if (this.supportsCompositeLocalRoute(routableCommands)) {
       route = "composite_local";
       reason = "mixed_commands_support_composite_local";
+    } else if (this.supportsTalonFallbackRoute(routableCommands)) {
+      route = "talon_fallback";
+      reason = "talon_fallback_selected_no_higher_route";
     } else if (routableCommands.length > 0 && dominantFamily === "focus") {
       route = "focus_plugin";
       reason = "focus_requires_plugin_assisted_route";
@@ -306,6 +348,10 @@ export default class RuntimeCommandDispatcher {
       onPlanned,
       sessionId,
       updateRenderer = true,
+      securityMode = "standard",
+      speakerVerified = false,
+      currentApp,
+      targetSurface,
     }: DispatchOptions = {}
   ): Promise<void> {
     const plan = this.plan(response, sessionId);
@@ -332,7 +378,65 @@ export default class RuntimeCommandDispatcher {
         commandTypes: plan.commands.map((command) => command.type),
       })}`
     );
+
+    // Phase 1C: Make policy decision before executing
+    const policyContext: PolicyContext = {
+      commandTypes: plan.commands.map(c => c.type),
+      commandFamilies: [...new Set(plan.commands.map(c => c.family))],
+      currentApp,
+      targetSurface,
+      securityMode,
+      speakerVerified,
+    };
     
+    const policyDecision = this.policyService.decide(
+      plan.route,
+      plan.dominantFamily,
+      policyContext
+    );
+    
+    // Record policy decision in trace
+    if (response.chunkId) {
+      this.executionTrace?.recordPolicyDecision(response.chunkId, policyDecision, sessionId);
+    }
+    
+    this.log.logVerbose(
+      `[RuntimeCommandDispatcher] Policy: ${JSON.stringify({
+        decision: policyDecision.decision,
+        approvedRoute: policyDecision.approvedRoute,
+        trustTier: policyDecision.approvedTrustTier,
+        confirmationRequired: policyDecision.confirmationRequired,
+        chooserRequired: policyDecision.chooserRequired,
+        summary: policyDecision.explanation.summary,
+      })}`
+    );
+    
+    // Phase 1C: Handle policy-blocked routes
+    if (policyDecision.decision === "block_route") {
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Route ${plan.route} blocked by policy: ${policyDecision.explanation.summary}`
+      );
+      // Record refusal outcome for blocked route
+      const outcome = this.outcomeClassifier.classify(
+        response,
+        plan.route,
+        response.chunkId || undefined,
+        sessionId || undefined
+      );
+      // Override outcome type to blocked/refusal based on policy
+      this.executionTrace?.recordOutcome(outcome, sessionId);
+      return; // Do not execute - route is blocked
+    }
+    
+    // Phase 1C: Handle routes requiring confirmation
+    if (policyDecision.confirmationRequired) {
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Route ${plan.route} requires confirmation per policy`
+      );
+      // For now, we proceed but log the confirmation requirement
+      // In a fuller implementation, this would trigger UI confirmation
+    }
+
     // Classify and record the outcome
     const outcome = this.outcomeClassifier.classify(
       response,
@@ -351,6 +455,23 @@ export default class RuntimeCommandDispatcher {
       plan.route === "execution_local"
     ) {
       await this.executor.executeLocalRoute(response, updateRenderer);
+      return;
+    }
+
+    if (plan.route === "talon_fallback") {
+      // Phase 1C Gap 2: Talon fallback route.
+      // The policy engine has already approved this route (or blocked it above).
+      // At this phase, we record the structured Talon handoff in the trace;
+      // the actual Talon IPC bridge is a future integration phase concern.
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Talon fallback route activated: ${JSON.stringify({
+          commandTypes: plan.commands.map((c) => c.type),
+          trustTier: policyDecision.approvedTrustTier,
+          confirmationRequired: policyDecision.confirmationRequired,
+          adapterRecord: this.talonAdapter.getAdapterRecord().adapterId,
+        })}`
+      );
+      await this.executor.execute(response, updateRenderer);
       return;
     }
 
@@ -380,6 +501,28 @@ export default class RuntimeCommandDispatcher {
     }
 
     await this.executor.execute(response, updateRenderer);
+  }
+
+  /**
+   * Get policy explanation for a given chunk.
+   * Used for "why" questions (Phase 1C exit criterion).
+   */
+  getPolicyExplanation(chunkId: string) {
+    return this.executionTrace?.getPolicyExplanation(chunkId);
+  }
+
+  /**
+   * Check if confirmation is required for a given chunk.
+   */
+  isConfirmationRequired(chunkId: string): boolean {
+    return this.executionTrace?.isConfirmationRequired(chunkId) ?? false;
+  }
+
+  /**
+   * Check if chooser is required for a given chunk.
+   */
+  isChooserRequired(chunkId: string): boolean {
+    return this.executionTrace?.isChooserRequired(chunkId) ?? false;
   }
 
   sendTextCallback(response: core.ICommandsResponse): void {

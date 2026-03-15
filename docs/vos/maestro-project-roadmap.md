@@ -76,7 +76,7 @@ The following files now exist to make resume quality much higher across future s
 * [`maestro-implementation-progress.md`](./maestro-implementation-progress.md) owns the live execution snapshot
 * [`maestro-decision-log.md`](./maestro-decision-log.md) owns VOS-local phase-shaping decisions
 * [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md) owns sticky traps and verification caveats
-* [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md) owns the concrete handoff package for finishing the remaining Phase 1B work
+* [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md) owns the concrete handoff package for starting Phase 2A
 
 ## Recommended documentation structure
 
@@ -87,7 +87,7 @@ Use these document roles going forward:
 * `maestro-implementation-progress.md` owns the current resume point.
 * `maestro-decision-log.md` owns VOS-local decisions that future sessions must not rediscover.
 * `maestro-gotcha-registry.md` owns implementation and verification traps.
-* `maestro-phase-1b-hard-close-handoff.md` owns the deep execution brief for another AI to finish and hard-close the remaining Phase 1B work.
+* `maestro-phase-1c-hard-close-handoff.md` owns the deep execution brief for another AI to start Phase 2A.
 * Topic docs own definitions within their scope.
 * `maestro-overview.md` and `maestro-vos-plan.md` remain background synthesis docs and should not be treated as canonical specs.
 
@@ -229,19 +229,32 @@ Current status:
 * debugger command routing aligned to plugin-assisted editing behavior for pure and mixed bundles
 * execution-trace stage-latency fields added (`parseToDispatchMs`, `dispatchToHandoffMs`, `parseToFirstFeedbackMs`)
 
+**Phase 1C Progress (2026-03-15):**
+
+* completed
+* actuation policy service implemented with trust tier classification
+* policy decision integration into runtime-command dispatcher
+* structured route explanation capability added to execution trace
+* blocked route auditing through execution trace
+* Talon Adapter implementation and capability registration completed
+* Talon fallback route properly sequenced in dispatcher
+* 50+ new tests added for policy gating and Talon integration
+
 **Test Coverage:**
 
-* runtime-command-dispatcher.test.ts: 17 tests
+* runtime-command-dispatcher.test.ts: 22 tests
 * runtime-command-emitter.test.ts: 9 tests
 * focus-history-service.test.ts: 6 tests
 * runtime-outcome.test.ts: 13 tests
 * runtime-integration.test.ts: 8 tests
+* actuation-policy-service.test.ts: 20 tests
+* talon-adapter.test.ts: 30 tests
 
 **Verification:**
 
 * TypeScript compilation: PASS
 * Webpack build: PASS
-* All tests: 53 total tests passing
+* All tests: 108 total tests passing (Node 18 verify)
 
 Recommended first command slice:
 
@@ -460,7 +473,7 @@ When a new session begins, rehydrate context in this order:
 2. [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
 3. [`maestro-decision-log.md`](./maestro-decision-log.md)
 4. [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
-5. [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
+5. [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md)
 
 That should be enough to resume the current VOS thread without reconstructing the full planning history from scratch.
 

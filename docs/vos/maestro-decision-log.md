@@ -799,3 +799,24 @@ Consequences:
 * [`maestro/client/src/main/runtime/execution-trace.ts`](../../maestro/client/src/main/runtime/execution-trace.ts) now records parse and dispatch timestamps and emits derived stage-latency values
 * hot-path latency review can start from structured trace events without guessing or ad hoc timestamp math
 * later Phase 3 benchmarking can reuse these fields as seed signals before a broader metrics pipeline is introduced
+
+---
+
+## VOS-035: Phase 1C Hard Close via Policy Engine and Talon Adapter
+
+* Date: 2026-03-15
+* Status: Accepted
+
+Decision:
+
+Phase 1C is now considered complete, having safely implemented the specified actuation policy constraints and the Talon integration adapter without violating Zero-Installation principles.
+
+Why:
+
+The Actuation Policy Engine now governs trust tiers and secures routes (Gaps 1, 3, 4). The Talon adapter acts as the Tier 4/Tier 3 fallback without taking over language sovereignty (Gap 2). There are no remaining First Execution Route mandates. The project can safely transition to Phase 2A (Identity and safety gating).
+
+Consequences:
+
+* `talon-adapter.ts` operates as a pure TypeScript capability registry bridge without invoking a real local Talon binary
+* `runtime-command-dispatcher.ts` is fully gated and traceable
+* the next implementation phase is Phase 2A

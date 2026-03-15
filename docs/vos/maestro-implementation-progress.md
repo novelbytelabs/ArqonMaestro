@@ -20,10 +20,10 @@ This file owns the live execution snapshot.
 ## Current snapshot
 
 * Date: 2026-03-15
-* Program state: Phase 1B hard-closed
-* Active phase: Phase 1B - Core operating path (complete)
+* Program state: Phase 2A in progress
+* Active phase: Phase 2A - Identity and safety gating
 * Reasoning posture: `high` is still appropriate while the main-process runtime boundary is being chosen and extracted
-* Deep handoff doc: [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
+* Deep handoff doc: [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md)
 
 ## Recent fixes (2026-03-15)
 
@@ -95,7 +95,7 @@ This file owns the live execution snapshot.
 
 ## Current in-progress area
 
-Phase 1A is complete and validated.
+Phase 1A and Phase 1B are complete and validated.
 
 Completed inside Phase 1A:
 
@@ -114,13 +114,7 @@ Completed inside Phase 1A:
 * first STT routing/cutover service extraction
 * manual app-level validation pass
 
-Current Phase 1B focus:
-
-* canonical normalized command object on the live path
-* first narrow command-family slice behind the dispatcher
-* explicit route-specific command dispatch rather than legacy-response dominance
-
-Completed inside Phase 1B so far:
+Completed inside Phase 1B:
 
 * richer runtime command contract object on the live path
 * first route-specific local dispatch for reflex and focus commands
@@ -151,16 +145,42 @@ Completed inside Phase 1B so far:
 * first structured stage-latency signals in execution trace without introducing a separate telemetry subsystem
 * first runtime outcome classification seam introduced (`runtime-outcome.ts`) and wired to dispatcher + execution trace
 
+Completed inside Phase 1C:
+
+* actuation policy service implementation (actuation-policy-service.ts)
+  * Trust tier classification (Tier 1-4 per policy engine docs)
+  * Security mode enforcement (standard/secure/shared_room)
+  * Policy decision outcomes (approve_route, approve_with_confirmation, block_route, etc.)
+  * Route explanation capability for "why" questions
+  * Blocked route auditing through execution trace
+* Integrated policy service into runtime-command dispatcher
+  * Added policy context to dispatch options
+  * Policy decision recorded before execution
+  * Blocked routes prevented from executing
+* Extended execution trace with policy decision recording
+  * Added recordPolicyDecision() method
+  * Added trustTierEffective, confirmationRequired, chooserRequired fields
+  * Added getPolicyExplanation() for audit trails
+* Added 20 comprehensive policy service tests
+* Talon Adapter implementation (`talon-adapter.ts`)
+  * Declared Phase 1C Gap 2 executors (focus, click, scroll, press) with Trust Tier 3/4 bindings
+  * Enforced blocked verbs and surface-level constraints within `canHandle()`
+* Integrated Talon fallback into runtime-command dispatcher
+  * Added `talon_fallback` route with lower precedence than local but higher than plugin-assisted fallback for visual verbs
+  * Successfully verified routing decisions through 22 dispatcher tests
+  * Validated full adapter contract through 30 TalonAdapter tests
+
+Phase 2A in progress:
+
+* Identity and safety gating (Next target)
+
 ## Next implementation target
 
-The next best move is:
+The next best move is to begin Phase 2A - Identity and safety gating:
 
-1. correct runtime-outcome precedence so `blocked`, `refusal`, and `clarification_required` are reachable and semantically distinct
-2. fix `command_execution` reason semantics in runtime outcome classification
-3. promote runtime outcome from trace-only artifact to an actionable runtime seam for non-executable outcomes
-4. harden `execution-trace.recordOutcome()` chunk keying (no empty-key collisions)
-5. add integration tests covering dispatcher + trace + outcome behavior end to end
-6. run manual app validation focused on chooser/clarification/refusal/block behavior
+1. Implement enrollment, verification state, and authorization policy hooks for voice identity.
+2. Enforce secure mode, shared-room mode, confirmation policy, and always-available reflex rules.
+3. Thread identity state into route approval and execution outcomes.
 
 ## Suggested next files to inspect
 
@@ -180,7 +200,7 @@ When starting a new AI session, read these first:
 2. [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
 3. [`maestro-decision-log.md`](./maestro-decision-log.md)
 4. [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
-5. [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
+5. [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md)
 
 Then verify current renderer-shell state with:
 
