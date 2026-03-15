@@ -121,3 +121,92 @@ Useful command:
 Why:
 
 This is a practical verification path for local Phase 1A code while the broader dependency typing issue is still present.
+
+### G-008: `ts-node` Runtime Tests May Need A Target Override For Optional Chaining Compatibility
+
+Symptom:
+
+Running some runtime tests with plain `ts-node` can fail with an "Unexpected token '.'" parse error when loading files that use optional chaining.
+
+Use instead:
+
+```bash
+TS_NODE_COMPILER_OPTIONS='{"target":"es2019"}' ./node_modules/.bin/ts-node src/main/runtime/runtime-command-dispatcher.test.ts
+```
+
+Why this matters:
+
+The runtime code is valid TypeScript, but the active Node/ts-node execution path in this repo can require a downlevel target override for test execution compatibility.
+
+### G-009: Runtime-Outcome Branch Order Can Accidentally Hide `blocked` / `refusal` / `clarification_required`
+
+**Status**: FIXED (2026-03-15)
+
+Symptom:
+
+`RuntimeOutcomeClassifier` can return broad non-execute outcomes early, preventing intended later classifications from being reached in realistic responses.
+
+**Fix Applied**: 
+- Reordered classification checks to check `blocked`, `refusal`, `clarification` BEFORE `chooser` and `presentation_only`
+- Added comments explaining the precedence requirements
+- Added integration tests verifying blocked outcomes are reachable
+
+Check:
+
+* [`maestro/client/src/main/runtime/runtime-outcome.ts`](../../maestro/client/src/main/runtime/runtime-outcome.ts)
+* outcome precedence and early returns inside `classify(...)`
+
+### G-010: `command_execution` Reason Semantics Can Drift
+
+**Status**: FIXED (2026-03-15)
+
+Symptom:
+
+Executable outcomes can carry non-execution reason labels (for example `no_commands_extracted`) if fallback reason assignment is not strict.
+
+**Fix Applied**:
+- Added `executed_successfully` to RuntimeOutcomeReason type
+- Changed command_execution reason from `no_commands_extracted` to `executed_successfully`
+
+Check:
+
+* reason assignment in [`maestro/client/src/main/runtime/runtime-outcome.ts`](../../maestro/client/src/main/runtime/runtime-outcome.ts)
+
+### G-011: Outcome Trace Keying Must Not Collapse Missing Chunk IDs
+
+**Status**: FIXED (2026-03-15)
+
+Symptom:
+
+If outcome tracing uses `trackChunk("")` for missing chunk IDs, multiple unrelated outcomes can collapse into one empty-key trace state.
+
+**Fix Applied**:
+- Changed `recordOutcome` to generate unique ID when chunkId is missing: `outcome_${Date.now()}_${random}`
+- This prevents trace collapse while maintaining debuggability
+
+Check:
+
+* [`maestro/client/src/main/runtime/execution-trace.ts`](../../maestro/client/src/main/runtime/execution-trace.ts)
+* `recordOutcome(...)` chunk-id handling
+
+### G-012: Classifier Unit Tests Alone Are Not Enough For Phase 1B Acceptance
+
+**Status**: FIXED (2026-03-15)
+
+Symptom:
+
+`runtime-outcome` unit tests pass, but dispatcher + trace + outcome behavior may still not be coherent end-to-end.
+
+**Fix Applied**:
+- Created [`runtime-integration.test.ts`](../../maestro/client/src/main/runtime/__tests__/runtime-integration.test.ts) with 8 integration tests
+- Tests verify: dispatcher plan -> outcome classification -> trace recording flow
+- Tests verify: chooser, blocked, presentation_only, no-op, mixed outcomes
+
+Use with care:
+
+Add or run focused integration assertions that exercise:
+
+* dispatcher plan
+* outcome classification
+* execution-trace recording
+* non-executable flow behavior

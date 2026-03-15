@@ -19,10 +19,26 @@ This file owns the live execution snapshot.
 
 ## Current snapshot
 
-* Date: 2026-03-14
-* Program state: planning complete, implementation started
-* Active phase: Phase 1B - Core operating path
+* Date: 2026-03-15
+* Program state: Phase 1B hard-closed
+* Active phase: Phase 1B - Core operating path (complete)
 * Reasoning posture: `high` is still appropriate while the main-process runtime boundary is being chosen and extracted
+* Deep handoff doc: [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
+
+## Recent fixes (2026-03-15)
+
+* G-009: Fixed outcome classification precedence - blocked/refusal/clarification now reachable
+* G-010: Fixed command_execution reason - now uses `executed_successfully`
+* G-011: Fixed trace chunk-id keying - generates unique ID when missing
+* G-012: Added integration tests for dispatcher + outcome + trace
+
+## Test coverage
+
+* runtime-command-dispatcher.test.ts: 17 tests
+* runtime-command-emitter.test.ts: 9 tests
+* focus-history-service.test.ts: 6 tests
+* runtime-outcome.test.ts: 13 tests
+* runtime-integration.test.ts: 8 tests
 
 ## Completed recently
 
@@ -48,6 +64,34 @@ This file owns the live execution snapshot.
 * Extracted Bus/comparator/router cutover logic into [`maestro/client/src/main/runtime/stt-routing-service.ts`](../../maestro/client/src/main/runtime/stt-routing-service.ts)
 * Verified the updated main-process path with a focused TypeScript pass and a successful `npm run build:main` build in `maestro/client`
 * Completed manual app-level validation of the Phase 1A runtime-spine work
+* Upgraded the live normalized command object in [`maestro/client/src/main/runtime/runtime-command-emitter.ts`](../../maestro/client/src/main/runtime/runtime-command-emitter.ts) to carry object, binding, executor candidates, reversibility, confirmation, scope, and execution metadata
+* Added the first route-specific live dispatch behavior: reflex and focus commands can now take dedicated local routes through [`maestro/client/src/main/runtime/runtime-command-dispatcher.ts`](../../maestro/client/src/main/runtime/runtime-command-dispatcher.ts) and [`maestro/client/src/main/execute/executor.ts`](../../maestro/client/src/main/execute/executor.ts)
+* Extended the first route-specific slice so `COMMAND_TYPE_RUN` can also take a dedicated local execution route
+* Expanded the Phase 1B local-route slice so app-control and mode commands that are already fully local in the current app can also bypass the legacy executor path
+* Added an explicit editing-local route for clipboard, copy, custom-command, callback, and revision-box control commands that the current app already owns locally
+* Added explicit dispatch-reason tracing so remaining legacy routes now say why they stayed legacy instead of only recording that they did
+* Added a real focus-history runtime service so the live focus path can observe current and previous surfaces and support `return focus` semantics through actual state
+* Extracted an explicit navigation plugin-assisted route so navigation no longer hides behind the generic legacy executor path
+* Extracted an explicit editing plugin-assisted route so richer editing commands no longer hide behind the generic legacy executor path
+* Added focused runtime tests for the new focus-history service and verified them with `ts-node`
+* Added explicit mixed-route handling so mixed local bundles can use `composite_local` and mixed bundles with plugin-dependent commands can use `mixed_plugin_assisted` instead of dropping straight to generic legacy execution
+* Added focused runtime tests for dispatcher planning so route and reason selection are regression-protected
+* Added an explicit `system_plugin` route so dominant system-family commands no longer collapse directly into generic legacy execution
+* Split residual legacy execution into explicit `mixed_legacy` and `unknown_legacy` route classes for better hot-path observability
+* Expanded runtime command-family classification coverage for previously uncategorized protobuf command types, reducing `unknown_legacy` drift
+* Added explicit `focus_plugin` routing for dominant focus-family commands that are not safely local
+* Added explicit no-op/invalid command handling so non-executable bundles stay on `presentation_only` instead of being treated as unknown legacy execution
+* Added focused runtime tests for runtime-command emitter unknown-id fallback to prevent crashes on unrecognized command ids
+* Added emitter classification tests for newly covered protobuf command families (focus/navigation/editing/system examples)
+* Reduced `mixed_legacy` again by treating mixed bundles containing known system/plugin-assisted command types as `mixed_plugin_assisted`
+* Reclassified `COMMAND_TYPE_LOGOUT` to system-family/plugin-assisted behavior and kept unresolved mixed legacy focused on truly unresolved pairs
+* Added routing normalization for ignorable command noise (`NONE`, `INVALID`, `NO_OP`, `PING`) so mixed bundles route by actionable commands instead of drifting into avoidable mixed legacy
+* Reduced `mixed_legacy` further by treating mixed bundles with `COMMAND_TYPE_REPEAT` as plugin-assisted mixed execution rather than unresolved legacy
+* Hardened unknown-command handling so mixed bundles containing unknown families now route to `unknown_legacy` with explicit mixed-unknown telemetry instead of generic mixed legacy fallback
+* Completed runtime-emitter protobuf `CommandType` classification coverage so every current enum is explicitly mapped
+* Aligned debugger-family commands with plugin-assisted editing behavior and mixed-bundle plugin-assisted routing
+* Expanded focused runtime tests to cover debugger and revision-box classification/routing behavior
+* Added stage-latency telemetry fields to execution trace so Phase 1B can observe parse->dispatch, dispatch->handoff, and parse->feedback timing directly in hot-path logs
 
 ## Current in-progress area
 
@@ -76,14 +120,47 @@ Current Phase 1B focus:
 * first narrow command-family slice behind the dispatcher
 * explicit route-specific command dispatch rather than legacy-response dominance
 
+Completed inside Phase 1B so far:
+
+* richer runtime command contract object on the live path
+* first route-specific local dispatch for reflex and focus commands
+* first route-specific local dispatch for execution commands
+* first route-specific local dispatch for app-control and mode commands
+* first route-specific local dispatch for safe editing-local commands
+* first explicit legacy-route reason telemetry for unsupported local slices
+* first real focus-history service backing the focus command path
+* first explicit plugin-assisted navigation route
+* first explicit plugin-assisted editing route
+* first focused runtime tests for a new Phase 1B service
+* first explicit mixed-route dispatch paths (`composite_local` and `mixed_plugin_assisted`)
+* first focused runtime tests for dispatcher route planning
+* first explicit system-family plugin-assisted route
+* first explicit residual-legacy route classes (`mixed_legacy`, `unknown_legacy`)
+* first explicit focus-family plugin-assisted route
+* broader protobuf command-type classification coverage in the normalized runtime command envelope
+* first explicit no-op/invalid command route handling
+* first focused runtime tests for normalized-command emitter fallback behavior
+* first focused runtime tests for expanded protobuf command-family classification coverage
+* narrower residual `mixed_legacy` scope after mixed system/plugin route tightening
+* clearer separation between reflex-local and account/system logout behavior
+* fewer mixed-legacy outcomes caused by non-routable control-noise commands
+* narrower unresolved `mixed_legacy` footprint after repeat-route policy hardening
+* explicit `unknown_legacy` routing when mixed bundles include unknown command families
+* complete live emitter mapping coverage for all current protobuf command enums
+* explicit debugger command handling across emitter family mapping and dispatcher route planning
+* first structured stage-latency signals in execution trace without introducing a separate telemetry subsystem
+* first runtime outcome classification seam introduced (`runtime-outcome.ts`) and wired to dispatcher + execution trace
+
 ## Next implementation target
 
 The next best move is:
 
-1. commit the validated Phase 1A checkpoint
-2. start Phase 1B with the first narrow command slice behind the dispatcher
-3. implement explicit route-specific handling for reflex, focus, navigation, and terminal/editor execution
-4. keep reducing dependence on raw `CommandsResponse` shapes in the live dispatch path
+1. correct runtime-outcome precedence so `blocked`, `refusal`, and `clarification_required` are reachable and semantically distinct
+2. fix `command_execution` reason semantics in runtime outcome classification
+3. promote runtime outcome from trace-only artifact to an actionable runtime seam for non-executable outcomes
+4. harden `execution-trace.recordOutcome()` chunk keying (no empty-key collisions)
+5. add integration tests covering dispatcher + trace + outcome behavior end to end
+6. run manual app validation focused on chooser/clarification/refusal/block behavior
 
 ## Suggested next files to inspect
 
@@ -103,6 +180,7 @@ When starting a new AI session, read these first:
 2. [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
 3. [`maestro-decision-log.md`](./maestro-decision-log.md)
 4. [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
+5. [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
 
 Then verify current renderer-shell state with:
 

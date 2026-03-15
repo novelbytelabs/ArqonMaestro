@@ -76,6 +76,7 @@ The following files now exist to make resume quality much higher across future s
 * [`maestro-implementation-progress.md`](./maestro-implementation-progress.md) owns the live execution snapshot
 * [`maestro-decision-log.md`](./maestro-decision-log.md) owns VOS-local phase-shaping decisions
 * [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md) owns sticky traps and verification caveats
+* [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md) owns the concrete handoff package for finishing the remaining Phase 1B work
 
 ## Recommended documentation structure
 
@@ -86,6 +87,7 @@ Use these document roles going forward:
 * `maestro-implementation-progress.md` owns the current resume point.
 * `maestro-decision-log.md` owns VOS-local decisions that future sessions must not rediscover.
 * `maestro-gotcha-registry.md` owns implementation and verification traps.
+* `maestro-phase-1b-hard-close-handoff.md` owns the deep execution brief for another AI to finish and hard-close the remaining Phase 1B work.
 * Topic docs own definitions within their scope.
 * `maestro-overview.md` and `maestro-vos-plan.md` remain background synthesis docs and should not be treated as canonical specs.
 
@@ -182,7 +184,7 @@ Exit evidence:
 * the hot path does not depend on remote reasoning or cloud services
 * the current Maestro app still runs and behaves correctly under manual validation
 
-### Phase 1B: Core operating path
+### Phase 1B: Core operating path (hard-closed 2026-03-15)
 
 Deliver:
 
@@ -190,6 +192,56 @@ Deliver:
 2. Support a narrow but real command slice across reflex, focus, navigation, and terminal/editor execution.
 3. Preserve visible focus semantics and explicit confirmation behavior where required.
 4. Emit chooser, clarification, refusal, and block outcomes through one consistent runtime path.
+
+Current status:
+
+* **hard-closed** (2026-03-15)
+* unified runtime outcome model for non-executable results implemented
+* execution-trace outcome recording implemented
+* focused outcome classification tests completed
+* G-009 (outcome classification precedence) - FIXED
+* G-010 (command_execution reason semantics) - FIXED
+* G-011 (trace chunk-id keying) - FIXED
+* G-012 (integration tests) - ADDED
+* richer live runtime command object completed
+* first route-specific local dispatch for reflex and focus commands completed
+* first route-specific local dispatch for execution commands completed
+* first route-specific local dispatch for app-control and mode commands completed
+* first route-specific local dispatch for safe editing-local commands completed
+* first explicit dispatch-reason telemetry for remaining legacy routes completed
+* first real focus-history service backing `return focus` semantics completed
+* first explicit plugin-assisted navigation route completed
+* first explicit plugin-assisted editing route completed
+* first focused runtime tests for a Phase 1B service completed
+* first explicit mixed-route dispatch paths (`composite_local`, `mixed_plugin_assisted`) completed
+* first focused runtime tests for dispatcher route planning completed
+* first explicit system-family plugin-assisted route completed
+* first explicit residual-legacy route classes (`mixed_legacy`, `unknown_legacy`) completed
+* expanded protobuf command-type classification coverage and explicit `focus_plugin` route completed
+* explicit no-op/invalid command route handling completed
+* focused emitter classification test coverage for expanded protobuf command families completed
+* mixed route policy tightened to reduce residual `mixed_legacy` for known system/plugin-assisted bundles completed
+* logout classification aligned to system/plugin-assisted behavior completed
+* ignorable-command routing normalization for mixed bundles completed
+* repeat-command mixed-route policy hardening completed
+* unknown-family mixed-bundle routing hardening completed (`unknown_legacy` with explicit mixed-unknown reason)
+* runtime-emitter command-type classification coverage completed for all current protobuf `CommandType` enums
+* debugger command routing aligned to plugin-assisted editing behavior for pure and mixed bundles
+* execution-trace stage-latency fields added (`parseToDispatchMs`, `dispatchToHandoffMs`, `parseToFirstFeedbackMs`)
+
+**Test Coverage:**
+
+* runtime-command-dispatcher.test.ts: 17 tests
+* runtime-command-emitter.test.ts: 9 tests
+* focus-history-service.test.ts: 6 tests
+* runtime-outcome.test.ts: 13 tests
+* runtime-integration.test.ts: 8 tests
+
+**Verification:**
+
+* TypeScript compilation: PASS
+* Webpack build: PASS
+* All tests: 53 total tests passing
 
 Recommended first command slice:
 
@@ -408,6 +460,7 @@ When a new session begins, rehydrate context in this order:
 2. [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
 3. [`maestro-decision-log.md`](./maestro-decision-log.md)
 4. [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
+5. [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
 
 That should be enough to resume the current VOS thread without reconstructing the full planning history from scratch.
 

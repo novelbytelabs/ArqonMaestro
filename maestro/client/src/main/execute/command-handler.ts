@@ -14,6 +14,7 @@ import RevisionBoxWindow from "../windows/revision-box";
 import Settings from "../settings";
 import Stream from "../stream/stream";
 import System from "./system";
+import FocusHistoryService from "../runtime/focus-history-service";
 import { core } from "../../gen/core";
 
 export default class CommandHandler {
@@ -31,6 +32,7 @@ export default class CommandHandler {
     private settings: Settings,
     private stream: Stream,
     private system: System,
+    private focusHistory: FocusHistoryService,
     private languageSwitcherWindow: () => Promise<LanguageSwitcherWindow> | undefined
   ) {}
 
@@ -106,7 +108,7 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_FOCUS(data: core.ICommand): Promise<any> {
-    await this.system.focus(data.text!);
+    await this.focusHistory.focusTarget(data.text!, this.system, this.active.app);
   }
 
   async COMMAND_TYPE_HIDE_REVISION_BOX(data: any): Promise<any> {

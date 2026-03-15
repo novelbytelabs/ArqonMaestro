@@ -31,6 +31,7 @@ import Window from "./windows/window";
 import HPOTuner from "./stt/hpo-tuner";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
+import FocusHistoryService from "./runtime/focus-history-service";
 import RuntimeSpine from "./runtime/runtime-spine";
 
 export default class App {
@@ -78,6 +79,7 @@ export default class App {
     const bridge = (instance.bridge = new RendererBridge(settings));
     const system = new System(settings);
     const log = (instance.log = new Log(settings));
+    const focusHistory = new FocusHistoryService(log);
     instance.updateDarkModeForAllWindows();
 
     const custom = (instance.custom = await Custom.create(settings));
@@ -148,7 +150,8 @@ export default class App {
       miniModeWindow,
       pluginManager,
       settings,
-      system
+      system,
+      focusHistory
     );
 
     const nativeCommands = new NativeCommands(active, insertHistory, revisionBoxWindow, system);
@@ -233,6 +236,7 @@ export default class App {
       settings,
       stream,
       system,
+      focusHistory,
       () => languageSwitcherWindow
     );
 

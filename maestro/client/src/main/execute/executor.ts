@@ -402,11 +402,9 @@ export default class Executor {
     this.pending = undefined;
   }
 
-  async execute(response: core.ICommandsResponse, updateRenderer: boolean = true) {
+  private prepareExecution(response: core.ICommandsResponse, updateRenderer: boolean): boolean {
     this.lastEndpointId = response.endpointId!;
 
-    // reset the state of the alternatives spinner each time a new command is executed,
-    // and if the command needs a spinner, it will set it back below
     this.bridge.setState(
       {
         alternativesSpinner: [],
@@ -429,10 +427,69 @@ export default class Executor {
     if (!this.hasExecute(response)) {
       this.resolveChainFinished();
       this.newChainFinishedPromise();
-      return;
-    } else {
-      this.addToHistory(response);
+      return false;
     }
+
+    return true;
+  }
+
+  private async executeLocalCommands(response: core.ICommandsResponse): Promise<void> {
+    if (!response.execute?.commands) {
+      return;
+    }
+
+    for (const command of response.execute.commands) {
+      const commandType = commandTypeToString(command.type!);
+      if (commandType in this.commandHandler()) {
+        if (
+          command.type != core.CommandType.COMMAND_TYPE_DIFF &&
+          command.type != core.CommandType.COMMAND_TYPE_INSERT &&
+          command.type != core.CommandType.COMMAND_TYPE_RUN
+        ) {
+          this.insertHistory.clear();
+        }
+
+        await this.commandHandler()[commandType](command);
+        if (
+          command.type == core.CommandType.COMMAND_TYPE_RUN ||
+          command.type == core.CommandType.COMMAND_TYPE_PRESS
+        ) {
+          this.insertHistory.clear();
+        }
+      }
+    }
+  }
+
+  async executeLocalRoute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true
+  ): Promise<void> {
+    if (!this.prepareExecution(response, updateRenderer)) {
+      return;
+    }
+
+    this.addToHistory(response);
+    await this.executeLocalCommands(response);
+
+    if (response.execute && response.execute.remaining) {
+      await this.executeChain(response.execute.remaining);
+    } else {
+      this.resolveChainFinished();
+      this.newChainFinishedPromise();
+    }
+
+    this.nux.updateForResponse(response);
+  }
+
+  async executePluginAssistedRoute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true
+  ) {
+    if (!this.prepareExecution(response, updateRenderer)) {
+      return;
+    }
+
+    this.addToHistory(response);
 
     let forwardToPlugin = true;
     if (
@@ -465,28 +522,7 @@ export default class Executor {
     }
 
     // process supported commands with the client's handler directly
-    if (response.execute && response.execute.commands) {
-      for (const command of response.execute.commands) {
-        const commandType = commandTypeToString(command.type!);
-        if (commandType in this.commandHandler()) {
-          if (
-            command.type != core.CommandType.COMMAND_TYPE_DIFF &&
-            command.type != core.CommandType.COMMAND_TYPE_INSERT &&
-            command.type != core.CommandType.COMMAND_TYPE_RUN
-          ) {
-            this.insertHistory.clear();
-          }
-
-          await this.commandHandler()[commandType](command);
-          if (
-            command.type == core.CommandType.COMMAND_TYPE_RUN ||
-            command.type == core.CommandType.COMMAND_TYPE_PRESS
-          ) {
-            this.insertHistory.clear();
-          }
-        }
-      }
-    }
+    await this.executeLocalCommands(response);
 
     if (response.execute && response.execute.remaining) {
       await this.executeChain(response.execute.remaining);
@@ -495,6 +531,10 @@ export default class Executor {
     }
 
     this.nux.updateForResponse(response);
+  }
+
+  async execute(response: core.ICommandsResponse, updateRenderer: boolean = true) {
+    await this.executePluginAssistedRoute(response, updateRenderer);
   }
 
   async executePending(index: number) {
