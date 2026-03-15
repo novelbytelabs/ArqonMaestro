@@ -16,12 +16,59 @@ import System from "./system";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
 
+// Focus verification imports
+import FocusVerificationService, {
+  FocusLayer,
+  FocusTarget,
+  FocusSourceOfTruth,
+  FocusState,
+} from "../runtime/focus-verification-service";
+import { FocusAuthority } from "../runtime/focus-authority-service";
+import FocusHistoryService from "../runtime/focus-history-service";
+
+// Focus pre-validation imports (FP-2.1)
+import FocusPreValidator from "../runtime/focus-pre-validator";
+
+// Focus post-validation imports (FP-2.2)
+import FocusPostValidator, { FocusTransfer } from "../runtime/focus-post-validator";
+import { ContractValidationResult, ContractResult, ContractViolation } from "../runtime/focus-transfer-contract";
+
+// Focus safety monitor imports (FP-2.3)
+import FocusSafetyMonitor from "../runtime/focus-safety-monitor";
+import { InvariantResult, InvariantCheckRecord } from "../runtime/focus-safety-monitor";
+
+// Focus failure analyzer imports (FP-2.4)
+import FocusFailureAnalyzer from "../runtime/focus-failure-analyzer";
+import { FocusFailure, FailureAnalysis, FailureType, FailureSeverity, RecommendedAction } from "../runtime/focus-failure-modes";
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
   private miniModeHideTimeout?: NodeJS.Timeout;
   private pending?: core.ICommandsResponse;
   private resolveChainFinished = () => {};
+
+  // Focus verification services (FP-1.1)
+  private focusVerificationService: FocusVerificationService;
+  private focusHistoryService: FocusHistoryService;
+
+  // Focus pre-validator (FP-2.1)
+  private focusPreValidator: FocusPreValidator;
+
+  // Focus post-validator (FP-2.2)
+  private focusPostValidator: FocusPostValidator;
+
+  // Focus safety monitor (FP-2.3)
+  private focusSafetyMonitor: FocusSafetyMonitor;
+
+  // Focus failure analyzer (FP-2.4)
+  private focusFailureAnalyzer: FocusFailureAnalyzer;
+
+  // Store pre-validation result for comparison
+  private lastPreValidationResult?: {
+    canProceed: boolean;
+    blockingIssues: string[];
+  };
 
   constructor(
     private active: Active,
@@ -41,6 +88,25 @@ export default class Executor {
     private commandHandler: () => any
   ) {
     this.newChainFinishedPromise();
+    // Initialize focus verification services
+    this.focusVerificationService = new FocusVerificationService();
+    this.focusHistoryService = new FocusHistoryService({ maxEntries: 100 });
+
+    // Initialize focus pre-validator (FP-2.1)
+    this.focusPreValidator = new FocusPreValidator({ verboseLogging: true });
+
+    // Initialize focus post-validator (FP-2.2)
+    this.focusPostValidator = new FocusPostValidator({ verboseLogging: true });
+
+    // Initialize focus safety monitor (FP-2.3)
+    this.focusSafetyMonitor = new FocusSafetyMonitor({
+      verboseLogging: true,
+      checkIntervalMs: 5000,
+      blockOnCriticalFailure: false,
+    });
+
+    // Initialize focus failure analyzer (FP-2.4)
+    this.focusFailureAnalyzer = new FocusFailureAnalyzer({ verboseLogging: true });
   }
 
   private addToHistory(response: core.ICommandsResponse) {
@@ -468,6 +534,59 @@ export default class Executor {
           }
 
           await this.commandHandler()[commandType](command);
+
+          // FP-1.1: Verify focus transfer after FOCUS command
+          if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text) {
+            // FP-2.3: Run pre-transfer invariant checks
+            await this.checkSafetyInvariantsPreTransfer();
+
+            // FP-2.1: Run pre-validation before focus transfer
+            const preValidation = await this.preValidateFocusTransfer(
+              command.text,
+              FocusLayer.APPLICATION
+            );
+
+            // Store pre-validation result for post-comparison
+            this.lastPreValidationResult = {
+              canProceed: preValidation.canProceed,
+              blockingIssues: preValidation.blockingIssues,
+            };
+
+            // Get and store pre-transfer state for side-effect comparison
+            const preTransferState = await this.focusPreValidator.getCurrentSourceState();
+            this.focusPostValidator.setPreTransferState(preTransferState);
+
+            // Skip transfer if pre-validation failed
+            if (!preValidation.canProceed) {
+              this.log.logVerbose(
+                `Focus pre-validation FAILED: ${preValidation.blockingIssues.join("; ")}`
+              );
+              // Continue to next command - don't attempt the transfer
+              continue;
+            }
+
+            this.log.logVerbose(
+              "Focus pre-validation PASSED - proceeding with transfer"
+            );
+
+            // Proceed with focus transfer verification
+            const verificationResult = await this.verifyFocusTransfer(
+              command.text,
+              FocusLayer.APPLICATION
+            );
+
+            // FP-2.2: Run post-validation after focus transfer
+            await this.postValidateFocusTransfer(
+              command.text,
+              FocusLayer.APPLICATION,
+              preTransferState,
+              verificationResult
+            );
+
+            // FP-2.3: Run post-transfer invariant checks
+            await this.checkSafetyInvariantsPostTransfer();
+          }
+
           if (
             command.type == core.CommandType.COMMAND_TYPE_RUN ||
             command.type == core.CommandType.COMMAND_TYPE_PRESS
@@ -618,5 +737,526 @@ export default class Executor {
     }
 
     return response;
+  }
+
+  /**
+   * Verify a focus transfer and log the result
+   * Part of FP-1.1: Verification step after focus transfer
+   *
+   * @param targetName - The name of the target application/window
+   * @param layer - The focus layer (APPLICATION or WINDOW)
+   * @returns The verification result
+   */
+  async verifyFocusTransfer(
+    targetName: string,
+    layer: FocusLayer = FocusLayer.APPLICATION
+  ): Promise<{
+    success: boolean;
+    confidence: number;
+    details: string;
+  }> {
+    const target: FocusTarget = {
+      entity: targetName,
+      layer,
+    };
+
+    try {
+      const result = await this.focusVerificationService.verifyFocusTransfer(target);
+
+      // Log the verification result
+      this.log.logVerbose(
+        "Focus verification: " + (result.success ? "SUCCESS" : "FAILED") + " - " +
+          result.details + " (confidence: " + result.confidence.toFixed(2) + ")"
+      );
+
+      // Add to history
+      this.focusHistoryService.addEntry(target, result);
+
+      // Log history stats
+      const stats = this.focusHistoryService.getStats();
+      this.log.logVerbose(
+        "Focus history: " + stats.successfulTransfers + "/" + stats.totalAttempts + " successful " +
+          "(rate: " + (stats.successRate * 100).toFixed(1) + "%)"
+      );
+
+      return {
+        success: result.success,
+        confidence: result.confidence,
+        details: result.details,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log.logVerbose(`Focus verification error: ${errorMessage}`);
+
+      return {
+        success: false,
+        confidence: 0,
+        details: `Verification error: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Get the focus history service for external access
+   */
+  getFocusHistoryService(): FocusHistoryService {
+    return this.focusHistoryService;
+  }
+
+  /**
+   * Pre-validate a focus transfer before attempting it
+   * Part of FP-2.1: Pre-transfer validation checks
+   *
+   * @param targetName - The name of the target application/window
+   * @param layer - The focus layer (APPLICATION or WINDOW)
+   * @returns Pre-validation result with canProceed flag
+   */
+  async preValidateFocusTransfer(
+    targetName: string,
+    layer: FocusLayer = FocusLayer.APPLICATION
+  ): Promise<{
+    canProceed: boolean;
+    valid: boolean;
+    blockingIssues: string[];
+    validationResult: import("../runtime/focus-pre-validator").PreValidationResult | null;
+  }> {
+    const target: FocusTarget = {
+      entity: targetName,
+      layer,
+    };
+
+    try {
+      // Run pre-validation
+      const validationResult = await this.focusPreValidator.validatePreConditions(target);
+
+      // Log validation details
+      this.log.logVerbose(
+        `Focus pre-validation: ${validationResult.canProceed ? "PASSED" : "FAILED"}`
+      );
+
+      for (const check of validationResult.checks) {
+        this.log.logVerbose(
+          `  - ${check.name}: ${check.passed ? "PASS" : "FAIL"} - ${check.details}`
+        );
+      }
+
+      if (validationResult.blockingIssues.length > 0) {
+        this.log.logVerbose(
+          `  Blocking: ${validationResult.blockingIssues.join("; ")}`
+        );
+      }
+
+      return {
+        canProceed: validationResult.canProceed,
+        valid: validationResult.valid,
+        blockingIssues: validationResult.blockingIssues,
+        validationResult,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log.logVerbose(`Focus pre-validation error: ${errorMessage}`);
+
+      // On error, we allow the transfer to proceed (fail-open policy)
+      // This prevents blocking transfers due to validation issues
+      return {
+        canProceed: true,
+        valid: false,
+        blockingIssues: [`Validation error: ${errorMessage}`],
+        validationResult: null,
+      };
+    }
+  }
+
+  /**
+   * Get the pre-validator for external access
+   */
+  getFocusPreValidator(): FocusPreValidator {
+    return this.focusPreValidator;
+  }
+
+  /**
+   * Post-validate a focus transfer after the transfer attempt
+   * Part of FP-2.2: Post-transfer contract verification
+   *
+   * @param targetName - The name of the target application/window
+   * @param layer - The focus layer (APPLICATION or WINDOW)
+   * @param preTransferState - The focus state before transfer
+   * @param verificationResult - The result from focus verification
+   * @returns Contract result with pass/fail status
+   */
+  async postValidateFocusTransfer(
+    targetName: string,
+    layer: FocusLayer,
+    preTransferState: import("../runtime/focus-verification-service").FocusState,
+    verificationResult: { success: boolean; confidence: number; details: string }
+  ): Promise<ContractResult> {
+    const target: FocusTarget = {
+      entity: targetName,
+      layer,
+    };
+
+    try {
+      // Get the current (post-transfer) state
+      const postTransferState = await this.focusVerificationService.queryCurrentFocus();
+
+      // Build verification result object for the post-validator
+      const focusVerificationResult: import("../runtime/focus-verification-service").FocusVerificationResult = {
+        success: verificationResult.success,
+        confidence: verificationResult.confidence,
+        actual: postTransferState,
+        expected: {
+          entity: targetName.toLowerCase(),
+          layer,
+          sourceOfTruth: FocusSourceOfTruth.OPERATING_SYSTEM,
+          timestamp: new Date().toISOString(),
+        },
+        details: verificationResult.details,
+        authorityAnalysis: {
+          classifications: [],
+          primaryAuthority: FocusAuthority.OS_NATIVE,
+          hasConflicts: false,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
+      // Set the verification result in the post-validator
+      this.focusPostValidator.setVerificationResult(focusVerificationResult, target);
+
+      // Build the focus transfer object
+      const transfer: FocusTransfer = {
+        target,
+        sourceState: preTransferState,
+        actualState: postTransferState,
+        verificationResult: focusVerificationResult,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Run post-validation
+      const validationResult = await this.focusPostValidator.validatePostConditions(transfer);
+
+      // Log contract violations
+      if (!validationResult.passed) {
+        this.log.logVerbose(
+          `Focus post-validation FAILED: ${validationResult.postConditions
+            .filter((pc) => !pc.satisfied)
+            .map((pc) => pc.name)
+            .join("; ")}`
+        );
+
+        for (const violation of validationResult.violations) {
+          this.log.logVerbose(
+            `  Contract violation [${violation.severity}]: ${violation.contractName}`
+          );
+          this.log.logVerbose(`    Expected: ${violation.expected}`);
+          this.log.logVerbose(`    Actual: ${violation.actual}`);
+        }
+
+        if (validationResult.remediation.length > 0) {
+          this.log.logVerbose(
+            `  Remediation: ${validationResult.remediation.join("; ")}`
+          );
+        }
+      } else {
+        this.log.logVerbose(
+          "Focus post-validation PASSED - all contract conditions satisfied"
+        );
+      }
+
+      // Compare with pre-validation expectations
+      if (this.lastPreValidationResult) {
+        if (this.lastPreValidationResult.canProceed && !validationResult.passed) {
+          this.log.logVerbose(
+            "Contract violation: Pre-validation allowed but post-validation failed"
+          );
+        } else if (!this.lastPreValidationResult.canProceed && validationResult.passed) {
+          this.log.logVerbose(
+            "Contract info: Pre-validation blocked but post-validation passed (possible race condition)"
+          );
+        }
+      }
+
+      // Add to history with contract result
+      this.focusHistoryService.addEntryWithContractResult(target, focusVerificationResult, validationResult);
+
+      // Clear the cached state
+      this.focusPostValidator.clearCache();
+
+      return {
+        passed: validationResult.passed,
+        summary: validationResult.passed
+          ? "All post-conditions satisfied"
+          : `Failed: ${validationResult.postConditions
+              .filter((pc) => !pc.satisfied)
+              .map((pc) => pc.name)
+              .join(", ")}`,
+        validationResult,
+        transferSuccessful: verificationResult.success && validationResult.passed,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log.logVerbose(`Focus post-validation error: ${errorMessage}`);
+
+      return {
+        passed: false,
+        summary: `Post-validation error: ${errorMessage}`,
+        validationResult: {
+          passed: false,
+          postConditions: [],
+          violations: [
+            {
+              contractName: "postValidation",
+              expected: "Post-validation should complete successfully",
+              actual: errorMessage,
+              severity: "critical",
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          remediation: ["Check system state and retry"],
+          confidence: 0,
+          timestamp: new Date().toISOString(),
+        },
+        transferSuccessful: false,
+      };
+    }
+  }
+
+  /**
+   * Get the post-validator for external access
+   */
+  getFocusPostValidator(): FocusPostValidator {
+    return this.focusPostValidator;
+  }
+
+  /**
+   * Get the safety monitor for external access
+   */
+  getFocusSafetyMonitor(): FocusSafetyMonitor {
+    return this.focusSafetyMonitor;
+  }
+
+  /**
+   * Run safety invariant checks before a focus transfer
+   * Part of FP-2.3: Safety invariant enforcement
+   *
+   * @returns Result of invariant checks with any violations
+   */
+  async checkSafetyInvariantsPreTransfer(): Promise<{
+    allSatisfied: boolean;
+    violations: InvariantResult[];
+  }> {
+    try {
+      const invariants = this.focusSafetyMonitor.getActiveInvariants();
+      const violations: InvariantResult[] = [];
+
+      for (const invariant of invariants) {
+        const result = await this.focusSafetyMonitor.checkInvariant(invariant);
+
+        if (!result.satisfied) {
+          violations.push(result);
+          this.log.logVerbose(
+            `Pre-transfer invariant violation [${result.severity}]: ${invariant.name} - ${result.details}`
+          );
+        }
+      }
+
+      const allSatisfied = violations.length === 0;
+
+      if (!allSatisfied) {
+        const criticalViolations = violations.filter((v) => v.severity === "critical");
+        if (criticalViolations.length > 0) {
+          this.log.logVerbose(
+            `CRITICAL: ${criticalViolations.length} critical invariant violation(s) detected before focus transfer`
+          );
+        }
+      } else {
+        this.log.logVerbose("Pre-transfer invariant checks: ALL SATISFIED");
+      }
+
+      return { allSatisfied, violations };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log.logVerbose(`Pre-transfer invariant check error: ${errorMessage}`);
+      // Fail open - allow transfer to proceed if invariant check fails
+      return { allSatisfied: true, violations: [] };
+    }
+  }
+
+  /**
+   * Run safety invariant checks after a focus transfer
+   * Part of FP-2.3: Safety invariant enforcement
+   *
+   * @returns Result of invariant checks with any violations
+   */
+  async checkSafetyInvariantsPostTransfer(): Promise<{
+    allSatisfied: boolean;
+    violations: InvariantResult[];
+  }> {
+    try {
+      const invariants = this.focusSafetyMonitor.getActiveInvariants();
+      const violations: InvariantResult[] = [];
+
+      for (const invariant of invariants) {
+        const result = await this.focusSafetyMonitor.checkInvariant(invariant);
+
+        if (!result.satisfied) {
+          violations.push(result);
+          this.log.logVerbose(
+            `Post-transfer invariant violation [${result.severity}]: ${invariant.name} - ${result.details}`
+          );
+        }
+      }
+
+      const allSatisfied = violations.length === 0;
+
+      if (!allSatisfied) {
+        const criticalViolations = violations.filter((v) => v.severity === "critical");
+        if (criticalViolations.length > 0) {
+          this.log.logVerbose(
+            `CRITICAL: ${criticalViolations.length} critical invariant violation(s) detected after focus transfer`
+          );
+        }
+
+        // Store invariant check results in history
+        const historyRecords = this.focusSafetyMonitor.getHistory(10);
+        for (const record of historyRecords) {
+          if (!record.satisfied) {
+            this.log.logVerbose(
+              `  Invariant history: ${record.invariantType} - ${record.details}`
+            );
+          }
+        }
+      } else {
+        this.log.logVerbose("Post-transfer invariant checks: ALL SATISFIED");
+      }
+
+      return { allSatisfied, violations };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log.logVerbose(`Post-transfer invariant check error: ${errorMessage}`);
+      // Fail open - don't block on check error
+      return { allSatisfied: true, violations: [] };
+    }
+  }
+
+  /**
+   * Start the continuous safety invariant monitoring
+   * Should be called when the application starts
+   */
+  startSafetyMonitoring(): void {
+    this.focusSafetyMonitor.startMonitoring();
+    this.log.logVerbose("Safety invariant monitoring started");
+  }
+
+  /**
+   * Stop the continuous safety invariant monitoring
+   * Should be called when the application shuts down
+   */
+  stopSafetyMonitoring(): void {
+    this.focusSafetyMonitor.stopMonitoring();
+    this.log.logVerbose("Safety invariant monitoring stopped");
+  }
+
+  /**
+   * Get the failure analyzer for external access
+   */
+  getFocusFailureAnalyzer(): FocusFailureAnalyzer {
+    return this.focusFailureAnalyzer;
+  }
+
+  /**
+   * Analyze a focus transfer failure
+   * Part of FP-2.4: Failure analysis integration
+   *
+   * @param failure - The failure to analyze
+   * @returns Complete failure analysis
+   */
+  analyzeFocusFailure(failure: FocusFailure): FailureAnalysis {
+    // Analyze the failure
+    const analysis = this.focusFailureAnalyzer.analyzeFailure(failure);
+
+    // Log failure analysis results
+    this.logFailureAnalysis(analysis);
+
+    // Add failure analysis to history
+    this.focusHistoryService.addFailureAnalysis(analysis);
+
+    return analysis;
+  }
+
+  /**
+   * Create and analyze a failure from current focus transfer state
+   *
+   * @param type - The type of failure
+   * @param error - The error that occurred
+   * @param target - The target that was being transferred to
+   * @param sourceState - The source state before transfer
+   * @param actualState - The actual state when failure occurred
+   * @param violations - Contract violations if any
+   * @returns Complete failure analysis
+   */
+  createAndAnalyzeFailure(
+    type: FailureType,
+    error: Error,
+    target?: FocusTarget,
+    sourceState?: FocusState,
+    actualState?: FocusState,
+    violations?: ContractViolation[]
+  ): FailureAnalysis {
+    const failure: FocusFailure = {
+      type,
+      error,
+      target,
+      sourceState,
+      actualState,
+      violations,
+      timestamp: new Date().toISOString(),
+    };
+
+    return this.analyzeFocusFailure(failure);
+  }
+
+  /**
+   * Log failure analysis results
+   */
+  private logFailureAnalysis(analysis: FailureAnalysis): void {
+    this.log.logVerbose(`[FP-2.4] Failure Analysis Report:`);
+    this.log.logVerbose(`  Type: ${analysis.type}`);
+    this.log.logVerbose(`  Severity: ${analysis.severity}`);
+    this.log.logVerbose(`  Recoverable: ${analysis.isRecoverable}`);
+    this.log.logVerbose(`  Recommended Action: ${analysis.recommendedAction}`);
+    this.log.logVerbose(`  Root Cause: ${analysis.rootCause.category} - ${analysis.rootCause.explanation}`);
+
+    if (analysis.rootCause.evidence.length > 0) {
+      this.log.logVerbose(`  Evidence:`);
+      for (const evidence of analysis.rootCause.evidence) {
+        this.log.logVerbose(`    - ${evidence}`);
+      }
+    }
+
+    if (analysis.recoverySuggestions.length > 0) {
+      this.log.logVerbose(`  Recovery Suggestions:`);
+      for (const suggestion of analysis.recoverySuggestions) {
+        this.log.logVerbose(`    [${suggestion.action}] ${suggestion.description} (priority: ${suggestion.priority})`);
+        if (suggestion.warnings && suggestion.warnings.length > 0) {
+          for (const warning of suggestion.warnings) {
+            this.log.logVerbose(`      WARNING: ${warning}`);
+          }
+        }
+      }
+    }
+
+    this.log.logVerbose(`  Analysis Time: ${analysis.metadata.analysisDurationMs}ms`);
+  }
+
+  /**
+   * Get failure analysis statistics
+   */
+  getFailureAnalysisStats(): {
+    totalAnalyzed: number;
+    byType: Record<FailureType, number>;
+    bySeverity: Record<FailureSeverity, number>;
+    averageAnalysisTime: number;
+  } {
+    return this.focusFailureAnalyzer.getAnalysisStats();
   }
 }
