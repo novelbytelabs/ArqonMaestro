@@ -8,10 +8,23 @@ type ParseOutcome =
   | "waiting_for_silence";
 
 type FeedbackKind = "alternatives_shown" | "execute_only" | "highlighted_alternative";
+type DispatchRoute = "legacy_executor" | "presentation_only";
+type DispatchFamily =
+  | "editing"
+  | "execution"
+  | "focus"
+  | "mixed"
+  | "navigation"
+  | "none"
+  | "reflex"
+  | "system"
+  | "unknown";
 
 interface TraceState {
   sessionId?: string;
   chunkId: string;
+  dispatchFamily?: DispatchFamily;
+  dispatchRoute?: DispatchRoute;
   normalizedCommandCount?: number;
   route?: string;
   parseOutcome?: ParseOutcome;
@@ -67,6 +80,18 @@ export default class ExecutionTrace {
     this.emit("normalized_commands", state);
   }
 
+  recordDispatchPlan(
+    chunkId: string,
+    route: DispatchRoute,
+    family: DispatchFamily,
+    sessionId?: string
+  ) {
+    const state = this.trackChunk(chunkId, sessionId);
+    state.dispatchRoute = route;
+    state.dispatchFamily = family;
+    this.emit("dispatch_plan", state);
+  }
+
   recordFirstFeedback(chunkId: string, kind: FeedbackKind, sessionId?: string) {
     const state = this.trackChunk(chunkId, sessionId);
     if (state.firstFeedbackAt) {
@@ -84,6 +109,8 @@ export default class ExecutionTrace {
         event,
         sessionId: state.sessionId,
         chunkId: state.chunkId,
+        dispatchFamily: state.dispatchFamily,
+        dispatchRoute: state.dispatchRoute,
         normalizedCommandCount: state.normalizedCommandCount,
         route: state.route,
         parseOutcome: state.parseOutcome,

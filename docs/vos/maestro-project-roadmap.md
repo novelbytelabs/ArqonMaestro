@@ -159,7 +159,7 @@ Deliver:
 
 Current status:
 
-* started
+* completed
 * renderer shell contract extraction completed
 * first main-process runtime-spine extraction completed
 * first execution trace artifact completed
@@ -167,13 +167,20 @@ Current status:
 * first chunk-evaluation service extraction completed
 * first command-response service extraction completed
 * first normalized command emission artifact completed
-* deeper local service decomposition still pending
+* first shared runtime-command dispatcher seam completed
+* first command-family dispatch planning seam completed
+* first transcript-response observation service extraction completed
+* first STT shadow-publishing service extraction completed
+* first listening-state service extraction completed
+* first STT routing/cutover service extraction completed
+* app-level validation completed
 
 Exit evidence:
 
 * a spoken reflex command can interrupt reliably
 * a spoken operating command can reach lawful dispatch locally
 * the hot path does not depend on remote reasoning or cloud services
+* the current Maestro app still runs and behaves correctly under manual validation
 
 ### Phase 1B: Core operating path
 

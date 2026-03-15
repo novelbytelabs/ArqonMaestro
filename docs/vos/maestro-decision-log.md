@@ -195,3 +195,150 @@ Consequences:
 * [`maestro/client/src/main/runtime/command-response-service.ts`](../../maestro/client/src/main/runtime/command-response-service.ts) now owns final response post-processing and presentation handoff
 * [`maestro/client/src/main/runtime/runtime-command-emitter.ts`](../../maestro/client/src/main/runtime/runtime-command-emitter.ts) emits a first normalized runtime-command envelope from final responses
 * [`maestro/client/src/main/runtime/execution-trace.ts`](../../maestro/client/src/main/runtime/execution-trace.ts) now records normalized-command emission counts as part of the hot-path trace
+
+---
+
+## VOS-009: Runtime Command Dispatch Must Become A Shared Service Before Command-Family Expansion
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+The handoff from response-shaped results into live execution must pass through a shared runtime-command dispatcher rather than jumping straight from `ChunkManager` or `Stream` into `Executor`.
+
+Why:
+
+Without a shared dispatch seam, normalized command emission would remain a sidecar log rather than part of the actual runtime path. Phase 1 needs a real dispatch boundary before command-family routing can expand.
+
+Consequences:
+
+* [`maestro/client/src/main/runtime/runtime-command-dispatcher.ts`](../../maestro/client/src/main/runtime/runtime-command-dispatcher.ts) now owns the live dispatch seam on top of the legacy executor
+* [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) and [`maestro/client/src/main/stream/stream.ts`](../../maestro/client/src/main/stream/stream.ts) now use the same dispatcher boundary
+* later command-family routing can be introduced behind the dispatcher instead of rethreading execution across multiple call sites
+
+---
+
+## VOS-010: Dispatch Planning Must Classify Real Command Families Before Phase 1B
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+The shared runtime-command dispatcher must classify concrete command families and record a dispatch plan before Phase 1B expands the first operating command slice.
+
+Why:
+
+If dispatch remains a blind relay into the legacy executor, Phase 1B would still be building on an implicit route. Classifying real families now makes route choice explicit without faking unsupported backends.
+
+Consequences:
+
+* [`maestro/client/src/main/runtime/runtime-command-emitter.ts`](../../maestro/client/src/main/runtime/runtime-command-emitter.ts) now emits command family and canonical verb metadata
+* [`maestro/client/src/main/runtime/runtime-command-dispatcher.ts`](../../maestro/client/src/main/runtime/runtime-command-dispatcher.ts) now produces a real dispatch plan with dominant family and route choice
+* [`maestro/client/src/main/runtime/execution-trace.ts`](../../maestro/client/src/main/runtime/execution-trace.ts) now records dispatch route and dominant family for chunk-backed execution
+
+---
+
+## VOS-011: Transcript Observation Must Be Separate From Command-Response Orchestration
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+Transcript-response observation work should live in its own runtime service instead of remaining embedded inside `ChunkManager.onCommandsResponse()`.
+
+Why:
+
+Latency tracking, comparator storage, transcript normalization, and shadow-publish preparation belong to the STT observation path. Keeping that mixed with final-response orchestration makes the hot path harder to reason about and harder to evolve safely.
+
+Consequences:
+
+* [`maestro/client/src/main/runtime/transcript-response-observer.ts`](../../maestro/client/src/main/runtime/transcript-response-observer.ts) now owns transcript-response observation duties
+* [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) now focuses more narrowly on chunk lookup, trace hooks, predictive callbacks, and command-response orchestration
+* later STT lane and transport evolution can change transcript observation without reopening the full execution path
+
+---
+
+## VOS-012: Predictive Addressing And Shadow Publish Side Effects Must Live Behind One Runtime Service
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+Predictive addr_id state, SAS precheck throttling, presence pulse, and STT Bus shadow-publish behavior should live in one dedicated runtime service instead of remaining scattered across `ChunkManager`.
+
+Why:
+
+Those responsibilities are transport and routing side effects, not chunk/session orchestration. Keeping them embedded in `ChunkManager` makes the hot path harder to reason about and harder to evolve safely.
+
+Consequences:
+
+* [`maestro/client/src/main/runtime/stt-shadow-publisher.ts`](../../maestro/client/src/main/runtime/stt-shadow-publisher.ts) now owns predictive addressing plus STT shadow-publish behavior
+* [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) now delegates audio, endpoint, transcript, and session shadow publishing through one runtime service
+* later Bus cutover and STT-lane evolution can change this behavior behind the service boundary instead of reopening chunk/session control
+
+---
+
+## VOS-013: Listening State Transitions Must Be Separate From Live Session Wiring
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+Listening-state transitions, session start/stop bookkeeping, and renderer-visible listening status should live in a dedicated runtime service instead of remaining mixed into `ChunkManager.toggle()`.
+
+Why:
+
+`ChunkManager` already owns live chunk/audio orchestration. Keeping toggle race detection, session bookkeeping, and renderer-facing listening state there makes the class do too many jobs and obscures the runtime boundary.
+
+Consequences:
+
+* [`maestro/client/src/main/runtime/listening-state-service.ts`](../../maestro/client/src/main/runtime/listening-state-service.ts) now owns high-level listening state transitions
+* [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) now keeps deferred start/stop orchestration while delegating session-state policy and renderer updates
+* later secure-mode or identity-gated listening transitions can be added behind this service boundary instead of reopening chunk/session control
+
+---
+
+## VOS-014: STT Transport Routing And Cutover Bookkeeping Must Live Outside `ChunkManager`
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+Bus-client registration, comparator hookup, traffic-router decisions, and Bus-path session result recording should live in a dedicated runtime service rather than inside `ChunkManager`.
+
+Why:
+
+Those concerns belong to transport routing and cutover governance, not chunk/session orchestration. Keeping them in `ChunkManager` hides the runtime boundary and makes Phase 1A harder to close cleanly.
+
+Consequences:
+
+* [`maestro/client/src/main/runtime/stt-routing-service.ts`](../../maestro/client/src/main/runtime/stt-routing-service.ts) now owns STT transport routing and cutover bookkeeping
+* [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) now delegates Bus/comparator/router lifecycle to one runtime service
+* later Bus cutover changes can evolve behind this service boundary instead of reopening the main chunk/audio path
+
+---
+
+## VOS-015: Phase 1A Closes Only After Live App Validation
+
+* Date: 2026-03-14
+* Status: Accepted
+
+Decision:
+
+Phase 1A is not considered complete on structure and build checks alone; it closes only after the current Maestro app is manually validated as still working correctly.
+
+Why:
+
+Phase 1A changes the hot path in-place inside a live app. Structural cleanliness is necessary, but runtime validation is what proves we preserved behavior while extracting the boundary.
+
+Consequences:
+
+* Phase 1A is now treated as complete
+* the next implementation step is Phase 1B rather than more Phase 1A decomposition
+* the validated Phase 1A batch should be committed as one checkpoint before Phase 1B broadens command behavior

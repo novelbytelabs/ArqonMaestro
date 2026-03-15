@@ -6,11 +6,9 @@ import MainWindow from "../windows/main";
 import MiniModeWindow from "../windows/mini-mode";
 import { core } from "../../gen/core";
 import { isMetaResponse } from "../../shared/alternatives";
-import RuntimeCommandEmitter from "./runtime-command-emitter";
 
 interface CommandResponseServiceDeps {
   bridge: RendererBridge;
-  commandEmitter: RuntimeCommandEmitter;
   executor: Executor;
   log: Log;
   mainWindow: MainWindow;
@@ -22,7 +20,7 @@ interface ApplyResponseParams {
   response: core.ICommandsResponse;
   getSessionId: () => string | undefined;
   logResponse: (response: core.ICommandsResponse) => Promise<void>;
-  recordNormalizedCommands: (chunkId: string, count: number, sessionId?: string) => void;
+  onFinalResponseReady: (response: core.ICommandsResponse, sessionId?: string) => void;
   reachedSilenceThreshold: (chunk: Chunk) => boolean;
   shouldAppendToPrevious: (response: core.ICommandsResponse) => boolean;
   attemptToEvaluateChunk: (chunk: Chunk) => Promise<void>;
@@ -46,14 +44,7 @@ export default class CommandResponseService {
         chunk.response = response;
       }
 
-      const normalizedCommands = this.deps.commandEmitter.emit(response, params.getSessionId());
-      if (response.chunkId) {
-        params.recordNormalizedCommands(
-          response.chunkId,
-          normalizedCommands.length,
-          params.getSessionId()
-        );
-      }
+      params.onFinalResponseReady(response, params.getSessionId());
     }
 
     if (!shouldAppendToPrevious(response)) {

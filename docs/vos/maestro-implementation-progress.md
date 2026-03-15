@@ -21,7 +21,7 @@ This file owns the live execution snapshot.
 
 * Date: 2026-03-14
 * Program state: planning complete, implementation started
-* Active phase: Phase 1A - Runtime spine
+* Active phase: Phase 1B - Core operating path
 * Reasoning posture: `high` is still appropriate while the main-process runtime boundary is being chosen and extracted
 
 ## Completed recently
@@ -40,11 +40,18 @@ This file owns the live execution snapshot.
 * Extracted chunk execution gating into [`maestro/client/src/main/runtime/chunk-evaluation-service.ts`](../../maestro/client/src/main/runtime/chunk-evaluation-service.ts)
 * Extracted command-response post-processing and renderer presentation into [`maestro/client/src/main/runtime/command-response-service.ts`](../../maestro/client/src/main/runtime/command-response-service.ts)
 * Added a first normalized command emission seam at [`maestro/client/src/main/runtime/runtime-command-emitter.ts`](../../maestro/client/src/main/runtime/runtime-command-emitter.ts)
+* Routed chunk execution and text-command responses through a shared dispatch seam at [`maestro/client/src/main/runtime/runtime-command-dispatcher.ts`](../../maestro/client/src/main/runtime/runtime-command-dispatcher.ts)
+* Added real command-family classification and dispatch-plan tracing to the shared runtime-command dispatcher
+* Extracted transcript-response observation out of [`maestro/client/src/main/stream/chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts) into [`maestro/client/src/main/runtime/transcript-response-observer.ts`](../../maestro/client/src/main/runtime/transcript-response-observer.ts)
+* Extracted predictive-address state, SAS precheck throttling, presence pulse, and STT shadow publishing into [`maestro/client/src/main/runtime/stt-shadow-publisher.ts`](../../maestro/client/src/main/runtime/stt-shadow-publisher.ts)
+* Extracted listening-state transitions, session bookkeeping, and renderer-visible listening status into [`maestro/client/src/main/runtime/listening-state-service.ts`](../../maestro/client/src/main/runtime/listening-state-service.ts)
+* Extracted Bus/comparator/router cutover logic into [`maestro/client/src/main/runtime/stt-routing-service.ts`](../../maestro/client/src/main/runtime/stt-routing-service.ts)
 * Verified the updated main-process path with a focused TypeScript pass and a successful `npm run build:main` build in `maestro/client`
+* Completed manual app-level validation of the Phase 1A runtime-spine work
 
 ## Current in-progress area
 
-Phase 1A is underway, but only the first boundary extraction is complete.
+Phase 1A is complete and validated.
 
 Completed inside Phase 1A:
 
@@ -55,20 +62,28 @@ Completed inside Phase 1A:
 * first chunk-evaluation service extraction
 * first command-response service extraction
 * first normalized command emission artifact
+* first shared runtime-command dispatcher seam
+* first command-family dispatch planning seam
+* first transcript-response observation service extraction
+* first STT shadow-publishing service extraction
+* first listening-state service extraction
+* first STT routing/cutover service extraction
+* manual app-level validation pass
 
-Not completed yet inside Phase 1A:
+Current Phase 1B focus:
 
-* final tightening of the hot-path local service boundary
-* replacement of legacy `core.ICommandsResponse` dominance with the fuller runtime command contract
+* canonical normalized command object on the live path
+* first narrow command-family slice behind the dispatcher
+* explicit route-specific command dispatch rather than legacy-response dominance
 
 ## Next implementation target
 
 The next best move is:
 
-1. identify the main-process runtime spine in the current Electron client
-2. define the smallest local service boundary for audio ingress, utterance boundary, STT handoff, interpretation handoff, and dispatch
-3. keep trimming `App.create()` and `ChunkManager` until they are orchestration and session control rather than mixed runtime assembly
-4. replace more of the direct legacy `CommandsResponse` handling with runtime-command contract paths and explicit dispatch seams
+1. commit the validated Phase 1A checkpoint
+2. start Phase 1B with the first narrow command slice behind the dispatcher
+3. implement explicit route-specific handling for reflex, focus, navigation, and terminal/editor execution
+4. keep reducing dependence on raw `CommandsResponse` shapes in the live dispatch path
 
 ## Suggested next files to inspect
 

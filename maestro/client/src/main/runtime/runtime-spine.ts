@@ -18,6 +18,8 @@ import HPOTuner from "../stt/hpo-tuner";
 import { createTrafficRouter } from "../stt/traffic-router";
 import type App from "../app";
 import ExecutionTrace from "./execution-trace";
+import RuntimeCommandDispatcher from "./runtime-command-dispatcher";
+import RuntimeCommandEmitter from "./runtime-command-emitter";
 
 interface RuntimeSpineCoreDeps {
   active: Active;
@@ -48,14 +50,17 @@ export default class RuntimeSpine {
   readonly hpoTuner: HPOTuner;
   readonly stream: Stream;
   readonly executionTrace: ExecutionTrace;
+  readonly runtimeCommandEmitter: RuntimeCommandEmitter;
 
   private chunkManager?: ChunkManager;
+  private runtimeCommandDispatcher?: RuntimeCommandDispatcher;
 
   constructor({ active, api, log, settings }: RuntimeSpineCoreDeps) {
     this.tracking = new STTTracking(api, settings);
     this.hpoTuner = new HPOTuner(settings, log, this.tracking);
     this.stream = new Stream(active, api, log, settings, this.tracking);
     this.executionTrace = new ExecutionTrace(log);
+    this.runtimeCommandEmitter = new RuntimeCommandEmitter(log);
   }
 
   attachChunkManager({
@@ -72,6 +77,15 @@ export default class RuntimeSpine {
     miniModeWindow,
     settings,
   }: RuntimeSpineChunkManagerDeps): ChunkManager {
+    this.runtimeCommandDispatcher = new RuntimeCommandDispatcher(
+      custom,
+      this.runtimeCommandEmitter,
+      executor,
+      log,
+      this.executionTrace
+    );
+    this.stream.setRuntimeCommandDispatcher(this.runtimeCommandDispatcher);
+
     const chunkManager = new ChunkManager(
       active,
       api,
@@ -86,7 +100,8 @@ export default class RuntimeSpine {
       miniModeWindow,
       settings,
       this.stream,
-      this.tracking
+      this.tracking,
+      this.runtimeCommandDispatcher
     );
     chunkManager.setExecutionTrace(this.executionTrace);
     executor.setExecutionTrace(this.executionTrace);

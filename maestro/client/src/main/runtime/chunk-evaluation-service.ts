@@ -1,5 +1,4 @@
 import RendererBridge from "../bridge";
-import Executor from "../execute/executor";
 import Log from "../log";
 import Stream from "../stream/stream";
 import { Chunk } from "../stream/chunk-queue";
@@ -8,10 +7,11 @@ import MainWindow from "../windows/main";
 import MiniModeWindow from "../windows/mini-mode";
 import { core } from "../../gen/core";
 import ExecutionTrace from "./execution-trace";
+import RuntimeCommandDispatcher from "./runtime-command-dispatcher";
 
 interface ChunkEvaluationServiceDeps {
   bridge: RendererBridge;
-  executor: Executor;
+  commandDispatcher: RuntimeCommandDispatcher;
   log: Log;
   mainWindow: MainWindow;
   miniModeWindow: MiniModeWindow;
@@ -150,7 +150,10 @@ export default class ChunkEvaluationService {
     this.deps.tracking.onExecuted(chunk.id);
 
     startBuffering();
-    await this.deps.executor.execute(getResponse(chunk)!);
+    await this.deps.commandDispatcher.dispatch(getResponse(chunk)!, {
+      sessionId,
+      updateRenderer: true,
+    });
     await stopBufferingAndFlush();
   }
 }

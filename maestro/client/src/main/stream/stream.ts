@@ -7,6 +7,7 @@ import ChunkManager from "./chunk-manager";
 import Custom from "../ipc/custom";
 import Executor from "../execute/executor";
 import Log from "../log";
+import RuntimeCommandDispatcher from "../runtime/runtime-command-dispatcher";
 import Settings from "../settings";
 import STTTracking from "../stt/tracking";
 import { core } from "../../gen/core";
@@ -21,6 +22,7 @@ export default class Stream {
   private tracking: STTTracking;
   private reconnectCount: number = 0;
   private lastDisconnectTime: number = 0;
+  private runtimeCommandDispatcher?: RuntimeCommandDispatcher;
 
   constructor(
     private active: Active,
@@ -52,6 +54,10 @@ export default class Stream {
         this.disconnect();
       }, 3000);
     }, 30000);
+  }
+
+  setRuntimeCommandDispatcher(runtimeCommandDispatcher: RuntimeCommandDispatcher) {
+    this.runtimeCommandDispatcher = runtimeCommandDispatcher;
   }
 
   private send(socket: WebSocket | undefined, data: any) {
@@ -244,10 +250,20 @@ export default class Stream {
     response: core.ICommandsResponse
   ) {
     response = await executor.postProcessResponse(response);
-    await executor.execute(response);
-    custom.send("callback", {
-      transcript: response.execute?.transcript,
+    if (!this.runtimeCommandDispatcher) {
+      await executor.execute(response);
+      custom.send("callback", {
+        transcript: response.execute?.transcript,
+      });
+      return;
+    }
+
+    await this.runtimeCommandDispatcher.dispatch(response, {
+      emitNormalizedCommands: true,
+      sessionId: this.tracking.getCurrentSessionId() || undefined,
+      updateRenderer: true,
     });
+    this.runtimeCommandDispatcher.sendTextCallback(response);
   }
 
   sendAppendToPreviousRequest() {
