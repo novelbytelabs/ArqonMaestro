@@ -54,31 +54,6 @@
   box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
 }
 
-@keyframes fadeInProject {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeInProject 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
-
-.animate-float {
-  animation: float 4s ease-in-out infinite;
-}
-
 .app.mini-mode-window {
   background: transparent;
 }
@@ -105,6 +80,33 @@ input,
 textarea {
   font-family: aktiv-grotesk, sans-serif;
   color: #475569;
+}
+
+/* Precision scaling for Maestro's narrow sidecar (275px) */
+@media (max-width: 320px) {
+  .operator-surface h1 {
+    font-size: 1.25rem !important; /* Shrink to prevent TitleBar overlap */
+    line-height: 1.1 !important;
+    margin-top: 1rem;
+  }
+  .operator-surface p {
+    font-size: 0.75rem !important;
+    line-height: 1.4 !important;
+    max-width: 100% !important;
+    margin-bottom: 1rem !important;
+  }
+  .operator-surface .secondary-button {
+    padding: 0.4em 1em !important;
+    font-size: 0.75rem !important;
+  }
+  .welcome-container {
+    padding-top: 2rem !important; /* Extra clearance for TitleBar */
+    gap: 1rem !important;
+  }
+  .welcome-hero {
+    width: 60% !important;
+    margin-top: 1rem !important;
+  }
 }
 
 html,

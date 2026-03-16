@@ -20,7 +20,14 @@ const config: Configuration = {
           path.resolve(__dirname, "src/renderer"),
           path.resolve(__dirname, "src/shared"),
         ],
-        use: ["ts-loader"],
+        use: [
+          {
+            loader: "ts-loader",
+            options: {
+              transpileOnly: true,
+            },
+          },
+        ],
       },
       {
         test: /\.(png|svg|jpg)$/i,
