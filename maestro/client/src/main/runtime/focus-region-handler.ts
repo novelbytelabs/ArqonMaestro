@@ -499,6 +499,7 @@ export default class FocusRegionHandler {
       }
 
       // Parse the shortcut (e.g., "ctrl+b" -> key: "b", modifiers: ["ctrl"])
+      // Special handling for backtick (`) used for VS Code terminal
       const parts = shortcut.toLowerCase().split("+");
       const modifiers: string[] = [];
       let key = "";
@@ -515,7 +516,13 @@ export default class FocusRegionHandler {
         }
       }
 
-      if (key) {
+      // Handle special keys
+      // For backtick (`), xdotool needs "dead_grave" or we use the keysym directly
+      if (key === "`" || key === "grave") {
+        // Use the actual key - try with quotes to handle the special char
+        this.log(`Sending special key: backtick (terminal shortcut)`);
+        driver.pressKey("`", modifiers.length > 0 ? modifiers : undefined);
+      } else if (key) {
         this.log(`Sending key: ${key} with modifiers: ${modifiers.join(",")}`);
         driver.pressKey(key, modifiers.length > 0 ? modifiers : undefined);
         
