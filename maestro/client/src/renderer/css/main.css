@@ -24,7 +24,19 @@
   }
 
   .input {
-    @apply text-white border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 shadow-sm bg-white/5 border-white/10 font-mono text-sm transition-all;
+    @apply text-white border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 shadow-sm font-mono text-sm transition-all;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .input:disabled {
+    @apply opacity-40 cursor-not-allowed bg-black/20;
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .installed-button {
+    @apply rounded-full text-center text-white/40 bg-white/5 border border-white/10 shadow-inner px-4 py-2 cursor-default transition-all;
+    font-size: 0.875rem;
   }
 
   .settings-row-title {

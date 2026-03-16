@@ -144,7 +144,7 @@ const AdvancedComponent: React.FC<{
         action={
           <input
             type="number"
-            className="input w-20 text-right"
+            className="input w-20 text-center py-0"
             min="0.5"
             max="2.0"
             step="0.1"
@@ -179,7 +179,7 @@ const AdvancedComponent: React.FC<{
         action={
           <input
             type="number"
-            className="input w-20 text-right"
+            className="input w-20 text-center py-0"
             min="0.0"
             max="1.0"
             step="0.1"
@@ -214,7 +214,7 @@ const AdvancedComponent: React.FC<{
         action={
           <input
             type="number"
-            className="input w-20 text-right"
+            className="input w-20 text-center py-0"
             min="0.0"
             max="1.0"
             step="0.1"

@@ -10,53 +10,78 @@ import { shell } from "../shell";
 const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language }> = ({
   languageSwitcherLanguage,
 }) => (
-  <div className="pt-[24px] h-full w-full">
-    {["0"].concat(Object.keys(languages)).map((e: string) => {
-      const language: core.Language = (e as unknown) as core.Language;
-      const active = languageSwitcherLanguage == language;
+  <div className="h-screen w-full operator-surface flex flex-col pt-4">
+    <div className="px-4 mb-4">
+      <h2 className="text-[10px] uppercase font-bold tracking-widest text-cyan-400/80">
+        Language Selection
+      </h2>
+    </div>
+    <div className="flex-1 overflow-y-auto pb-4">
+      {["0"].concat(Object.keys(languages)).map((e: string) => {
+        const language: core.Language = (e as unknown) as core.Language;
+        const active = languageSwitcherLanguage == language;
 
-      let name = "Auto-Detect";
-      let icon = (
-        <div className="pl-1">
-          <FontAwesomeIcon icon={faSearch} />
-        </div>
-      );
-      if (languages[language]) {
-        name = languages[language]!.name;
-        icon = languages[language]!.icon ? (
-          <img className="w-6 h-6" src={languages[language]!.icon} alt={name} />
-        ) : (
-          <div className="pl-1">
-            <FontAwesomeIcon icon={faFileAlt} />
-          </div>
+        let name = "Auto-Detect";
+        let icon = <FontAwesomeIcon icon={faSearch} className="text-sm scale-90" />;
+        if (languages[language]) {
+          name = languages[language]!.name;
+          icon = languages[language]!.icon ? (
+            <img className="w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity" src={languages[language]!.icon} alt={name} />
+          ) : (
+            <FontAwesomeIcon icon={faFileAlt} className="text-sm" />
+          );
+        }
+
+        return (
+          <a
+            key={name}
+            href="#"
+            className={classNames(
+              "block w-full px-4 py-3 transition-all duration-300 border-b border-white/5 group",
+              {
+                "bg-cyan-500/10": active,
+                "hover:bg-white/5": !active,
+              }
+            )}
+            onClick={(e) => {
+              e.preventDefault();
+              shell.send("setLanguage", language);
+              setTimeout(() => {
+                shell.send("closeLanguages");
+              }, 100);
+            }}
+          >
+            <div className="flex items-center">
+              <div
+                className={classNames(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 border",
+                  {
+                    "bg-cyan-500/20 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]": active,
+                    "bg-black/20 border-white/5 group-hover:border-white/20": !active,
+                  }
+                )}
+              >
+                {active ? (
+                  <FontAwesomeIcon icon={faCheck} className="text-cyan-400 text-xs" />
+                ) : (
+                  <div className="text-white/40 group-hover:text-white/70 transition-colors">
+                    {icon}
+                  </div>
+                )}
+              </div>
+              <div
+                className={classNames("pl-3 text-sm font-medium tracking-wide transition-colors", {
+                  "text-cyan-400": active,
+                  "text-white/70 group-hover:text-white": !active,
+                })}
+              >
+                {name}
+              </div>
+            </div>
+          </a>
         );
-      }
-
-      return (
-        <a
-          key={name}
-          href="#"
-          className={classNames(
-            "block w-full p-4 hover:bg-violet-100 dark:hover:bg-neutral-700 transition-colors border-b",
-            {
-              "bg-violet-400 hover:bg-violet-400 text-white": active,
-            }
-          )}
-          onClick={(e) => {
-            e.preventDefault();
-            shell.send("setLanguage", language);
-            setTimeout(() => {
-              shell.send("closeLanguages");
-            }, 100);
-          }}
-        >
-          <div className="flex items-center">
-            {active ? <FontAwesomeIcon icon={faCheck} /> : icon}
-            <div className="pl-2">{name}</div>
-          </div>
-        </a>
-      );
-    })}
+      })}
+    </div>
   </div>
 );
 

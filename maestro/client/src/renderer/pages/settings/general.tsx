@@ -102,8 +102,8 @@ const GeneralComponent: React.FC<{
           <>
             In compact UI, hide after{" "}
             <input
-              type="text"
-              className="input w-8 inline-block disabled:bg-gray-300 py-0"
+              type="number"
+              className="input w-16 inline-block py-0 text-center"
               defaultValue={miniModeHideTimeout}
               disabled={!useMiniModeHideTimeout}
               onChange={(e) => {
@@ -131,8 +131,8 @@ const GeneralComponent: React.FC<{
           <>
             In compact UI, only show{" "}
             <input
-              type="text"
-              className="input w-8 inline-block disabled:bg-gray-300 py-0"
+              type="number"
+              className="input w-16 inline-block py-0 text-center"
               defaultValue={miniModeFewerAlternativesCount}
               disabled={!useMiniModeFewerAlternatives}
               onChange={(e) => {

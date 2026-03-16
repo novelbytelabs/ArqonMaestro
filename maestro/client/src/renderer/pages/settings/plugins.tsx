@@ -90,11 +90,9 @@ const PluginLink: React.FC<{
     subtitle={subtitle}
     action={
       installed ? (
-        <span className="primary-button" style={{ background: "#9ca3af" }}>
-          Installed
-        </span>
+        <span className="installed-button">Installed</span>
       ) : (
-        <a className="primary-button" href={link} target="_blank">
+        <a className="secondary-button whitespace-nowrap" href={link} target="_blank">
           Install
         </a>
       )
@@ -107,7 +105,9 @@ const PluginsComponent: React.FC<{ installed: string[]; stylers: any }> = ({
   stylers,
 }) => (
   <div className="px-4">
-    <h2 className="text-lg font-light">Plugins</h2>
+    <h2 className="text-[10px] uppercase font-bold tracking-widest text-cyan-400/80 mb-2">
+      Core Plugins
+    </h2>
     <PluginLink
       title="VS Code"
       subtitle="Install ArqonMaestro for the VS Code editor"
@@ -150,13 +150,15 @@ const PluginsComponent: React.FC<{ installed: string[]; stylers: any }> = ({
       link={plugins.iterm.url}
       installed={installed.some((e: string) => e == "iterm" || e == "iterm2")}
     />
-    <h2 className="text-lg font-light mt-4">Custom Commands</h2>
+    <h2 className="text-[10px] uppercase font-bold tracking-widest text-cyan-400/80 mt-6 mb-2">
+      Workspace
+    </h2>
     <Row
       title="Edit Custom Commands"
       subtitle="Create custom snippets and automations"
       action={
         <button
-          className="primary-button"
+          className="secondary-button"
           onClick={(e: React.MouseEvent) => {
             e.preventDefault();
             shell.send("openCustomCommands");
@@ -166,7 +168,9 @@ const PluginsComponent: React.FC<{ installed: string[]; stylers: any }> = ({
         </button>
       }
     />
-    <h2 className="text-lg font-light mt-4">Styler Settings</h2>
+    <h2 className="text-[10px] uppercase font-bold tracking-widest text-cyan-400/80 mt-6 mb-2">
+      Styler Settings
+    </h2>
     {!stylers
       ? null
       : [
