@@ -517,11 +517,20 @@ export default class FocusRegionHandler {
       }
 
       // Handle special keys
-      // For backtick (`), xdotool needs "dead_grave" or we use the keysym directly
+      // For backtick (`), xdotool needs "grave" keysym
       if (key === "`" || key === "grave") {
-        // Use the actual key - try with quotes to handle the special char
-        this.log(`Sending special key: backtick (terminal shortcut)`);
-        driver.pressKey("`", modifiers.length > 0 ? modifiers : undefined);
+        // Use the keysym name for xdotool
+        this.log(`Sending special key: ctrl+grave (terminal shortcut)`);
+        driver.pressKey("grave", modifiers.length > 0 ? modifiers : undefined);
+        
+        // Wait for the shortcut to take effect
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        return {
+          success: true,
+          target,
+          details: `Executed shortcut ${shortcut} for region ${target.regionKind}`,
+        };
       } else if (key) {
         this.log(`Sending key: ${key} with modifiers: ${modifiers.join(",")}`);
         driver.pressKey(key, modifiers.length > 0 ? modifiers : undefined);
