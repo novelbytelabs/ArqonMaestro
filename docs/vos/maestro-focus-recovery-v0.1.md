@@ -126,18 +126,57 @@ Recovery attempts are bounded to prevent infinite loops:
 - **Abort with user-safe message** if no recovery possible
 - **Never autonomously loop** without bounds
 
-### Policy Outcomes
+### Policy Outcomes (FP-5B Refined)
 
-| Policy           | Result Status    | Final Confidence |
-|-----------------|-----------------|------------------|
-| RETRY_ONCE      | SUCCESS/FALLBACK| 0.9 / 0.7       |
-| RESTORE_PREVIOUS| FALLBACK        | 0.7             |
-| ABORT           | ABORTED         | 0.3             |
-| DOWNGRADE       | DOWNGRADED      | 0.5             |
+| Policy           | Result Status                  | Final Confidence |
+|-----------------|--------------------------------|------------------|
+| RETRY_ONCE      | RECOVERED_BY_RETRY            | 0.9             |
+| RESTORE_PREVIOUS| RECOVERED_BY_RESTORE          | 0.7-0.85        |
+| ABORT           | ABORTED_UNTRUSTED_STATE etc.  | 0.3             |
+| DOWNGRADE       | DOWNGRADED                    | 0.5             |
+
+## State Integrity (FP-5B)
+
+### Integrity Status Levels
+
+| Status      | Age Range         | Description                                    |
+|-------------|------------------|-----------------------------------------------|
+| TRUSTED     | < 5 minutes      | State is fresh and trustworthy               |
+| STALE       | 5-10 minutes     | State may be less reliable, use with caution |
+| EXPIRED     | > 10 minutes     | State too old, should not use                |
+| UNTRUSTED   | N/A              | No state or confidence below threshold       |
+
+### Integrity Thresholds
+
+| Threshold              | Value           | Description                    |
+|-----------------------|-----------------|--------------------------------|
+| STALE_THRESHOLD_SECONDS    | 300 (5 min)    | State becomes stale            |
+| EXPIRED_THRESHOLD_SECONDS   | 600 (10 min)   | State is too old to trust      |
+| MIN_CONFIDENCE_THRESHOLD   | 0.5            | Minimum confidence required    |
+
+### Restoration Eligibility (FP-5B)
+
+Before restoring previous verified state, the system validates:
+
+1. **Age Check**: Prior state must not be expired
+2. **Confidence Check**: Prior state confidence must exceed threshold
+3. **Integrity Assignment**: TRUSTED (< 5 min), STALE (5-10 min), or EXPIRED (> 10 min)
+
+### Refined Recovery Outcomes (FP-5B)
+
+| Result Status                    | Description                                          |
+|---------------------------------|-----------------------------------------------------|
+| RECOVERED_BY_RETRY             | Retry succeeded                                     |
+| RECOVERED_BY_RESTORE           | Restore succeeded (may have lower confidence)       |
+| ABORTED_UNTRUSTED_STATE        | State integrity too low to attempt recovery        |
+| ABORTED_MISSING_TARGET         | Target no longer exists                             |
+| ABORTED_UNSAFE_RECOVERY        | Unsafe to attempt recovery                         |
+| ABORTED                        | General abort                                       |
+| DOWNGRADED                     | Confidence degraded during recovery                |
 
 ## Recovery Telemetry
 
-### Telemetry Structure
+### Telemetry Structure (FP-5B Updated)
 
 ```typescript
 interface RecoveryTelemetry {
@@ -149,7 +188,7 @@ interface RecoveryTelemetry {
   action: RecoveryAction | null;
   policy: RecoveryPolicy | null;
   
-  // Result
+  // Result (FP-5B refined)
   result: RecoveryResultStatus;
   finalConfidence: number;
   
@@ -162,6 +201,22 @@ interface RecoveryTelemetry {
   // Timestamps
   startTimestamp: string;
   endTimestamp: string;
+  
+  // State integrity (FP-5B)
+  integrityStatus?: StateIntegrityStatus;
+  restorationValidated?: boolean;
+  finalStateReverified?: boolean;
+}
+```
+
+### State Integrity Status (FP-5B)
+
+```typescript
+enum StateIntegrityStatus {
+  TRUSTED = "trusted",      // < 5 minutes old
+  STALE = "stale",          // 5-10 minutes old
+  EXPIRED = "expired",      // > 10 minutes old
+  UNTRUSTED = "untrusted",  // No state or confidence < 0.5
 }
 ```
 
@@ -180,16 +235,18 @@ Recovery events are logged with full context:
 
 Blocked/aborted recovery paths always include user-safe messages:
 
-| Reason              | User Message                                                                 |
-|---------------------|-----------------------------------------------------------------------------|
-| APP_MISMATCH        | "Could not recover focus. The expected application is not active..."       |
-| WINDOW_MISMATCH     | "Could not recover focus. The expected window is not focused..."            |
-| REGION_MISMATCH     | "Could not recover to the expected region. Please navigate..."              |
-| CONTROL_MISMATCH    | "Could not recover to the expected control. Please click..."                |
-| CARET_MISSING       | "No cursor position detected. Please click where you want to insert text." |
-| TARGET_GONE         | "The target you were working with no longer exists..."                      |
-| AMBIGUITY_ESCALATED | "Could not determine the correct target. Please be more specific..."       |
-| UNVERIFIED_STATE    | "Could not verify focus state. Please click on the target and try again."  |
+| Reason                    | User Message                                                                 |
+|--------------------------|-----------------------------------------------------------------------------|
+| APP_MISMATCH             | "Could not recover focus. The expected application is not active..."       |
+| WINDOW_MISMATCH          | "Could not recover focus. The expected window is not focused..."            |
+| REGION_MISMATCH          | "Could not recover to the expected region. Please navigate..."              |
+| CONTROL_MISMATCH         | "Could not recover to the expected control. Please click..."                |
+| CARET_MISSING            | "No cursor position detected. Please click where you want to insert text." |
+| TARGET_GONE              | "The target you were working with no longer exists..."                      |
+| AMBIGUITY_ESCALATED      | "Could not determine the correct target. Please be more specific..."       |
+| UNVERIFIED_STATE         | "Could not verify focus state. Please click on the target and try again."  |
+| ABORTED_UNTRUSTED_STATE  | "Focus state cannot be verified. This may indicate a system issue..."        |
+| ABORTED_MISSING_TARGET   | "The target no longer exists or is not accessible. Please reopen it manually." |
 
 ## Engineering Implementation
 
@@ -199,14 +256,17 @@ Blocked/aborted recovery paths always include user-safe messages:
 
 ### Key Classes
 
-| Class/Interface      | Purpose                                      |
-|---------------------|---------------------------------------------|
-| FocusRecoveryService | Main service for drift detection/recovery |
-| RecoveryReason      | Enum for drift types                        |
-| RecoveryAction      | Enum for recovery actions                  |
-| RecoveryPolicy      | Enum for policy decisions                   |
-| RecoveryTelemetry  | Telemetry structure                         |
-| VerifiedFocusState  | Stored state for restoration                |
+| Class/Interface           | Purpose                                      |
+|---------------------------|---------------------------------------------|
+| FocusRecoveryService      | Main service for drift detection/recovery  |
+| RecoveryReason            | Enum for drift types                        |
+| RecoveryAction            | Enum for recovery actions                  |
+| RecoveryPolicy            | Enum for policy decisions                   |
+| RecoveryResultStatus      | Enum for result statuses (FP-5B refined)  |
+| StateIntegrityStatus     | Enum for integrity levels (FP-5B)         |
+| RestorationEligibility    | Interface for restore validation (FP-5B)   |
+| RecoveryTelemetry         | Telemetry structure (FP-5B updated)       |
+| VerifiedFocusState        | Stored state for restoration                |
 
 ### Public API
 
@@ -239,12 +299,22 @@ class FocusRecoveryService {
 
 ## Acceptance Criteria
 
+### FP-5A Acceptance Criteria
+
 - [x] Maestro can detect at least the approved common drift/failure classes
 - [x] Maestro can attempt bounded recovery on supported surfaces
 - [x] Recovery attempts are visible in telemetry
 - [x] Recovery does not loop indefinitely
 - [x] Blocked/aborted recovery paths are explicit and user-safe
 - [x] No regression in FP-3A through FP-4B behavior
+
+### FP-5B Acceptance Criteria (Hardening)
+
+- [x] Maestro does not restore blindly from stale or untrusted prior state
+- [x] Recovery results clearly distinguish retry vs restore vs abort
+- [x] Telemetry shows integrity and final re-verification
+- [x] Recovery remains bounded and user-safe
+- [x] No regression in FP-3A through FP-5A behavior
 
 ## Testing Matrix
 
@@ -270,12 +340,15 @@ class FocusRecoveryService {
 
 ## Version History
 
-- v0.1 (FP-5A) - Initial recovery foundations
+- v0.1 (FP-5A + FP-5B) - Recovery foundations + hardening
   - Drift detection model
   - Recovery reason taxonomy
   - Bounded recovery actions
   - Recovery policy
   - Recovery telemetry
+  - State integrity checks (FP-5B)
+  - Restoration validation (FP-5B)
+  - Refined recovery outcomes (FP-5B)
 
 ## Related Documents
 
