@@ -131,34 +131,38 @@ const Alternative: React.FC<{
     <a
       onClick={onClick}
       className={classNames(
-        "alternative-row block flex items-center text-white p-2 rounded-md transition-colors group",
+        "alternative-row block flex items-center text-white py-2 px-3 rounded-lg transition-all duration-300 group relative overflow-hidden",
         {
-          "bg-blue-500 hover:bg-blue-600 dark:bg-indigo-700 dark:hover:bg-indigo-800 cursor-pointer": usable,
-          "bg-blue-400 dark:bg-indigo-500 cursor-default": unusable,
-          "bg-violet-500 dark:bg-violet-700 cursor-default": highlighted,
-          "mb-1 mx-1 shadow": !miniMode,
+          "glass-card border-cyan-500/10 hover:border-cyan-500/30 hover:bg-cyan-500/5 cursor-pointer": usable,
+          "bg-white/5 border border-white/10 opacity-50 cursor-default": unusable,
+          "bg-cyan-500/20 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] cursor-default": highlighted,
+          "mb-1.5 mx-1": !miniMode,
           "mt-1": index > 1 || (miniMode && miniModeBottomUp && miniModeReversed),
         }
       )}
     >
-      <div className="mr-2 rainbow h-[28px] w-[28px] text-center rounded-full">
+      {/* Background Glow on Hover */}
+      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+      <div className="mr-3 flex items-center justify-center relative z-10">
         <div
           className={classNames(
-            "rounded-full font-bold h-[22px] w-[22px] m-[3px] flex justify-center items-center",
+            "rounded-md font-mono font-bold h-[24px] w-[24px] flex justify-center items-center transition-all duration-300",
             {
-              "bg-blue-600 group-hover:bg-blue-700 dark:bg-blue-800 dark:group-hover:bg-blue-900": usable,
-              "text-xs bg-blue-500 dark:bg-indigo-600": unusable,
-              "text-xs bg-violet-700 dark:bg-violet-900": highlighted,
+              "bg-black/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.2)] group-hover:border-cyan-400 group-hover:shadow-[0_0_12px_rgba(34,211,238,0.4)]": usable,
+              "bg-gray-800/40 border border-white/10 text-gray-400": unusable,
+              "bg-cyan-500 border border-cyan-300 text-white shadow-[0_0_10px_rgba(255,255,255,0.4)]": highlighted,
             }
           )}
         >
-          {circle}
+          <span className="text-[10px]">{circle}</span>
         </div>
       </div>
       <div
+        className="font-mono font-medium tracking-tight relative z-10"
         style={{
-          fontSize: "0.9rem",
+          fontSize: "0.85rem",
           lineHeight: "1.2rem",
+          color: highlighted ? "#fff" : "rgba(255,255,255,0.9)",
         }}
       >
         {description}
