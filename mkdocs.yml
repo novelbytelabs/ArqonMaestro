@@ -130,6 +130,8 @@ nav:
       - Plugin Lifecycle: development/plugin-lifecycle.md
   - Parsing:
       - Grammars: parsing/grammars.md
+  - Testing:
+      - Focus Test Plan: vos/maestro-focus-test-plan.md
   - Reference:
       - Selectors: reference/selectors.md
       - Formatting and Symbols: reference/formatting-and-symbols.md

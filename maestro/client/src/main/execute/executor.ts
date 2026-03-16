@@ -41,6 +41,11 @@ import { InvariantResult, InvariantCheckRecord } from "../runtime/focus-safety-m
 import FocusFailureAnalyzer from "../runtime/focus-failure-analyzer";
 import { FocusFailure, FailureAnalysis, FailureType, FailureSeverity, RecommendedAction } from "../runtime/focus-failure-modes";
 
+// Intent routing imports (FP-6A/6B)
+import IntentRoutingService from "../runtime/intent-routing-service";
+import { RegionKind } from "../runtime/focus-region-service";
+import { ControlType } from "../runtime/focus-precision-service";
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
@@ -63,6 +68,9 @@ export default class Executor {
 
   // Focus failure analyzer (FP-2.4)
   private focusFailureAnalyzer: FocusFailureAnalyzer;
+
+  // Intent routing service (FP-6A/6B)
+  private intentRoutingService: IntentRoutingService;
 
   // Store pre-validation result for comparison
   private lastPreValidationResult?: {
@@ -107,6 +115,9 @@ export default class Executor {
 
     // Initialize focus failure analyzer (FP-2.4)
     this.focusFailureAnalyzer = new FocusFailureAnalyzer({ verboseLogging: true });
+
+    // Initialize intent routing service (FP-6A/6B)
+    this.intentRoutingService = new IntentRoutingService();
   }
 
   private addToHistory(response: core.ICommandsResponse) {
@@ -191,7 +202,15 @@ export default class Executor {
         (alternative.commands || []).some((command: core.ICommand) => shouldCheck(command))
       )
     ) {
-      const apps = await getApps();
+      let apps: string[] = [];
+      try {
+        apps = await getApps();
+      } catch (e) {
+        // If we can't get running apps, don't invalidate (fail-open)
+        this.log.logVerbose("Could not get running apps - not invalidating commands");
+        return response;
+      }
+
       let seen: { [k: string]: boolean } = {};
       for (let i = 0; i < response.alternatives.length; i++) {
         const alternative = response.alternatives[i];
@@ -413,6 +432,8 @@ export default class Executor {
       core.CommandType.COMMAND_TYPE_STOP_DICTATE,
       core.CommandType.COMMAND_TYPE_SHOW_REVISION_BOX,
       core.CommandType.COMMAND_TYPE_HIDE_REVISION_BOX,
+      // FP-6A: Add FOCUS to auto-execute so "focus chrome" works automatically
+      core.CommandType.COMMAND_TYPE_FOCUS,
     ];
 
     const executeKeys: string[] = [
@@ -433,6 +454,12 @@ export default class Executor {
 
     // run commands are often in a terminal, where we don't want to do things unexpectedly
     if (valid[0].transcript.startsWith("run")) {
+      return response;
+    }
+
+    // focus commands should always auto-execute (FP-6A)
+    if (valid[0].transcript.startsWith("focus")) {
+      response.execute = valid[0];
       return response;
     }
 
@@ -537,6 +564,29 @@ export default class Executor {
 
           // FP-1.1: Verify focus transfer after FOCUS command
           if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text) {
+            // FP-6A/6B: Run intent routing before focus transfer
+            const routingResult = this.intentRoutingService.routeCommandHardened({
+              command: command.text!,
+              currentApplication: this.active.app,
+            });
+
+            // Log intent routing result
+            this.log.logVerbose(
+              `[ROUTING] command="${command.text}"` +
+              ` outcome=${routingResult.telemetry.outcome}` +
+              ` focusAgreement=${routingResult.telemetry.focusRoutingAgreement}` +
+              ` success=${routingResult.telemetry.success}`
+            );
+
+            // If routing failed, abort the focus transfer
+            if (!routingResult.telemetry.success) {
+              this.log.logVerbose(
+                `[ROUTING] Aborted: ${routingResult.telemetry.error || routingResult.result.error}`
+              );
+              // Continue to next command - don't attempt the transfer
+              continue;
+            }
+
             // FP-2.3: Run pre-transfer invariant checks
             await this.checkSafetyInvariantsPreTransfer();
 

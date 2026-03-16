@@ -29,9 +29,9 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 ## Current snapshot
 
 * Date: 2026-03-16
-* Program state: FP-4B in progress
-* Active phase: Focus Project - FP-4B (Precision Focus Hardening)
-* Reasoning posture: `high` is appropriate while FP-4B acceptance criteria are being implemented
+* Program state: FP-6B complete
+* Active phase: Focus Project - FP-6B (Intent Routing Hardening) complete
+* Reasoning posture: `high` is appropriate while acceptance criteria are being verified
 
 ---
 
@@ -45,7 +45,7 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 | 5 | Control | ✅ Complete (FP-4B) | Precision Focus Hardening |
 | 6 | Item | ⏸ Deferred | Not in FP-4 scope |
 | 7 | Caret | ✅ Complete (FP-4B) | Precision Focus Hardening |
-| 8 | Semantic Routing | ⏸ Deferred | Not in FP-4 scope |
+| 8 | Semantic Routing | ✅ Complete (FP-6B) | Intent Routing Hardening |
 
 ---
 
@@ -103,32 +103,28 @@ FP-1 (Verified Focus Core) builds on the implemented Layers 2-3 to add verificat
 
 ## Current in-progress area
 
-FP-4A is complete. FP-4B (Precision Focus Hardening) is now the active focus area.
+FP-6A and FP-6B are complete. Focus Project is now fully complete through Layer 8.
 
-### Completed inside FP-4A:
-* FP-4A charter creation and precision focus model
-* Approved surfaces model (VS Code editor, terminal, Chrome address bar)
-* Caret presence detection (limited to presence)
-* Selection state tracking
-* Text insertion safety checks
-* Detection authority documentation
+### Completed inside FP-6A:
+* Intent target model creation
+* Explicit scope parsing (code → vscode, chrome → chrome)
+* Implicit routing rules (paste → editor, run → terminal)
+* Routing confidence computation
+* Basic routing telemetry interface
 
-### Completed inside FP-4B:
-* Normalized precision state model (editable vs caret separation)
-* Selection authority in telemetry
-* Terminal caret detection method documentation
-* Blocked insertion user-safe messages
-* Insertion-class command guards
-* Precision test matrix
+### Completed inside FP-6B:
+* Extended routing telemetry with outcome classification
+* Focus-routing agreement checks
+* Scoped action validation
+* Degraded routing distinction (fallback != success)
+* Precision and safety gate integration
+* Expanded routing test matrix
 
 ---
 
 ## Next implementation target
 
-The next best move is:
-
-1. Complete FP-4B acceptance criteria verification
-2. Move to FP-5: Full Routing Intelligence
+Focus Project is complete through FP-6B. No further milestones currently authorized.
 
 ---
 
@@ -509,28 +505,140 @@ FP-4B builds on FP-4A to add hardening and production-ready features.
 
 ---
 
-### FP-3 Goals
+## FP-5A: Recovery Foundations
 
-1. **Region Focus Support**: Implement focus management at the region level within windows (e.g., sidebar, content area, toolbar)
-2. **Cross-Application Focus Patterns**: Enable focus transfers that span multiple applications with proper scope rules
-3. **Focus Scope Rules**: Define and enforce rules for focus scope boundaries
-4. **Window Management Integration**: Integrate with OS window management for region-aware focus transfers
+FP-5A adds bounded recovery capabilities to handle focus drift and failure scenarios.
 
-### FP-3 Deliverables
+### FP-5A Goals
 
-- Region focus detection and tracking
-- Cross-application scope rule engine
-- Window hierarchy awareness
-- Scope validation pipeline
+1. **Drift Detection**: Detect when focus state diverges from expected state
+2. **Recovery Action Taxonomy**: Define recovery action types (refocus, restore, abort)
+3. **Recovery Policy Selection**: Select appropriate recovery policy based on drift type
+4. **Bounded Recovery**: Limit recovery attempts to prevent infinite loops
+5. **User-Safe Messages**: Provide safe messages for recovery failures
 
-### FP-3 Acceptance Criteria
+### FP-5A Deliverables
+
+- [`focus-recovery-service.ts`](../../maestro/client/src/main/runtime/focus-recovery-service.ts) - Recovery orchestration
+- Drift detection logic
+- Recovery policy selection
+- Bounded retry logic
+- User-safe error messages
+
+### FP-5A Acceptance Criteria
 
 | ID | Criterion | Status |
 |----|-----------|--------|
-| FP-3.1 | Region focus detection | [ ] Pending |
-| FP-3.2 | Cross-application scope rules | [ ] Pending |
-| FP-3.3 | Window hierarchy awareness | [ ] Pending |
-| FP-3.4 | Scope validation | [ ] Pending |
+| FP-5A.1 | Drift detection | [x] Complete |
+| FP-5A.2 | Recovery action taxonomy | [x] Complete |
+| FP-5A.3 | Recovery policy selection | [x] Complete |
+| FP-5A.4 | Bounded recovery | [x] Complete |
+| FP-5A.5 | User-safe messages | [x] Complete |
+
+---
+
+## FP-5B: Recovery Hardening + State Integrity
+
+FP-5B builds on FP-5A to add state integrity verification and production hardening.
+
+### FP-5B Goals
+
+1. **State Integrity Verification**: Verify focus state age and trust level
+2. **Restoration Eligibility**: Determine if previous state can be restored
+3. **Recovery Telemetry**: Add comprehensive recovery event logging
+4. **Expiration Policies**: Implement state expiration thresholds
+5. **Recovery Capabilities**: Define per-application recovery support
+
+### FP-5B Deliverables
+
+- State integrity thresholds (STALE: 5 min, EXPIRED: 10 min)
+- Restoration eligibility checker
+- Recovery telemetry interface
+- Application recovery capabilities matrix
+
+### FP-5B Acceptance Criteria
+
+| ID | Criterion | Status |
+|----|-----------|--------|
+| FP-5B.1 | State integrity thresholds | [x] Complete |
+| FP-5B.2 | Restoration eligibility | [x] Complete |
+| FP-5B.3 | Recovery telemetry | [x] Complete |
+| FP-5B.4 | Expiration policies | [x] Complete |
+| FP-5B.5 | Recovery capabilities | [x] Complete |
+
+---
+
+## FP-6A: Intent Routing Foundations
+
+FP-6A adds intent-based routing with explicit scope and bounded implicit rules.
+
+> **Note:** This is the first bounded move into Layer 8 — Intent Target.
+
+### FP-6A Goals
+
+1. **Intent Target Model**: Create distinct intent target model (separate from focus state)
+2. **Explicit Scope Routing**: Route commands with explicit scope (e.g., "in code")
+3. **Implicit Target Rules**: Apply bounded implicit rules for supported surfaces
+4. **Routing Confidence**: Compute and report routing confidence
+5. **Routing Telemetry**: Log routing decisions for debugging
+6. **Safety Integration**: Ensure routing flows through safety/precision/recovery
+
+### FP-6A Deliverables
+
+- [`intent-routing-service.ts`](../../maestro/client/src/main/runtime/intent-routing-service.ts) - Intent routing service
+- [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md) - Intent routing documentation
+- IntentTarget model
+- Explicit scope mappings (code → vscode, chrome → chrome)
+- Implicit routing rules (paste → editor, run → terminal)
+- Routing confidence computation
+- Routing telemetry
+
+### FP-6A Acceptance Criteria
+
+| ID | Criterion | Status |
+|----|-----------|--------|
+| FP-6A.1 | Intent target model exists | [x] Complete |
+| FP-6A.2 | Explicit scope routing | [x] Complete |
+| FP-6A.3 | Implicit target rules | [x] Complete |
+| FP-6A.4 | Routing confidence | [x] Complete |
+| FP-6A.5 | Routing telemetry | [x] Complete |
+| FP-6A.6 | Safety integration | [x] Complete |
+| FP-6A.7 | No regressions | [x] Complete |
+
+---
+
+## FP-6B: Intent Routing Hardening + Scoped Action Safety
+
+FP-6B hardens intent routing so explicitly scoped and narrowly implicit actions are safer, more inspectable, and more resistant to focus/routing mismatch.
+
+### FP-6B Goals
+
+1. **Routing Telemetry Hardening**: Extend telemetry for operational inspection
+2. **Focus-Routing Agreement**: Check compatibility before execution
+3. **Scoped Action Validation**: Validate actions against compatible targets
+4. **Degraded Routing Policy**: Make fallback visibly distinct from success
+5. **Test Matrix Expansion**: Add comprehensive routing tests
+
+### FP-6B Deliverables
+
+- Extended routing telemetry with outcome classification
+- Focus-routing agreement checking
+- Scoped action validation
+- Degraded routing distinction
+- Precision and safety gate integration
+- Expanded test matrix
+
+### FP-6B Acceptance Criteria
+
+| ID | Criterion | Status |
+|----|-----------|--------|
+| FP-6B.1 | Rich telemetry for inspection | [x] Complete |
+| FP-6B.2 | Focus-routing agreement checks | [x] Complete |
+| FP-6B.3 | Scoped action validation | [x] Complete |
+| FP-6B.4 | Degraded routing distinction | [x] Complete |
+| FP-6B.5 | Precision/safety gates | [x] Complete |
+| FP-6B.6 | Test matrix expansion | [x] Complete |
+| FP-6B.7 | No regressions | [x] Complete |
 
 ---
 
@@ -543,6 +651,10 @@ FP-4B builds on FP-4A to add hardening and production-ready features.
 * [`maestro/client/src/main/driver/stub.ts`](../../maestro/client/src/main/driver/stub.ts) - Layer 2-3 implementation
 * [`focus-region-handler.ts`](../../maestro/client/src/main/runtime/focus-region-handler.ts) - Region transfer with fallback (FP-3B)
 * [`focus-region-test-matrix.ts`](../../maestro/client/src/main/runtime/focus-region-test-matrix.ts) - Test matrix (FP-3B)
+* [`focus-precision-service.ts`](../../maestro/client/src/main/runtime/focus-precision-service.ts) - Precision focus (FP-4A/4B)
+* [`focus-recovery-service.ts`](../../maestro/client/src/main/runtime/focus-recovery-service.ts) - Recovery (FP-5A/5B)
+* [`intent-routing-service.ts`](../../maestro/client/src/main/runtime/intent-routing-service.ts) - Intent routing (FP-6A)
+* [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md) - Intent routing docs
 
 ---
 
