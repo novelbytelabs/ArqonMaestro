@@ -133,9 +133,9 @@ const Alternative: React.FC<{
       className={classNames(
         "alternative-row block flex items-center text-white py-2 px-3 rounded-lg transition-all duration-300 group relative overflow-hidden",
         {
-          "glass-card border-cyan-500/10 hover:border-cyan-500/30 hover:bg-cyan-500/5 cursor-pointer": usable,
-          "bg-white/5 border border-white/10 opacity-50 cursor-default": unusable,
-          "bg-cyan-500/20 border border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] cursor-default": highlighted,
+          "glass-card border-white/10 hover:border-cyan-500/30 hover:bg-white/5 cursor-pointer": usable,
+          "bg-white/5 border border-white/5 opacity-40 cursor-default": unusable,
+          "bg-cyan-500/20 border border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)] cursor-default": highlighted,
           "mb-1.5 mx-1": !miniMode,
           "mt-1": index > 1 || (miniMode && miniModeBottomUp && miniModeReversed),
         }
