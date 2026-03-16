@@ -12,8 +12,15 @@
   }
 
   .secondary-button {
-    @apply rounded-full text-white bg-violet-600 hover:bg-violet-700 shadow-violet-600/50 dark:bg-violet-800 dark:hover:bg-violet-900 dark:shadow-violet-800/50 shadow-md transition-colors;
-    padding: 0.5em 1.5em;
+    @apply rounded-full text-white bg-cyan-600 hover:bg-cyan-700 shadow-cyan-600/50 dark:bg-cyan-500 dark:hover:bg-cyan-600 dark:shadow-cyan-500/50 shadow-md transition-all duration-300;
+    padding: 0.6em 2em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pilot-pill {
+    @apply px-3 py-1 rounded-full border border-amber-500 text-amber-500 text-[10px] uppercase font-bold tracking-widest bg-amber-500/10;
   }
 
   .input {
@@ -27,8 +34,49 @@
 }
 
 .app.dark {
-  background: #1e293b;
+  background: #081c26;
   color: #e5e5e5;
+}
+
+.operator-surface {
+  background: radial-gradient(circle at top right, #0d2a38 0%, #081c26 100%);
+  color: #f8fafc;
+}
+
+.glass-card {
+  background: rgba(13, 42, 56, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 12px;
+}
+
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+}
+
+@keyframes fadeInProject {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInProject 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
 }
 
 .app.mini-mode-window {

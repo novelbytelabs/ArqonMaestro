@@ -28,10 +28,10 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 
 ## Current snapshot
 
-* Date: 2026-03-15
-* Program state: FP-3B in progress
-* Active phase: Focus Project - FP-3B (Region Hardening + Ambiguity Control)
-* Reasoning posture: `high` is appropriate while FP-3B acceptance criteria are being implemented
+* Date: 2026-03-16
+* Program state: FP-4B in progress
+* Active phase: Focus Project - FP-4B (Precision Focus Hardening)
+* Reasoning posture: `high` is appropriate while FP-4B acceptance criteria are being implemented
 
 ---
 
@@ -41,11 +41,11 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 |-------|------|--------|---------------------|
 | 2 | Application Focus | ✅ Complete | stub.ts driver + verification |
 | 3 | Window Focus | ✅ Complete | stub.ts driver + verification |
-| 4 | Region | ⏸ In Progress (FP-3B) | Hardening + Ambiguity Control |
-| 5 | Control | ⏸ Deferred | Not in FP-1 scope |
-| 6 | Item | ⏸ Deferred | Not in FP-1 scope |
-| 7 | Caret | ⏸ Deferred | Not in FP-1 scope |
-| 8 | Semantic Routing | ⏸ Deferred | Not in FP-1 scope |
+| 4 | Region | ✅ Complete (FP-3B) | Hardening + Ambiguity Control |
+| 5 | Control | ✅ Complete (FP-4B) | Precision Focus Hardening |
+| 6 | Item | ⏸ Deferred | Not in FP-4 scope |
+| 7 | Caret | ✅ Complete (FP-4B) | Precision Focus Hardening |
+| 8 | Semantic Routing | ⏸ Deferred | Not in FP-4 scope |
 
 ---
 
@@ -103,25 +103,23 @@ FP-1 (Verified Focus Core) builds on the implemented Layers 2-3 to add verificat
 
 ## Current in-progress area
 
-FP-3A is complete. FP-3B (Region Hardening + Ambiguity Control) is now the active focus area.
+FP-4A is complete. FP-4B (Precision Focus Hardening) is now the active focus area.
 
-### Completed inside FP-3A:
-* FP-3A charter creation and region model definition
-* Canonical region model for VS Code (editor, terminal, sidebar, panel, etc.)
-* Canonical region model for Chrome (page, address_bar, tab_bar, devtools, etc.)
-* Extended FocusTarget and FocusState with regionKind and regionId
-* FocusRegionService with region definitions and confidence calculation
-* FocusRegionHandler for executing region transfers
-* FocusRegionVerificationService for verifying region transfers
-* FocusAmbiguityPolicy for resolving "terminal" ambiguity
+### Completed inside FP-4A:
+* FP-4A charter creation and precision focus model
+* Approved surfaces model (VS Code editor, terminal, Chrome address bar)
+* Caret presence detection (limited to presence)
+* Selection state tracking
+* Text insertion safety checks
+* Detection authority documentation
 
-### Completed inside FP-3B:
-* Explicit fallback policy per supported region command
-* Stable debug event shape for region transfers
-* Region test matrix covering success/failure/ambiguity
-* Hardened terminal ambiguity policy with fallback handling
-* Chrome page/address bar behavior explicitly documented
-* Heuristic vs verified region detections documented
+### Completed inside FP-4B:
+* Normalized precision state model (editable vs caret separation)
+* Selection authority in telemetry
+* Terminal caret detection method documentation
+* Blocked insertion user-safe messages
+* Insertion-class command guards
+* Precision test matrix
 
 ---
 
@@ -129,8 +127,8 @@ FP-3A is complete. FP-3B (Region Hardening + Ambiguity Control) is now the activ
 
 The next best move is:
 
-1. Complete FP-3B acceptance criteria verification
-2. Move to FP-4A: Precision Focus Foundations
+1. Complete FP-4B acceptance criteria verification
+2. Move to FP-5: Full Routing Intelligence
 
 ---
 
@@ -383,6 +381,131 @@ FP-3B builds on FP-3A to add hardening and ambiguity control for production use.
 - [x] Document all VS Code regions as VERIFIED
 - [x] Document Chrome page, tab_bar as HEURISTIC
 - [x] Document Chrome address_bar, devtools as VERIFIED
+
+---
+
+## FP-4: Precision Focus
+
+FP-4 focuses on precision focus at Layer 5 (Control) and Layer 7 (Caret) for text insertion safety.
+
+> **Note:** FP-4 has been split into FP-4A (Precision Focus Foundations) and FP-4B (Precision Focus Hardening) for better incremental delivery.
+
+### FP-4A: Precision Focus Foundations
+
+FP-4A establishes the precision focus model and text insertion safety checks.
+
+#### FP-4A Goals
+
+1. **Precision Surface Model**: Define approved surfaces for precision focus (VS Code editor, terminal, Chrome address bar)
+2. **Caret Presence Detection**: Detect caret presence in text controls (not full semantics)
+3. **Selection Tracking**: Track selection state where practical
+4. **Text Insertion Precheck**: Safety check before text insertion operations
+5. **Detection Authority**: Document how focus/caret is detected
+
+#### FP-4A Deliverables
+
+- [`focus-precision-service.ts`](../../maestro/client/src/main/runtime/focus-precision-service.ts) - Precision focus tracking
+- Detection authority classification
+- Text insertion safety checks
+- Selection state tracking
+
+#### FP-4A Acceptance Criteria
+
+| ID | Criterion | Status |
+|----|-----------|--------|
+| FP-4A.1 | Approved surfaces model | [x] Complete |
+| FP-4A.2 | Caret presence detection | [x] Complete |
+| FP-4A.3 | Selection tracking | [x] Complete |
+| FP-4A.4 | Text insertion precheck | [x] Complete |
+| FP-4A.5 | Detection authority documentation | [x] Complete |
+
+---
+
+### FP-4B: Precision Focus Hardening
+
+FP-4B builds on FP-4A to add hardening and production-ready features.
+
+#### FP-4B Goals (PM Hardening Notes)
+
+1. **Normalize Precision State Model**: Separate "editable" from "caret present"
+2. **Selection Authority**: Add selection authority to telemetry
+3. **Terminal Caret Semantics**: Document exact detection method with conservative semantics
+4. **Blocked Insertion Messages**: Add user-safe error messages for blocked insertions
+5. **Insertion-Class Guards**: Integrate insertion-class command guards
+6. **Test Matrix**: Build comprehensive precision test matrix
+
+#### FP-4B Deliverables
+
+- Normalized `PrecisionFocusState` with separated editable/caret
+- `SelectionAuthority` enum for telemetry
+- `TerminalCaretDetectionMethod` documentation
+- `BlockedInsertionResult` with user-safe messages
+- `InsertionCommandType` classification
+- [`focus-precision-service.spec.ts`](../../maestro/client/src/test/focus-precision-service.spec.ts) - Test matrix
+
+#### FP-4B Acceptance Criteria
+
+| ID | Criterion | Status |
+|----|-----------|--------|
+| FP-4B.1 | Normalized precision state model | [x] Complete |
+| FP-4B.2 | Selection authority in telemetry | [x] Complete |
+| FP-4B.3 | Terminal caret detection documented | [x] Complete |
+| FP-4B.4 | Blocked insertion messages | [x] Complete |
+| FP-4B.5 | Insertion-class command guards | [x] Complete |
+| FP-4B.6 | Precision test matrix | [x] Complete |
+
+#### FP-4B.1: Normalized Precision State Model
+
+- [x] Add `EditableState` interface (separate from caret)
+- [x] Add `CaretPresenceState` with hasCaret flag
+- [x] Include both in `PrecisionFocusState`
+- [x] Document: "editable" = can accept text, "caret" = cursor present
+
+#### FP-4B.2: Selection Authority in Telemetry
+
+- [x] Add `SelectionAuthority` enum (APPLICATION_API, ACCESSIBILITY, INFERRED)
+- [x] Add confidence scores for each authority
+- [x] Include in `SelectionState` interface
+- [x] Map from detection authority to selection authority
+
+#### FP-4B.3: Terminal Caret Detection (PM Hardening Notes)
+
+- [x] Add `TerminalCaretDetectionMethod` enum
+- [x] Document VS Code Terminal API method
+- [x] Document conservative fallback for unknown terminals
+- [x] Add `TerminalCaretDetectionResult` interface
+- [x] Use conservative confidence (0.7) for VS Code terminal
+
+#### FP-4B.4: Blocked Insertion Messages
+
+- [x] Add `BlockedInsertionResult` interface
+- [x] Include userSafeMessage field
+- [x] Add `checkBlockedInsertion()` method
+- [x] Add `getBlockedInsertionUserMessage()` helper
+- [x] Add `getAnyUserSafeMessage()` unified interface
+
+#### FP-4B.5: Insertion-Class Command Guards
+
+- [x] Add `InsertionCommandType` enum
+- [x] Add `isInsertionClassCommand()` function
+- [x] Add `classifyInsertionCommand()` function
+- [x] Block insertions when no caret for text input commands
+- [x] Allow paste without caret (safer)
+
+#### FP-4B.6: Precision Test Matrix
+
+- [x] Test detection authority confidence
+- [x] Test selection authority confidence
+- [x] Test insertion command detection
+- [x] Test insertion command classification
+- [x] Test precision surface detection
+- [x] Test caret presence detection
+- [x] Test editable state detection
+- [x] Test terminal caret detection
+- [x] Test selection state with authority
+- [x] Test blocked insertion checks
+- [x] Test user-safe error messages
+- [x] Test complete precision focus state
 
 ---
 

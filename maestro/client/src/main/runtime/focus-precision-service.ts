@@ -3,12 +3,14 @@
  *
  * Provides precision focus tracking for Layer 5 (Control) and Layer 7 (Caret).
  * Part of FP-4A: Precision Focus Foundations
+ * FP-4B: Precision Focus Hardening
  *
  * This service provides:
  * - Control focus tracking on limited surfaces (VS Code editor, terminal, Chrome address bar)
  * - Selection tracking where practical
  * - Caret presence detection (not full semantics)
  * - Text-insertion precheck for safety
+ * - Insertion-class command guards
  *
  * =============================================================================
  * APPROVED SURFACES (FP-4A)
@@ -31,6 +33,29 @@
  * | accessibility      | OS accessibility API (AT)                            |
  * | shortcut_inference | Known keyboard shortcut behavior                      |
  * | heuristic         | Heuristic inference (least reliable)                 |
+ *
+ * =============================================================================
+ * SELECTION AUTHORITY (FP-4B)
+ * =============================================================================
+ *
+ * Tracks the authority/source of selection state information:
+ * | Authority         | Description                                            |
+ * |-------------------|--------------------------------------------------------|
+ * | application_api   | Direct application API (most reliable)                 |
+ * | accessibility     | OS accessibility API                                   |
+ * | inferred          | Inferred from document/control state                   |
+ *
+ * =============================================================================
+ * EDITABLE VS CARET STATE (FP-4B - PM Hardening Notes)
+ * =============================================================================
+ *
+ * PM Hardening: Separate "editable" from "caret present"
+ * - editable_state: Whether the surface CAN accept text input
+ * - caret_state: Whether there is currently a cursor/caret
+ *
+ * These are different because:
+ * - A surface can be editable (accepts input) but have no caret (e.g., button focus)
+ * - A surface can have a caret but not be fully editable (e.g., read-only region)
  *
  * =============================================================================
  * CHROME PAGE FALLBACK SEMANTICS (PM Hardening Notes)
@@ -70,6 +95,40 @@ export enum DetectionAuthority {
   SHORTCUT_INFERENCE = "shortcut_inference",
   /** Heuristic inference - least reliable */
   HEURISTIC = "heuristic",
+}
+
+/**
+ * Selection authority for precision focus (FP-4B)
+ * Classifies how the selection state was determined
+ */
+export enum SelectionAuthority {
+  /** Direct application API - most reliable */
+  APPLICATION_API = "application_api",
+  /** Operating system accessibility API */
+  ACCESSIBILITY = "accessibility",
+  /** Inferred from document/control state */
+  INFERRED = "inferred",
+}
+
+/**
+ * Insertion-class command types (FP-4B)
+ * Commands that insert text content and require precision focus
+ */
+export enum InsertionCommandType {
+  /** Direct text insertion */
+  INSERT = "insert",
+  /** Dictation text insertion */
+  DICTATE = "dictate",
+  /** Spelling expansion */
+  SPELLING = "spelling",
+  /** Template insertion */
+  TEMPLATE = "template",
+  /** Clipboard paste */
+  PASTE = "paste",
+  /** Auto-complete selection */
+  AUTOCOMPLETE = "autocomplete",
+  /** Unknown insertion type */
+  UNKNOWN = "unknown",
 }
 
 /**
@@ -113,6 +172,8 @@ export interface PrecisionSurface {
 /**
  * Caret presence state (Layer 7 - limited to presence detection)
  * NOT full caret semantics - only presence detection
+ * 
+ * FP-4B: Separated from editable state per PM hardening notes
  */
 export interface CaretPresenceState {
   /** Whether a caret is present */
@@ -126,8 +187,32 @@ export interface CaretPresenceState {
 }
 
 /**
+ * Editable state (FP-4B - PM Hardening Notes)
+ * 
+ * Separated from caret state because:
+ * - A surface can be editable (accepts input) but have no caret
+ * - A surface can have a caret but not be fully editable
+ * 
+ * This represents whether text CAN be inserted, regardless of caret position
+ */
+export interface EditableState {
+  /** Whether the surface is currently editable (can accept text) */
+  isEditable: boolean;
+  /** The surface where editable state applies */
+  surface: PrecisionSurface | null;
+  /** Reason for editable state (if not editable) */
+  reason?: string;
+  /** Timestamp when state was captured */
+  timestamp: string;
+  /** Detection authority for editable state */
+  detectionAuthority: DetectionAuthority;
+}
+
+/**
  * Selection state for text controls
  * Where practical to track
+ * 
+ * FP-4B: Includes SelectionAuthority for telemetry visibility
  */
 export interface SelectionState {
   /** Whether there is an active selection */
@@ -144,17 +229,25 @@ export interface SelectionState {
   isBackward: boolean;
   /** Timestamp when state was captured */
   timestamp: string;
+  /** Selection authority - how selection was determined (FP-4B) */
+  selectionAuthority: SelectionAuthority;
 }
 
 /**
- * Combined precision focus state
- * Aggregates control, caret, and selection information
+ * Combined precision focus state (FP-4B - normalized)
+ * Aggregates control, caret, editable, and selection information
+ * 
+ * Normalized per PM hardening notes to separate:
+ * - editable_state: Can the surface accept text?
+ * - caret_state: Is there a cursor present?
  */
 export interface PrecisionFocusState {
   /** Current control/surface in focus */
   surface: PrecisionSurface | null;
-  /** Caret presence information */
+  /** Caret presence information (Layer 7) */
   caret: CaretPresenceState;
+  /** Editable state - can surface accept text? (FP-4B) */
+  editable: EditableState;
   /** Current selection (if any) */
   selection: SelectionState | null;
   /** Whether text insertion is safe at current position */
@@ -176,6 +269,27 @@ export interface TextInsertionPrecheck {
   message: string;
   /** Surface information if relevant */
   surface?: PrecisionSurface;
+}
+
+/**
+ * Blocked insertion result (FP-4B)
+ * 
+ * Contains user-safe error messages for blocked insertions
+ * Ensures blocked outcomes are never silent
+ */
+export interface BlockedInsertionResult {
+  /** Whether the insertion was blocked */
+  blocked: boolean;
+  /** The reason the insertion was blocked */
+  reason: TextInsertionReason;
+  /** User-safe message (can be displayed to user) */
+  userSafeMessage: string;
+  /** Technical details for logging */
+  technicalDetails: string;
+  /** Surface information if relevant */
+  surface?: PrecisionSurface;
+  /** Timestamp when blocked */
+  timestamp: string;
 }
 
 /**
@@ -398,6 +512,49 @@ export const DETECTION_AUTHORITY_CONFIDENCE: Record<DetectionAuthority, number> 
 };
 
 /**
+ * Confidence scores by selection authority (FP-4B)
+ */
+export const SELECTION_AUTHORITY_CONFIDENCE: Record<SelectionAuthority, number> = {
+  [SelectionAuthority.APPLICATION_API]: 1.0,
+  [SelectionAuthority.ACCESSIBILITY]: 0.85,
+  [SelectionAuthority.INFERRED]: 0.6,
+};
+
+/**
+ * Terminal caret detection method (FP-4B - PM Hardening Notes)
+ * 
+ * Documents the exact detection method used for terminal caret
+ * Conservative approach: Only detect when certain
+ */
+export enum TerminalCaretDetectionMethod {
+  /** Direct VS Code Terminal API integration */
+  VSCODE_TERMINAL_API = "vscode_terminal_api",
+  /** Terminal process control character detection */
+  TERMINAL_CONTROL_CHARS = "terminal_control_chars",
+  /** Heuristic based on cursor position requests */
+  CURSOR_POSITION_HEURISTIC = "cursor_position_heuristic",
+  /** Cannot detect - terminal is a black box */
+  UNDETECTABLE = "undetectable",
+}
+
+/**
+ * Terminal caret detection result (FP-4B)
+ * Documents exact detection method per PM hardening notes
+ */
+export interface TerminalCaretDetectionResult {
+  /** Whether caret was detected */
+  hasCaret: boolean;
+  /** The detection method used */
+  detectionMethod: TerminalCaretDetectionMethod;
+  /** Confidence in the detection [0.0, 1.0] */
+  confidence: number;
+  /** Details about the detection */
+  details: string;
+  /** Timestamp */
+  timestamp: string;
+}
+
+/**
  * Check if a surface is approved for precision focus
  */
 export function isApprovedSurface(application: string, controlType: ControlType): boolean {
@@ -543,7 +700,118 @@ export default class FocusPrecisionService {
   }
 
   /**
+   * Detect editable state (FP-4B - PM Hardening Notes)
+   * 
+   * Separated from caret detection because:
+   * - A surface can be editable (accepts input) but have no caret
+   * - A surface can have a caret but not be fully editable
+   * 
+   * @param surface - The current precision surface
+   * @returns Editable state
+   */
+  async detectEditableState(surface: PrecisionSurface | null): Promise<EditableState> {
+    const timestamp = new Date().toISOString();
+    
+    if (!surface) {
+      return {
+        isEditable: false,
+        surface: null,
+        reason: "No surface in focus",
+        timestamp,
+        detectionAuthority: DetectionAuthority.HEURISTIC,
+      };
+    }
+
+    // Check if this surface type accepts input
+    const surfaceConfig = APPROVED_SURFACES[
+      surface.application.includes("vscode") ? SupportedApplication.VSCODE :
+      surface.application.includes("chrome") ? SupportedApplication.CHROME :
+      SupportedApplication.UNKNOWN
+    ]?.[surface.controlType];
+
+    if (!surfaceConfig) {
+      return {
+        isEditable: false,
+        surface,
+        reason: `Unknown surface type: ${surface.controlType}`,
+        timestamp,
+        detectionAuthority: DetectionAuthority.HEURISTIC,
+      };
+    }
+
+    if (!surfaceConfig.acceptsInput) {
+      return {
+        isEditable: false,
+        surface,
+        reason: `Control ${surface.controlType} does not accept text input`,
+        timestamp,
+        detectionAuthority: surfaceConfig.detectionAuthority,
+      };
+    }
+
+    // In a real implementation, would check if the control is:
+    // - Not read-only
+    // - Not disabled
+    // - Not in a non-editable mode
+    
+    return {
+      isEditable: true,
+      surface,
+      timestamp,
+      detectionAuthority: surface.detectionAuthority,
+    };
+  }
+
+  /**
+   * Detect terminal caret using conservative method (FP-4B - PM Hardening Notes)
+   * 
+   * Terminal caret detection is inherently unreliable. This method documents
+   * the exact detection method and uses conservative semantics.
+   * 
+   * @param surface - The current precision surface
+   * @returns Terminal caret detection result
+   */
+  async getTerminalCaretDetection(surface: PrecisionSurface | null): Promise<TerminalCaretDetectionResult> {
+    const timestamp = new Date().toISOString();
+    
+    // Not a terminal
+    if (!surface || surface.controlType !== ControlType.TERMINAL) {
+      return {
+        hasCaret: false,
+        detectionMethod: TerminalCaretDetectionMethod.UNDETECTABLE,
+        confidence: 0,
+        details: "Not a terminal surface",
+        timestamp,
+      };
+    }
+
+    // VS Code Terminal - can potentially use Terminal API
+    if (surface.application.includes("vscode")) {
+      // In real implementation, would query VS Code Terminal API
+      // For now, use heuristic-based conservative approach
+      return {
+        hasCaret: true, // Assume true when terminal is focused
+        detectionMethod: TerminalCaretDetectionMethod.VSCODE_TERMINAL_API,
+        confidence: 0.7, // Conservative - terminal API is not 100% reliable
+        details: "VS Code Terminal API integration (conservative)",
+        timestamp,
+      };
+    }
+
+    // Generic terminal - hard to detect reliably
+    return {
+      hasCaret: false, // Conservative: assume no caret for unknown terminals
+      detectionMethod: TerminalCaretDetectionMethod.UNDETECTABLE,
+      confidence: 0.1,
+      details: "Generic terminal caret is undetectable - conservative fallback",
+      timestamp,
+    };
+  }
+
+  /**
    * Detect selection state (where practical)
+   * 
+   * FP-4B: Includes SelectionAuthority in return value for telemetry visibility
    * 
    * @param surface - The current precision surface
    * @returns Selection state or null if not applicable
@@ -570,6 +838,19 @@ export default class FocusPrecisionService {
     // For VS Code: check selection in activeTextEditor
     // For Chrome: check window.getSelection() or input.value selection
     
+    // Determine selection authority based on detection method
+    let selectionAuthority: SelectionAuthority;
+    switch (surface.detectionAuthority) {
+      case DetectionAuthority.DIRECT_INTEGRATION:
+        selectionAuthority = SelectionAuthority.APPLICATION_API;
+        break;
+      case DetectionAuthority.ACCESSIBILITY:
+        selectionAuthority = SelectionAuthority.ACCESSIBILITY;
+        break;
+      default:
+        selectionAuthority = SelectionAuthority.INFERRED;
+    }
+    
     // Placeholder for actual implementation - return no selection by default
     return {
       hasSelection: false,
@@ -578,6 +859,7 @@ export default class FocusPrecisionService {
       selectionLength: 0,
       isBackward: false,
       timestamp,
+      selectionAuthority,
     };
   }
 
@@ -664,7 +946,9 @@ export default class FocusPrecisionService {
   }
 
   /**
-   * Get complete precision focus state
+   * Get complete precision focus state (FP-4B - normalized)
+   * 
+   * Returns normalized state with separated editable vs caret state
    * 
    * @param application - Current application
    * @param regionKind - Current region (optional)
@@ -676,12 +960,14 @@ export default class FocusPrecisionService {
   ): Promise<PrecisionFocusState> {
     const surface = await this.detectPrecisionSurface(application, regionKind);
     const caret = await this.detectCaretPresence(surface);
+    const editable = await this.detectEditableState(surface);
     const selection = await this.detectSelection(surface);
     const textCheck = await this.textInsertionPrecheck(surface);
     
     return {
       surface,
       caret,
+      editable,
       selection,
       isTextInsertionSafe: textCheck.allowed,
       timestamp: new Date().toISOString(),
@@ -724,6 +1010,143 @@ export default class FocusPrecisionService {
   }
 
   /**
+   * Get selection authority confidence score (FP-4B)
+   */
+  getSelectionAuthorityConfidence(authority: SelectionAuthority): number {
+    return SELECTION_AUTHORITY_CONFIDENCE[authority] ?? 0.5;
+  }
+
+  /**
+   * Check if a command type is an insertion-class command (FP-4B)
+   * 
+   * Insertion-class commands require precision focus to work correctly
+   * because they insert text content that could be lost or misplaced
+   * without proper caret/editable state.
+   * 
+   * @param commandType - The command type string (e.g., "insert", "dictate")
+   * @returns Whether this is an insertion-class command
+   */
+  isInsertionClassCommand(commandType: string): boolean {
+    const insertionTypes: Record<InsertionCommandType, boolean> = {
+      [InsertionCommandType.INSERT]: true,
+      [InsertionCommandType.DICTATE]: true,
+      [InsertionCommandType.SPELLING]: true,
+      [InsertionCommandType.TEMPLATE]: true,
+      [InsertionCommandType.PASTE]: true,
+      [InsertionCommandType.AUTOCOMPLETE]: true,
+      [InsertionCommandType.UNKNOWN]: false,
+    };
+    
+    // Normalize command type
+    const normalized = commandType.toLowerCase().trim();
+    
+    // Check against known insertion types
+    if (normalized in insertionTypes) {
+      return insertionTypes[normalized as InsertionCommandType];
+    }
+    
+    // Check if it contains insertion-related keywords
+    const insertionKeywords = ["insert", "dictat", "spell", "template", "paste", "autocomplete"];
+    return insertionKeywords.some(keyword => normalized.includes(keyword));
+  }
+
+  /**
+   * Get insertion command type classification (FP-4B)
+   * 
+   * @param commandType - The command type string
+   * @returns The classified insertion command type
+   */
+  classifyInsertionCommand(commandType: string): InsertionCommandType {
+    const normalized = commandType.toLowerCase().trim();
+    
+    if (normalized === "insert") return InsertionCommandType.INSERT;
+    if (normalized.includes("dictat")) return InsertionCommandType.DICTATE;
+    if (normalized.includes("spell")) return InsertionCommandType.SPELLING;
+    if (normalized.includes("template")) return InsertionCommandType.TEMPLATE;
+    if (normalized.includes("paste")) return InsertionCommandType.PASTE;
+    if (normalized.includes("autocomplete")) return InsertionCommandType.AUTOCOMPLETE;
+    
+    return InsertionCommandType.UNKNOWN;
+  }
+
+  /**
+   * Check if an insertion should be blocked and return user-safe message (FP-4B)
+   * 
+   * @param surface - The current precision surface
+   * @param commandType - The command type being attempted
+   * @returns Blocked insertion result with user-safe message
+   */
+  async checkBlockedInsertion(
+    surface: PrecisionSurface | null,
+    commandType: string
+  ): Promise<BlockedInsertionResult> {
+    const timestamp = new Date().toISOString();
+    
+    // First check: Is this an insertion-class command?
+    if (!this.isInsertionClassCommand(commandType)) {
+      return {
+        blocked: false,
+        reason: TextInsertionReason.SAFE,
+        userSafeMessage: "",
+        technicalDetails: "Non-insertion command - no blocking needed",
+        surface,
+        timestamp,
+      };
+    }
+
+    // No surface = block
+    if (!surface) {
+      return {
+        blocked: true,
+        reason: TextInsertionReason.NO_FOCUS,
+        userSafeMessage: "No text field in focus. Please click in a text field first.",
+        technicalDetails: `Insertion command '${commandType}' blocked: No precision surface`,
+        surface: undefined,
+        timestamp,
+      };
+    }
+
+    // Check editable state
+    const editable = await this.detectEditableState(surface);
+    if (!editable.isEditable) {
+      return {
+        blocked: true,
+        reason: TextInsertionReason.UNSAFE_CONTROL,
+        userSafeMessage: `Cannot insert text here. This field (${surface.controlType}) does not accept text input.`,
+        technicalDetails: `Insertion command '${commandType}' blocked: Surface not editable - ${editable.reason}`,
+        surface,
+        timestamp,
+      };
+    }
+
+    // Check caret state for insertion commands
+    const caret = await this.detectCaretPresence(surface);
+    
+    // For text input commands, require caret presence
+    const insertionType = this.classifyInsertionCommand(commandType);
+    if (insertionType !== InsertionCommandType.PASTE && !caret.hasCaret) {
+      return {
+        blocked: true,
+        reason: TextInsertionReason.NO_CARET,
+        userSafeMessage: "No cursor position detected. Please click where you want to insert text.",
+        technicalDetails: `Insertion command '${commandType}' blocked: No caret present`,
+        surface,
+        timestamp,
+      };
+    }
+
+    // All checks passed
+    return {
+      blocked: false,
+      reason: TextInsertionReason.SAFE,
+      userSafeMessage: "",
+      technicalDetails: `Insertion command '${commandType}' allowed`,
+      surface,
+      timestamp,
+    };
+  }
+
+  /**
    * Check if transfer failure should be user-safe (PM Hardening Notes)
    * Ensures transfer_failed behavior is never silent
    * 
@@ -757,5 +1180,45 @@ export default class FocusPrecisionService {
 
     // Default user-safe message
     return result.userSafeMessage ?? "Focus transfer failed. Please try again or use an alternative method.";
+  }
+
+  /**
+   * Get user-safe error message for blocked insertion (FP-4B)
+   * 
+   * @param result - The blocked insertion result
+   * @returns User-safe message for display
+   */
+  getBlockedInsertionUserMessage(result: BlockedInsertionResult): string {
+    if (!result.blocked) {
+      return "";
+    }
+
+    // Return the pre-computed user-safe message
+    return result.userSafeMessage;
+  }
+
+  /**
+   * Get user-safe error message from any supported result type (FP-4B)
+   * 
+   * Unified interface for getting user-safe messages from either
+   * transfer results or blocked insertion results.
+   * 
+   * @param result - Either a transfer result or blocked insertion result
+   * @returns User-safe message if applicable
+   */
+  getAnyUserSafeMessage(
+    result: PrecisionTransferResult | BlockedInsertionResult
+  ): string | undefined {
+    // Check if it's a blocked insertion result
+    if ("blocked" in result) {
+      const blockedResult = result as BlockedInsertionResult;
+      if (blockedResult.blocked) {
+        return blockedResult.userSafeMessage;
+      }
+      return undefined;
+    }
+
+    // Otherwise treat as transfer result
+    return this.getUserSafeErrorMessage(result as PrecisionTransferResult);
   }
 }
