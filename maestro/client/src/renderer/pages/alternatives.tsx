@@ -12,7 +12,7 @@ import { SettingsButton } from "../components/settings-button";
 import { VolumeIndicator } from "../components/indicators/volume-indicator";
 
 const AlternativesPageComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => (
-  <div className="overflow-hidden flex flex-col h-screen pt-[40px] operator-surface">
+  <div className="overflow-hidden flex flex-col h-screen pt-[40px]">
     <div className="flex items-center justify-between select-none px-2 py-1">
       <div className="flex items-center pl-1" style={{ minHeight: "30px" }}>
         <ListenToggle />
