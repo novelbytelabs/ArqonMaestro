@@ -130,6 +130,7 @@ export default class System {
   }
 
   async focus(application: string) {
+    console.log("[SYSTEM] focus() called with:", application);
     try {
       await driver.focusApplication(application, this.aliases);
       await this.delay(300);

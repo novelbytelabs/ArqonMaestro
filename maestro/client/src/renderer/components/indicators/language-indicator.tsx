@@ -8,17 +8,17 @@ import { shell } from "../../shell";
 
 const LanguageIndicatorComponent: React.FC<{
   language: core.Language;
+  languageName: string;
   sourceAvailable: boolean;
-}> = ({ language, sourceAvailable }) => {
+}> = ({ language, languageName, sourceAvailable }) => {
   let icon = <FontAwesomeIcon icon={faGlobe} />;
-  let name = "Text";
+  let name = languageName || "Text";
   if (languages[language]) {
-    name = languages[language]!.name;
     icon = languages[language]!.icon ? (
       <img
         className={`h-4 w-4 ${language} inline-block`}
         src={languages[language]!.icon}
-        alt={languages[language]!.name}
+        alt={name}
       />
     ) : (
       <FontAwesomeIcon icon={faFileAlt} />
@@ -43,5 +43,6 @@ const LanguageIndicatorComponent: React.FC<{
 
 export const LanguageIndicator = connect((state: any) => ({
   language: state.language,
+  languageName: state.languageName,
   sourceAvailable: state.sourceAvailable,
 }))(LanguageIndicatorComponent);

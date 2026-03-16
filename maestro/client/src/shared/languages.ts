@@ -12,6 +12,7 @@ import python from "../../static/img/python.png";
 import ruby from "../../static/img/ruby.png";
 import rust from "../../static/img/rust.png";
 import css from "../../static/img/css.png";
+import typescript from "../../static/img/typescript.png";
 
 export interface LanguageConfiguration {
   id: core.Language;
@@ -88,7 +89,7 @@ const languageConfigs: LanguageConfiguration[] = [
   {
     id: core.Language.LANGUAGE_JAVASCRIPT,
     extensions: ["ts", "tsx", "typescript"],
-    icon: javascript,
+    icon: typescript,
     name: "TypeScript",
     styler: core.StylerType.STYLER_TYPE_PRETTIER,
   },
@@ -138,13 +139,24 @@ for (const config of languageConfigs) {
   }
 }
 
-export const filenameToLanguage = (filename: string): core.Language => {
+export const getConfig = (id: core.Language, name?: string): LanguageConfiguration | undefined => {
+  if (name) {
+    return languageConfigs.find((c) => c.id === id && c.name === name);
+  }
+  return languageConfigs.find((c) => c.id === id);
+};
+
+export const filenameToLanguageConfig = (filename: string): LanguageConfiguration => {
   for (const config of languageConfigs) {
     if (config.extensions.some((e: string) => filename.toLowerCase().endsWith("." + e))) {
-      return config.id;
+      return config;
     }
   }
 
-  return core.Language.LANGUAGE_DEFAULT;
+  return languageConfigs.find((c) => c.id === core.Language.LANGUAGE_DEFAULT)!;
+};
+
+export const filenameToLanguage = (filename: string): core.Language => {
+  return filenameToLanguageConfig(filename).id;
 };
 

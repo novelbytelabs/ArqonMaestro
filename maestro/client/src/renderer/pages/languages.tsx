@@ -7,9 +7,10 @@ import { core } from "../../gen/core";
 import { LanguageConfiguration, languagesList } from "../../shared/languages";
 import { shell } from "../shell";
 
-const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language }> = ({
-  languageSwitcherLanguage,
-}) => (
+const LanguagesPageComponent: React.FC<{
+  languageSwitcherLanguage: core.Language;
+  languageSwitcherName: string;
+}> = ({ languageSwitcherLanguage, languageSwitcherName }) => (
   <div className="h-screen w-full operator-surface flex flex-col pt-4">
     <div className="px-4 mb-4">
       <h2 className="text-[10px] uppercase font-bold tracking-widest text-cyan-400/80">
@@ -30,7 +31,7 @@ const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language
         .map((config) => {
           const language = config.id;
           const name = config.name;
-          const active = languageSwitcherLanguage == language;
+          const active = languageSwitcherName === name;
 
           let icon = (
             <div className="text-white/40 group-hover:text-white/70 transition-colors">
@@ -67,7 +68,7 @@ const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language
               )}
               onClick={(e) => {
                 e.preventDefault();
-                shell.send("setLanguage", language);
+                shell.send("setLanguage", { language, name });
                 setTimeout(() => {
                   shell.send("closeLanguages");
                 }, 100);
@@ -107,4 +108,5 @@ const LanguagesPageComponent: React.FC<{ languageSwitcherLanguage: core.Language
 
 export const LanguagesPage = connect((state: any) => ({
   languageSwitcherLanguage: state.languageSwitcherLanguage,
+  languageSwitcherName: state.languageSwitcherName,
 }))(LanguagesPageComponent);

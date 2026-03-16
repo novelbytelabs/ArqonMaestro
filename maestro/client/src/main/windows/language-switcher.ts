@@ -44,6 +44,8 @@ export default class LanguageSwitcherWindow extends Window {
     this.bridge.setState(
       {
         languageSwitcherLanguage: this.active.languageSwitcherLanguage,
+        languageName: this.active.languageName,
+        languageSwitcherName: this.active.languageSwitcherName,
       },
       [this]
     );

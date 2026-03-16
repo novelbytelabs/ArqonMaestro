@@ -106,6 +106,7 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_FOCUS(data: core.ICommand): Promise<any> {
+    console.log("[COMMAND_HANDLER] COMMAND_TYPE_FOCUS called with:", data.text);
     await this.system.focus(data.text!);
   }
 

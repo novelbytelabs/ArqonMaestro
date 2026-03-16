@@ -46,6 +46,9 @@ import IntentRoutingService from "../runtime/intent-routing-service";
 import { RegionKind } from "../runtime/focus-region-service";
 import { ControlType } from "../runtime/focus-precision-service";
 
+// Region focus handler imports (FP-3A)
+import FocusRegionHandler from "../runtime/focus-region-handler";
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
@@ -71,6 +74,65 @@ export default class Executor {
 
   // Intent routing service (FP-6A/6B)
   private intentRoutingService: IntentRoutingService;
+
+  // Region focus handler (FP-3A)
+  private regionHandler: FocusRegionHandler;
+
+  // Map of region keywords to RegionKind
+  private readonly regionKeywords: Record<string, RegionKind> = {
+    "editor": RegionKind.EDITOR,
+    "sidebar": RegionKind.SIDEBAR,
+    "terminal": RegionKind.TERMINAL,
+    "explorer": RegionKind.EXPLORER,
+    "search": RegionKind.SEARCH,
+    "address bar": RegionKind.ADDRESS_BAR,
+    "address": RegionKind.ADDRESS_BAR,
+    "page": RegionKind.PAGE,
+    "panel": RegionKind.PANEL,
+  };
+
+  /**
+   * Detect if a focus command targets a region within an application
+   * e.g., "focus editor" -> region: EDITOR, app: vscode
+   * e.g., "focus address bar" -> region: ADDRESS_BAR, app: chrome
+   */
+  private detectRegionTarget(commandText: string): { app: string; region: RegionKind } | null {
+    const lower = commandText.toLowerCase().trim();
+    
+    // Check for VS Code regions
+    if (lower.includes("vscode") || lower.includes("code")) {
+      for (const [keyword, region] of Object.entries(this.regionKeywords)) {
+        if (lower.includes(keyword)) {
+          // VS Code doesn't support address bar
+          if (region === RegionKind.ADDRESS_BAR) continue;
+          return { app: "vscode", region };
+        }
+      }
+    }
+    
+    // Check for Chrome regions
+    if (lower.includes("chrome") || lower.includes("browser")) {
+      for (const [keyword, region] of Object.entries(this.regionKeywords)) {
+        if (lower.includes(keyword)) {
+          return { app: "chrome", region };
+        }
+      }
+    }
+    
+    // Check for standalone region commands (assume VS Code as default)
+    for (const [keyword, region] of Object.entries(this.regionKeywords)) {
+      if (lower.endsWith(keyword) || lower === keyword) {
+        // Terminal ambiguity - need context
+        if (region === RegionKind.TERMINAL) {
+          // Default to VS Code terminal for now
+          return { app: "vscode", region };
+        }
+        return { app: "vscode", region };
+      }
+    }
+    
+    return null;
+  }
 
   // Store pre-validation result for comparison
   private lastPreValidationResult?: {
@@ -118,6 +180,9 @@ export default class Executor {
 
     // Initialize intent routing service (FP-6A/6B)
     this.intentRoutingService = new IntentRoutingService();
+
+    // Initialize region handler (FP-3A)
+    this.regionHandler = new FocusRegionHandler({ verboseLogging: true });
   }
 
   private addToHistory(response: core.ICommandsResponse) {
@@ -581,14 +646,18 @@ export default class Executor {
               ` success=${routingResult.telemetry.success}`
             );
 
-            // If routing failed, abort the focus transfer
-            if (!routingResult.telemetry.success) {
+            // If routing failed, abort the focus transfer (but focus may have already happened)
+            // For FOCUS commands, allow through even if routing fails - focus already executed
+            if (!routingResult.telemetry.success && command.type != core.CommandType.COMMAND_TYPE_FOCUS) {
               console.log(`[EXECUTOR] Routing failed, aborting focus transfer: ${routingResult.telemetry.error}`);
               this.log.logVerbose(
                 `[ROUTING] Aborted: ${routingResult.telemetry.error || routingResult.result.error}`
               );
               // Continue to next command - don't attempt the transfer
               continue;
+            } else if (!routingResult.telemetry.success) {
+              // FOCUS command - routing failed but xdotool may have already run, allow through
+              console.log(`[EXECUTOR] FOCUS command - routing failed but allowing through: ${routingResult.telemetry.error}`);
             }
 
             // FP-2.3: Run pre-transfer invariant checks
@@ -714,7 +783,6 @@ export default class Executor {
       response,
       () => this.system.runningApplications(),
       (command: core.ICommand) =>
-        command.type == core.CommandType.COMMAND_TYPE_FOCUS ||
         command.type == core.CommandType.COMMAND_TYPE_QUIT
     );
 
@@ -734,6 +802,15 @@ export default class Executor {
     }
 
     if (response.alternatives && response.alternatives.length > 0) {
+      // Debug: Log all alternatives with their commands
+      for (const alt of (response.alternatives || [])) {
+        console.log("[EXECUTOR] Alternative:", alt.transcript, "commands:", JSON.stringify((alt.commands || []).map((cmd: any) => ({ 
+          type: core.CommandType[cmd.type], 
+          typeNum: cmd.type,
+          text: cmd.text 
+        }))));
+      }
+      
       this.log.logVerbose(
         `Showing alternatives [${response.alternatives.map((e: any) => e.transcript).join(", ")}]`
       );

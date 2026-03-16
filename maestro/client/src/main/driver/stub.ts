@@ -184,24 +184,27 @@ export function focusApplication(name: string, aliases?: { [key: string]: string
     'browser': 'google-chrome',
     'chromium': 'chromium',
     'firefox': 'firefox',
-    'terminal': 'gnome-terminal-server',
-    'term': 'gnome-terminal-server',
-    'shell': 'gnome-terminal-server',
-    'console': 'gnome-terminal-server',
-    'gnome terminal': 'gnome-terminal-server',
+    'terminal': 'gnome-terminal',
+    'term': 'gnome-terminal',
+    'shell': 'gnome-terminal',
+    'console': 'gnome-terminal',
+    'gnome terminal': 'gnome-terminal',
     'brave': 'Brave-browser',
   };
   
   const windowClass = classMap[target.toLowerCase()] || target;
   
+  const display = process.env.DISPLAY || ':0';
+  
   if (platform === "linux") {
     try {
+      console.log("[arqon-driver] focusApplication called:", target, "class:", windowClass, "display:", display);
       // Use the CHAINED command format - this is more reliable!
       // xdotool search --class <name> windowactivate
       // This runs search, then immediately activates the first match
       const result = spawnSync("xdotool", ["search", "--onlyvisible", "--class", windowClass, "windowactivate"], { 
         encoding: "utf8",
-        env: { ...process.env, DISPLAY: ":1" }  // Ensure DISPLAY is set
+        env: { ...process.env, DISPLAY: display }
       });
       
       if (result.status === 0) {
@@ -212,7 +215,7 @@ export function focusApplication(name: string, aliases?: { [key: string]: string
       // Try window name as fallback
       const nameResult = spawnSync("xdotool", ["search", "--onlyvisible", "--name", target, "windowactivate"], { 
         encoding: "utf8",
-        env: { ...process.env, DISPLAY: ":1" }
+        env: { ...process.env, DISPLAY: display }
       });
       
       if (nameResult.status === 0) {
