@@ -99,7 +99,7 @@ export type FallbackPolicy =
  */
 const VSCODE_SHORTCUTS: Record<RegionKind, string> = {
   [RegionKind.EDITOR]: "ctrl+1",
-  [RegionKind.TERMINAL]: "ctrl+`",
+  [RegionKind.TERMINAL]: "ctrl+`",  // backtick key (left of 1)
   [RegionKind.SIDEBAR]: "ctrl+b",
   [RegionKind.ACTIVITY_BAR]: "ctrl+shift+a",
   [RegionKind.STATUS_BAR]: "",
