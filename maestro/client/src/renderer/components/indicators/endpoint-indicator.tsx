@@ -8,15 +8,23 @@ import { shell } from "../../shell";
 const EndpointIndicatorComponent: React.FC<{ endpoint: Endpoint }> = ({ endpoint }) => (
   <a
     href="#"
-    className="inline-block text-slate-600 bg-gray-200 rounded text-xs px-1.5 py-0.5 mr-0.5 drop-shadow-sm transition-colors hover:bg-gray-300 dark:bg-gray-600 dark:text-neutral-100 dark:hover:bg-gray-700"
+    className={classNames(
+      "inline-flex items-center gap-1.5 rounded px-2 py-0.5 transition-all text-[9px] font-mono font-bold uppercase tracking-widest",
+      {
+        "text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 hover:border-amber-500/50 drop-shadow-[0_0_8px_rgba(251,191,36,0.2)]": 
+          endpoint && endpoint.id === "local",
+        "text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50 drop-shadow-[0_0_8px_rgba(34,211,238,0.2)]": 
+          !endpoint || endpoint.id !== "local"
+      }
+    )}
     onClick={(e: React.MouseEvent) => {
       e.preventDefault();
       shell.send("setSettingsPage", "server");
       shell.send("showSettingsWindow");
     }}
   >
-    <div className="indicator-inner">
-      <FontAwesomeIcon icon={endpoint && endpoint.id == "local" ? faLock : faCloud} />{" "}
+    <div className="indicator-inner flex items-center gap-1.5">
+      <FontAwesomeIcon icon={endpoint && endpoint.id == "local" ? faLock : faCloud} className="text-[10px]" />{" "}
       {endpoint && endpoint.id == "local" ? "Local" : "Cloud"}
     </div>
   </a>

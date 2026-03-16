@@ -8,7 +8,7 @@ import { shell } from "../../shell";
 const ModeIndicatorComponent: React.FC<{ dictateMode: boolean }> = ({ dictateMode }) => (
   <a
     className={classNames(
-      "inline-block text-slate-600 bg-gray-200 rounded text-xs px-1.5 py-0.5 mr-1 drop-shadow-sm transition-colors hover:bg-gray-300 dark:bg-gray-600 dark:text-neutral-100 dark:hover:bg-gray-700",
+      "inline-flex items-center gap-1.5 text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 rounded px-2 py-0.5 mr-1 transition-all hover:bg-cyan-500/20 hover:border-cyan-500/50 text-[9px] font-mono font-bold uppercase tracking-widest drop-shadow-[0_0_8px_rgba(34,211,238,0.2)]",
       { hidden: !dictateMode }
     )}
     href="#"
@@ -17,7 +17,7 @@ const ModeIndicatorComponent: React.FC<{ dictateMode: boolean }> = ({ dictateMod
       shell.send("toggleDictateMode");
     }}
   >
-    <FontAwesomeIcon icon={faICursor} /> Dictate
+    <FontAwesomeIcon icon={faICursor} className="text-[10px]" /> Dictate
   </a>
 );
 
