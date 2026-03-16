@@ -95,9 +95,18 @@ export default class Executor {
    * Detect if a focus command targets a region within an application
    * e.g., "focus editor" -> region: EDITOR, app: vscode
    * e.g., "focus address bar" -> region: ADDRESS_BAR, app: chrome
+   * 
+   * NOTE: "terminal" and "term" specifically refer to VS Code terminal (region focus)
+   * Use "focus console" to focus the system terminal (gnome-terminal)
    */
   private detectRegionTarget(commandText: string): { app: string; region: RegionKind } | null {
     const lower = commandText.toLowerCase().trim();
+    
+    // Special handling: "focus console" should go to gnome-terminal (not a region)
+    // Return null so it goes through normal focus handling
+    if (lower === "console" || lower.startsWith("focus console")) {
+      return null;
+    }
     
     // Check for VS Code regions
     if (lower.includes("vscode") || lower.includes("code")) {
@@ -120,11 +129,12 @@ export default class Executor {
     }
     
     // Check for standalone region commands (assume VS Code as default)
+    // BUT exclude "terminal" and "term" - those should be region focus in VS Code
     for (const [keyword, region] of Object.entries(this.regionKeywords)) {
       if (lower.endsWith(keyword) || lower === keyword) {
-        // Terminal ambiguity - need context
+        // Terminal ambiguity - redirect to VS Code terminal region
         if (region === RegionKind.TERMINAL) {
-          // Default to VS Code terminal for now
+          // This is "focus terminal" or "focus term" - VS Code terminal region
           return { app: "vscode", region };
         }
         return { app: "vscode", region };

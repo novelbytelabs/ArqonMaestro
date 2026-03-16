@@ -184,10 +184,10 @@ export function focusApplication(name: string, aliases?: { [key: string]: string
     'browser': 'google-chrome',
     'chromium': 'chromium',
     'firefox': 'firefox',
-    'terminal': 'gnome-terminal',
-    'term': 'gnome-terminal',
-    'shell': 'gnome-terminal',
+    // Note: "terminal" and "term" now refer to VS Code integrated terminal (region focus)
+    // Use "console" to focus the system terminal (gnome-terminal)
     'console': 'gnome-terminal',
+    'shell': 'gnome-terminal',
     'gnome terminal': 'gnome-terminal',
     'brave': 'Brave-browser',
   };
