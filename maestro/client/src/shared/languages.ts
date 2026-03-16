@@ -13,110 +13,138 @@ import ruby from "../../static/img/ruby.png";
 import rust from "../../static/img/rust.png";
 import css from "../../static/img/css.png";
 
-interface LanguageConfiguration {
+export interface LanguageConfiguration {
+  id: core.Language;
   extensions: string[];
   name: string;
   icon: string;
   styler: core.StylerType;
 }
 
-export const languages: { [key in core.Language]?: LanguageConfiguration } = {
-  [core.Language.LANGUAGE_BASH]: {
+const languageConfigs: LanguageConfiguration[] = [
+  {
+    id: core.Language.LANGUAGE_BASH,
     extensions: ["bash", "sh"],
     icon: bash,
     name: "Bash",
     styler: core.StylerType.STYLER_TYPE_EDITOR,
   },
-  [core.Language.LANGUAGE_CSHARP]: {
+  {
+    id: core.Language.LANGUAGE_CSHARP,
     extensions: ["cs", "csharp"],
     icon: csharp,
     name: "C#",
     styler: core.StylerType.STYLER_TYPE_CLANG_MICROSOFT,
   },
-  [core.Language.LANGUAGE_CPLUSPLUS]: {
+  {
+    id: core.Language.LANGUAGE_CPLUSPLUS,
     extensions: ["cpp", "cc", "cxx", "c++", "hpp", "hh", "hxx", "h++", "c", "h", "cplusplus"],
     icon: c,
     name: "C/C++",
     styler: core.StylerType.STYLER_TYPE_CLANG_GOOGLE,
   },
-  [core.Language.LANGUAGE_DART]: {
+  {
+    id: core.Language.LANGUAGE_DART,
     extensions: ["dart"],
     icon: dart,
     name: "Dart",
     styler: core.StylerType.STYLER_TYPE_EDITOR,
   },
-  [core.Language.LANGUAGE_DEFAULT]: {
+  {
+    id: core.Language.LANGUAGE_DEFAULT,
     extensions: ["json", "md", "rst", "toml", "txt", "yaml", "yml"],
     icon: "",
     name: "Text",
     styler: core.StylerType.STYLER_TYPE_EDITOR,
   },
-  [core.Language.LANGUAGE_GO]: {
+  {
+    id: core.Language.LANGUAGE_GO,
     extensions: ["go"],
     icon: go,
     name: "Go",
     styler: core.StylerType.STYLER_TYPE_GOFMT,
   },
-  [core.Language.LANGUAGE_HTML]: {
+  {
+    id: core.Language.LANGUAGE_HTML,
     extensions: ["html", "svelte", "vue", "xml", "xaml"],
     icon: html,
     name: "HTML",
     styler: core.StylerType.STYLER_TYPE_PRETTIER,
   },
-  [core.Language.LANGUAGE_JAVA]: {
+  {
+    id: core.Language.LANGUAGE_JAVA,
     extensions: ["java"],
     icon: java,
     name: "Java",
     styler: core.StylerType.STYLER_TYPE_PRETTIER,
   },
-  [core.Language.LANGUAGE_JAVASCRIPT]: {
-    extensions: ["js", "jsx", "ts", "tsx", "typescript"],
+  {
+    id: core.Language.LANGUAGE_JAVASCRIPT,
+    extensions: ["js", "jsx"],
     icon: javascript,
     name: "JavaScript",
     styler: core.StylerType.STYLER_TYPE_PRETTIER,
   },
-  [core.Language.LANGUAGE_KOTLIN]: {
+  {
+    id: core.Language.LANGUAGE_JAVASCRIPT,
+    extensions: ["ts", "tsx", "typescript"],
+    icon: javascript,
+    name: "TypeScript",
+    styler: core.StylerType.STYLER_TYPE_PRETTIER,
+  },
+  {
+    id: core.Language.LANGUAGE_KOTLIN,
     extensions: ["kt"],
     icon: kotlin,
     name: "Kotlin",
     styler: core.StylerType.STYLER_TYPE_KTLINT,
   },
-  [core.Language.LANGUAGE_PYTHON]: {
+  {
+    id: core.Language.LANGUAGE_PYTHON,
     extensions: ["py"],
     icon: python,
     name: "Python",
     styler: core.StylerType.STYLER_TYPE_BLACK,
   },
-  [core.Language.LANGUAGE_RUBY]: {
+  {
+    id: core.Language.LANGUAGE_RUBY,
     extensions: ["rb"],
     icon: ruby,
     name: "Ruby",
     styler: core.StylerType.STYLER_TYPE_EDITOR,
   },
-  [core.Language.LANGUAGE_RUST]: {
+  {
+    id: core.Language.LANGUAGE_RUST,
     extensions: ["rs"],
     icon: rust,
     name: "Rust",
     styler: core.StylerType.STYLER_TYPE_RUSTFMT,
   },
-  [core.Language.LANGUAGE_SCSS]: {
+  {
+    id: core.Language.LANGUAGE_SCSS,
     extensions: ["css", "scss", "less"],
     icon: css,
     name: "CSS/SCSS",
     styler: core.StylerType.STYLER_TYPE_PRETTIER,
   },
-};
+];
+
+export const languagesList = languageConfigs;
+
+export const languages: { [key in core.Language]?: LanguageConfiguration } = {};
+for (const config of languageConfigs) {
+  if (!languages[config.id]) {
+    languages[config.id] = config;
+  }
+}
 
 export const filenameToLanguage = (filename: string): core.Language => {
-  for (const language of Object.keys(languages)) {
-    const k: core.Language = (language as unknown) as core.Language;
-    if (
-      languages[k] &&
-      languages[k]!.extensions.some((e: string) => filename.toLowerCase().endsWith("." + e))
-    ) {
-      return k;
+  for (const config of languageConfigs) {
+    if (config.extensions.some((e: string) => filename.toLowerCase().endsWith("." + e))) {
+      return config.id;
     }
   }
 
   return core.Language.LANGUAGE_DEFAULT;
 };
+
