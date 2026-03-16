@@ -141,11 +141,14 @@ export default class FocusVerificationService {
    * @returns Verification result with success status and confidence score
    */
   async verifyFocusTransfer(target: FocusTarget): Promise<FocusVerificationResult> {
+    console.log(`[FocusVerificationService] Verifying focus transfer to: ${target.entity}`);
+    
     // Small delay to allow focus to settle (as per existing system.ts pattern)
     await this.delay(100);
 
     // Query current focus state
     const actual = await this.queryCurrentFocus();
+    console.log(`[FocusVerificationService] Current focus: ${actual.entity} (Source: ${actual.sourceOfTruth})`);
 
     // Build expected state from target
     const expected: FocusState = {
@@ -158,9 +161,11 @@ export default class FocusVerificationService {
     // Compare actual vs expected
     const isMatch = this.compareFocusStates(actual, expected);
     const confidence = this.computeConfidence(actual, expected);
+    console.log(`[FocusVerificationService] Match: ${isMatch}, Confidence: ${confidence}`);
 
     // Analyze authority sources for the verification
     const authorityAnalysis = this.authorityService.analyzeAuthorities([actual, expected]);
+    console.log(`[FocusVerificationService] Authority: ${authorityAnalysis.primaryAuthority}, Conflicts: ${authorityAnalysis.hasConflicts}`);
 
     // Enhance details with authority information if there are conflicts
     let details = isMatch

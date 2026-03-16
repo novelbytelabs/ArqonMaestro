@@ -565,10 +565,13 @@ export default class Executor {
           // FP-1.1: Verify focus transfer after FOCUS command
           if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text) {
             // FP-6A/6B: Run intent routing before focus transfer
+            console.log(`[EXECUTOR] Running intent routing for: ${command.text}`);
             const routingResult = this.intentRoutingService.routeCommandHardened({
               command: command.text!,
               currentApplication: this.active.app,
             });
+
+            console.log(`[EXECUTOR] Routing result: success=${routingResult.telemetry.success}, outcome=${routingResult.telemetry.outcome}`);
 
             // Log intent routing result
             this.log.logVerbose(
@@ -580,6 +583,7 @@ export default class Executor {
 
             // If routing failed, abort the focus transfer
             if (!routingResult.telemetry.success) {
+              console.log(`[EXECUTOR] Routing failed, aborting focus transfer: ${routingResult.telemetry.error}`);
               this.log.logVerbose(
                 `[ROUTING] Aborted: ${routingResult.telemetry.error || routingResult.result.error}`
               );

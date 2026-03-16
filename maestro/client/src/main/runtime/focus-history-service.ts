@@ -409,6 +409,11 @@ export default class FocusHistoryService {
     if (this.history.length > this.config.maxEntries) {
       this.history = this.history.slice(0, this.config.maxEntries);
     }
+
+    // Debug logging for FP-1.3
+    console.log(`[FocusHistoryService] Entry added: ${target.entity} -> ${verification.success ? 'SUCCESS' : 'FAILED'} (confidence: ${verification.confidence})`);
+    const stats = this.getStats();
+    console.log(`[FocusHistoryService] Stats: ${stats.totalAttempts} total, ${stats.successRate * 100}% success rate, avg confidence: ${stats.averageConfidence.toFixed(2)}`);
   }
 
   /**
