@@ -2,7 +2,7 @@ import React from "react";
 import { connect } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faFileAlt, faGlobe } from "@fortawesome/free-solid-svg-icons";
-import { languages } from "../../../shared/languages";
+import { getConfig } from "../../../shared/languages";
 import { core } from "../../../gen/core";
 import { shell } from "../../shell";
 
@@ -13,11 +13,13 @@ const LanguageIndicatorComponent: React.FC<{
 }> = ({ language, languageName, sourceAvailable }) => {
   let icon = <FontAwesomeIcon icon={faGlobe} />;
   let name = languageName || "Text";
-  if (languages[language]) {
-    icon = languages[language]!.icon ? (
+  const config = getConfig(language, languageName);
+
+  if (config) {
+    icon = config.icon ? (
       <img
         className={`h-4 w-4 ${language} inline-block`}
-        src={languages[language]!.icon}
+        src={config.icon}
         alt={name}
       />
     ) : (

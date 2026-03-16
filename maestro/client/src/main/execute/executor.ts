@@ -629,6 +629,40 @@ export default class Executor {
 
           // FP-1.1: Verify focus transfer after FOCUS command
           if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text) {
+            // FP-3A: Check if this is a region focus command
+            const regionTarget = this.detectRegionTarget(command.text);
+            if (regionTarget) {
+              console.log(`[EXECUTOR] Region focus detected: app=${regionTarget.app}, region=${regionTarget.region}`);
+              
+              // Log region focus for history
+              this.log.logVerbose(`Region focus: ${regionTarget.region} in ${regionTarget.app}`);
+              
+              // Focus the region within the application using the region handler
+              try {
+                const target: FocusTarget = {
+                  entity: regionTarget.app,
+                  layer: FocusLayer.REGION,
+                  regionKind: regionTarget.region,
+                };
+                
+                const regionResult = await this.regionHandler.executeRegionTransfer(target, {});
+                if (regionResult.success) {
+                  console.log(`[EXECUTOR] Region focus SUCCESS: ${regionResult.details}`);
+                  this.log.logVerbose(`Region focus succeeded: ${regionResult.details}`);
+                } else {
+                  console.log(`[EXECUTOR] Region focus FAILED: ${regionResult.details}`);
+                  this.log.logVerbose(`Region focus failed: ${regionResult.details}`);
+                }
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                console.log(`[EXECUTOR] Region focus error: ${errorMsg}`);
+                this.log.logVerbose(`Region focus error: ${errorMsg}`);
+              }
+              
+              // Skip the normal focus handling since we've already handled the region
+              continue;
+            }
+            
             // FP-6A/6B: Run intent routing before focus transfer
             console.log(`[EXECUTOR] Running intent routing for: ${command.text}`);
             const routingResult = this.intentRoutingService.routeCommandHardened({

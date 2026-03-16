@@ -11,13 +11,16 @@
  */
 
 import { FocusTarget, FocusLayer } from "./focus-verification-service";
+import FocusRegionService from "./focus-region-service";
 import {
-  FocusRegionService,
   RegionKind,
   SupportedApplication,
   RegionNavigationHint,
   RegionConfidenceFactors,
 } from "./focus-region-service";
+
+// Import driver for actual keyboard shortcut execution
+import * as driver from "../driver/stub";
 
 /**
  * Result of a region transfer operation
@@ -484,17 +487,64 @@ export default class FocusRegionHandler {
   private async executeViaShortcut(target: FocusTarget, shortcut: string): Promise<RegionTransferResult> {
     this.log(`Executing via shortcut: ${shortcut}`);
 
-    // In a real implementation, this would:
-    // 1. Bring the application to focus (if not already focused)
-    // 2. Send the keyboard shortcut
-    // 3. Wait for the region to become active
+    try {
+      // First, focus the target application if needed
+      const appType = this.regionService.classifyApplication(target.entity);
+      if (appType === SupportedApplication.VSCODE || appType === SupportedApplication.CHROME) {
+        this.log(`Focusing application: ${target.entity}`);
+        driver.focusApplication(target.entity);
+        
+        // Small delay to let the window focus
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
-    // For now, simulate success
-    return {
-      success: true,
-      target,
-      details: `Executed shortcut ${shortcut} for region ${target.regionKind}`,
-    };
+      // Parse the shortcut (e.g., "ctrl+b" -> key: "b", modifiers: ["ctrl"])
+      const parts = shortcut.toLowerCase().split("+");
+      const modifiers: string[] = [];
+      let key = "";
+      
+      for (const part of parts) {
+        if (part === "ctrl" || part === "control") {
+          modifiers.push("ctrl");
+        } else if (part === "shift") {
+          modifiers.push("shift");
+        } else if (part === "alt") {
+          modifiers.push("alt");
+        } else {
+          key = part;
+        }
+      }
+
+      if (key) {
+        this.log(`Sending key: ${key} with modifiers: ${modifiers.join(",")}`);
+        driver.pressKey(key, modifiers.length > 0 ? modifiers : undefined);
+        
+        // Wait for the shortcut to take effect
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        return {
+          success: true,
+          target,
+          details: `Executed shortcut ${shortcut} for region ${target.regionKind}`,
+        };
+      } else {
+        return {
+          success: false,
+          target,
+          details: `Invalid shortcut: ${shortcut}`,
+          error: "INVALID_SHORTCUT",
+        };
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      this.log(`Shortcut execution failed: ${errorMsg}`);
+      return {
+        success: false,
+        target,
+        details: `Failed to execute shortcut: ${errorMsg}`,
+        error: "SHORTCUT_FAILED",
+      };
+    }
   }
 
   /**

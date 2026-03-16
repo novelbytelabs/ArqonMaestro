@@ -18,17 +18,7 @@ const LanguagesPageComponent: React.FC<{
       </h2>
     </div>
     <div className="flex-1 overflow-y-auto pb-4">
-      {[
-        {
-          id: core.Language.LANGUAGE_NONE,
-          name: "Auto-Detect",
-          icon: "",
-          extensions: [],
-          styler: core.StylerType.STYLER_TYPE_NONE,
-        } as LanguageConfiguration,
-      ]
-        .concat(languagesList)
-        .map((config) => {
+      {languagesList.map((config) => {
           const language = config.id;
           const name = config.name;
           const active = languageSwitcherName === name;

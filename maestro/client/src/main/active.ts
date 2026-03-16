@@ -411,6 +411,10 @@ export default class Active {
     this.languageName = languageName;
     this.sourceAvailable = sourceAvailable;
 
+    if (filename !== "" && filename !== "terminal.sh") {
+      console.log(`[Active] app: ${app}, filename: ${filename}, language: ${language}, name: ${languageName}`);
+    }
+
     if (send) {
       this.showSuggestionIfNeeded();
       this.bridge.setState(

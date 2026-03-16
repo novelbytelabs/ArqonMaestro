@@ -24,6 +24,13 @@ export interface LanguageConfiguration {
 
 const languageConfigs: LanguageConfiguration[] = [
   {
+    id: core.Language.LANGUAGE_NONE,
+    extensions: [],
+    icon: "",
+    name: "Auto-Detect",
+    styler: core.StylerType.STYLER_TYPE_NONE,
+  },
+  {
     id: core.Language.LANGUAGE_BASH,
     extensions: ["bash", "sh"],
     icon: bash,
