@@ -6,13 +6,13 @@ import { shell } from "../shell";
 export const SettingsButton = () => (
   <a
     href="#"
-    className="block text-slate-600 bg-gray-200 h-[26px] w-[26px] leading-[26px] rounded-md text-sm text-center drop-shadow-sm transition-colors hover:bg-gray-300 dark:bg-gray-600 dark:text-neutral-100 dark:hover:bg-gray-700"
+    className="inline-flex items-center justify-center text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 h-[26px] w-[26px] rounded transition-all hover:bg-cyan-500/20 hover:border-cyan-500/50 drop-shadow-[0_0_8px_rgba(34,211,238,0.2)]"
     title="Settings"
     onClick={(e: React.MouseEvent) => {
       e.preventDefault();
       shell.send("showSettingsWindow");
     }}
   >
-    <FontAwesomeIcon icon={faCog} className="settings-icon" />
+    <FontAwesomeIcon icon={faCog} className="text-[14px]" />
   </a>
 );
