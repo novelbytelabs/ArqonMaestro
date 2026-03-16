@@ -42,7 +42,7 @@ const ListenToggleComponent: React.FC<{
       >
         <div
           className={classNames("w-full h-full border-2 transition-all duration-300 backdrop-blur-sm", {
-            "border-cyan-400/80 shadow-[0_0_12px_rgba(34,211,238,0.5)] bg-cyan-500/10": listening,
+            "border-cyan-400/80 bg-cyan-500/10 animate-pulse-cyan": listening,
             "border-white/20 bg-black/40": !listening,
           })}
           style={{

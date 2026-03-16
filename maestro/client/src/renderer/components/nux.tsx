@@ -72,7 +72,7 @@ const NuxComponent: React.FC<{
         ) : null}
         {nuxStep.transcript ? (
           <div
-            className={classNames("p-[2px] rainbow rounded-md", {
+            className={classNames("p-[2px] border border-cyan-400/30 bg-cyan-500/10 rounded-md", {
               hidden: nuxStep.hideAnswer && !nuxHintShown,
             })}
           >

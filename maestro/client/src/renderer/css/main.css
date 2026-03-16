@@ -66,8 +66,19 @@
   display: none !important;
 }
 
-.rainbow {
-  background: linear-gradient(#a46dff 3.88%, #ff8388 40.34%, #eec14d 70.02%, #82c0ff 100%);
+@keyframes pulse-cyan {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+    border-color: rgba(34, 211, 238, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(34, 211, 238, 0.8), 0 0 35px rgba(34, 211, 238, 0.4);
+    border-color: rgba(34, 211, 238, 1);
+  }
+}
+
+.animate-pulse-cyan {
+  animation: pulse-cyan 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 #nux p {
