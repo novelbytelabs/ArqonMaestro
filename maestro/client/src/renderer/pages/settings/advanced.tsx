@@ -144,7 +144,7 @@ const AdvancedComponent: React.FC<{
         action={
           <input
             type="number"
-            className="text-sm input ml-1"
+            className="input w-20 text-right"
             min="0.5"
             max="2.0"
             step="0.1"
@@ -164,7 +164,7 @@ const AdvancedComponent: React.FC<{
             How strict the speech detector should be. Higher means fewer things called speech.{" "}
             <a
               href="#"
-              className="underline"
+              className="text-cyan-400 hover:text-cyan-300 transition-colors uppercase text-[10px] font-bold tracking-widest ml-1"
               onClick={(e) => {
                 e.preventDefault();
                 shell.send("setSettings", {
@@ -179,7 +179,7 @@ const AdvancedComponent: React.FC<{
         action={
           <input
             type="number"
-            className="text-sm input ml-1"
+            className="input w-20 text-right"
             min="0.0"
             max="1.0"
             step="0.1"
@@ -199,7 +199,7 @@ const AdvancedComponent: React.FC<{
             How strict the silence detector should be. Higher means more things called silence.{" "}
             <a
               href="#"
-              className="underline"
+              className="text-cyan-400 hover:text-cyan-300 transition-colors uppercase text-[10px] font-bold tracking-widest ml-1"
               onClick={(e) => {
                 e.preventDefault();
                 shell.send("setSettings", {
@@ -214,7 +214,7 @@ const AdvancedComponent: React.FC<{
         action={
           <input
             type="number"
-            className="text-sm input ml-1"
+            className="input w-20 text-right"
             min="0.0"
             max="1.0"
             step="0.1"

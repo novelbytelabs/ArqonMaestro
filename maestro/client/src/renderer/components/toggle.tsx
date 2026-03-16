@@ -10,19 +10,19 @@ export const Toggle: React.FC<{
     checked={value}
     onChange={onChange}
     className={classNames(
-      "relative inline-flex flex-shrink-0 h-[24px] w-[44px] border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 shadow",
+      "relative inline-flex flex-shrink-0 h-[22px] w-[40px] border transition-all duration-300 rounded-full cursor-pointer focus:outline-none",
       {
-        "bg-blue-700": value,
-        "bg-gray-300": !value,
+        "bg-cyan-500/20 border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.3)] animate-pulse-cyan": value,
+        "bg-black/40 border-white/20": !value,
       }
     )}
   >
     <span
       aria-hidden="true"
       className={classNames(
-        "pointer-events-none inline-block h-[20px] w-[20px] rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200",
+        "pointer-events-none inline-block h-[16px] w-[16px] rounded-full bg-white shadow-lg transform transition-transform duration-200 ease-in-out mt-[2px] ml-[2px]",
         {
-          "translate-x-5": value,
+          "translate-x-[18px]": value,
           "translate-x-0": !value,
         }
       )}
