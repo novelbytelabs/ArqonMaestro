@@ -12,11 +12,11 @@ export const PluginsPage = () => {
   };
 
   return (
-    <div className="h-screen w-full operator-surface overflow-hidden pt-12 flex flex-col items-center">
-      <div className="welcome-container w-full h-full px-4 flex flex-col items-center justify-start relative gap-4 max-w-[280px]">
-        {/* Decorative background glow */}
-        <div className="absolute top-[-20%] left-[-10%] w-[300px] h-[300px] bg-cyan-500/5 blur-[80px] rounded-full pointer-events-none" />
-        
+    <div className="h-screen w-full operator-surface overflow-hidden pt-12 flex flex-col items-center relative">
+      {/* Central Background Glowing Orb */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none z-0" />
+      
+      <div className="welcome-container w-full h-full px-4 flex flex-col items-center justify-start relative gap-4 max-w-[280px] z-10">
         <div className="welcome-header flex flex-col items-center gap-1 z-10 w-full mb-2">
           <span className="text-cyan-400 font-mono text-[9px] tracking-widest uppercase font-bold opacity-80">
             System Integration
@@ -36,7 +36,7 @@ export const PluginsPage = () => {
             </span>
           </h1>
           
-          <p className="text-[11px] text-slate-400 leading-snug mb-4 font-light max-w-[240px]">
+          <p className="text-[11px] text-slate-400 leading-snug mb-6 font-light max-w-[240px]">
             Maestro integrates with your workflow via plugins. Install one to deploy.
           </p>
           
@@ -68,7 +68,7 @@ export const PluginsPage = () => {
           </div>
           
           <div
-            className={classNames("pt-4 transition-all duration-500", {
+            className={classNames("pt-6 transition-all duration-500", {
               "opacity-0 pointer-events-none scale-95": disabled,
               "opacity-100 scale-100": !disabled,
             })}
@@ -77,14 +77,6 @@ export const PluginsPage = () => {
               Continue Deployment <span>&rarr;</span>
             </Link>
           </div>
-        </div>
-        
-        <div className="welcome-hero w-full z-10 flex justify-center mt-2">
-          <img 
-            className="w-full max-w-[220px] h-auto drop-shadow-[0_0_40px_rgba(0,229,255,0.2)]" 
-            src={onboardingHub} 
-            alt="Integration Hub" 
-          />
         </div>
       </div>
     </div>
