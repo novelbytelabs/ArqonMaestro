@@ -67,15 +67,21 @@ export const PluginsPage = () => {
             </a>
           </div>
           
-          <div
-            className={classNames("pt-6 transition-all duration-500", {
-              "opacity-0 pointer-events-none scale-95": disabled,
-              "opacity-100 scale-100": !disabled,
-            })}
-          >
-            <Link to="/privacy" className="text-cyan-400 text-[10px] uppercase font-bold tracking-widest hover:text-white transition-colors flex items-center gap-2">
-              Continue Deployment <span>&rarr;</span>
+          <div className="flex items-center justify-between w-full mt-8">
+            <Link to="/welcome" className="text-slate-500 text-[10px] uppercase font-bold tracking-widest hover:text-white transition-colors">
+              &larr; Back
             </Link>
+            
+            <div
+              className={classNames("transition-all duration-500", {
+                "opacity-0 pointer-events-none scale-95 translate-x-4": disabled,
+                "opacity-100 scale-100 translate-x-0": !disabled,
+              })}
+            >
+              <Link to="/tutorials" className="text-cyan-400 text-[10px] uppercase font-bold tracking-widest hover:text-white transition-colors flex items-center gap-2">
+                Continue &rarr;
+              </Link>
+            </div>
           </div>
         </div>
       </div>
