@@ -635,11 +635,10 @@ export default class Executor {
             this.insertHistory.clear();
           }
 
-          await this.commandHandler()[commandType](command);
-
-          // FP-1.1: Verify focus transfer after FOCUS command
+          // FP-3A: Check if this is a region focus command BEFORE executing the command
+          // "focus terminal" should go to VS Code terminal, not gnome-terminal
+          let skipCommandHandler = false;
           if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text) {
-            // FP-3A: Check if this is a region focus command
             const regionTarget = this.detectRegionTarget(command.text);
             if (regionTarget) {
               console.log(`[EXECUTOR] Region focus detected: app=${regionTarget.app}, region=${regionTarget.region}`);
@@ -669,9 +668,18 @@ export default class Executor {
                 this.log.logVerbose(`Region focus error: ${errorMsg}`);
               }
               
-              // Skip the normal focus handling since we've already handled the region
-              continue;
+              // Skip the normal focus handler - we've already handled the region
+              skipCommandHandler = true;
             }
+          }
+
+          // Execute the command handler unless we handled it as a region focus
+          if (!skipCommandHandler) {
+            await this.commandHandler()[commandType](command);
+          }
+
+          // FP-1.1: Verify focus transfer after FOCUS command
+          if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text && !skipCommandHandler) {
             
             // FP-6A/6B: Run intent routing before focus transfer
             console.log(`[EXECUTOR] Running intent routing for: ${command.text}`);
