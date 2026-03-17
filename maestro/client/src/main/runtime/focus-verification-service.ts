@@ -218,12 +218,13 @@ export default class FocusVerificationService {
 
   /**
    * Normalize entity aliases for matching
-   * "code" -> "vscode"
+   * "code" -> "vscode" (VS Code window class)
    * "google-chrome" -> "chrome"
-   * etc.
+   * "gnome-terminal" = "console" (system terminal)
+   * "terminal" = VS Code internal terminal (handled as region)
    */
   private normalizeEntityAlias(entity: string): string {
-    // VS Code aliases
+    // VS Code aliases (window class is "code")
     if (entity === "code" || entity.includes("vscode")) {
       return "vscode";
     }
@@ -231,8 +232,9 @@ export default class FocusVerificationService {
     if (entity.includes("chrome") && !entity.startsWith("chromium")) {
       return "chrome";
     }
-    // gnome-terminal aliases
-    if (entity.includes("gnome-terminal") || entity.includes("terminal")) {
+    // System terminal - gnome-terminal, console are equivalent
+    // The OS reports "gnome-terminal-server" or similar for gnome-terminal
+    if (entity.includes("gnome-terminal") || entity === "console") {
       return "gnome-terminal";
     }
     return entity;
