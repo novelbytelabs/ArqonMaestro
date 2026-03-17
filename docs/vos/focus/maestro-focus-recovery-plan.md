@@ -37,7 +37,7 @@ It should **not** directly become a second `xdotool` layer.
 
 ### Pending
 
-- [ ] Full end-to-end recovery flow testing with actual focus failures
+- [x] Full end-to-end recovery flow testing with actual focus failures
 
 ---
 

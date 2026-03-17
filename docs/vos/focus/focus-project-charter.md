@@ -1,7 +1,7 @@
 # Focus Project Charter v0.1
 
-**Version:** 0.1  
-**Status:** Draft  
+**Version:** 0.2  
+**Status:** COMPLETE  
 **Branch:** `feature/focus-architecture-v2`  
 **Last Updated:** 2026-03-17
 
@@ -127,8 +127,9 @@ The following items are **explicitly out of scope** for FP-1 and must not be imp
 | **Item Focus** | Layer 6 | Requires list/grid enumeration capabilities |
 | **Caret Positioning** | Layer 7 | Requires text-specific focus detection |
 | **Semantic Routing** | Layer 8 | Requires ML model integration and training data |
+| **Modal Policy** | N/A | **FP-7 PROPOSED**: Handle modals/popups that steal focus. Detecting and managing modal dialogs that intercept focus. |
 | **Modal Policy** | N/A | Requires understanding of focus constraints across layers |
-| **Recovery Engine** | N/A | Requires confidence scoring (FP-1.4) before implementation |
+| **Recovery Engine** | N/A | **FP-5A/5B COMPLETE**: Implemented as policy-driven orchestrator with honest telemetry. See Section 8.
 
 ### 5.2 Out-of-Scope Declaration
 
@@ -156,41 +157,41 @@ FP-0 closes when all of the following acceptance criteria are met. These criteri
 **Requirement**: After any focus transfer, the system must verify that focus arrived at the intended target.
 
 **Acceptance Tests**:
-- [ ] Transfer to application A results in Application Focus on A
-- [ ] Transfer to window B in application A results in Window Focus on B
-- [ ] Failed verification triggers appropriate error handling
-- [ ] Verification latency is under 500ms for 90th percentile transfers
+- [x] Transfer to application A results in Application Focus on A
+- [x] Transfer to window B in application A results in Window Focus on B
+- [x] Failed verification triggers appropriate error handling
+- [x] Verification latency is under 500ms for 90th percentile transfers
 
 #### FP-1.2: Source-of-Truth Classification
 
 **Requirement**: The system must classify and track the Source of Truth for focus state.
 
 **Acceptance Tests**:
-- [ ] Each focus state query returns the identified Source of Truth
-- [ ] Source of Truth can be: Operating System, Application, or Maestro
-- [ ] Classification is logged for audit purposes
-- [ ] Discrepancies between expected and actual Source of Truth are flagged
+- [x] Each focus state query returns the identified Source of Truth
+- [x] Source of Truth can be: Operating System, Application, or Maestro
+- [x] Classification is logged for audit purposes
+- [x] Discrepancies between expected and actual Source of Truth are flagged
 
 #### FP-1.3: Expanded History Model
 
 **Requirement**: The history service must track rich metadata about focus transitions.
 
 **Acceptance Tests**:
-- [ ] History entries include timestamp (ISO 8601)
-- [ ] History entries include success/failure status
-- [ ] History entries include layer information (2 or 3)
-- [ ] History is queryable by time range, application, and layer
-- [ ] History supports at least 100 entries in memory
+- [x] History entries include timestamp (ISO 8601)
+- [x] History entries include success/failure status
+- [x] History entries include layer information (2 or 3)
+- [x] History is queryable by time range, application, and layer
+- [x] History supports at least 100 entries in memory
 
 #### FP-1.4: Coarse Confidence Scoring
 
 **Requirement**: The system must compute confidence scores for focus transfers.
 
 **Acceptance Tests**:
-- [ ] Confidence scores are in range [0.0, 1.0]
-- [ ] High-confidence transfers (score >= 0.8) do not require user confirmation
-- [ ] Low-confidence transfers (score < 0.8) trigger verification or recovery
-- [ ] Confidence score computation is deterministic for same-state transfers
+- [x] Confidence scores are in range [0.0, 1.0]
+- [x] High-confidence transfers (score >= 0.8) do not require user confirmation
+- [x] Low-confidence transfers (score < 0.8) trigger verification or recovery
+- [x] Confidence score computation is deterministic for same-state transfers
 
 ---
 
@@ -321,12 +322,62 @@ flowchart LR
 
 ---
 
-## 9. Revision History
+## 9. Modal Policy (FP-7)
+
+Modal Policy handles modals and popups that can steal focus after a focus transfer. When an app gains focus, modals dialogs may intercept focus, requiring detection and handling.
+
+### 9.1 Modal Policy Scope
+
+| Capability | Description |
+|------------|-------------|
+| **Modal Detection** | Detect when a modal/popup steals focus after app gains focus |
+| **Modal Classification** | Classify modals by type (dialog, alert, popup, context menu) |
+| **Modal Dismissal** | Dismiss modals to restore intended focus path |
+| **Focus Steal Prevention** | Prevent modals from intercepting focus during transfers |
+
+### 9.2 Modal Detection Strategies
+
+| Strategy | Description |
+|----------|---------|
+| Window Title Analysis | Detect "Modal", "Dialog", "Alert" in window titles |
+| Window Class Matching | Match against known modal window classes |
+| Focus Timestamp Analysis | Detect rapid focus changes suggesting modal steal |
+| UI Element Detection | Visual/OCR detection of modal overlays |
+
+### 9.3 Modal Policy Actions
+
+| Action | Trigger | Result |
+|--------|---------|--------|
+| DISMISS_MODAL | Modal detected blocking target | Close/dismiss modal, retry focus |
+| WAIT_FOR_MODAL | Modal expected (e.g., after save) | Wait for modal to clear |
+| REPORT_MODAL | Modal detected, cannot dismiss | Report modal presence to user |
+| BYPASS_MODAL | Modal is informational only | Proceed with focus anyway |
+
+### 9.4 FP-7 Acceptance Criteria
+
+| ID | Criterion | Description |
+|----|-----------|-------------|
+| FP-7.1 | Modal Detection | Detect when a modal steals focus after app focus |
+| FP-7.2 | Modal Classification | Classify modal type for appropriate handling |
+| FP-7.3 | Auto-Dismiss | Automatically dismiss common modal types |
+| FP-7.4 | Graceful Degradation | Report modal presence when cannot dismiss |
+
+**Acceptance Tests**:
+- [ ] Focus transfer to app with modal results in modal detection
+- [ ] Modal classification correctly identifies dialog/alert/popup
+- [ ] Auto-dismiss closes simple modals (e.g., save dialogs)
+- [ ] Un-dismissible modals reported to user without blocking
+
+---
+
+## 10. Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1 | 2026-03-15 | FP-0 Lead | Initial charter draft |
 | 0.2 | 2026-03-17 | FP-0 Lead | Added Focus Recovery Architecture diagrams (FP-5A/5B) |
+| 0.3 | 2026-03-17 | FP-0 Lead | **COMPLETE**: FP-1, FP-3A, FP-5A/5B all verified. Recovery Truthfulness Tests pass. |
+| 0.4 | 2026-03-17 | FP-0 Lead | Added FP-7 Modal Policy for handling modals/popups that steal focus. |
 
 ---
 

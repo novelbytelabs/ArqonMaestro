@@ -242,39 +242,39 @@ Key debug prefixes to watch:
 ## Acceptance Criteria Checklist
 
 ### FP-1 (Verified Focus Core)
-- [ ] FP-1.1: Verification Step After Focus Transfer
-- [ ] FP-1.2: Source-of-Truth Classification
-- [ ] FP-1.3: Expanded History Model
-- [ ] FP-1.4: Coarse Confidence Scoring
+- [x] FP-1.1: Verification Step After Focus Transfer
+- [x] FP-1.2: Source-of-Truth Classification
+- [x] FP-1.3: Expanded History Model
+- [x] FP-1.4: Coarse Confidence Scoring
 
 ### FP-2 (Safety + Contracts)
-- [ ] FP-2.1: Pre-transfer Validation Checks
-- [ ] FP-2.2: Post-transfer Contract Verification
-- [ ] FP-2.3: Safety Invariant Enforcement
-- [ ] FP-2.4: Failure Mode Documentation
+- [x] FP-2.1: Pre-transfer Validation Checks
+- [x] FP-2.2: Post-transfer Contract Verification
+- [x] FP-2.3: Safety Invariant Enforcement
+- [x] FP-2.4: Failure Mode Documentation
 
 ### FP-3 (Region Focus)
-- [ ] FP-3A.1: Canonical Region Model for VS Code
-- [ ] FP-3A.2: Canonical Region Model for Chrome
-- [ ] FP-3A.7: Ambiguity Policy for "Terminal"
-- [ ] FP-3B.4: Hardened Terminal Ambiguity Policy
+- [x] FP-3A.1: Canonical Region Model for VS Code
+- [x] FP-3A.2: Canonical Region Model for Chrome
+- [x] FP-3A.7: Ambiguity Policy for "Terminal"
+- [x] FP-3B.4: Hardened Terminal Ambiguity Policy
 
 ### FP-4 (Precision Focus)
-- [ ] FP-4A.2: Caret Presence Detection
-- [ ] FP-4A.4: Text Insertion Precheck
-- [ ] FP-4B.4: Blocked Insertion Messages
+- [x] FP-4A.2: Caret Presence Detection
+- [x] FP-4A.4: Text Insertion Precheck
+- [x] FP-4B.4: Blocked Insertion Messages
 
 ### FP-5 (Recovery)
-- [ ] FP-5A.1: Drift Detection
-- [ ] FP-5A.4: Bounded Recovery
-- [ ] FP-5B.1: State Integrity Thresholds
+- [x] FP-5A.1: Drift Detection
+- [x] FP-5A.4: Bounded Recovery
+- [x] FP-5B.1: State Integrity Thresholds
 
 ### FP-6 (Intent Routing)
-- [ ] FP-6A.1: Intent Target Model
-- [ ] FP-6A.2: Explicit Scope Routing
-- [ ] FP-6B.2: Focus-Routing Agreement Checks
-- [ ] FP-6B.3: Scoped Action Validation
-- [ ] FP-6B.4: Degraded Routing Distinction
+- [x] FP-6A.1: Intent Target Model
+- [x] FP-6A.2: Explicit Scope Routing
+- [x] FP-6B.2: Focus-Routing Agreement Checks
+- [x] FP-6B.3: Scoped Action Validation
+- [x] FP-6B.4: Degraded Routing Distinction
 
 ---
 

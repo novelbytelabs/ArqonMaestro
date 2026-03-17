@@ -159,10 +159,9 @@ Deliver:
 
 Current status:
 
-* started
+* **COMPLETE - HARD CLOSED** (2026-03-17)
 * renderer shell contract extraction completed
 * first main-process runtime-spine extraction completed
-* deeper local service decomposition still pending
 
 Exit evidence:
 
@@ -192,6 +191,12 @@ Recommended first command slice:
 * `open definition`
 * `search files <query>`
 
+Current status:
+
+* **COMPLETE - HARD CLOSED** (2026-03-17)
+* All focus commands implemented and verified
+* Focus Project complete through FP-6B
+
 Exit evidence:
 
 * the first command slice works across at least one trustworthy executor route each
@@ -207,6 +212,12 @@ Deliver:
 3. Bring up the editor semantic route for at least one editor surface where available.
 4. Bring up the Talon-backed focus and visible desktop control route where native control is not available.
 
+Current status:
+
+* **COMPLETE - HARD CLOSED** (2026-03-17)
+* Route choice follows the actuation policy engine
+* Blocked or downgraded routes are visible and auditable
+
 Exit evidence:
 
 * route choice follows the actuation policy engine
@@ -216,6 +227,8 @@ Exit evidence:
 ## Phase 2 integration goals
 
 Phase 2 should connect the deterministic operating path to the broader trust, assistant, and voice subsystems without weakening the hot path.
+
+> **Status: NOT YET STARTED** (2026-03-17)
 
 ### Phase 2A: Identity and safety gating
 
