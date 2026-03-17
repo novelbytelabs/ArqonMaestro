@@ -52,6 +52,15 @@ import FocusRegionHandler from "../runtime/focus-region-handler";
 // Focus recovery imports (FP-5A/5B)
 import FocusRecoveryService from "../runtime/focus-recovery-service";
 
+// Identity and Security imports (FP-2A)
+import IdentityGatewayService from "../runtime/identity-gateway-service";
+import { CommandRiskLevel, AuthorizationDecision } from "../runtime/authorization-service";
+import { SecurityMode } from "../runtime/security-mode-service";
+
+// Workflow and Nexus imports (FP-2B)
+import WorkflowContractService, { WorkflowClass, StepRole, StepFailurePolicy } from "../runtime/workflow-contract-service";
+import NexusProtocolBoundaryService, { AuthorityPhase } from "../runtime/nexus-protocol-boundary-service";
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
@@ -83,6 +92,13 @@ export default class Executor {
 
   // Focus recovery service (FP-5A/5B)
   private focusRecoveryService: FocusRecoveryService;
+
+  // Identity and Security services (FP-2A)
+  private identityGateway: IdentityGatewayService;
+
+  // Workflow and Nexus services (FP-2B)
+  private workflowService: WorkflowContractService;
+  private nexusBoundary: NexusProtocolBoundaryService;
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -577,6 +593,17 @@ export default class Executor {
     // Initialize focus recovery service (FP-5A/5B)
     this.focusRecoveryService = new FocusRecoveryService();
 
+    // Initialize Identity and Security services (FP-2A)
+    this.identityGateway = new IdentityGatewayService({
+      securityModeConfig: {
+        defaultMode: SecurityMode.NORMAL,
+      },
+    });
+
+    // Initialize Workflow and Nexus services (FP-2B)
+    this.workflowService = new WorkflowContractService();
+    this.nexusBoundary = new NexusProtocolBoundaryService();
+
     // Wire up delegates for recovery orchestrator (ADM-048)
 
     this.focusRecoveryService.setAppFocusDelegate(async (app: string): Promise<boolean> => {
@@ -1023,6 +1050,18 @@ export default class Executor {
     }
 
     let forwardToPlugin = true;
+
+    // FP-2A: Authorization gate - check identity before executing
+    const authorizationResult = await this.checkAuthorization(response);
+    if (!authorizationResult.authorized) {
+      console.log(`[EXECUTOR] Authorization denied: ${authorizationResult.reason}`);
+      this.log.logVerbose(`[FP-2A] Authorization denied: ${authorizationResult.reason}`);
+      // Still resolve chain but don't execute
+      this.resolveChainFinished();
+      this.newChainFinishedPromise();
+      return;
+    }
+
     if (
       (this.active.app == "jetbrains" && this.active.filename == "jetbrains-modal") ||
       this.revisionBoxWindow.shown()
@@ -1898,5 +1937,117 @@ export default class Executor {
    */
   getRecoveryService(): FocusRecoveryService {
     return this.focusRecoveryService;
+  }
+
+  // ==================== FP-2A: IDENTITY AND SECURITY ====================
+
+  /**
+   * Check authorization before executing commands (FP-2A)
+   */
+  private async checkAuthorization(response: core.ICommandsResponse): Promise<{
+    authorized: boolean;
+    reason?: string;
+  }> {
+    try {
+      // Get the primary command to check
+      const command = response.execute?.commands?.[0];
+      if (!command) {
+        return { authorized: true }; // No commands to authorize
+      }
+
+      // Map command type to family and risk level
+      const commandType = commandTypeToString(command.type!);
+      const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
+
+      // Authorize through identity gateway
+      const result = await this.identityGateway.authorize({
+        commandFamily,
+        commandVerb: command.text || commandType,
+        riskLevel,
+      });
+
+      if (result.decision === AuthorizationDecision.ALLOW) {
+        return { authorized: true };
+      }
+
+      // Handle blocked or denied commands
+      let reason = result.reason || "Authorization denied";
+      if (result.decision === AuthorizationDecision.CONFIRM) {
+        reason = "Confirmation required";
+      }
+
+      return { authorized: false, reason };
+    } catch (error) {
+      // On error, fail open for now (can be made fail-closed later)
+      console.log(`[FP-2A] Authorization check error: ${error}, allowing command`);
+      return { authorized: true };
+    }
+  }
+
+  /**
+   * Map command type to family and risk level
+   */
+  private mapCommandToRisk(commandType: string, commandText: string): {
+    commandFamily: string;
+    riskLevel: CommandRiskLevel;
+  } {
+    const text = (commandText || "").toLowerCase();
+
+    // Focus commands - LOW risk
+    if (commandType === "focus" || text.startsWith("focus")) {
+      return { commandFamily: "focus", riskLevel: CommandRiskLevel.LOW };
+    }
+
+    // Navigation commands - LOW risk
+    if (commandType === "next" || commandType === "up" || commandType === "down") {
+      return { commandFamily: "navigation", riskLevel: CommandRiskLevel.LOW };
+    }
+
+    // Insert/Edit commands - MEDIUM risk
+    if (commandType === "insert" || commandType === "diff" || commandType === "paste") {
+      return { commandFamily: "edit", riskLevel: CommandRiskLevel.MEDIUM };
+    }
+
+    // Run/Terminal commands - MEDIUM risk
+    if (commandType === "run" || text.startsWith("run ")) {
+      return { commandFamily: "terminal", riskLevel: CommandRiskLevel.MEDIUM };
+    }
+
+    // File system commands - HIGH risk
+    if (commandType === "delete" || text.includes("delete") || text.includes("remove")) {
+      return { commandFamily: "filesystem", riskLevel: CommandRiskLevel.HIGH };
+    }
+
+    // Settings/System commands - HIGH/PRIVILEGED risk
+    if (commandType === "settings" || text.includes("config") || text.includes("system")) {
+      return { commandFamily: "system", riskLevel: CommandRiskLevel.HIGH };
+    }
+
+    // Default - assume MEDIUM risk
+    return { commandFamily: "general", riskLevel: CommandRiskLevel.MEDIUM };
+  }
+
+  /**
+   * Get identity gateway for testing (FP-2A)
+   * Use: window.executor.getIdentityGateway()
+   */
+  getIdentityGateway(): IdentityGatewayService {
+    return this.identityGateway;
+  }
+
+  /**
+   * Get workflow service for testing (FP-2B)
+   * Use: window.executor.getWorkflowService()
+   */
+  getWorkflowService(): WorkflowContractService {
+    return this.workflowService;
+  }
+
+  /**
+   * Get Nexus boundary service for testing (FP-2B)
+   * Use: window.executor.getNexusBoundary()
+   */
+  getNexusBoundary(): NexusProtocolBoundaryService {
+    return this.nexusBoundary;
   }
 }
