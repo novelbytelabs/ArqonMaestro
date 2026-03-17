@@ -77,12 +77,12 @@ flowchart TD
     S -->|Yes| T[RECOVERED<br/>conf≥0.85]
     S -->|No| U[DOWNGRADED<br/>conf=0.4]
     
-    style O fill:#ff9,stroke:#333
-    style T fill:#9f9,stroke:#333
-    style U fill:#ff9,stroke:#333
-    style G fill:#f99,stroke:#333
-    style N fill:#f99,stroke:#333
-    style R fill:#f99,stroke:#333
+    style O fill:#d4a017,stroke:#333,color:#000
+    style T fill:#228b22,stroke:#333,color:#000
+    style U fill:#d4a017,stroke:#333,color:#000
+    style G fill:#dc143c,stroke:#333,color:#fff
+    style N fill:#dc143c,stroke:#333,color:#fff
+    style R fill:#dc143c,stroke:#333,color:#fff
 ```
 
 **Caption:** Complete Focus Recovery Flow - shows drift detection, integrity checks, policy determination, delegate execution, and re-verification paths.
@@ -115,9 +115,9 @@ flowchart LR
         G --> L[focus-verification-service]
     end
     
-    style Recovery fill:#eef
-    style Delegates fill:#efe
-    style Subsystems fill:#fee
+    style Recovery fill:#4a90d9,stroke:#333,color:#fff
+    style Delegates fill:#5dadec,stroke:#333,color:#000
+    style Subsystems fill:#2e8b57,stroke:#333,color:#fff
 ```
 
 **Caption:** Recovery delegates to existing subsystems rather than directly calling xdotool, maintaining proper abstraction boundaries.
