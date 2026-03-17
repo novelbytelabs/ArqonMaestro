@@ -205,9 +205,8 @@ export default class App {
       () => commandHandler
     ));
 
-    // Expose executor for testing/debugging via browser console
-    (window as any).executor = executor;
-    console.log('[TEST] Executor exposed at window.executor for testing');
+    // Note: Executor test methods are available but not exposed to window
+    // Recovery is tested automatically when focus commands fail verification
 
     const chunkManager: ChunkManager = (instance.chunkManager = new ChunkManager(
       active,
