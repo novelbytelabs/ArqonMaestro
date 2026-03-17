@@ -204,6 +204,8 @@ export default class FocusVerificationService {
     // Apply alias normalization before comparison
     const normalizedActual = this.normalizeEntityAlias(actualEntity);
     const normalizedExpected = this.normalizeEntityAlias(expectedEntity);
+    
+    console.log(`[FocusVerificationService] Compare: actual="${actualEntity}" -> "${normalizedActual}", expected="${expectedEntity}" -> "${normalizedExpected}"`);
 
     // Exact match (after normalization)
     if (normalizedActual === normalizedExpected) {
