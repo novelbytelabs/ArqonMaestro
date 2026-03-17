@@ -10,10 +10,8 @@
  * 3. Integration helpers for routing service
  */
 
-// Use console.log for now - can be replaced with proper logger
-function log(message: string): void {
-  console.log(`[IdentityGate] ${message}`);
-}
+// Use console.log - can be replaced with proper logger in production
+const log = (message: string): void => console.log(message);
 import IdentityGatewayService from "./identity-gateway-service";
 import { 
   AuthorizationDecision, 
@@ -128,7 +126,7 @@ export function createIdentityGate(identityGateway: IdentityGatewayService) {
           };
       }
     } catch (error) {
-      log(`[IdentityGate] Error checking gate: ${error}`);
+      log(`Error checking gate: ${error}`);
       return {
         status: IdentityGateStatus.FAILED,
         decision: AuthorizationDecision.DENY,

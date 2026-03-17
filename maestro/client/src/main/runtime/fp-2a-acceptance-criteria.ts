@@ -311,6 +311,246 @@ export async function runAcceptanceCriteriaTests(): Promise<TestResult[]> {
   });
   console.log(`\n✓ Identity gate result:\n${JSON.stringify(gateResult, null, 2)}`);
 
+  // ===== EXTENDED TESTS: RESTRICTED MODE =====
+  console.log("\n--- Extended: RESTRICTED Mode ---\n");
+
+  // Test RESTRICTED mode blocks all non-low
+  await gateway.setSecurityMode(SecurityMode.RESTRICTED);
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "default_owner",
+    confidence: 0.95,
+  });
+  
+  const restrictedHigh = await gateway.authorize({
+    commandFamily: "filesystem",
+    commandVerb: "delete",
+    riskLevel: CommandRiskLevel.HIGH,
+  });
+  
+  results.push({
+    name: "RESTRICTED: blocks high-risk",
+    passed: restrictedHigh.decision === AuthorizationDecision.BLOCK,
+    details: `Decision: ${restrictedHigh.decision}, Reason: ${restrictedHigh.reason}`,
+  });
+  console.log(`RESTRICTED high-risk: ${restrictedHigh.decision}`);
+
+  const restrictedLow = await gateway.authorize({
+    commandFamily: "focus",
+    commandVerb: "focus",
+    riskLevel: CommandRiskLevel.LOW,
+  });
+  
+  results.push({
+    name: "RESTRICTED: allows low-risk",
+    passed: restrictedLow.decision === AuthorizationDecision.ALLOW,
+    details: `Decision: ${restrictedLow.decision}, Reason: ${restrictedLow.reason}`,
+  });
+  console.log(`RESTRICTED low-risk: ${restrictedLow.decision}`);
+
+  // ===== EXTENDED TESTS: PRIVILEGED_CONFIRM MODE =====
+  console.log("\n--- Extended: PRIVILEGED_CONFIRM Mode ---\n");
+
+  // Test PRIVILEGED_CONFIRM with sovereign owner, high confidence
+  await gateway.setSecurityMode(SecurityMode.PRIVILEGED_CONFIRM);
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "default_owner",
+    confidence: 0.95,
+  });
+  
+  const privConfirmHigh = await gateway.authorize({
+    commandFamily: "security",
+    commandVerb: "config",
+    riskLevel: CommandRiskLevel.PRIVILEGED,
+  });
+  
+  results.push({
+    name: "PRIVILEGED_CONFIRM: sovereign + high confidence = allow",
+    passed: privConfirmHigh.decision === AuthorizationDecision.ALLOW,
+    details: `Decision: ${privConfirmHigh.decision}, Reason: ${privConfirmHigh.reason}`,
+  });
+  console.log(`PRIVILEGED_CONFIRM sovereign+high: ${privConfirmHigh.decision}`);
+
+  // Test PRIVILEGED_CONFIRM with sovereign owner, lower confidence
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "default_owner",
+    confidence: 0.7,
+  });
+  
+  const privConfirmLow = await gateway.authorize({
+    commandFamily: "security",
+    commandVerb: "config",
+    riskLevel: CommandRiskLevel.PRIVILEGED,
+  });
+  
+  results.push({
+    name: "PRIVILEGED_CONFIRM: sovereign + lower confidence = confirm",
+    passed: privConfirmLow.decision === AuthorizationDecision.CONFIRM,
+    details: `Decision: ${privConfirmLow.decision}, Reason: ${privConfirmLow.reason}`,
+  });
+  console.log(`PRIVILEGED_CONFIRM sovereign+low: ${privConfirmLow.decision}`);
+
+  // Test PRIVILEGED_CONFIRM with non-sovereign (approved user)
+  await gateway.createEnrollment({
+    identityId: "approved_user",
+    displayName: "Approved User",
+    role: SpeakerRole.APPROVED_USER,
+  });
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "approved_user",
+    confidence: 0.95,
+  });
+  
+  const privConfirmNonOwner = await gateway.authorize({
+    commandFamily: "security",
+    commandVerb: "config",
+    riskLevel: CommandRiskLevel.PRIVILEGED,
+  });
+  
+  results.push({
+    name: "PRIVILEGED_CONFIRM: non-sovereign treated normally",
+    passed: privConfirmNonOwner.decision === AuthorizationDecision.BLOCK || 
+            privConfirmNonOwner.decision === AuthorizationDecision.DENY,
+    details: `Decision: ${privConfirmNonOwner.decision}, Reason: ${privConfirmNonOwner.reason}`,
+  });
+  console.log(`PRIVILEGED_CONFIRM non-sovereign: ${privConfirmNonOwner.decision}`);
+
+  // ===== EXTENDED TESTS: DELEGATED AGENT =====
+  console.log("\n--- Extended: Delegated Agent ---\n");
+
+  // Create delegated agent enrollment
+  await gateway.createEnrollment({
+    identityId: "delegated_bot",
+    displayName: "Delegated Bot",
+    role: SpeakerRole.DELEGATED_AGENT,
+  });
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "delegated_bot",
+    confidence: 0.9,
+  });
+  
+  const delegatedHigh = await gateway.authorize({
+    commandFamily: "filesystem",
+    commandVerb: "delete",
+    riskLevel: CommandRiskLevel.HIGH,
+  });
+  
+  results.push({
+    name: "DELEGATED_AGENT: authorized within scope",
+    passed: delegatedHigh.decision === AuthorizationDecision.ALLOW,
+    details: `Decision: ${delegatedHigh.decision}, Reason: ${delegatedHigh.reason}`,
+  });
+  console.log(`DELEGATED_AGENT high-risk: ${delegatedHigh.decision}`);
+
+  // ===== EXTENDED TESTS: SUSPENDED/REVOKED ENROLLMENT =====
+  console.log("\n--- Extended: Suspended/Revoked Enrollment ---\n");
+
+  // Create and then revoke enrollment
+  await gateway.createEnrollment({
+    identityId: "temp_user",
+    displayName: "Temp User",
+    role: SpeakerRole.APPROVED_USER,
+  });
+  await gateway.revokeEnrollment("temp_user");
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "temp_user",
+    confidence: 0.9,
+  });
+  
+  const revokedHigh = await gateway.authorize({
+    commandFamily: "filesystem",
+    commandVerb: "delete",
+    riskLevel: CommandRiskLevel.HIGH,
+  });
+  
+  results.push({
+    name: "REVOKED: blocked for revoked enrollment",
+    passed: revokedHigh.decision === AuthorizationDecision.BLOCK || 
+            revokedHigh.decision === AuthorizationDecision.DENY,
+    details: `Decision: ${revokedHigh.decision}, Reason: ${revokedHigh.reason}`,
+  });
+  console.log(`REVOKED enrollment: ${revokedHigh.decision}`);
+
+  // Test suspended enrollment
+  await gateway.createEnrollment({
+    identityId: "suspended_user",
+    displayName: "Suspended User",
+    role: SpeakerRole.APPROVED_USER,
+  });
+  await gateway.enrollmentService.suspendEnrollment("suspended_user");
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "suspended_user",
+    confidence: 0.9,
+  });
+  
+  const suspendedHigh = await gateway.authorize({
+    commandFamily: "filesystem",
+    commandVerb: "delete",
+    riskLevel: CommandRiskLevel.HIGH,
+  });
+  
+  results.push({
+    name: "SUSPENDED: blocked for suspended enrollment",
+    passed: suspendedHigh.decision === AuthorizationDecision.BLOCK || 
+            suspendedHigh.decision === AuthorizationDecision.DENY,
+    details: `Decision: ${suspendedHigh.decision}, Reason: ${suspendedHigh.reason}`,
+  });
+  console.log(`SUSPENDED enrollment: ${suspendedHigh.decision}`);
+
+  // ===== EXTENDED TESTS: AUTHORITY SCOPE =====
+  console.log("\n--- Extended: Authority Scope ---\n");
+
+  // Create user with limited scope
+  await gateway.createEnrollment({
+    identityId: "limited_user",
+    displayName: "Limited User",
+    role: SpeakerRole.APPROVED_USER,
+    authorityScope: {
+      allowedRiskLevels: ["low", "medium"],
+      allowedCommandFamilies: ["focus", "navigation"],
+      blockedCommands: ["delete", "remove"],
+    },
+  });
+  await gateway.processVerificationResult({
+    matched: true,
+    claimedIdentityId: "limited_user",
+    confidence: 0.9,
+  });
+  
+  // Test blocked command
+  const blockedCmd = await gateway.authorize({
+    commandFamily: "filesystem",
+    commandVerb: "delete",
+    riskLevel: CommandRiskLevel.HIGH,
+  });
+  
+  results.push({
+    name: "SCOPE: blocked command",
+    passed: blockedCmd.decision === AuthorizationDecision.BLOCK,
+    details: `Decision: ${blockedCmd.decision}, Reason: ${blockedCmd.reason}`,
+  });
+  console.log(`SCOPE blocked command: ${blockedCmd.decision}`);
+
+  // Test allowed command family
+  const allowedFamily = await gateway.authorize({
+    commandFamily: "focus",
+    commandVerb: "focus",
+    riskLevel: CommandRiskLevel.LOW,
+  });
+  
+  results.push({
+    name: "SCOPE: allowed command family",
+    passed: allowedFamily.decision === AuthorizationDecision.ALLOW,
+    details: `Decision: ${allowedFamily.decision}, Reason: ${allowedFamily.reason}`,
+  });
+  console.log(`SCOPE allowed family: ${allowedFamily.decision}`);
+
   // ===== SUMMARY =====
   console.log("\n=== Acceptance Criteria Summary ===\n");
   

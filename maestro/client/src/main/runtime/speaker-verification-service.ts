@@ -11,10 +11,8 @@
  * 4. Integrates with enrollment service
  */
 
-// Use console.log for now - can be replaced with proper logger
-function log(message: string): void {
-  console.log(`[SpeakerVerification] ${message}`);
-}
+// Use console.log - can be replaced with proper logger in production
+const log = (message: string): void => console.log(message);
 import SpeakerEnrollmentService, { 
   SpeakerEnrollment, 
   SpeakerRole,
@@ -212,7 +210,7 @@ export default class SpeakerVerificationService {
         contaminated: true,
       });
       
-      log(`[SpeakerVerification] Contamination detected`);
+      log(`Contamination detected`);
       return this.currentState;
     }
 
@@ -234,7 +232,7 @@ export default class SpeakerVerificationService {
         contaminated: false,
       });
       
-      log(`[SpeakerVerification] No match: confidence=${result.confidence}`);
+      log(`No match: confidence=${result.confidence}`);
       return this.currentState;
     }
 
@@ -274,7 +272,7 @@ export default class SpeakerVerificationService {
         contaminated: false,
       });
       
-      log(`[SpeakerVerification] Identity not enrolled: ${result.claimedIdentityId}`);
+      log(`Identity not enrolled: ${result.claimedIdentityId}`);
       return this.currentState;
     }
 
@@ -298,7 +296,7 @@ export default class SpeakerVerificationService {
         contaminated: false,
       });
       
-      log(`[SpeakerVerification] Enrollment not active: ${result.claimedIdentityId}`);
+      log(`Enrollment not active: ${result.claimedIdentityId}`);
       return this.currentState;
     }
 
@@ -327,7 +325,7 @@ export default class SpeakerVerificationService {
         contaminated: false,
       });
       
-      log(`[SpeakerVerification] Below threshold: ${result.claimedIdentityId}, confidence=${result.confidence}, threshold=${threshold}`);
+      log(`Below threshold: ${result.claimedIdentityId}, confidence=${result.confidence}, threshold=${threshold}`);
       return this.currentState;
     }
 
@@ -373,7 +371,7 @@ export default class SpeakerVerificationService {
       contaminated: false,
     });
 
-    log(`[SpeakerVerification] Verified: ${result.claimedIdentityId} (${identityState}), confidence=${result.confidence}`);
+    log(`Verified: ${result.claimedIdentityId} (${identityState}), confidence=${result.confidence}`);
     
     return this.currentState;
   }
@@ -477,7 +475,7 @@ export default class SpeakerVerificationService {
       contaminated: false,
     });
     
-    log(`[SpeakerVerification] Reset to unknown state`);
+    log(`Reset to unknown state`);
   }
 
   /**

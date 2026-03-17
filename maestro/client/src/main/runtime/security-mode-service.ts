@@ -11,10 +11,8 @@
  * 4. Enforces mode-specific behaviors
  */
 
-// Use console.log for now - can be replaced with proper logger
-function log(message: string): void {
-  console.log(`[SecurityMode] ${message}`);
-}
+// Use console.log - can be replaced with proper logger in production
+const log = (message: string): void => console.log(message);
 
 /**
  * Security modes
@@ -185,7 +183,7 @@ export default class SecurityModeService {
     this.currentMode = this.config.defaultMode;
     this.modeHistory = [];
     
-    log(`[SecurityMode] Initialized in ${this.currentMode} mode`);
+    log(`Initialized in ${this.currentMode} mode`);
   }
 
   /**
@@ -249,7 +247,7 @@ export default class SecurityModeService {
    */
   async setMode(mode: SecurityMode, reason: string = "manual", automatic: boolean = false): Promise<void> {
     if (mode === this.currentMode) {
-      log(`[SecurityMode] Already in ${mode} mode`);
+      log(`Already in ${mode} mode`);
       return;
     }
 
@@ -272,7 +270,7 @@ export default class SecurityModeService {
       this.clearPrivilegedConfirmTimeout();
     }
 
-    log(`[SecurityMode] Mode changed: ${previousMode} -> ${mode} (${reason})`);
+    log(`Mode changed: ${previousMode} -> ${mode} (${reason})`);
   }
 
   /**
@@ -450,7 +448,7 @@ export default class SecurityModeService {
     this.clearPrivilegedConfirmTimeout();
     
     this.privilegedConfirmTimeout = setTimeout(async () => {
-      log(`[SecurityMode] Privileged confirm timeout reached, returning to normal`);
+      log(`Privileged confirm timeout reached, returning to normal`);
       await this.exitPrivilegedConfirmMode("timeout");
     }, this.config.privilegedConfirmTimeoutMs);
   }
@@ -473,7 +471,7 @@ export default class SecurityModeService {
       ...this.config.modeSettings[mode],
       ...settings,
     };
-    log(`[SecurityMode] Updated settings for ${mode} mode`);
+    log(`Updated settings for ${mode} mode`);
   }
 
   /**
@@ -515,6 +513,6 @@ export default class SecurityModeService {
    */
   destroy(): void {
     this.clearPrivilegedConfirmTimeout();
-    log(`[SecurityMode] Service destroyed`);
+    log(`Service destroyed`);
   }
 }

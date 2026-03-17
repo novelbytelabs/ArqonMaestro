@@ -11,10 +11,8 @@
  * 4. Provides identity context for command execution
  */
 
-// Use console.log for now - can be replaced with proper logger
-function log(message: string): void {
-  console.log(`[IdentityGateway] ${message}`);
-}
+// Use console.log - can be replaced with proper logger in production
+const log = (message: string): void => console.log(message);
 import SpeakerEnrollmentService, { 
   SpeakerEnrollment,
   SpeakerRole,
@@ -145,7 +143,7 @@ export default class IdentityGatewayService {
       config?.authorizationConfig
     );
 
-    log(`[IdentityGateway] Initialized identity and security services`);
+    log(`Initialized identity and security services`);
   }
 
   // ============ ENROLLMENT METHODS ============
@@ -392,7 +390,7 @@ export default class IdentityGatewayService {
    */
   destroy(): void {
     this.securityModeService.destroy();
-    log(`[IdentityGateway] Destroyed identity gateway`);
+    log(`Destroyed identity gateway`);
   }
 }
 

@@ -11,10 +11,8 @@
  * 4. Integrates with security mode
  */
 
-// Use console.log for now - can be replaced with proper logger
-function log(message: string): void {
-  console.log(`[Authorization] ${message}`);
-}
+// Use console.log - can be replaced with proper logger in production
+const log = (message: string): void => console.log(message);
 import SpeakerVerificationService, { 
   SpeakerIdentityState,
   VerificationConfidence 
@@ -267,6 +265,19 @@ export default class AuthorizationService {
       }
     }
 
+    // Apply privileged confirm mode - elevated permissions after verification
+    if (this.config.enforceSecurityMode && securityMode === SecurityMode.PRIVILEGED_CONFIRM) {
+      const privilegedConfirmResult = this.applyPrivilegedConfirmRestrictions(
+        riskLevel,
+        isVerified,
+        confidence,
+        role
+      );
+      if (privilegedConfirmResult) {
+        return privilegedConfirmResult;
+      }
+    }
+
     // Handle unverified/unknown identity
     if (!isVerified) {
       return this.handleUnverifiedIdentity(commandVerb, riskLevel, confidence);
@@ -413,6 +424,49 @@ export default class AuthorizationService {
       }
     }
 
+    return null;
+  }
+
+  /**
+   * Apply privileged confirm mode restrictions
+   * In PRIVILEGED_CONFIRM mode, verified primary owners get elevated permissions
+   * but medium+/high still require some form of validation
+   */
+  private applyPrivilegedConfirmRestrictions(
+    riskLevel: CommandRiskLevel,
+    isVerified: boolean,
+    confidence: number,
+    role: SpeakerRole | undefined
+  ): AuthorizationResult | null {
+    // In privileged confirm mode, unverified users get no special treatment
+    if (!isVerified) {
+      // Fall back to normal unverified handling
+      return null;
+    }
+
+    // Only sovereign owner gets elevated treatment in PRIVILEGED_CONFIRM
+    if (role !== SpeakerRole.SOVEREIGN_OWNER) {
+      // Non-owners get standard treatment
+      return null;
+    }
+
+    // Sovereign owner with high confidence can execute all commands
+    if (confidence >= 0.95) {
+      return null; // Allow - no restrictions
+    }
+
+    // Sovereign owner with lower confidence needs confirmation for privileged
+    if (riskLevel === CommandRiskLevel.PRIVILEGED && confidence < 0.95) {
+      return {
+        decision: AuthorizationDecision.CONFIRM,
+        reason: "Privileged confirm: high confidence required for privileged commands",
+        confirmationLevel: "high",
+        riskLevel,
+        isFallback: false,
+      };
+    }
+
+    // Allow everything else for sovereign owner
     return null;
   }
 

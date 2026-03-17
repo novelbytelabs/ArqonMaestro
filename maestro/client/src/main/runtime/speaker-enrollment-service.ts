@@ -11,10 +11,8 @@
  * 4. Provides enrollment lookup for verification
  */
 
-// Use console.log for now - can be replaced with proper logger
-function log(message: string): void {
-  console.log(`[SpeakerEnrollment] ${message}`);
-}
+// Use console.log - can be replaced with proper logger in production
+const log = (message: string): void => console.log(message);
 
 /**
  * Speaker identity roles
@@ -198,7 +196,7 @@ export default class SpeakerEnrollmentService {
     };
     
     this.enrollments.set(defaultEnrollment.identityId, defaultEnrollment);
-    log(`[SpeakerEnrollment] Initialized default enrollment: ${defaultEnrollment.identityId}`);
+    log(`Initialized default enrollment: ${defaultEnrollment.identityId}`);
   }
 
   /**
@@ -236,7 +234,7 @@ export default class SpeakerEnrollmentService {
     };
 
     this.enrollments.set(enrollment.identityId, enrollment);
-    log(`[SpeakerEnrollment] Created enrollment: ${enrollment.identityId} (${enrollment.role})`);
+    log(`Created enrollment: ${enrollment.identityId} (${enrollment.role})`);
 
     return enrollment;
   }
@@ -272,7 +270,7 @@ export default class SpeakerEnrollmentService {
     };
 
     this.enrollments.set(identityId, updated);
-    log(`[SpeakerEnrollment] Updated enrollment: ${identityId}`);
+    log(`Updated enrollment: ${identityId}`);
 
     return updated;
   }
@@ -397,7 +395,7 @@ export default class SpeakerEnrollmentService {
   async deleteEnrollment(identityId: string): Promise<boolean> {
     const deleted = this.enrollments.delete(identityId);
     if (deleted) {
-      log(`[SpeakerEnrollment] Deleted enrollment: ${identityId}`);
+      log(`Deleted enrollment: ${identityId}`);
     }
     return deleted;
   }
