@@ -1591,16 +1591,17 @@ export default class Executor {
       // Map spoken commands to actual app names
       // "console" -> gnome-terminal (system terminal)
       // "terminal" -> vscode (VS Code internal terminal)
+      // NOTE: Order matters! Check specific strings before partial matches
       const normalizedTarget = (targetName || "").toLowerCase().trim();
       const expectedApp =
         normalizedTarget.includes("chrome") || normalizedTarget.includes("browser")
           ? "chrome"
           : normalizedTarget.includes("code") || normalizedTarget.includes("editor")
           ? "vscode"
-          : normalizedTarget.includes("console") || normalizedTarget.includes("shell")
-          ? "gnome-terminal"  // System terminal
+          : normalizedTarget.includes("console") || normalizedTarget.includes("shell") || normalizedTarget === "gnome-terminal"
+          ? "gnome-terminal"  // System terminal - check BEFORE terminal partial match
           : normalizedTarget.includes("terminal") || normalizedTarget.includes("term")
-          ? "vscode"  // VS Code internal terminal
+          ? "vscode"  // VS Code internal terminal - only if not gnome-terminal
           : targetName;
 
       const expectedRegion =

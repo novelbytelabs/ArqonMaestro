@@ -857,6 +857,14 @@ export default class FocusRecoveryService {
       return true;
     }
 
+    // gnome-terminal (system terminal) - supports terminal region
+    if (normalizedApp.includes("gnome-terminal") || normalizedApp.includes("terminal")) {
+      if (region) {
+        return region === RegionKind.TERMINAL;
+      }
+      return true;
+    }
+
     return false;
   }
 
@@ -892,6 +900,8 @@ export default class FocusRecoveryService {
       supportedRegions = [RegionKind.EDITOR, RegionKind.TERMINAL];
     } else if (normalizedApp.includes("chrome") || normalizedApp.includes("browser")) {
       supportedRegions = [RegionKind.ADDRESS_BAR, RegionKind.PAGE];
+    } else if (normalizedApp.includes("gnome-terminal") || normalizedApp.includes("terminal")) {
+      supportedRegions = [RegionKind.TERMINAL];
     }
 
     return {
