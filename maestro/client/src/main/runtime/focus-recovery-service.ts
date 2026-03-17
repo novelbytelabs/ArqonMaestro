@@ -61,6 +61,113 @@
  * - PRECISION_GUARD_BLOCKED, SAFETY_GATE_BLOCKED -> ABORT (abort-only)
  *
  * =============================================================================
+ * COMPLETE RECOVERY FLOW DIAGRAM (ADM-048)
+ * =============================================================================
+ *
+ *     performRecovery(input)
+ *            │
+ *            ▼
+ *     ┌──────────────────────────────┐
+ *     │ detectDrift(input)           │
+ *     │ - Returns DriftResult        │
+ *     └──────────────┬───────────────┘
+ *                    │
+ *       ┌────────────┴────────────┐
+ *       ▼                          ▼
+ *   driftDetected=false        driftDetected=true
+ *   ─────────────────          ───────────────────
+ *   NO_RECOVERY_NEEDED            │
+ *   (confidence: 1.0)             ▼
+ *                              checkStateIntegrity()
+ *                              → TRUSTED | UNVERIFIED | UNTRUSTED | ORPHANED
+ *                              │
+ *                              ▼
+ *     ┌─────────────────────────────────────────────┐
+ *     │ isRecoverySupported(targetApp, targetRegion)?│
+ *     └────────────────────┬────────────────────────┘
+ *                          │
+ *            ┌─────────────┴─────────────┐
+ *            ▼                             ▼
+ *        NO (unsupported)              YES
+ *        ─────────────────           ──────
+ *        ABORTED_UNSAFE_                │
+ *        RECOVERY                       ▼
+ *   (unsupported-surface)    determineRecoveryPolicy(reason)
+ *                              → RETRY_ONCE | RESTORE_PREVIOUS | ABORT
+ *                              │
+ *            ┌─────────────────┼─────────────────┐
+ *            ▼                 ▼                 ▼
+ *        RETRY_ONCE      RESTORE_PREVIOUS       ABORT
+ *            │                 │                 │
+ *            ▼                 ▼                 ▼
+ *     ┌──────────────────┐checkRestoration──┐ABORTED
+ *     │determineRecovery  │Eligibility()     │(already)
+ *     │Action()           └───────┬───────────┘
+ *     │→ REFOCUS_APP            │
+ *     │→ REFOCUS_REGION      ┌───┴───┐
+ *     │→ REFOCUS_CONTROL    ▼       ▼
+ *     └──────┬────────── eligible   not eligible
+ *            │              ──        ───────────
+ *            ▼              │            ABORTED_
+ *     executeRecoveryAction│        MISSING_TARGET
+ *     (via DELEGATES)      │
+ *            │              ▼
+ *            │     determineRecoveryAction()
+ *            │     → RESTORE_PREVIOUS
+ *            │              │
+ *            ▼              ▼
+ *     ┌────────────────────────────────────────────┐
+ *     │  ⚠️  DELEGATION TO SUBSYSTEMS (ADM-048)   │
+ *     │  REFOCUS_APP     → appFocusDelegate       │
+ *     │    → system.focus() / driver.focusApp()   │
+ *     │  REFOCUS_REGION  → regionFocusDelegate    │
+ *     │    → focus-region-handler                  │
+ *     │  REFOCUS_CONTROL → controlFocusDelegate  │
+ *     │    → focus-precision-service              │
+ *     │  RESTORE_PREVIOUS → restoreDelegate       │
+ *     │    → focus-history-service                 │
+ *     │                                            │
+ *     │  ❌ Recovery does NOT call xdotool directly│
+ *     └────────────────────┬─────────────────────┘
+ *                          │
+ *          ┌───────────────┴───────────────┐
+ *          ▼                               ▼
+ *    action.success=true              action.success=false
+ *    ─────────────────                ───────────────────
+ *          │                               │
+ *          ▼                               ▼
+ *    ┌──────────────────────┐    ┌────────────────────┐
+ *    │ reverifyFocusState() │    │ ABORTED (reason    │
+ *    │ (mandatory)          │    │  dependent)        │
+ *    │ - Uses verifyDelegate│    └────────────────────┘
+ *    │ - GOTCHA-033: No     │
+ *    │   fake verification! │
+ *    └──────────┬───────────┘
+ *               │
+ *    ┌──────────┴──────────┐
+ *    ▼                     ▼
+ * verified=true        verified=false
+ * ──────────────      ─────────────────
+ *    │                     │
+ *    ▼                     ▼
+ * RECOVERED_BY_RETRY   DOWNGRADED
+ * or                  ────────────
+ * RECOVERED_BY_RESTORE Action succeeded,
+ * confidence ≥ 0.85   but verification failed
+ *                     confidence: 0.4
+ *
+ * =============================================================================
+ * RESULT STATUSES (FP-5B)
+ * =============================================================================
+ * - NO_RECOVERY_NEEDED      : No drift detected
+ * - RECOVERED_BY_RETRY      : Retry succeeded + verified (confidence ≥ 0.85)
+ * - RECOVERED_BY_RESTORE    : Restore succeeded + verified (confidence 0.7-0.85)
+ * - DOWNGRADED              : Action succeeded but verification failed
+ * - ABORTED_UNSAFE_RECOVERY : Aborted - unsafe or unsupported surface
+ * - ABORTED_UNTRUSTED_STATE : Aborted - state integrity untrusted
+ * - ABORTED_MISSING_TARGET  : Aborted - target missing or restore ineligible
+ *
+ * =============================================================================
  * BOUNDARIES (DO NOT DO)
  * =============================================================================
  *
@@ -70,27 +177,6 @@
  * - No universal recovery across all apps
  * - No autonomous multi-step recovery loops
  * - Recovery does NOT call xdotool directly (violates ADM-048)
- */
-/**
- * focus-recovery-service.ts
- * Focus Recovery Service
- *
- * Provides recovery capabilities for common focus failures.
- * Part of FP-5A: Recovery Foundations
- *
- * ARCHITECTURE (ADM-048): Recovery is an orchestrator, NOT a driver.
- * It delegates to existing subsystems rather than calling xdotool directly.
- *
- * This service provides:
- * - Drift detection (via FocusRecoveryAnalyzer)
- * - Recovery policy determination (via FocusRecoveryPolicy)
- * - Bounded recovery actions via delegates
- * - Recovery telemetry with actual re-verification
- *
- * GOTCHAs addressed:
- * - GOTCHA-032: Recovery Service Direct Xdotool Bypass - now delegates to subsystems
- * - GOTCHA-033: Fake Recovery Re-Verification - now actually re-verifies
- * - GOTCHA-034: Recovery Service Isolation Violation - delegates to history service
  */
 
 import { FocusState } from "./focus-verification-service";
