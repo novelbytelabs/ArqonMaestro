@@ -736,6 +736,21 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-050: Focus Should Not Launch - Keep Focus vs Launch Separate
+
+- **Date**: 2026-03-17
+- **Status**: Accepted
+- **Decision**: `focus <target>` should only succeed if the target already exists. It should NOT auto-launch applications. A separate `launch` or `open` verb should handle application startup.
+- **Why**: In a deterministic VOS, `focus` means "move attention to an already-existing surface" - not "create a new surface and move attention to it." Blurring these semantics introduces ambiguity between focus, launch, restore, and recovery verbs.
+- **Consequences**:
+  - `focus console` fails if gnome-terminal is not already running
+  - Pre-validator reports `targetExists: FAIL` when target not runtime-accessible
+  - User-facing message: "Console is not currently open. Say 'launch console' to open it."
+  - Future: Implement separate `launch console` / `open console` command path
+  - This keeps VOS semantics deterministic and recovery semantics trustworthy
+
+---
+
 ## Template for Future Decisions
 
 ```markdown
