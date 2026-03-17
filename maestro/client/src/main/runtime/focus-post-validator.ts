@@ -11,12 +11,9 @@
  * 4. Provides detailed failure diagnostics
  */
 
-import * as driver from "../driver/stub";
 import {
   FocusState,
   FocusTarget,
-  FocusLayer,
-  FocusSourceOfTruth,
   FocusVerificationResult,
 } from "./focus-verification-service";
 import FocusTransferContract, {
@@ -93,13 +90,18 @@ export default class FocusPostValidator {
   /**
    * Validate all post-conditions for a focus transfer
    *
+   * IMPORTANT:
+   * - Prefer cached pre-transfer state if available, since that is the true
+   *   state from before the transfer attempt.
+   * - Prefer an explicitly provided verificationResult from the transfer if
+   *   no cached verification result exists.
+   *
    * @param transfer - The focus transfer data
    * @returns ContractValidationResult with all check results
    */
   async validatePostConditions(transfer: FocusTransfer): Promise<ContractValidationResult> {
     const timestamp = new Date().toISOString();
 
-    // If skipping validation, return a pass-all result
     if (this.config.skipValidation) {
       return {
         passed: true,
@@ -111,18 +113,26 @@ export default class FocusPostValidator {
       };
     }
 
+    const effectiveSourceState = this.cachedPreTransferState ?? transfer.sourceState;
+    const effectiveVerificationResult =
+      this.lastVerificationResult ?? transfer.verificationResult;
+    const effectiveTarget = this.lastTarget ?? transfer.target;
+
     const postConditions: PostConditionCheck[] = [];
     const violations: ContractViolation[] = [];
     const remediation: string[] = [];
 
     // Check 1: Focus arrived at target
-    const focusArrivedCheck = await this.verifyFocusArrived(transfer.target, transfer.actualState);
+    const focusArrivedCheck = await this.verifyFocusArrived(
+      effectiveTarget,
+      transfer.actualState
+    );
     postConditions.push(focusArrivedCheck);
 
     if (!focusArrivedCheck.satisfied) {
       violations.push({
         contractName: "focusArrived",
-        expected: `Focus should have arrived at "${transfer.target.entity}"`,
+        expected: `Focus should have arrived at "${effectiveTarget.entity}"`,
         actual: `Focus is on "${transfer.actualState.entity}"`,
         severity: "critical",
         timestamp,
@@ -132,19 +142,27 @@ export default class FocusPostValidator {
     }
 
     // Check 2: Verification passed
-    const verificationCheck = await this.verifyVerificationPassed();
+    const verificationCheck = await this.verifyVerificationPassed(
+      effectiveVerificationResult
+    );
     postConditions.push(verificationCheck);
 
-    if (!verificationCheck.satisfied && this.lastVerificationResult) {
+    if (!verificationCheck.satisfied) {
       const severity: "critical" | "warning" | "info" =
-        this.lastVerificationResult.confidence < 0.5 ? "critical" : "warning";
+        effectiveVerificationResult.confidence < 0.5 ? "critical" : "warning";
+
       violations.push({
         contractName: "verificationPassed",
-        expected: `Verification should pass with confidence >= ${(this.config.minConfidenceThreshold || 0.8) * 100}%`,
-        actual: `Verification confidence was ${(this.lastVerificationResult.confidence * 100).toFixed(0)}%`,
+        expected: `Verification should pass with confidence >= ${(
+          (this.config.minConfidenceThreshold || 0.8) * 100
+        ).toFixed(0)}%`,
+        actual: `Verification confidence was ${(
+          effectiveVerificationResult.confidence * 100
+        ).toFixed(0)}%`,
         severity,
         timestamp,
       });
+
       if (severity === "critical") {
         remediation.push("Re-attempt the focus transfer");
         remediation.push("Check system focus capabilities");
@@ -152,7 +170,11 @@ export default class FocusPostValidator {
     }
 
     // Check 3: No side effects
-    const sideEffectsCheck = await this.verifyNoSideEffects(transfer.sourceState, transfer.actualState);
+    const sideEffectsCheck = await this.verifyNoSideEffects(
+      effectiveTarget,
+      effectiveSourceState,
+      transfer.actualState
+    );
     postConditions.push(sideEffectsCheck);
 
     if (!sideEffectsCheck.satisfied) {
@@ -166,10 +188,7 @@ export default class FocusPostValidator {
       remediation.push("Review focus state consistency");
     }
 
-    // Calculate overall confidence
     const confidence = this.calculateConfidence(postConditions);
-
-    // Determine if all post-conditions passed
     const passed = postConditions.every((pc) => pc.satisfied);
 
     const result: ContractValidationResult = {
@@ -195,27 +214,33 @@ export default class FocusPostValidator {
    * @param actualState - The actual focus state after transfer
    * @returns True if focus arrived at target
    */
-  async verifyFocusArrived(target: FocusTarget, actualState: FocusState): Promise<PostConditionCheck> {
+  async verifyFocusArrived(
+    target: FocusTarget,
+    actualState: FocusState
+  ): Promise<PostConditionCheck> {
     try {
-      // Use the contract's post-condition check
-      const arrived = FocusTransferContract.PostConditions.focusArrived(target, actualState);
+      const contractArrived = FocusTransferContract.PostConditions.focusArrived(
+        target,
+        actualState
+      );
 
-      const targetEntity = target.entity.toLowerCase();
-      const actualEntity = actualState.entity.toLowerCase();
+      const targetEntity = (target.entity || "").toLowerCase().trim();
+      const actualEntity = (actualState.entity || "").toLowerCase().trim();
 
-      // Apply normalization for comparison (same as verification service)
       const normalizedTarget = this.normalizeEntityAlias(targetEntity);
       const normalizedActual = this.normalizeEntityAlias(actualEntity);
-      
-      // Re-check with normalization
-      const normalizedArrived = normalizedTarget === normalizedActual || 
-        normalizedActual.includes(normalizedTarget) || 
+
+      const normalizedArrived =
+        normalizedTarget === normalizedActual ||
+        normalizedActual.includes(normalizedTarget) ||
         normalizedTarget.includes(normalizedActual);
+
+      const satisfied = contractArrived || normalizedArrived;
 
       return {
         name: "focusArrived",
-        satisfied: normalizedArrived,
-        details: normalizedArrived
+        satisfied,
+        details: satisfied
           ? `Focus successfully transferred to "${actualState.entity}"`
           : `Focus did not arrive at target "${targetEntity}" (actual: "${actualEntity}")`,
       };
@@ -233,29 +258,51 @@ export default class FocusPostValidator {
    * Normalize entity aliases for matching
    */
   private normalizeEntityAlias(entity: string): string {
-    // VS Code aliases (window class may have extra like "code, code")
-    if (entity === "code" || entity.startsWith("code") || entity.includes("vscode")) {
+    if (!entity) {
+      return "";
+    }
+
+    // VS Code aliases
+    if (
+      entity === "code" ||
+      entity.startsWith("code") ||
+      entity.includes("vscode") ||
+      entity.includes("visual studio code")
+    ) {
       return "vscode";
     }
+
     // Chrome aliases
-    if (entity.includes("chrome") && !entity.startsWith("chromium")) {
+    if (
+      entity.includes("chrome") &&
+      !entity.startsWith("chromium")
+    ) {
       return "chrome";
     }
-    // System terminal
-    if (entity.includes("gnome-terminal") || entity === "console") {
+
+    // Terminal aliases
+    if (
+      entity.includes("gnome-terminal") ||
+      entity.includes("terminal") ||
+      entity === "console"
+    ) {
       return "gnome-terminal";
     }
+
     return entity;
   }
 
   /**
    * Verify that verification passed
    *
+   * @param verificationResult - The verification result to use
    * @returns True if verification passed
    */
-  async verifyVerificationPassed(): Promise<PostConditionCheck> {
+  async verifyVerificationPassed(
+    verificationResult: FocusVerificationResult
+  ): Promise<PostConditionCheck> {
     try {
-      if (!this.lastVerificationResult) {
+      if (!verificationResult) {
         return {
           name: "verificationPassed",
           satisfied: false,
@@ -263,19 +310,18 @@ export default class FocusPostValidator {
         };
       }
 
-      const passed = FocusTransferContract.PostConditions.verificationPassed({
-        success: this.lastVerificationResult.success,
-        confidence: this.lastVerificationResult.confidence,
-      });
-
       const threshold = this.config.minConfidenceThreshold || 0.8;
+
+      const passed =
+        verificationResult.success &&
+        verificationResult.confidence >= threshold;
 
       return {
         name: "verificationPassed",
         satisfied: passed,
         details: passed
-          ? `Verification passed with confidence ${(this.lastVerificationResult.confidence * 100).toFixed(0)}%`
-          : `Verification failed or confidence too low (${(this.lastVerificationResult.confidence * 100).toFixed(0)}% < ${(threshold * 100).toFixed(0)}%)`,
+          ? `Verification passed with confidence ${(verificationResult.confidence * 100).toFixed(0)}%`
+          : `Verification failed or confidence too low (${(verificationResult.confidence * 100).toFixed(0)}% < ${(threshold * 100).toFixed(0)}%)`,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -290,29 +336,63 @@ export default class FocusPostValidator {
   /**
    * Verify that no unexpected side effects occurred
    *
+   * IMPORTANT:
+   * A layer change is not automatically a side effect. It can be expected
+   * if the target itself implies a different layer. So we only flag it if
+   * it appears inconsistent with the requested target.
+   *
+   * @param target - The intended focus target
    * @param originalState - The state before transfer
    * @param currentState - The state after transfer
    * @returns True if no unexpected side effects occurred
    */
   async verifyNoSideEffects(
+    target: FocusTarget,
     originalState: FocusState,
     currentState: FocusState
   ): Promise<PostConditionCheck> {
     try {
-      const noSideEffects = FocusTransferContract.PostConditions.noSideEffects(originalState, currentState);
+      const contractNoSideEffects =
+        FocusTransferContract.PostConditions.noSideEffects(
+          originalState,
+          currentState
+        );
 
-      // Additional checks for side effects
-      let additionalDetails = "";
-      if (originalState.layer !== currentState.layer) {
-        additionalDetails = `Layer changed from ${originalState.layer} to ${currentState.layer}`;
+      const targetWithOptionalLayer = target as FocusTarget & { layer?: number };
+      const targetLayer = targetWithOptionalLayer.layer;
+
+      const layerChanged = originalState.layer !== currentState.layer;
+      const layerChangeMatchesTarget =
+        typeof targetLayer === "number" && currentState.layer === targetLayer;
+
+      const orphanedFocus =
+        !currentState.entity || currentState.entity.trim().length === 0;
+
+      let satisfied = contractNoSideEffects && !orphanedFocus;
+      let details = "No unexpected side effects detected";
+
+      // If contract says false only because layer changed, but that layer
+      // matches the requested target, do not treat it as a failure.
+      if (!contractNoSideEffects) {
+        if (orphanedFocus) {
+          satisfied = false;
+          details = "Unexpected side effects detected: focus became orphaned";
+        } else if (layerChanged && layerChangeMatchesTarget) {
+          satisfied = true;
+          details = `Layer changed from ${originalState.layer} to ${currentState.layer}, which matches the requested target`;
+        } else if (layerChanged) {
+          satisfied = false;
+          details = `Unexpected side effects detected: layer changed from ${originalState.layer} to ${currentState.layer}`;
+        } else {
+          satisfied = false;
+          details = `Unexpected side effects detected: focus changed from "${originalState.entity}" to "${currentState.entity}" in an inconsistent way`;
+        }
       }
 
       return {
         name: "noSideEffects",
-        satisfied: noSideEffects,
-        details: noSideEffects
-          ? "No unexpected side effects detected"
-          : `Unexpected side effects detected: ${additionalDetails}`,
+        satisfied,
+        details,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -360,21 +440,13 @@ export default class FocusPostValidator {
   }
 
   /**
-   * Internal logging helper
-   */
-  private log(message: string): void {
-    if (this.config.verboseLogging) {
-      console.log(`[FocusPostValidator] ${message}`);
-    }
-  }
-
-  /**
    * Log validation result
    */
   private logValidationResult(result: ContractValidationResult): void {
     console.log(`[FocusPostValidator] Post-Validation Result:`);
     console.log(`  Passed: ${result.passed}`);
     console.log(`  Confidence: ${(result.confidence * 100).toFixed(0)}%`);
+
     if (result.postConditions.length > 0) {
       console.log(`  Post-Conditions:`);
       for (const check of result.postConditions) {
@@ -382,13 +454,17 @@ export default class FocusPostValidator {
         console.log(`      ${check.details}`);
       }
     }
+
     if (result.violations.length > 0) {
       console.log(`  Violations:`);
       for (const violation of result.violations) {
-        console.log(`    - [${violation.severity}] ${violation.contractName}: ${violation.expected}`);
+        console.log(
+          `    - [${violation.severity}] ${violation.contractName}: ${violation.expected}`
+        );
         console.log(`      Actual: ${violation.actual}`);
       }
     }
+
     if (result.remediation.length > 0) {
       console.log(`  Remediation:`);
       for (const step of result.remediation) {
