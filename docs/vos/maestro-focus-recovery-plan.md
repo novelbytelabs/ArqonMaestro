@@ -31,11 +31,13 @@ It should **not** directly become a second `xdotool` layer.
 - [x] Removed direct xdotool calls from executeRecoveryAction
 - [x] Added actual re-verification after recovery (fixes GOTCHA-033)
 - [x] Added GOTCHAs to registry: GOTCHA-032, GOTCHA-033, GOTCHA-034
+- [x] Wired up delegates in executor (app-focus, region-focus, restore, verify, control-focus)
+- [x] Split into 3 layers: analyzer, policy, service
+- [x] Normalize target names in verification (console → gnome-terminal)
 
 ### Pending
 
-- [ ] Wire up delegates in executor
-- [ ] Test recovery with actual subsystem delegation
+- [ ] Full end-to-end recovery flow testing with actual focus failures
 
 ---
 

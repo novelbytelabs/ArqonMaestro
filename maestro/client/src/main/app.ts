@@ -205,6 +205,10 @@ export default class App {
       () => commandHandler
     ));
 
+    // Expose executor for testing/debugging via browser console
+    (window as any).executor = executor;
+    console.log('[TEST] Executor exposed at window.executor for testing');
+
     const chunkManager: ChunkManager = (instance.chunkManager = new ChunkManager(
       active,
       api,

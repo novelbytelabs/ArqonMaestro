@@ -1686,4 +1686,108 @@ export default class Executor {
       this.log.logVerbose(`[FP-5A] Deprecated refocus fallback error: ${errorMsg}`);
     }
   }
+
+  // ==================== TEST / DEBUG METHODS ====================
+
+  /**
+   * Test method to simulate a focus failure and trigger recovery.
+   * Use from browser console: window.executor.testRecovery('chrome')
+   * 
+   * @param targetName - The target to try focusing (e.g., 'chrome', 'console', 'code')
+   */
+  async testRecovery(targetName: string): Promise<{
+    success: boolean;
+    recoveryTriggered: boolean;
+    recoveryResult: any;
+    finalFocusState: FocusState | null;
+  }> {
+    console.log(`[TEST] Starting recovery test for target: ${targetName}`);
+    
+    // First, try to focus the target normally
+    const normalizedTarget = this.normalizeFocusTarget(targetName);
+    console.log(`[TEST] Normalized target: ${normalizedTarget}`);
+    
+    try {
+      await this.system.focus(normalizedTarget);
+      console.log(`[TEST] Focus command executed for: ${normalizedTarget}`);
+    } catch (error) {
+      console.log(`[TEST] Focus command error (expected if app not running): ${error}`);
+    }
+    
+    // Wait a moment for focus to settle
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Verify the current focus state
+    const focusState = await this.focusVerificationService.queryCurrentFocus();
+    console.log(`[TEST] Current focus state: ${JSON.stringify(focusState)}`);
+    
+    // Create a simulated verification failure
+    // If the focus didn't land on the expected target, verification will fail
+    const simulatedVerificationResult = {
+      success: focusState?.entity.toLowerCase().includes(normalizedTarget.toLowerCase()) ?? false,
+      confidence: focusState?.entity.toLowerCase().includes(normalizedTarget.toLowerCase()) ? 1 : 0,
+      details: `Simulated verification: expected ${normalizedTarget}, got ${focusState?.entity ?? 'unknown'}`
+    };
+    
+    console.log(`[TEST] Simulated verification result:`, simulatedVerificationResult);
+    
+    // If verification failed, trigger recovery
+    let recoveryTriggered = false;
+    let recoveryResult = null;
+    
+    if (!simulatedVerificationResult.success) {
+      recoveryTriggered = true;
+      console.log(`[TEST] Verification failed - triggering recovery!`);
+      recoveryResult = await this.runFocusRecovery(normalizedTarget, simulatedVerificationResult);
+      console.log(`[TEST] Recovery result:`, recoveryResult);
+    } else {
+      console.log(`[TEST] Verification passed - no recovery needed`);
+    }
+    
+    // Get final focus state
+    const finalFocusState = await this.focusVerificationService.queryCurrentFocus();
+    console.log(`[TEST] Final focus state: ${JSON.stringify(finalFocusState)}`);
+    
+    return {
+      success: simulatedVerificationResult.success,
+      recoveryTriggered,
+      recoveryResult,
+      finalFocusState
+    };
+  }
+
+  /**
+   * Test method to force-trigger recovery with a simulated failure.
+   * Use from browser console: window.executor.forceRecoveryTest('chrome')
+   * 
+   * This always triggers recovery regardless of actual focus state,
+   * useful for testing the recovery flow itself.
+   */
+  async forceRecoveryTest(targetName: string): Promise<any> {
+    console.log(`[TEST] Force-triggering recovery test for: ${targetName}`);
+    
+    const normalizedTarget = this.normalizeFocusTarget(targetName);
+    
+    // Create a guaranteed failure to trigger recovery
+    const forcedFailureResult = {
+      success: false,
+      confidence: 0,
+      details: `Forced test failure for ${normalizedTarget}`
+    };
+    
+    console.log(`[TEST] Simulating verification failure to trigger recovery...`);
+    const recoveryResult = await this.runFocusRecovery(normalizedTarget, forcedFailureResult);
+    
+    console.log(`[TEST] Force recovery result:`, recoveryResult);
+    
+    return recoveryResult;
+  }
+
+  /**
+   * Get the recovery service for direct testing.
+   * Use: window.executor.getRecoveryService()
+   */
+  getRecoveryService(): FocusRecoveryService {
+    return this.focusRecoveryService;
+  }
 }
