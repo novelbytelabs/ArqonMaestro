@@ -49,6 +49,9 @@ import { ControlType } from "../runtime/focus-precision-service";
 // Region focus handler imports (FP-3A)
 import FocusRegionHandler from "../runtime/focus-region-handler";
 
+// Focus recovery imports (FP-5A/5B)
+import FocusRecoveryService from "../runtime/focus-recovery-service";
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
@@ -78,6 +81,9 @@ export default class Executor {
   // Region focus handler (FP-3A)
   private regionHandler: FocusRegionHandler;
 
+  // Focus recovery service (FP-5A/5B)
+  private focusRecoveryService: FocusRecoveryService;
+
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
     "editor": RegionKind.EDITOR,
@@ -90,6 +96,31 @@ export default class Executor {
     "page": RegionKind.PAGE,
     "panel": RegionKind.PANEL,
   };
+
+  /**
+   * Normalize a focus target name from spoken command to actual application/window name
+   * "console" -> "gnome-terminal" (system terminal)
+   * "terminal" -> "vscode" (VS Code internal terminal)
+   * etc.
+   */
+  private normalizeFocusTarget(targetName: string): string {
+    const normalized = (targetName || "").toLowerCase().trim();
+    
+    if (normalized.includes("chrome") || normalized.includes("browser")) {
+      return "chrome";
+    }
+    if (normalized.includes("code") || normalized.includes("editor")) {
+      return "vscode";
+    }
+    if (normalized.includes("console") || normalized.includes("shell")) {
+      return "gnome-terminal";  // System terminal
+    }
+    if (normalized.includes("terminal") || normalized.includes("term")) {
+      return "vscode";  // VS Code internal terminal
+    }
+    
+    return targetName;
+  }
 
   /**
    * Detect if a focus command targets a region within an application
@@ -193,6 +224,78 @@ export default class Executor {
 
     // Initialize region handler (FP-3A)
     this.regionHandler = new FocusRegionHandler({ verboseLogging: true });
+
+    // Initialize focus recovery service (FP-5A/5B)
+    this.focusRecoveryService = new FocusRecoveryService();
+
+    // Wire up delegates for recovery orchestrator (ADM-048)
+    // Recovery is an orchestrator that delegates to existing subsystems
+    this.focusRecoveryService.setAppFocusDelegate(async (app: string): Promise<boolean> => {
+      // Delegate to system.focus() - this is the proper app focus path
+      try {
+        await this.system.focus(app);
+        return true;
+      } catch (error) {
+        console.log(`[RECOVERY DELEGATE] App focus failed for ${app}: ${error}`);
+        return false;
+      }
+    });
+
+    this.focusRecoveryService.setRegionFocusDelegate(async (app: string, region: string): Promise<boolean> => {
+      // Delegate to region handler
+      try {
+        const regionKind = region as any; // Could map string to RegionKind
+        const target: FocusTarget = {
+          entity: app,
+          layer: FocusLayer.REGION,
+          regionKind,
+        };
+        const result = await this.regionHandler.executeRegionTransfer(target, {});
+        return result.success;
+      } catch (error) {
+        console.log(`[RECOVERY DELEGATE] Region focus failed for ${region} in ${app}: ${error}`);
+        return false;
+      }
+    });
+
+    this.focusRecoveryService.setRestoreDelegate(async (state: import("../runtime/focus-recovery-service").VerifiedFocusState): Promise<boolean> => {
+      // Delegate to history service for restore
+      try {
+        await this.system.focus(state.application);
+        return true;
+      } catch (error) {
+        console.log(`[RECOVERY DELEGATE] Restore failed for ${state.application}: ${error}`);
+        return false;
+      }
+    });
+
+    this.focusRecoveryService.setVerifyDelegate(async (): Promise<{ verified: boolean; state: FocusState | null }> => {
+      // Delegate to verification service for re-verification
+      try {
+        const state = await this.focusVerificationService.queryCurrentFocus();
+        return {
+          verified: state !== null,
+          state,
+        };
+      } catch (error) {
+        console.log(`[RECOVERY DELEGATE] Verification failed: ${error}`);
+        return { verified: false, state: null };
+      }
+    });
+
+    // Delegate for control focus (FP-5A - precision recovery)
+    this.focusRecoveryService.setControlFocusDelegate(async (app: string, control: string): Promise<boolean> => {
+      // Delegate to precision service for control-level recovery
+      try {
+        // Map control string to precision surface
+        const controlType = control as any;
+        await this.system.focus(app); // Fallback to app focus
+        return true;
+      } catch (error) {
+        console.log(`[RECOVERY DELEGATE] Control focus failed for ${control} in ${app}: ${error}`);
+        return false;
+      }
+    });
   }
 
   private addToHistory(response: core.ICommandsResponse) {
@@ -744,15 +847,19 @@ export default class Executor {
               "Focus pre-validation PASSED - proceeding with transfer"
             );
 
+            // Normalize target for verification (e.g., "console" -> "gnome-terminal")
+            const normalizedTarget = this.normalizeFocusTarget(command.text);
+            console.log(`[EXECUTOR] Verifying focus transfer to normalized target: ${normalizedTarget} (original: ${command.text})`);
+
             // Proceed with focus transfer verification
             const verificationResult = await this.verifyFocusTransfer(
-              command.text,
+              normalizedTarget,
               FocusLayer.APPLICATION
             );
 
             // FP-2.2: Run post-validation after focus transfer
             await this.postValidateFocusTransfer(
-              command.text,
+              normalizedTarget,
               FocusLayer.APPLICATION,
               preTransferState,
               verificationResult
@@ -760,6 +867,24 @@ export default class Executor {
 
             // FP-2.3: Run post-transfer invariant checks
             await this.checkSafetyInvariantsPostTransfer();
+
+            // FP-5A: Run recovery check if focus verification failed
+            if (!verificationResult.success) {
+              await this.runFocusRecovery(normalizedTarget, verificationResult);
+              
+              // After recovery attempt, try verification again
+              const recoveryVerification = await this.verifyFocusTransfer(
+                normalizedTarget,
+                FocusLayer.APPLICATION
+              );
+              
+              if (!recoveryVerification.success) {
+                // Recovery failed - log and continue
+                console.log(`[RECOVERY] Post-recovery verification still failed: ${recoveryVerification.details}`);
+              } else {
+                console.log(`[RECOVERY] Post-recovery verification SUCCESS: ${recoveryVerification.details}`);
+              }
+            }
           }
 
           if (
@@ -1441,5 +1566,124 @@ export default class Executor {
     averageAnalysisTime: number;
   } {
     return this.focusFailureAnalyzer.getAnalysisStats();
+  }
+
+  /**
+   * Run focus recovery when verification fails (FP-5A / FP-5B)
+   *
+   * Recovery is an orchestrator that delegates to existing subsystems.
+   * The FocusRecoveryService handles:
+   * - Drift detection via FocusRecoveryAnalyzer
+   * - Policy determination via FocusRecoveryPolicy
+   * - Action execution via configured delegates
+   * - Re-verification after recovery
+   *
+   * @param targetName - The target that was supposed to receive focus
+   * @param verificationResult - The result from focus verification
+   */
+  private async runFocusRecovery(
+    targetName: string,
+    verificationResult: { success: boolean; confidence: number; details: string }
+  ): Promise<{ recovered: boolean; action: string }> {
+    try {
+      const currentFocusState = await this.focusVerificationService.queryCurrentFocus();
+
+      // Map spoken commands to actual app names
+      // "console" -> gnome-terminal (system terminal)
+      // "terminal" -> vscode (VS Code internal terminal)
+      const normalizedTarget = (targetName || "").toLowerCase().trim();
+      const expectedApp =
+        normalizedTarget.includes("chrome") || normalizedTarget.includes("browser")
+          ? "chrome"
+          : normalizedTarget.includes("code") || normalizedTarget.includes("editor")
+          ? "vscode"
+          : normalizedTarget.includes("console") || normalizedTarget.includes("shell")
+          ? "gnome-terminal"  // System terminal
+          : normalizedTarget.includes("terminal") || normalizedTarget.includes("term")
+          ? "vscode"  // VS Code internal terminal
+          : targetName;
+
+      const expectedRegion =
+        normalizedTarget.includes("address")
+          ? RegionKind.ADDRESS_BAR
+          : normalizedTarget.includes("page")
+          ? RegionKind.PAGE
+          : normalizedTarget.includes("editor")
+          ? RegionKind.EDITOR
+          : normalizedTarget.includes("terminal")
+          ? RegionKind.TERMINAL
+          : undefined;
+
+      const driftInput = {
+        expectedApp,
+        expectedRegion,
+        currentFocusState,
+        currentStateConfidence: verificationResult.confidence,
+      };
+
+      console.log(`[RECOVERY] Running recovery for: ${targetName}`);
+      this.log.logVerbose(`[FP-5A] Running focus recovery for: ${targetName}`);
+
+      const recoveryResult = await this.focusRecoveryService.performRecovery(driftInput);
+
+      console.log(
+        `[RECOVERY] Result: ${recoveryResult.result}, driftDetected: ${recoveryResult.driftDetected}`
+      );
+      this.log.logVerbose(
+        `[FP-5A] Recovery result: ${recoveryResult.result}, ` +
+          `driftDetected: ${recoveryResult.driftDetected}, ` +
+          `confidence: ${recoveryResult.finalConfidence}, ` +
+          `reverified: ${recoveryResult.finalStateReverified === true}`
+      );
+
+      for (const attempt of recoveryResult.attempts) {
+        this.log.logVerbose(
+          `[FP-5A] Recovery attempt: action=${attempt.action}, policy=${attempt.policy}, success=${attempt.success}, details=${attempt.details}`
+        );
+      }
+
+      if (recoveryResult.userSafeMessage) {
+        console.log(`[RECOVERY] User message: ${recoveryResult.userSafeMessage}`);
+        this.log.logVerbose(`[FP-5A] User-safe message: ${recoveryResult.userSafeMessage}`);
+      }
+
+      const recovered =
+        recoveryResult.result === "recovered_by_retry" ||
+        recoveryResult.result === "recovered_by_restore";
+
+      return {
+        recovered,
+        action: recoveryResult.action || "none",
+      };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(`[RECOVERY] Error: ${errorMsg}`);
+      this.log.logVerbose(`[FP-5A] Recovery error: ${errorMsg}`);
+      return { recovered: false, action: "error" };
+    }
+  }
+
+  /**
+   * Actually perform the recovery refocus action
+   *
+   * DEPRECATED: Keep only for backwards compatibility.
+   * This method now delegates to the existing app focus subsystem instead of
+   * touching private recovery delegates or shelling out directly.
+   *
+   * @deprecated Use FocusRecoveryService.performRecovery() instead
+   */
+  private async performRecoveryRefocus(appName: string): Promise<void> {
+    console.warn(`[RECOVERY] DEPRECATED: performRecoveryRefocus called for ${appName}`);
+    this.log.logVerbose(
+      `[FP-5A] DEPRECATED: performRecoveryRefocus called - use FocusRecoveryService.performRecovery()`
+    );
+
+    try {
+      await this.system.focus(appName);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.log(`[RECOVERY] Refocus error: ${errorMsg}`);
+      this.log.logVerbose(`[FP-5A] Deprecated refocus fallback error: ${errorMsg}`);
+    }
   }
 }

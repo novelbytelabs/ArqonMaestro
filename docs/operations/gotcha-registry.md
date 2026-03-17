@@ -541,6 +541,50 @@ Use for:
   - require build + harness + rollback proof together
   - block closeout when any operational gate lacks evidence
 
+### GOTCHA-032: Recovery Service Direct Xdotool Bypass
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: The focus recovery service directly calls xdotool instead of delegating to existing subsystems (system.focus, focus-region-handler, focus-precision-service). This violates architectural layering and creates a second raw driver layer.
+- **Impact**: High
+- **Where it matters**:
+  - Focus recovery (FP-5)
+  - architectural boundaries
+  - subsystem delegation model
+- **Avoidance**:
+  - recovery must call existing services, not reimplement driver logic
+  - use system.focus() for app focus, focus-region-handler for regions, focus-precision-service for control
+
+### GOTCHA-033: Fake Recovery Re-Verification
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Recovery service hardcodes finalStateReverified=true without actually re-verifying the recovered state. This creates false confidence in recovery outcomes.
+- **Impact**: High
+- **Where it matters**:
+  - Focus recovery verification
+  - recovery telemetry accuracy
+  - safety guarantees
+- **Avoidance**:
+  - always call focus-verification-service after recovery action
+  - require actual verification before marking recovery as successful
+  - telemetry must reflect real verification results
+
+### GOTCHA-034: Recovery Service Isolation Violation
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Recovery service duplicates logic from focus-history-service instead of delegating to it for restore operations.
+- **Impact**: Medium
+- **Where it matters**:
+  - RESTORE_PREVIOUS functionality
+  - state history management
+  - code duplication
+- **Avoidance**:
+  - delegate restore operations to focus-history-service
+  - reuse existing state validation logic
+  - treat recovery as orchestrator, not owner of state management
+
 ## Entry Template
 
 ```markdown

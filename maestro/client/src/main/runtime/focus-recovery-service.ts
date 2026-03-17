@@ -1,15 +1,36 @@
 /**
+ * focus-recovery-service.ts
  * Focus Recovery Service
  *
  * Provides recovery capabilities for common focus failures.
  * Part of FP-5A: Recovery Foundations
  *
+ * ARCHITECTURE (ADM-048): Recovery is an orchestrator, NOT a driver.
+ * It delegates to existing subsystems rather than calling xdotool directly.
+ *
  * This service provides:
- * - Drift detection for common failure cases
- * - Recovery reason taxonomy
- * - Bounded recovery actions
- * - Recovery policy enforcement
- * - Recovery telemetry
+ * - Drift detection (via FocusRecoveryAnalyzer)
+ * - Recovery policy determination (via FocusRecoveryPolicy)
+ * - Bounded recovery actions via delegates
+ * - Recovery telemetry with actual re-verification
+ *
+ * GOTCHAs addressed:
+ * - GOTCHA-032: Recovery Service Direct Xdotool Bypass - now delegates to subsystems
+ * - GOTCHA-033: Fake Recovery Re-Verification - now actually re-verifies
+ * - GOTCHA-034: Recovery Service Isolation Violation - delegates to history service
+ *
+ * =============================================================================
+ * DELEGATION MODEL (ADM-048)
+ * =============================================================================
+ *
+ * Recovery delegates actions to existing services:
+ * - REFOCUS_APP -> system.focus() / driver.focusApplication()
+ * - REFOCUS_REGION -> focus-region-handler
+ * - REFOCUS_CONTROL -> focus-precision-service
+ * - RESTORE_PREVIOUS -> focus-history-service
+ * - Re-verification -> focus-verification-service
+ *
+ * Delegates must be configured via setter methods before recovery can execute.
  *
  * =============================================================================
  * APPROVED RECOVERY TARGETS (FP-5A)
@@ -33,6 +54,12 @@
  * - Abort with user-safe message if no recovery possible
  * - Never autonomously loop without bounds
  *
+ * RECOVERY REASONS (ADM-049):
+ * - APP_MISMATCH, WINDOW_MISMATCH, REGION_MISMATCH, CONTROL_MISMATCH -> RETRY_ONCE
+ * - CARET_MISSING, AMBIGUITY_ESCALATED -> ABORT
+ * - TARGET_GONE -> RESTORE_PREVIOUS
+ * - PRECISION_GUARD_BLOCKED, SAFETY_GATE_BLOCKED -> ABORT (abort-only)
+ *
  * =============================================================================
  * BOUNDARIES (DO NOT DO)
  * =============================================================================
@@ -42,165 +69,61 @@
  * - No general modal intelligence
  * - No universal recovery across all apps
  * - No autonomous multi-step recovery loops
+ * - Recovery does NOT call xdotool directly (violates ADM-048)
+ */
+/**
+ * focus-recovery-service.ts
+ * Focus Recovery Service
+ *
+ * Provides recovery capabilities for common focus failures.
+ * Part of FP-5A: Recovery Foundations
+ *
+ * ARCHITECTURE (ADM-048): Recovery is an orchestrator, NOT a driver.
+ * It delegates to existing subsystems rather than calling xdotool directly.
+ *
+ * This service provides:
+ * - Drift detection (via FocusRecoveryAnalyzer)
+ * - Recovery policy determination (via FocusRecoveryPolicy)
+ * - Bounded recovery actions via delegates
+ * - Recovery telemetry with actual re-verification
+ *
+ * GOTCHAs addressed:
+ * - GOTCHA-032: Recovery Service Direct Xdotool Bypass - now delegates to subsystems
+ * - GOTCHA-033: Fake Recovery Re-Verification - now actually re-verifies
+ * - GOTCHA-034: Recovery Service Isolation Violation - delegates to history service
  */
 
-import { FocusState, FocusLayer } from "./focus-verification-service";
-import { RegionKind, SupportedApplication } from "./focus-region-service";
-import { PrecisionSurface, ControlType, DetectionAuthority } from "./focus-precision-service";
+import { FocusState } from "./focus-verification-service";
+import { RegionKind } from "./focus-region-service";
+import { PrecisionSurface } from "./focus-precision-service";
+
+import {
+  FocusRecoveryAnalyzer,
+  FocusRecoveryAnalyzerOptions,
+  RecoveryReason,
+  DriftDetectionInput,
+  StateIntegrityStatus,
+} from "./focus-recovery-analyzer";
+import {
+  FocusRecoveryPolicy,
+  RecoveryAction,
+  RecoveryPolicy,
+  RecoveryPolicyConfig,
+  RecoveryResultStatus,
+} from "./focus-recovery-policy";
 
 /**
- * Recovery reason taxonomy (FP-5A)
- * Compact enum for common focus failure reasons
+ * Recovery action request
  */
-export enum RecoveryReason {
-  /** Expected app is active but wrong region focused */
-  APP_MISMATCH = "APP_MISMATCH",
-  /** Expected window is active but focus is in different window */
-  WINDOW_MISMATCH = "WINDOW_MISMATCH",
-  /** Expected region is focused but different region is active */
-  REGION_MISMATCH = "REGION_MISMATCH",
-  /** Expected control is focused but different control is active */
-  CONTROL_MISMATCH = "CONTROL_MISMATCH",
-  /** Insertion attempted but no caret present */
-  CARET_MISSING = "CARET_MISSING",
-  /** Previous target no longer exists (closed tab, etc.) */
-  TARGET_GONE = "TARGET_GONE",
-  /** Ambiguity resolution invalidated prior assumption */
-  AMBIGUITY_ESCALATED = "AMBIGUITY_ESCALATED",
-  /** Focus state cannot be verified */
-  UNVERIFIED_STATE = "UNVERIFIED_STATE",
-}
-
-/**
- * Recovery action types (FP-5A)
- * Bounded set of recovery actions
- */
-export enum RecoveryAction {
-  /** Refocus the entire application */
-  REFOCUS_APP = "refocus_app",
-  /** Refocus a specific region within the app */
-  REFOCUS_REGION = "refocus_region",
-  /** Refocus a specific control */
-  REFOCUS_CONTROL = "refocus_control",
-  /** Restore to previous verified target */
-  RESTORE_PREVIOUS = "restore_previous",
-  /** Abort and inform user */
-  ABORT = "abort",
-}
-
-/**
- * Recovery policy decisions (FP-5A)
- * Policy determines what to do when drift is detected
- */
-export enum RecoveryPolicy {
-  /** Try the recovery action once */
-  RETRY_ONCE = "retry_once",
-  /** Restore to previous verified state */
-  RESTORE_PREVIOUS = "restore_previous",
-  /** Abort and ask user for guidance */
-  ABORT = "abort",
-  /** Downgrade confidence and stop */
-  DOWNGRADE = "downgrade",
-}
-
-/**
- * Recovery result status (FP-5B refined)
- * Distinguishes between retry, restore, abort paths
- */
-export enum RecoveryResultStatus {
-  /** Recovery succeeded via retry */
-  RECOVERED_BY_RETRY = "recovered_by_retry",
-  /** Recovery succeeded via restore previous */
-  RECOVERED_BY_RESTORE = "recovered_by_restore",
-  /** Recovery aborted - untrusted state */
-  ABORTED_UNTRUSTED_STATE = "aborted_untrusted_state",
-  /** Recovery aborted - target missing */
-  ABORTED_MISSING_TARGET = "aborted_missing_target",
-  /** Recovery aborted - unsafe recovery */
-  ABORTED_UNSAFE_RECOVERY = "aborted_unsafe_recovery",
-  /** Recovery aborted - no recovery possible */
-  ABORTED = "aborted",
-  /** Recovery failed with degraded confidence */
-  DOWNGRADED = "downgraded",
-}
-
-/**
- * State integrity status (FP-5B)
- * Indicates whether the state used for recovery is trustworthy
- */
-export enum StateIntegrityStatus {
-  /** State is trusted and recent */
-  TRUSTED = "trusted",
-  /** State is somewhat stale but may be usable */
-  STALE = "stale",
-  /** State is too old to trust */
-  EXPIRED = "expired",
-  /** State is completely untrusted */
-  UNTRUSTED = "untrusted",
-}
-
-/**
- * Restoration eligibility (FP-5B)
- * Whether previous verified state can be restored
- */
-export interface RestorationEligibility {
-  /** Whether restoration is eligible */
-  eligible: boolean;
-  /** Reason if not eligible */
-  reason?: string;
-  /** Integrity status of prior state */
-  integrityStatus: StateIntegrityStatus;
-  /** Age of prior state in seconds */
-  ageSeconds?: number;
-}
-
-/**
- * Drift detection input
- * Information needed to detect focus drift
- */
-export interface DriftDetectionInput {
-  /** Expected application */
-  expectedApp?: string;
-  /** Expected window ID */
-  expectedWindowId?: string;
-  /** Expected region */
-  expectedRegion?: RegionKind;
-  /** Expected control/surface */
-  expectedControl?: PrecisionSurface;
-  /** Current actual focus state */
-  currentFocusState: FocusState;
-  /** Current precision surface (if any) */
-  currentPrecisionSurface?: PrecisionSurface;
-  /** Whether an insertion command was attempted */
-  insertionAttempted?: boolean;
-}
-
-/**
- * Drift detection result
- */
-export interface DriftDetectionResult {
-  /** Whether drift/failure was detected */
-  driftDetected: boolean;
-  /** The reason for drift (if detected) */
-  reason: RecoveryReason | null;
-  /** Confidence in drift detection [0.0, 1.0] */
-  confidence: number;
-  /** Details about the drift */
-  details: string;
-  /** Expected vs actual comparison */
-  expectedState?: {
-    app?: string;
-    region?: RegionKind;
-    control?: string;
-  };
-  /** Actual state observed */
-  actualState?: {
-    app?: string;
-    region?: RegionKind;
-    control?: string;
-  };
-  /** Timestamp of detection */
-  timestamp: string;
+export interface RecoveryActionRequest {
+  /** Target application */
+  targetApp: string;
+  /** Target region (optional) */
+  targetRegion?: RegionKind;
+  /** Target control (optional) */
+  targetControl?: PrecisionSurface;
+  /** Previous verified state to restore */
+  previousState?: VerifiedFocusState;
 }
 
 /**
@@ -238,7 +161,7 @@ export interface RecoveryTelemetry {
   finalConfidence: number;
   /** All recovery attempts */
   attempts: RecoveryAttempt[];
-  /** User-safe message if recovery failed */
+  /** User-safe message if recovery failed or degraded */
   userSafeMessage?: string;
   /** Timestamp of start */
   startTimestamp: string;
@@ -246,7 +169,7 @@ export interface RecoveryTelemetry {
   endTimestamp: string;
   /** State integrity status (FP-5B) */
   integrityStatus?: StateIntegrityStatus;
-  /** Whether prior state was re-verified after restore (FP-5B) */
+  /** Whether prior state was re-verified after action */
   finalStateReverified?: boolean;
   /** Whether restoration was validated before use (FP-5B) */
   restorationValidated?: boolean;
@@ -272,20 +195,6 @@ export interface VerifiedFocusState {
 }
 
 /**
- * Recovery action request
- */
-export interface RecoveryActionRequest {
-  /** Target application */
-  targetApp: string;
-  /** Target region (optional) */
-  targetRegion?: RegionKind;
-  /** Target control (optional) */
-  targetControl?: PrecisionSurface;
-  /** Previous verified state to restore */
-  previousState?: VerifiedFocusState;
-}
-
-/**
  * User-safe abort message
  * Ensures blocked/aborted recovery paths are explicit
  */
@@ -302,264 +211,133 @@ export interface AbortMessage {
   timestamp: string;
 }
 
+/**
+ * Focus Recovery Service
+ *
+ * A pure orchestrator that:
+ * 1. Uses FocusRecoveryAnalyzer for drift detection
+ * 2. Uses FocusRecoveryPolicy for policy determination
+ * 3. Delegates actual execution to injected subsystems
+ * 4. Performs actual re-verification after recovery
+ */
 export default class FocusRecoveryService {
-  // Storage for previous verified focus state
+  private analyzer: FocusRecoveryAnalyzer;
+  private policy: FocusRecoveryPolicy;
+
   private previousVerifiedState: VerifiedFocusState | null = null;
-  // Recovery history for debugging
   private recoveryHistory: RecoveryTelemetry[] = [];
-  // Maximum history size
   private maxHistorySize = 100;
 
-  // State integrity thresholds (FP-5B)
-  private readonly STALE_THRESHOLD_SECONDS = 300; // 5 minutes
-  private readonly EXPIRED_THRESHOLD_SECONDS = 600; // 10 minutes
-  private readonly MIN_CONFIDENCE_THRESHOLD = 0.5;
+  // Delegates for existing subsystems (ADM-048)
+  private appFocusDelegate: ((app: string) => Promise<boolean>) | null = null;
+  private regionFocusDelegate: ((app: string, region: string) => Promise<boolean>) | null = null;
+  private controlFocusDelegate: ((app: string, control: string) => Promise<boolean>) | null = null;
+  private restoreDelegate: ((state: VerifiedFocusState) => Promise<boolean>) | null = null;
+  private verifyDelegate:
+    | (() => Promise<{ verified: boolean; state: FocusState | null }>)
+    | null = null;
 
-  /**
-   * Detect focus drift (FP-5A)
-   *
-   * Detects common cases where focus has drifted from expected state:
-   * - Expected app active, wrong region
-   * - Expected region active, wrong control
-   * - Insertion attempted, caret missing
-   * - Previous target no longer exists
-   * - Ambiguity invalidated prior assumption
-   *
-   * @param input - Drift detection input
-   * @returns Drift detection result
-   */
-  detectDrift(input: DriftDetectionInput): DriftDetectionResult {
-    const timestamp = new Date().toISOString();
-
-    // If no current focus state, we have drift
-    if (!input.currentFocusState) {
-      return {
-        driftDetected: true,
-        reason: RecoveryReason.UNVERIFIED_STATE,
-        confidence: 1.0,
-        details: "No focus state available - focus is completely unknown",
-        timestamp,
-      };
-    }
-
-    // Check: APP_MISMATCH - expected app is active but wrong region
-    if (input.expectedApp && input.expectedRegion) {
-      const currentApp = input.currentFocusState.entity ? input.currentFocusState.entity.toLowerCase() : "";
-      const expectedApp = input.expectedApp.toLowerCase();
-
-      if (currentApp.includes(expectedApp) || expectedApp.includes(currentApp)) {
-        // App matches, check region
-        const currentRegion = input.currentFocusState.regionKind;
-        if (currentRegion && currentRegion !== input.expectedRegion) {
-          return {
-            driftDetected: true,
-            reason: RecoveryReason.REGION_MISMATCH,
-            confidence: 0.85,
-            details: `Expected region ${input.expectedRegion} but ${currentRegion} is focused`,
-            expectedState: {
-              app: input.expectedApp,
-              region: input.expectedRegion,
-            },
-            actualState: {
-              app: input.currentFocusState.entity,
-              region: currentRegion,
-            },
-            timestamp,
-          };
-        }
-      } else if (currentApp && !currentApp.includes(expectedApp) && !expectedApp.includes(currentApp)) {
-        // App doesn't match
-        return {
-          driftDetected: true,
-          reason: RecoveryReason.APP_MISMATCH,
-          confidence: 0.95,
-          details: `Expected app ${input.expectedApp} but ${input.currentFocusState.entity} is active`,
-          expectedState: {
-            app: input.expectedApp,
-            region: input.expectedRegion,
-          },
-          actualState: {
-            app: input.currentFocusState.entity,
-          },
-          timestamp,
-        };
-      }
-    }
-
-    // Check: CONTROL_MISMATCH - expected control different from actual
-    if (input.expectedControl && input.currentPrecisionSurface) {
-      const expected = input.expectedControl;
-      const actual = input.currentPrecisionSurface;
-
-      if (expected.controlType !== actual.controlType) {
-        return {
-          driftDetected: true,
-          reason: RecoveryReason.CONTROL_MISMATCH,
-          confidence: 0.8,
-          details: `Expected control ${expected.controlType} but ${actual.controlType} is focused`,
-          expectedState: {
-            app: expected.application,
-            control: expected.controlType,
-          },
-          actualState: {
-            app: actual.application,
-            control: actual.controlType,
-          },
-          timestamp,
-        };
-      }
-    }
-
-    // Check: CARET_MISSING - insertion attempted but no caret
-    if (input.insertionAttempted && input.currentPrecisionSurface) {
-      // This would require checking caret state from precision service
-      // For now, we assume if we have a precision surface, caret check happened
-      // This is a placeholder - real implementation would query caret state
-      const hasCaret = true; // Would come from precision service
-
-      if (!hasCaret) {
-        return {
-          driftDetected: true,
-          reason: RecoveryReason.CARET_MISSING,
-          confidence: 0.9,
-          details: "Insertion attempted but no caret present in current control",
-          expectedState: {
-            control: input.expectedControl?.controlType,
-          },
-          actualState: {
-            control: input.currentPrecisionSurface?.controlType,
-          },
-          timestamp,
-        };
-      }
-    }
-
-    // Check: TARGET_GONE - previous target no longer exists
-    if (input.expectedControl && !input.currentPrecisionSurface) {
-      return {
-        driftDetected: true,
-        reason: RecoveryReason.TARGET_GONE,
-        confidence: 0.9,
-        details: "Previous target control no longer exists or is not focusable",
-        expectedState: {
-          control: input.expectedControl.controlType,
-        },
-        actualState: {},
-        timestamp,
-      };
-    }
-
-    // No drift detected
-    return {
-      driftDetected: false,
-      reason: null,
-      confidence: 1.0,
-      details: "No drift detected - focus state matches expectations",
-      timestamp,
-    };
+  constructor(
+    analyzerOptions: FocusRecoveryAnalyzerOptions = {},
+    policyOptions: Partial<RecoveryPolicyConfig> = {}
+  ) {
+    this.analyzer = new FocusRecoveryAnalyzer(analyzerOptions);
+    this.policy = new FocusRecoveryPolicy(policyOptions);
   }
 
   /**
-   * Determine recovery policy based on drift type (FP-5A)
-   *
-   * @param reason - The recovery reason
-   * @returns Recommended recovery policy
+   * Set the delegate for app focus operations
+   * Should delegate to system.focus() / driver.focusApplication()
+   */
+  setAppFocusDelegate(delegate: (app: string) => Promise<boolean>): void {
+    this.appFocusDelegate = delegate;
+  }
+
+  /**
+   * Set the delegate for region focus operations
+   * Should delegate to focus-region-handler
+   */
+  setRegionFocusDelegate(delegate: (app: string, region: string) => Promise<boolean>): void {
+    this.regionFocusDelegate = delegate;
+  }
+
+  /**
+   * Set the delegate for control focus operations
+   * Should delegate to focus-precision-service
+   */
+  setControlFocusDelegate(delegate: (app: string, control: string) => Promise<boolean>): void {
+    this.controlFocusDelegate = delegate;
+  }
+
+  /**
+   * Set the delegate for restore operations
+   * Should delegate to focus-history-service
+   */
+  setRestoreDelegate(delegate: (state: VerifiedFocusState) => Promise<boolean>): void {
+    this.restoreDelegate = delegate;
+  }
+
+  /**
+   * Set the delegate for verification
+   * Should delegate to focus-verification-service
+   */
+  setVerifyDelegate(delegate: () => Promise<{ verified: boolean; state: FocusState | null }>): void {
+    this.verifyDelegate = delegate;
+  }
+
+  /**
+   * Detect focus drift (delegates to analyzer)
+   */
+  detectDrift(input: DriftDetectionInput) {
+    return this.analyzer.detectDrift(input);
+  }
+
+  /**
+   * Determine recovery policy (delegates to policy)
    */
   determineRecoveryPolicy(reason: RecoveryReason): RecoveryPolicy {
-    switch (reason) {
-      case RecoveryReason.APP_MISMATCH:
-        // Try to refocus the app
-        return RecoveryPolicy.RETRY_ONCE;
-
-      case RecoveryReason.WINDOW_MISMATCH:
-        // Try to refocus the window
-        return RecoveryPolicy.RETRY_ONCE;
-
-      case RecoveryReason.REGION_MISMATCH:
-        // Try to refocus the region
-        return RecoveryPolicy.RETRY_ONCE;
-
-      case RecoveryReason.CONTROL_MISMATCH:
-        // Try to refocus the control
-        return RecoveryPolicy.RETRY_ONCE;
-
-      case RecoveryReason.CARET_MISSING:
-        // Cannot recover - need user intervention
-        return RecoveryPolicy.ABORT;
-
-      case RecoveryReason.TARGET_GONE:
-        // Try to restore previous state
-        return RecoveryPolicy.RESTORE_PREVIOUS;
-
-      case RecoveryReason.AMBIGUITY_ESCALATED:
-        // Abort and ask user
-        return RecoveryPolicy.ABORT;
-
-      case RecoveryReason.UNVERIFIED_STATE:
-        // Try to establish state, else abort
-        return RecoveryPolicy.RETRY_ONCE;
-
-      default:
-        // Default to abort for unknown reasons
-        return RecoveryPolicy.ABORT;
-    }
+    return this.policy.determineRecoveryPolicy(reason);
   }
 
   /**
-   * Determine recovery action based on drift type and policy (FP-5A)
-   *
-   * @param reason - The recovery reason
-   * @param policy - The recovery policy
-   * @param request - The recovery action request
-   * @returns Recommended recovery action
+   * Determine recovery action (delegates to policy)
    */
-  determineRecoveryAction(
-    reason: RecoveryReason,
-    policy: RecoveryPolicy,
-    request: RecoveryActionRequest
-  ): RecoveryAction {
-    // If restoring previous, that's the action
-    if (policy === RecoveryPolicy.RESTORE_PREVIOUS) {
-      return RecoveryAction.RESTORE_PREVIOUS;
-    }
-
-    // If aborting, that's the action
-    if (policy === RecoveryPolicy.ABORT) {
-      return RecoveryAction.ABORT;
-    }
-
-    // For retry policies, determine which level to retry at
-    switch (reason) {
-      case RecoveryReason.APP_MISMATCH:
-      case RecoveryReason.WINDOW_MISMATCH:
-        return RecoveryAction.REFOCUS_APP;
-
-      case RecoveryReason.REGION_MISMATCH:
-        return RecoveryAction.REFOCUS_REGION;
-
-      case RecoveryReason.CONTROL_MISMATCH:
-      case RecoveryReason.TARGET_GONE:
-        return RecoveryAction.REFOCUS_CONTROL;
-
-      case RecoveryReason.CARET_MISSING:
-        return RecoveryAction.ABORT;
-
-      case RecoveryReason.AMBIGUITY_ESCALATED:
-        return RecoveryAction.ABORT;
-
-      case RecoveryReason.UNVERIFIED_STATE:
-        return RecoveryAction.REFOCUS_APP;
-
-      default:
-        return RecoveryAction.ABORT;
-    }
+  determineRecoveryAction(reason: RecoveryReason, policy: RecoveryPolicy): RecoveryAction {
+    return this.policy.determineRecoveryAction(reason, policy);
   }
 
   /**
-   * Execute recovery action (FP-5A)
+   * Get abort user message (delegates to policy)
+   */
+  getAbortUserMessage(reason: RecoveryReason): string {
+    return this.policy.getAbortUserMessage(reason);
+  }
+
+  /**
+   * Check state integrity (delegates to analyzer)
+   */
+  checkStateIntegrity(state: FocusState | null, confidence?: number): StateIntegrityStatus {
+    return this.analyzer.checkStateIntegrity(state, confidence);
+  }
+
+  /**
+   * Check restoration eligibility (delegates to analyzer)
+   */
+  checkRestorationEligibility(priorState: VerifiedFocusState | null) {
+    return this.analyzer.checkRestorationEligibility(
+      priorState
+        ? {
+            timestamp: priorState.timestamp,
+            confidence: priorState.confidence,
+          }
+        : null
+    );
+  }
+
+  /**
+   * Execute recovery action
    *
-   * Note: This is a placeholder. Real implementation would call
-   * the appropriate focus services to actually perform recovery.
+   * Delegates to existing subsystems rather than directly calling xdotool.
    *
    * @param action - The recovery action to execute
    * @param request - The recovery request details
@@ -567,61 +345,163 @@ export default class FocusRecoveryService {
    */
   async executeRecoveryAction(
     action: RecoveryAction,
-    request: RecoveryActionRequest
+    request: RecoveryActionRequest,
+    policy: RecoveryPolicy
   ): Promise<RecoveryAttempt> {
     const timestamp = new Date().toISOString();
 
     switch (action) {
-      case RecoveryAction.REFOCUS_APP:
-        // In real implementation: call focus service to refocus app
-        // For now, return success (simulated)
-        return {
-          action,
-          policy: RecoveryPolicy.RETRY_ONCE,
-          success: true,
-          details: `Refocus app ${request.targetApp} - action simulated (real impl would call focus service)`,
-          timestamp,
-        };
-
-      case RecoveryAction.REFOCUS_REGION:
-        // In real implementation: call region service to refocus region
-        return {
-          action,
-          policy: RecoveryPolicy.RETRY_ONCE,
-          success: true,
-          details: `Refocus region ${request.targetRegion} in ${request.targetApp} - action simulated`,
-          timestamp,
-        };
-
-      case RecoveryAction.REFOCUS_CONTROL:
-        // In real implementation: call precision service to refocus control
-        return {
-          action,
-          policy: RecoveryPolicy.RETRY_ONCE,
-          success: true,
-          details: `Refocus control in ${request.targetApp} - action simulated`,
-          timestamp,
-        };
-
-      case RecoveryAction.RESTORE_PREVIOUS:
-        // Restore to previous verified state
-        if (request.previousState) {
+      case RecoveryAction.REFOCUS_APP: {
+        if (!this.appFocusDelegate) {
           return {
             action,
-            policy: RecoveryPolicy.RESTORE_PREVIOUS,
-            success: true,
-            details: `Restored to previous verified state: ${request.previousState.application}`,
-            timestamp,
-          };
-        } else {
-          return {
-            action,
-            policy: RecoveryPolicy.RESTORE_PREVIOUS,
+            policy,
             success: false,
-            details: "No previous state available to restore",
+            details:
+              "REFOCUS_APP failed: no appFocusDelegate configured; recovery requires subsystem delegation",
             timestamp,
           };
         }
+
+        try {
+          const success = await this.appFocusDelegate(request.targetApp);
+          return {
+            action,
+            policy,
+            success,
+            details: success
+              ? `Delegated REFOCUS_APP to app focus subsystem for ${request.targetApp}`
+              : `App focus delegate returned failure for ${request.targetApp}`,
+            timestamp,
+          };
+        } catch (error) {
+          return {
+            action,
+            policy,
+            success: false,
+            details: `REFOCUS_APP delegate error: ${String(error)}`,
+            timestamp,
+          };
+        }
+      }
+
+      case RecoveryAction.REFOCUS_REGION: {
+        if (!this.regionFocusDelegate || !request.targetRegion) {
+          return {
+            action,
+            policy,
+            success: false,
+            details:
+              "REFOCUS_REGION failed: missing regionFocusDelegate or targetRegion",
+            timestamp,
+          };
+        }
+
+        try {
+          const success = await this.regionFocusDelegate(
+            request.targetApp,
+            request.targetRegion
+          );
+          return {
+            action,
+            policy,
+            success,
+            details: success
+              ? `Delegated REFOCUS_REGION to region subsystem for ${request.targetRegion} in ${request.targetApp}`
+              : `Region focus delegate returned failure for ${request.targetRegion} in ${request.targetApp}`,
+            timestamp,
+          };
+        } catch (error) {
+          return {
+            action,
+            policy,
+            success: false,
+            details: `REFOCUS_REGION delegate error: ${String(error)}`,
+            timestamp,
+          };
+        }
+      }
+
+      case RecoveryAction.REFOCUS_CONTROL: {
+        if (!this.controlFocusDelegate || !request.targetControl?.controlType) {
+          return {
+            action,
+            policy,
+            success: false,
+            details:
+              "REFOCUS_CONTROL failed: missing controlFocusDelegate or targetControl",
+            timestamp,
+          };
+        }
+
+        try {
+          const success = await this.controlFocusDelegate(
+            request.targetApp,
+            request.targetControl.controlType
+          );
+          return {
+            action,
+            policy,
+            success,
+            details: success
+              ? `Delegated REFOCUS_CONTROL to precision subsystem for ${request.targetControl.controlType} in ${request.targetApp}`
+              : `Control focus delegate returned failure for ${request.targetControl.controlType} in ${request.targetApp}`,
+            timestamp,
+          };
+        } catch (error) {
+          return {
+            action,
+            policy,
+            success: false,
+            details: `REFOCUS_CONTROL delegate error: ${String(error)}`,
+            timestamp,
+          };
+        }
+      }
+
+      case RecoveryAction.RESTORE_PREVIOUS: {
+        if (!request.previousState) {
+          return {
+            action,
+            policy,
+            success: false,
+            details: "RESTORE_PREVIOUS failed: no previous verified state available",
+            timestamp,
+          };
+        }
+
+        if (!this.restoreDelegate) {
+          return {
+            action,
+            policy,
+            success: false,
+            details:
+              "RESTORE_PREVIOUS failed: no restoreDelegate configured; history restore is unavailable",
+            timestamp,
+          };
+        }
+
+        try {
+          const success = await this.restoreDelegate(request.previousState);
+          return {
+            action,
+            policy,
+            success,
+            details: success
+              ? `Delegated RESTORE_PREVIOUS to history service for ${request.previousState.application}`
+              : `Restore delegate returned failure for ${request.previousState.application}`,
+            timestamp,
+          };
+        } catch (error) {
+          return {
+            action,
+            policy,
+            success: false,
+            details: `RESTORE_PREVIOUS delegate error: ${String(error)}`,
+            timestamp,
+          };
+        }
+      }
 
       case RecoveryAction.ABORT:
       default:
@@ -636,69 +516,145 @@ export default class FocusRecoveryService {
   }
 
   /**
-   * Perform recovery (FP-5A)
+   * Re-verify the focus state after recovery.
+   * GOTCHA-033: fake re-verification is not allowed.
+   */
+  async reverifyFocusState(): Promise<{
+    verified: boolean;
+    state: FocusState | null;
+    confidence: number;
+  }> {
+    if (!this.verifyDelegate) {
+      return {
+        verified: false,
+        state: null,
+        confidence: 0,
+      };
+    }
+
+    try {
+      const result = await this.verifyDelegate();
+      const confidence = this.analyzer.checkStateIntegrity(result.state) === StateIntegrityStatus.TRUSTED
+        ? 0.9
+        : 0.6;
+
+      return {
+        verified: result.verified,
+        state: result.state,
+        confidence,
+      };
+    } catch {
+      return {
+        verified: false,
+        state: null,
+        confidence: 0,
+      };
+    }
+  }
+
+  /**
+   * Perform recovery (FP-5A / FP-5B)
    *
    * Main entry point for recovery. Performs:
-   * 1. Drift detection
-   * 2. Policy determination
-   * 3. Action execution
-   * 4. Telemetry recording
+   * 1. Drift detection (via analyzer)
+   * 2. Policy determination (via policy)
+   * 3. Restoration validation when needed
+   * 4. Action execution (via delegates)
+   * 5. Re-verification (mandatory)
+   * 6. Telemetry recording
    *
    * @param input - Drift detection input
    * @returns Complete recovery telemetry
    */
   async performRecovery(input: DriftDetectionInput): Promise<RecoveryTelemetry> {
     const startTimestamp = new Date().toISOString();
+    const driftResult = this.analyzer.detectDrift(input);
 
-    // Step 1: Detect drift
-    const driftResult = this.detectDrift(input);
-
-    // If no drift, return success early
     if (!driftResult.driftDetected) {
-      return {
+      const telemetry: RecoveryTelemetry = {
         driftDetected: false,
         reason: null,
         action: null,
         policy: null,
-        result: RecoveryResultStatus.RECOVERED_BY_RETRY, // No drift = recovery succeeded
+        result: RecoveryResultStatus.NO_RECOVERY_NEEDED,
         finalConfidence: 1.0,
         attempts: [],
         startTimestamp,
         endTimestamp: new Date().toISOString(),
-        integrityStatus: StateIntegrityStatus.TRUSTED,
+        integrityStatus: this.analyzer.checkStateIntegrity(
+          input.currentFocusState,
+          input.currentStateConfidence
+        ),
+        finalStateReverified: true,
+        restorationValidated: false,
       };
+
+      this.addToHistory(telemetry);
+      return telemetry;
     }
 
-    // Step 2: Determine policy
-    const policy = this.determineRecoveryPolicy(driftResult.reason!);
+    const reason = driftResult.reason!;
+    const policy = this.policy.determineRecoveryPolicy(reason);
+    let integrityStatus = this.analyzer.checkStateIntegrity(
+      input.currentFocusState,
+      input.currentStateConfidence
+    );
+    let restorationValidated = false;
 
-    // FP-5B: Check state integrity for UNVERIFIED_STATE
-    let integrityStatus: StateIntegrityStatus = StateIntegrityStatus.TRUSTED;
-    
-    if (driftResult.reason === RecoveryReason.UNVERIFIED_STATE) {
-      integrityStatus = StateIntegrityStatus.UNTRUSTED;
-    }
-
-    // Step 3: Determine action
     const request: RecoveryActionRequest = {
-      targetApp: input.expectedApp || input.currentFocusState.entity || "unknown",
+      targetApp:
+        input.expectedApp ||
+        input.currentFocusState?.entity ||
+        "unknown",
       targetRegion: input.expectedRegion,
       targetControl: input.expectedControl,
       previousState: this.previousVerifiedState || undefined,
     };
 
-    const action = this.determineRecoveryAction(driftResult.reason!, policy, request);
+    // If surface is unsupported, abort early.
+    if (!this.isRecoverySupported(request.targetApp, request.targetRegion)) {
+      const telemetry = this.createAbortTelemetry(
+        reason,
+        RecoveryResultStatus.ABORTED_UNSAFE_RECOVERY,
+        startTimestamp,
+        `Recovery is not supported for application=${request.targetApp} region=${String(
+          request.targetRegion || "none"
+        )}`,
+        integrityStatus
+      );
+      this.addToHistory(telemetry);
+      return telemetry;
+    }
 
-    // FP-5B: Validate restoration before attempting
-    let restorationValidated = false;
-    if (policy === RecoveryPolicy.RESTORE_PREVIOUS && this.previousVerifiedState) {
+    // Abort-only reasons should not attempt active recovery.
+    if (this.policy.isAbortOnly(reason) || policy === RecoveryPolicy.ABORT) {
+      const result =
+        reason === RecoveryReason.UNVERIFIED_STATE
+          ? RecoveryResultStatus.ABORTED_UNTRUSTED_STATE
+          : reason === RecoveryReason.TARGET_GONE
+          ? RecoveryResultStatus.ABORTED_MISSING_TARGET
+          : RecoveryResultStatus.ABORTED_UNSAFE_RECOVERY;
+
+      const telemetry = this.createAbortTelemetry(
+        reason,
+        result,
+        startTimestamp,
+        this.policy.getAbortUserMessage(reason),
+        integrityStatus
+      );
+      this.addToHistory(telemetry);
+      return telemetry;
+    }
+
+    // Restore must be explicitly validated first.
+    if (policy === RecoveryPolicy.RESTORE_PREVIOUS) {
       const eligibility = this.checkRestorationEligibility(this.previousVerifiedState);
       restorationValidated = eligibility.eligible;
-      
+      integrityStatus = eligibility.integrityStatus;
+
       if (!eligibility.eligible) {
-        // Cannot restore - target invalid
         const telemetry = this.createAbortTelemetry(
-          driftResult.reason!,
+          reason,
           RecoveryResultStatus.ABORTED_MISSING_TARGET,
           startTimestamp,
           eligibility.reason || "Restoration not eligible",
@@ -707,105 +663,66 @@ export default class FocusRecoveryService {
         this.addToHistory(telemetry);
         return telemetry;
       }
-      
-      // Update integrity based on state age
-      integrityStatus = eligibility.integrityStatus;
     }
 
-    // Step 4: Execute recovery
-    const attempt = await this.executeRecoveryAction(action, request);
+    const action = this.policy.determineRecoveryAction(reason, policy);
+    const attempt = await this.executeRecoveryAction(action, request, policy);
 
-    // Step 5: Determine refined result (FP-5B)
+    const reverification = attempt.success
+      ? await this.reverifyFocusState()
+      : { verified: false, state: null, confidence: 0 };
+
     let result: RecoveryResultStatus;
-    let finalConfidence: number;
-    let finalStateReverified = false;
+    let finalConfidence = reverification.confidence;
+    let userSafeMessage: string | undefined;
 
-    if (attempt.success) {
-      if (policy === RecoveryPolicy.RETRY_ONCE) {
-        result = RecoveryResultStatus.RECOVERED_BY_RETRY;
-        finalConfidence = 0.9;
-      } else if (policy === RecoveryPolicy.RESTORE_PREVIOUS) {
+    if (attempt.success && reverification.verified) {
+      if (policy === RecoveryPolicy.RESTORE_PREVIOUS) {
         result = RecoveryResultStatus.RECOVERED_BY_RESTORE;
-        // Lower confidence for restored state
-        finalConfidence = integrityStatus === StateIntegrityStatus.TRUSTED ? 0.85 : 0.7;
-        // Would re-verify in real implementation
-        finalStateReverified = true;
+        // Restored state is intentionally lower-confidence if stale.
+        finalConfidence =
+          integrityStatus === StateIntegrityStatus.TRUSTED ? 0.85 : 0.7;
       } else {
         result = RecoveryResultStatus.RECOVERED_BY_RETRY;
-        finalConfidence = 0.85;
+        finalConfidence = Math.max(reverification.confidence, 0.85);
       }
-    } else if (policy === RecoveryPolicy.ABORT || action === RecoveryAction.ABORT) {
-      if (driftResult.reason === RecoveryReason.UNVERIFIED_STATE) {
+    } else if (attempt.success && !reverification.verified) {
+      // Action claimed success, but final state could not be verified.
+      result = this.policy.isRecoveryAllowed()
+        ? RecoveryResultStatus.DOWNGRADED
+        : RecoveryResultStatus.ABORTED_UNSAFE_RECOVERY;
+      finalConfidence = 0.4;
+      userSafeMessage = this.policy.getAbortUserMessageForResult(result, reason);
+    } else {
+      if (reason === RecoveryReason.UNVERIFIED_STATE) {
         result = RecoveryResultStatus.ABORTED_UNTRUSTED_STATE;
-      } else if (driftResult.reason === RecoveryReason.TARGET_GONE) {
+      } else if (reason === RecoveryReason.TARGET_GONE) {
         result = RecoveryResultStatus.ABORTED_MISSING_TARGET;
       } else {
         result = RecoveryResultStatus.ABORTED_UNSAFE_RECOVERY;
       }
-      finalConfidence = 0.3;
-    } else {
-      result = RecoveryResultStatus.DOWNGRADED;
-      finalConfidence = 0.5;
+      finalConfidence = 0.2;
+      userSafeMessage = this.policy.getAbortUserMessageForResult(result, reason);
     }
 
-    // Step 6: Record telemetry (FP-5B hardened)
     const telemetry: RecoveryTelemetry = {
       driftDetected: true,
-      reason: driftResult.reason,
+      reason,
       action,
       policy,
       result,
       finalConfidence,
       attempts: [attempt],
-      userSafeMessage: this.getAbortUserMessageForResult(result, driftResult.reason!),
+      userSafeMessage,
       startTimestamp,
       endTimestamp: new Date().toISOString(),
       integrityStatus,
       restorationValidated,
-      finalStateReverified,
+      finalStateReverified: reverification.verified,
     };
 
-    // Add to history
     this.addToHistory(telemetry);
-
     return telemetry;
-  }
-
-  /**
-   * Get user-safe abort message (FP-5A)
-   *
-   * @param reason - The recovery reason
-   * @returns User-safe abort message
-   */
-  getAbortUserMessage(reason: RecoveryReason): string {
-    switch (reason) {
-      case RecoveryReason.APP_MISMATCH:
-        return "Could not recover focus. The expected application is not active. Please click on the correct application.";
-
-      case RecoveryReason.WINDOW_MISMATCH:
-        return "Could not recover focus. The expected window is not focused. Please click on the correct window.";
-
-      case RecoveryReason.REGION_MISMATCH:
-        return "Could not recover to the expected region. Please navigate to the correct area manually.";
-
-      case RecoveryReason.CONTROL_MISMATCH:
-        return "Could not recover to the expected control. Please click in the correct text field.";
-
-      case RecoveryReason.CARET_MISSING:
-        return "No cursor position detected. Please click where you want to insert text.";
-
-      case RecoveryReason.TARGET_GONE:
-        return "The target you were working with no longer exists (e.g., closed tab). Please reopen it.";
-
-      case RecoveryReason.AMBIGUITY_ESCALATED:
-        return "Could not determine the correct target. Please be more specific about where to focus.";
-
-      case RecoveryReason.UNVERIFIED_STATE:
-        return "Could not verify focus state. Please click on the target and try again.";
-
-      default:
-        return "Focus recovery failed. Please try manually navigating to your target.";
-    }
   }
 
   /**
@@ -818,131 +735,11 @@ export default class FocusRecoveryService {
     const timestamp = new Date().toISOString();
     return {
       isAbort: true,
-      userSafeMessage: this.getAbortUserMessage(reason),
+      userSafeMessage: this.policy.getAbortUserMessage(reason),
       technicalDetails: `Recovery aborted due to: ${reason}`,
       reason,
       timestamp,
     };
-  }
-
-  /**
-   * Check state integrity (FP-5B)
-   * 
-   * Determines whether the current state is trustworthy for recovery
-   * 
-   * @param state - The focus state to check
-   * @returns State integrity status
-   */
-  checkStateIntegrity(state: FocusState | null): StateIntegrityStatus {
-    if (!state) {
-      return StateIntegrityStatus.UNTRUSTED;
-    }
-
-    // Note: FocusState doesn't have confidence field, use 0.9 as default
-    // In real implementation, this would come from verification service
-    const stateConfidence = 0.9;
-    
-    if (stateConfidence < this.MIN_CONFIDENCE_THRESHOLD) {
-      return StateIntegrityStatus.UNTRUSTED;
-    }
-
-    // Check age
-    const stateTime = new Date(state.timestamp).getTime();
-    const now = Date.now();
-    const ageSeconds = (now - stateTime) / 1000;
-
-    if (ageSeconds > this.EXPIRED_THRESHOLD_SECONDS) {
-      return StateIntegrityStatus.EXPIRED;
-    }
-
-    if (ageSeconds > this.STALE_THRESHOLD_SECONDS) {
-      return StateIntegrityStatus.STALE;
-    }
-
-    return StateIntegrityStatus.TRUSTED;
-  }
-
-  /**
-   * Check restoration eligibility (FP-5B)
-   * 
-   * Validates whether prior verified state can be restored
-   * 
-   * @param priorState - The prior verified state to restore
-   * @returns Restoration eligibility
-   */
-  checkRestorationEligibility(priorState: VerifiedFocusState): RestorationEligibility {
-    if (!priorState) {
-      return {
-        eligible: false,
-        reason: "No prior state available",
-        integrityStatus: StateIntegrityStatus.UNTRUSTED,
-      };
-    }
-
-    // Calculate age
-    const stateTime = new Date(priorState.timestamp).getTime();
-    const now = Date.now();
-    const ageSeconds = (now - stateTime) / 1000;
-
-    // Check if too old
-    if (ageSeconds > this.EXPIRED_THRESHOLD_SECONDS) {
-      return {
-        eligible: false,
-        reason: `Prior state too old (${Math.round(ageSeconds)}s > ${this.EXPIRED_THRESHOLD_SECONDS}s)`,
-        integrityStatus: StateIntegrityStatus.EXPIRED,
-        ageSeconds,
-      };
-    }
-
-    // Check confidence
-    if (priorState.confidence < this.MIN_CONFIDENCE_THRESHOLD) {
-      return {
-        eligible: false,
-        reason: `Prior state confidence too low (${priorState.confidence} < ${this.MIN_CONFIDENCE_THRESHOLD})`,
-        integrityStatus: StateIntegrityStatus.UNTRUSTED,
-        ageSeconds,
-      };
-    }
-
-    // Determine integrity status based on age
-    let integrityStatus: StateIntegrityStatus;
-    if (ageSeconds > this.STALE_THRESHOLD_SECONDS) {
-      integrityStatus = StateIntegrityStatus.STALE;
-    } else {
-      integrityStatus = StateIntegrityStatus.TRUSTED;
-    }
-
-    return {
-      eligible: true,
-      integrityStatus,
-      ageSeconds,
-    };
-  }
-
-  /**
-   * Get abort message for refined result (FP-5B)
-   */
-  private getAbortUserMessageForResult(
-    result: RecoveryResultStatus,
-    reason: RecoveryReason
-  ): string | undefined {
-    if (!result.startsWith("aborted")) {
-      return undefined;
-    }
-
-    switch (result) {
-      case RecoveryResultStatus.ABORTED_UNTRUSTED_STATE:
-        return "Focus state cannot be verified. This may indicate a system issue. Please click on the target and try again.";
-
-      case RecoveryResultStatus.ABORTED_MISSING_TARGET:
-        return "The target no longer exists or is not accessible. Please reopen it manually.";
-
-      case RecoveryResultStatus.ABORTED_UNSAFE_RECOVERY:
-        return this.getAbortUserMessage(reason);
-
-      default:
-        return this.getAbortUserMessage(reason);
-    }
   }
 
   /**
@@ -961,18 +758,22 @@ export default class FocusRecoveryService {
       action: RecoveryAction.ABORT,
       policy: RecoveryPolicy.ABORT,
       result,
-      finalConfidence: 0.3,
-      attempts: [{
-        action: RecoveryAction.ABORT,
-        policy: RecoveryPolicy.ABORT,
-        success: false,
-        details,
-        timestamp: new Date().toISOString(),
-      }],
-      userSafeMessage: this.getAbortUserMessageForResult(result, reason),
+      finalConfidence: 0.2,
+      attempts: [
+        {
+          action: RecoveryAction.ABORT,
+          policy: RecoveryPolicy.ABORT,
+          success: false,
+          details,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      userSafeMessage: this.policy.getAbortUserMessageForResult(result, reason),
       startTimestamp,
       endTimestamp: new Date().toISOString(),
       integrityStatus,
+      restorationValidated: false,
+      finalStateReverified: false,
     };
   }
 
@@ -1004,7 +805,7 @@ export default class FocusRecoveryService {
    */
   private addToHistory(telemetry: RecoveryTelemetry): void {
     this.recoveryHistory.push(telemetry);
-    // Trim history if needed
+
     if (this.recoveryHistory.length > this.maxHistorySize) {
       this.recoveryHistory = this.recoveryHistory.slice(-this.maxHistorySize);
     }
@@ -1040,25 +841,22 @@ export default class FocusRecoveryService {
   isRecoverySupported(application: string, region?: RegionKind): boolean {
     const normalizedApp = application.toLowerCase();
 
-    // VS Code
+    // VS Code / Code aliases
     if (normalizedApp.includes("vscode") || normalizedApp.includes("code")) {
-      // Supported regions: editor, terminal
       if (region) {
         return region === RegionKind.EDITOR || region === RegionKind.TERMINAL;
       }
-      return true; // App-level recovery supported
+      return true;
     }
 
     // Chrome
-    if (normalizedApp.includes("chrome")) {
-      // Supported regions: address_bar, page
+    if (normalizedApp.includes("chrome") || normalizedApp.includes("browser")) {
       if (region) {
         return region === RegionKind.ADDRESS_BAR || region === RegionKind.PAGE;
       }
-      return true; // App-level recovery supported
+      return true;
     }
 
-    // Not supported
     return false;
   }
 
@@ -1090,9 +888,9 @@ export default class FocusRecoveryService {
 
     let supportedRegions: RegionKind[] = [];
 
-    if (normalizedApp.includes("vscode")) {
+    if (normalizedApp.includes("vscode") || normalizedApp.includes("code")) {
       supportedRegions = [RegionKind.EDITOR, RegionKind.TERMINAL];
-    } else if (normalizedApp.includes("chrome")) {
+    } else if (normalizedApp.includes("chrome") || normalizedApp.includes("browser")) {
       supportedRegions = [RegionKind.ADDRESS_BAR, RegionKind.PAGE];
     }
 

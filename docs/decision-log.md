@@ -707,7 +707,35 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
   - see: `docs/architecture/maestro-actuation-and-control-stack.md`
 
 ---
- 
+
+## ADM-048: Recovery Service Must Delegate To Existing Subsystems
+
+- **Date**: 2026-03-17
+- **Status**: Accepted
+- **Decision**: Focus recovery must be a bounded state-repair orchestrator that delegates to existing subsystems, not a second xdotool layer. Recovery actions (REFOCUS_APP, REFOCUS_REGION, REFOCUS_CONTROL, RESTORE_PREVIOUS) are logical actions delegated to system.focus(), focus-region-handler, focus-precision-service, and focus-history-service respectively.
+- **Why**: The previous recovery implementation directly called xdotool, bypassing existing subsystem abstractions. This violated architectural layering and created unmaintainable duplication. Recovery must re-verify state after every action using focus-verification-service.
+- **Consequences**:
+  - Recovery is now an orchestrator, not a driver
+  - Each recovery action delegates to the appropriate existing service
+  - Re-verification is mandatory after every recovery attempt
+  - Telemetry accurately reflects verification status
+  - Architectural boundaries are preserved
+
+---
+
+## ADM-049: Recovery Taxonomy Includes Precision And Safety Blocks
+
+- **Date**: 2026-03-17
+- **Status**: Accepted
+- **Decision**: Recovery reason taxonomy must include PRECISION_GUARD_BLOCKED and SAFETY_GATE_BLOCKED in addition to the base mismatch reasons. These are abort-only reasons that should not trigger aggressive recovery.
+- **Why**: The original taxonomy was incomplete. Precision and safety blocks indicate deeper system issues that recovery should not attempt to work around.
+- **Consequences**:
+  - RecoveryReason enum expanded with PRECISION_GUARD_BLOCKED and SAFETY_GATE_BLOCKED
+  - Both map to ABORT policy
+  - Recovery never bypasses precision/safety gates
+
+---
+
 ## Template for Future Decisions
 
 ```markdown
