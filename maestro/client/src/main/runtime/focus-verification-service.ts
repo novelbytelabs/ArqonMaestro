@@ -226,8 +226,8 @@ export default class FocusVerificationService {
    * "terminal" = VS Code internal terminal (handled as region)
    */
   private normalizeEntityAlias(entity: string): string {
-    // VS Code aliases (window class is "code")
-    if (entity === "code" || entity.includes("vscode")) {
+    // VS Code aliases (window class is "code", may have extra like "code, code")
+    if (entity === "code" || entity.startsWith("code") || entity.includes("vscode")) {
       return "vscode";
     }
     // Chrome aliases
