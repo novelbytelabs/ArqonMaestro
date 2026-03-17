@@ -201,15 +201,41 @@ export default class FocusVerificationService {
     const actualEntity = actual.entity.toLowerCase();
     const expectedEntity = expected.entity.toLowerCase();
 
-    // Exact match
-    if (actualEntity === expectedEntity) {
+    // Apply alias normalization before comparison
+    const normalizedActual = this.normalizeEntityAlias(actualEntity);
+    const normalizedExpected = this.normalizeEntityAlias(expectedEntity);
+
+    // Exact match (after normalization)
+    if (normalizedActual === normalizedExpected) {
       return true;
     }
 
     // Partial match (e.g., "vscode" matches "Visual Studio Code")
     return (
-      actualEntity.includes(expectedEntity) || expectedEntity.includes(actualEntity)
+      normalizedActual.includes(normalizedExpected) || normalizedExpected.includes(normalizedActual)
     );
+  }
+
+  /**
+   * Normalize entity aliases for matching
+   * "code" -> "vscode"
+   * "google-chrome" -> "chrome"
+   * etc.
+   */
+  private normalizeEntityAlias(entity: string): string {
+    // VS Code aliases
+    if (entity === "code" || entity.includes("vscode")) {
+      return "vscode";
+    }
+    // Chrome aliases
+    if (entity.includes("chrome") && !entity.startsWith("chromium")) {
+      return "chrome";
+    }
+    // gnome-terminal aliases
+    if (entity.includes("gnome-terminal") || entity.includes("terminal")) {
+      return "gnome-terminal";
+    }
+    return entity;
   }
 
   /**
@@ -230,8 +256,12 @@ export default class FocusVerificationService {
       const actualEntity = actual.entity.toLowerCase();
       const expectedEntity = expected.entity.toLowerCase();
 
-      // Check if we're close (e.g., slight name variation)
-      if (actualEntity.includes(expectedEntity) || expectedEntity.includes(actualEntity)) {
+      // Normalize for comparison
+      const normalizedActual = this.normalizeEntityAlias(actualEntity);
+      const normalizedExpected = this.normalizeEntityAlias(expectedEntity);
+
+      // Check if we're close (e.g., slight name variation) after normalization
+      if (normalizedActual.includes(normalizedExpected) || normalizedExpected.includes(normalizedActual)) {
         return 0.5; // Partial match
       }
 
