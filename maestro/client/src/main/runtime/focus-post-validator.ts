@@ -203,10 +203,19 @@ export default class FocusPostValidator {
       const targetEntity = target.entity.toLowerCase();
       const actualEntity = actualState.entity.toLowerCase();
 
+      // Apply normalization for comparison (same as verification service)
+      const normalizedTarget = this.normalizeEntityAlias(targetEntity);
+      const normalizedActual = this.normalizeEntityAlias(actualEntity);
+      
+      // Re-check with normalization
+      const normalizedArrived = normalizedTarget === normalizedActual || 
+        normalizedActual.includes(normalizedTarget) || 
+        normalizedTarget.includes(normalizedActual);
+
       return {
         name: "focusArrived",
-        satisfied: arrived,
-        details: arrived
+        satisfied: normalizedArrived,
+        details: normalizedArrived
           ? `Focus successfully transferred to "${actualState.entity}"`
           : `Focus did not arrive at target "${targetEntity}" (actual: "${actualEntity}")`,
       };
@@ -218,6 +227,25 @@ export default class FocusPostValidator {
         details: `Error verifying focus arrival: ${errorMessage}`,
       };
     }
+  }
+
+  /**
+   * Normalize entity aliases for matching
+   */
+  private normalizeEntityAlias(entity: string): string {
+    // VS Code aliases (window class may have extra like "code, code")
+    if (entity === "code" || entity.startsWith("code") || entity.includes("vscode")) {
+      return "vscode";
+    }
+    // Chrome aliases
+    if (entity.includes("chrome") && !entity.startsWith("chromium")) {
+      return "chrome";
+    }
+    // System terminal
+    if (entity.includes("gnome-terminal") || entity === "console") {
+      return "gnome-terminal";
+    }
+    return entity;
   }
 
   /**
