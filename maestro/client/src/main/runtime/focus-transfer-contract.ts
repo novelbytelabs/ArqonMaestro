@@ -157,18 +157,55 @@ export class FocusTransferContract {
      * @returns True if transfer is allowed
      */
     transferIsAllowed(source: FocusState, target: FocusTarget): boolean {
-      // Cannot transfer to the same entity
-      if (source.entity.toLowerCase() === target.entity.toLowerCase()) {
+      // Normalize entities for comparison (same logic as focus-verification-service.ts)
+      const normalizeEntity = (entity: string): string => {
+        const e = entity.toLowerCase();
+        // VS Code aliases: "code" -> "vscode"
+        if (e === "code" || e.startsWith("code") || e.includes("vscode")) {
+          return "vscode";
+        }
+        // Chrome aliases
+        if (e.includes("chrome") && !e.startsWith("chromium")) {
+          return "chrome";
+        }
+        // System terminal aliases
+        if (e.includes("gnome-terminal") || e === "console") {
+          return "gnome-terminal";
+        }
+        return e;
+      };
+
+      const normalizedSource = normalizeEntity(source.entity);
+      const normalizedTarget = normalizeEntity(target.entity);
+
+      // Allow transfer if target has regionKind specified (intra-app region transfer)
+      if (target.regionKind) {
+        return true;
+      }
+
+      // Allow transfer if same app but target layer is higher than APPLICATION
+      // (e.g., moving from application to window/region within same app)
+      if (normalizedSource === normalizedTarget && target.layer > FocusLayer.APPLICATION) {
+        return true;
+      }
+
+      // Cannot transfer to the same normalized entity (no-op)
+      if (normalizedSource === normalizedTarget) {
         return false;
       }
 
-      // Layer must be valid (currently only Layers 2-3 are supported)
-      if (target.layer < FocusLayer.APPLICATION || target.layer > FocusLayer.WINDOW) {
+      // Layer must be valid (currently only Layers 2-4 are supported)
+      if (target.layer < FocusLayer.APPLICATION || target.layer > FocusLayer.REGION) {
         return false;
       }
 
       // For window focus (Layer 3), source must be at application level (Layer 2)
       if (target.layer === FocusLayer.WINDOW && source.layer !== FocusLayer.APPLICATION) {
+        return false;
+      }
+
+      // For region focus (Layer 4), source must be at window or application level
+      if (target.layer === FocusLayer.REGION && source.layer < FocusLayer.WINDOW) {
         return false;
       }
 
