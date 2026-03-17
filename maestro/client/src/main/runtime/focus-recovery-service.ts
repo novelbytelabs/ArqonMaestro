@@ -173,6 +173,8 @@ import {
   RecoveryPolicy,
   RecoveryPolicyConfig,
   RecoveryResultStatus,
+  RecoveryDepth,
+  ControlRecoveryLevel,
 } from "./focus-recovery-policy";
 
 /**
@@ -203,11 +205,72 @@ export interface RecoveryAttempt {
   details: string;
   /** Timestamp of attempt */
   timestamp: string;
+  /** Recovery depth achieved (for layered restore) */
+  recoveryDepth?: RecoveryDepth;
+}
+
+/**
+ * Recovery depth for layered restore
+ * Indicates how much of the prior state was actually restored and verified
+ * (imported from focus-recovery-policy.ts)
+ */
+export { RecoveryDepth } from "./focus-recovery-policy";
+
+/**
+ * Control recovery level
+ * Indicates what level of control focus was actually achieved
+ * (imported from focus-recovery-policy.ts)
+ */
+export { ControlRecoveryLevel } from "./focus-recovery-policy";
+
+/**
+ * Result of a layered restore operation
+ */
+export interface RestoreResult {
+  /** Whether app was restored */
+  appRestored: boolean;
+  /** Whether region was restored */
+  regionRestored: boolean;
+  /** Whether control was restored */
+  controlRestored: boolean;
+  /** Final verification status */
+  finalVerified: boolean;
+  /** The deepest level actually restored and verified */
+  restoreDepth: RecoveryDepth;
+  /** Whether this is a degraded result (not full restore) */
+  degraded: boolean;
+  /** Details about each stage */
+  details: {
+    app?: string;
+    region?: string;
+    control?: string;
+    verificationFailedAt?: string;
+  };
+}
+
+/**
+ * Result of a control recovery operation
+ */
+export interface ControlRecoveryResult {
+  /** Whether control focus was supported */
+  supported: boolean;
+  /** Whether control-level focus was attempted */
+  attemptedControlFocus: boolean;
+  /** Whether control was verified at control level */
+  controlVerified: boolean;
+  /** The recovery level actually achieved */
+  recoveryLevel: ControlRecoveryLevel;
+  /** Whether result was downgraded from intended level */
+  downgraded: boolean;
+  /** Details about what happened */
+  details: string;
 }
 
 /**
  * Recovery telemetry (FP-5A, FP-5B hardened)
  * Records complete recovery attempt for debugging
+ *
+ * IMPORTANT: This now tracks intended vs verified vs degraded to prevent overclaiming.
  */
 export interface RecoveryTelemetry {
   /** Whether drift was detected */
@@ -236,6 +299,22 @@ export interface RecoveryTelemetry {
   finalStateReverified?: boolean;
   /** Whether restoration was validated before use (FP-5B) */
   restorationValidated?: boolean;
+
+  // New: Intended vs verified tracking
+  /** Intended recovery target (what we tried to recover) */
+  intendedTarget?: {
+    app?: string;
+    region?: string;
+    control?: string;
+  };
+  /** Verified recovery level (what was actually verified) */
+  verifiedLevel?: "app" | "region" | "control" | "none";
+  /** Whether the result is degraded (verified level < intended level) */
+  degraded?: boolean;
+  /** For restore: the depth actually achieved */
+  restoreDepth?: RecoveryDepth;
+  /** For control recovery: the level actually achieved */
+  controlRecoveryLevel?: ControlRecoveryLevel;
 }
 
 /**
@@ -300,6 +379,16 @@ export default class FocusRecoveryService {
     | (() => Promise<{ verified: boolean; state: FocusState | null }>)
     | null = null;
 
+  // New: Layered restore delegate (returns rich result)
+  private layeredRestoreDelegate:
+    | ((state: VerifiedFocusState) => Promise<RestoreResult>)
+    | null = null;
+
+  // New: Capability-gated control recovery delegate
+  private capabilityControlRecoveryDelegate:
+    | ((app: string, control: string) => Promise<ControlRecoveryResult>)
+    | null = null;
+
   constructor(
     analyzerOptions: FocusRecoveryAnalyzerOptions = {},
     policyOptions: Partial<RecoveryPolicyConfig> = {}
@@ -346,6 +435,24 @@ export default class FocusRecoveryService {
    */
   setVerifyDelegate(delegate: () => Promise<{ verified: boolean; state: FocusState | null }>): void {
     this.verifyDelegate = delegate;
+  }
+
+  /**
+   * Set the delegate for layered restore operations
+   * Returns rich RestoreResult with depth information
+   */
+  setLayeredRestoreDelegate(delegate: (state: VerifiedFocusState) => Promise<RestoreResult>): void {
+    this.layeredRestoreDelegate = delegate;
+  }
+
+  /**
+   * Set the delegate for capability-gated control recovery
+   * Returns rich ControlRecoveryResult with level information
+   */
+  setCapabilityControlRecoveryDelegate(
+    delegate: (app: string, control: string) => Promise<ControlRecoveryResult>
+  ): void {
+    this.capabilityControlRecoveryDelegate = delegate;
   }
 
   /**
@@ -616,6 +723,308 @@ export default class FocusRecoveryService {
   }
 
   /**
+   * Execute layered restore (app → region → control with verification)
+   *
+   * This implements the honest restore model:
+   * - Restore app first, verify
+   * - Then restore region if available, verify
+   * - Then restore control if available, verify
+   * - Report the actual depth achieved
+   *
+   * @param previousState - The prior verified state to restore
+   * @returns RestoreResult with depth information
+   */
+  async executeLayeredRestore(previousState: VerifiedFocusState): Promise<RestoreResult> {
+    // If layered restore delegate is available, use it
+    if (this.layeredRestoreDelegate) {
+      try {
+        return await this.layeredRestoreDelegate(previousState);
+      } catch (error) {
+        // Fall through to internal implementation
+      }
+    }
+
+    // Internal layered restore implementation
+    const result: RestoreResult = {
+      appRestored: false,
+      regionRestored: false,
+      controlRestored: false,
+      finalVerified: false,
+      restoreDepth: RecoveryDepth.NONE,
+      degraded: false,
+      details: {},
+    };
+
+    // Step 1: Restore app
+    if (this.appFocusDelegate) {
+      try {
+        const appSuccess = await this.appFocusDelegate(previousState.application);
+        result.appRestored = appSuccess;
+        result.details.app = appSuccess ? `App ${previousState.application} restored` : `Failed to restore app`;
+
+        if (!appSuccess) {
+          result.degraded = true;
+          result.details.verificationFailedAt = "app";
+          return result;
+        }
+      } catch (error) {
+        result.details.app = `Error restoring app: ${String(error)}`;
+        result.degraded = true;
+        return result;
+      }
+    }
+
+    // Verify app-level focus
+    const appVerification = await this.reverifyFocusState();
+    if (!appVerification.verified) {
+      result.degraded = true;
+      result.details.verificationFailedAt = "app_verification";
+      return result;
+    }
+
+    // Step 2: Restore region (if prior state had region)
+    if (previousState.region && this.regionFocusDelegate) {
+      try {
+        const regionSuccess = await this.regionFocusDelegate(
+          previousState.application,
+          previousState.region
+        );
+        result.regionRestored = regionSuccess;
+        result.details.region = regionSuccess
+          ? `Region ${previousState.region} restored`
+          : `Failed to restore region`;
+
+        if (!regionSuccess) {
+          result.restoreDepth = RecoveryDepth.APP_ONLY;
+          result.degraded = true;
+          result.details.verificationFailedAt = "region";
+          // Don't return yet - we still have app-level success
+        }
+      } catch (error) {
+        result.details.region = `Error restoring region: ${String(error)}`;
+        result.restoreDepth = RecoveryDepth.APP_ONLY;
+        result.degraded = true;
+      }
+    } else {
+      result.restoreDepth = RecoveryDepth.APP_ONLY;
+    }
+
+    // Verify region-level focus (if we attempted region restore)
+    if (previousState.region && result.regionRestored) {
+      const regionVerification = await this.reverifyFocusState();
+      if (!regionVerification.verified) {
+        result.restoreDepth = RecoveryDepth.APP_ONLY;
+        result.degraded = true;
+        result.details.verificationFailedAt = "region_verification";
+      } else {
+        result.restoreDepth = RecoveryDepth.APP_REGION;
+      }
+    }
+
+    // Step 3: Restore control (if prior state had control)
+    if (previousState.precisionSurface && this.controlFocusDelegate) {
+      try {
+        const controlSuccess = await this.controlFocusDelegate(
+          previousState.application,
+          previousState.precisionSurface.controlType
+        );
+        result.controlRestored = controlSuccess;
+        result.details.control = controlSuccess
+          ? `Control ${previousState.precisionSurface.controlType} restored`
+          : `Failed to restore control`;
+
+        if (!controlSuccess) {
+          result.restoreDepth = result.restoreDepth === RecoveryDepth.APP_REGION
+            ? RecoveryDepth.APP_REGION
+            : RecoveryDepth.APP_ONLY;
+          result.degraded = true;
+          result.details.verificationFailedAt = "control";
+        }
+      } catch (error) {
+        result.details.control = `Error restoring control: ${String(error)}`;
+        result.restoreDepth = result.restoreDepth === RecoveryDepth.APP_REGION
+          ? RecoveryDepth.APP_REGION
+          : RecoveryDepth.APP_ONLY;
+        result.degraded = true;
+      }
+    }
+
+    // Verify control-level focus (if we attempted control restore)
+    if (previousState.precisionSurface && result.controlRestored) {
+      const controlVerification = await this.reverifyFocusState();
+      if (!controlVerification.verified) {
+        result.restoreDepth = result.restoreDepth === RecoveryDepth.APP_REGION
+          ? RecoveryDepth.APP_REGION
+          : RecoveryDepth.APP_ONLY;
+        result.degraded = true;
+        result.details.verificationFailedAt = "control_verification";
+      } else {
+        result.restoreDepth = RecoveryDepth.APP_REGION_CONTROL;
+      }
+    }
+
+    // Final verification
+    const finalVerification = await this.reverifyFocusState();
+    result.finalVerified = finalVerification.verified;
+
+    return result;
+  }
+
+  /**
+   * Execute capability-gated control recovery
+   *
+   * This implements honest control recovery:
+   * - Check if surface supports control-level recovery
+   * - Attempt control focus if supported
+   * - Verify at control level
+   * - Downgrade explicitly if verification fails
+   *
+   * @param app - Target application
+   * @param control - Target control
+   * @returns ControlRecoveryResult with level information
+   */
+  async executeCapabilityGatedControlRecovery(
+    app: string,
+    control: string
+  ): Promise<ControlRecoveryResult> {
+    // If capability-gated delegate is available, use it
+    if (this.capabilityControlRecoveryDelegate) {
+      try {
+        return await this.capabilityControlRecoveryDelegate(app, control);
+      } catch (error) {
+        // Fall through to internal implementation
+      }
+    }
+
+    // Internal capability-gated control recovery implementation
+    const capabilities = this.getRecoveryCapabilities(app);
+
+    // Check if control recovery is supported
+    if (!capabilities.controlRecovery) {
+      return {
+        supported: false,
+        attemptedControlFocus: false,
+        controlVerified: false,
+        recoveryLevel: ControlRecoveryLevel.UNSUPPORTED,
+        downgraded: true,
+        details: `Control recovery not supported for ${app}. Surface does not support verified control focus.`,
+      };
+    }
+
+    // Attempt control focus
+    if (!this.controlFocusDelegate) {
+      return {
+        supported: true,
+        attemptedControlFocus: false,
+        controlVerified: false,
+        recoveryLevel: ControlRecoveryLevel.NONE,
+        downgraded: true,
+        details: `Control focus delegate not configured for ${app}.`,
+      };
+    }
+
+    try {
+      const controlSuccess = await this.controlFocusDelegate(app, control);
+
+      if (!controlSuccess) {
+        // Control focus attempt failed - try region as fallback
+        if (capabilities.regionRecovery && this.regionFocusDelegate) {
+          const regionResult = await this.regionFocusDelegate(app, capabilities.supportedRegions[0]);
+          if (regionResult) {
+            return {
+              supported: true,
+              attemptedControlFocus: true,
+              controlVerified: false,
+              recoveryLevel: ControlRecoveryLevel.DOWNGRADED_TO_REGION,
+              downgraded: true,
+              details: `Control focus failed, downgraded to region focus for ${app}.`,
+            };
+          }
+        }
+
+        // Even app-level fallback might work
+        if (this.appFocusDelegate) {
+          const appResult = await this.appFocusDelegate(app);
+          if (appResult) {
+            return {
+              supported: true,
+              attemptedControlFocus: true,
+              controlVerified: false,
+              recoveryLevel: ControlRecoveryLevel.DOWNGRADED_TO_APP,
+              downgraded: true,
+              details: `Control focus failed, downgraded to app focus for ${app}.`,
+            };
+          }
+        }
+
+        return {
+          supported: true,
+          attemptedControlFocus: true,
+          controlVerified: false,
+          recoveryLevel: ControlRecoveryLevel.NONE,
+          downgraded: true,
+          details: `Control focus failed and no fallback available for ${app}.`,
+        };
+      }
+
+      // Control focus succeeded - verify at control level
+      const verification = await this.reverifyFocusState();
+
+      if (verification.verified) {
+        return {
+          supported: true,
+          attemptedControlFocus: true,
+          controlVerified: true,
+          recoveryLevel: ControlRecoveryLevel.CONTROL_VERIFIED,
+          downgraded: false,
+          details: `Control ${control} successfully recovered and verified in ${app}.`,
+        };
+      } else {
+        // Verification failed - determine downgrade level
+        if (capabilities.regionRecovery && this.regionFocusDelegate) {
+          return {
+            supported: true,
+            attemptedControlFocus: true,
+            controlVerified: false,
+            recoveryLevel: ControlRecoveryLevel.DOWNGRADED_TO_REGION,
+            downgraded: true,
+            details: `Control focus claimed success but verification failed, downgraded to region.`,
+          };
+        }
+
+        return {
+          supported: true,
+          attemptedControlFocus: true,
+          controlVerified: false,
+          recoveryLevel: ControlRecoveryLevel.DOWNGRADED_TO_APP,
+          downgraded: true,
+          details: `Control focus claimed success but verification failed, downgraded to app.`,
+        };
+      }
+    } catch (error) {
+      return {
+        supported: true,
+        attemptedControlFocus: true,
+        controlVerified: false,
+        recoveryLevel: ControlRecoveryLevel.NONE,
+        downgraded: true,
+        details: `Control recovery error: ${String(error)}`,
+      };
+    }
+  }
+
+  /**
+   * Check if control recovery is supported for an application
+   *
+   * @param application - The application name
+   * @returns Whether control-level recovery is supported
+   */
+  isControlRecoverySupported(application: string): boolean {
+    const capabilities = this.getRecoveryCapabilities(application);
+    return capabilities.controlRecovery;
+  }
+
+  /**
    * Perform recovery (FP-5A / FP-5B)
    *
    * Main entry point for recovery. Performs:
@@ -650,6 +1059,10 @@ export default class FocusRecoveryService {
         ),
         finalStateReverified: true,
         restorationValidated: false,
+        // No recovery needed - no degradation
+        intendedTarget: undefined,
+        verifiedLevel: "app",
+        degraded: false,
       };
 
       this.addToHistory(telemetry);
@@ -782,6 +1195,25 @@ export default class FocusRecoveryService {
       integrityStatus,
       restorationValidated,
       finalStateReverified: reverification.verified,
+      // New: Track intended vs verified vs degraded
+      intendedTarget: {
+        app: request.targetApp,
+        region: request.targetRegion ? String(request.targetRegion) : undefined,
+        control: request.targetControl?.controlType,
+      },
+      verifiedLevel: reverification.verified
+        ? (request.targetControl?.controlType
+            ? "control"
+            : request.targetRegion
+            ? "region"
+            : "app")
+        : "none",
+      degraded: !reverification.verified && attempt.success,
+      restoreDepth: policy === RecoveryPolicy.RESTORE_PREVIOUS ? attempt.recoveryDepth : undefined,
+      controlRecoveryLevel:
+        action === RecoveryAction.REFOCUS_CONTROL
+          ? (reverification.verified ? ControlRecoveryLevel.CONTROL_VERIFIED : ControlRecoveryLevel.NONE)
+          : undefined,
     };
 
     this.addToHistory(telemetry);
@@ -837,6 +1269,10 @@ export default class FocusRecoveryService {
       integrityStatus,
       restorationValidated: false,
       finalStateReverified: false,
+      // Abort cases - no verification achieved
+      intendedTarget: undefined,
+      verifiedLevel: "none",
+      degraded: true,
     };
   }
 

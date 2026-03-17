@@ -408,6 +408,78 @@ This should already look familiar from your stronger FP-5A/B design direction.
 
 ---
 
+## Recovery Flow Diagram
+
+```mermaid
+flowchart TD
+    A[performRecovery input] --> B{Drift Detected?}
+    B -->|No| C[NO_RECOVERY_NEEDED]
+    B -->|Yes| D[checkStateIntegrity]
+    
+    D --> E{TRUSTED UNVERIFIED<br/>UNTRUSTED ORPHANED}
+    
+    E --> F{isRecoverySupported?}
+    F -->|No| G[ABORT_UNSUPPORTED]
+    F -->|Yes| H[determinePolicy]
+    
+    H --> I{RETRY_ONCE<br/>RESTORE_PREVIOUS<br/>ABORT}
+    
+    I -->|RETRY| J[determineAction]
+    I -->|RESTORE| K{checkEligibility}
+    I -->|ABORT| L[ABORTED]
+    
+    K -->|eligible| M[determineAction]
+    K -->|not eligible| N[ABORT_MISSING_TARGET]
+    
+    J --> O[DELEGATE EXECUTION]
+    O --> P{action.success?}
+    
+    P -->|Yes| Q[reverifyFocusState]
+    P -->|No| R[ABORTED]
+    
+    Q --> S{verified?}
+    S -->|Yes| T[RECOVERED<br/>conf≥0.85]
+    S -->|No| U[DOWNGRADED<br/>conf=0.4]
+    
+    style O fill:#d4a017,stroke:#333,color:#000
+    style T fill:#228b22,stroke:#333,color:#000
+    style U fill:#d4a017,stroke:#333,color:#000
+    style G fill:#dc143c,stroke:#333,color:#fff
+    style N fill:#dc143c,stroke:#333,color:#fff
+    style R fill:#dc143c,stroke:#333,color:#fff
+```
+
+## Delegation Model Diagram (ADM-048)
+
+```mermaid
+flowchart LR
+    subgraph Recovery["Focus Recovery Service"]
+        A[performRecovery] --> B[executeRecoveryAction]
+    end
+    
+    subgraph Delegates["Delegates (ADM-048)"]
+        B --> C[appFocusDelegate]
+        B --> D[regionFocusDelegate]
+        B --> E[controlFocusDelegate]
+        B --> F[restoreDelegate]
+        B --> G[verifyDelegate]
+    end
+    
+    subgraph Subsystems["Existing Subsystems"]
+        C --> H[system.focus]
+        D --> I[focus-region-handler]
+        E --> J[focus-precision-service]
+        F --> K[focus-history-service]
+        G --> L[focus-verification-service]
+    end
+    
+    style Recovery fill:#4a90d9,stroke:#333,color:#fff
+    style Delegates fill:#5dadec,stroke:#333,color:#000
+    style Subsystems fill:#2e8b57,stroke:#333,color:#fff
+```
+
+---
+
 # Required telemetry
 
 Recovery needs full inspectability.
@@ -615,3 +687,251 @@ Operational clarity required.
 ## F. It uses existing subsystems for app/region/control movement
 
 No direct shell-driven architectural collapse.
+
+---
+
+# Recovery Outcome Truthfulness Table
+
+This table defines when each recovery result counts as success vs degraded success vs abort, based on intended vs verified levels.
+
+## Recovery Result Classification
+
+| Intended Level | Verified Level | Degraded | Classification | Result Status |
+|----------------|----------------|----------|----------------|---------------|
+| app | app | false | Full success | RECOVERED_BY_RETRY |
+| app | none | true | Failed | ABORTED_* |
+| region | region | false | Full success | RECOVERED_BY_RETRY |
+| region | app | true | Degraded success | RECOVERED_BY_RETRY (with degraded=true) |
+| region | none | true | Failed | ABORTED_* |
+| control | control | false | Full success | RECOVERED_BY_RETRY |
+| control | region | true | Degraded success | RECOVERED_BY_RETRY (with degraded=true) |
+| control | app | true | Degraded success | RECOVERED_BY_RETRY (with degraded=true) |
+| control | none | true | Failed | ABORTED_* |
+| restore (full) | app+region+control | false | Full success | RECOVERED_BY_RESTORE |
+| restore (full) | app+region | true | Partial restore | RECOVERED_BY_RESTORE (with degraded=true, restoreDepth=APP_REGION) |
+| restore (full) | app only | true | Partial restore | RECOVERED_BY_RESTORE (with degraded=true, restoreDepth=APP_ONLY) |
+| restore (full) | none | true | Failed | ABORTED_MISSING_TARGET |
+
+## Result Statuses Defined
+
+| Status | Description | When Used |
+|--------|-------------|-----------|
+| RECOVERED_BY_RETRY | Retry succeeded + verified | Intended level = verified level, degraded=false |
+| RECOVERED_BY_RESTORE | Restore succeeded + verified | Restore achieved verified level, degraded may be true/false |
+| DOWNGRADED | Action succeeded but verification failed | Attempt succeeded but final verification failed |
+| ABORTED_UNTRUSTED_STATE | State integrity untrusted | Cannot trust current or prior state |
+| ABORTED_MISSING_TARGET | Target missing or restore ineligible | Prior target no longer exists |
+| ABORTED_UNSAFE_RECOVERY | Surface unsupported or unsafe | Recovery would be unreliable |
+
+## Telemetry Fields for Truthfulness
+
+| Field | Purpose | Example Values |
+|-------|---------|----------------|
+| intendedTarget | What we tried to recover | {app: "vscode", region: "terminal"} |
+| verifiedLevel | Deepest level actually verified | "app" / "region" / "control" / "none" |
+| degraded | Verified < intended | true / false |
+| restoreDepth | For restore: actual depth | APP_ONLY / APP_REGION / APP_REGION_CONTROL |
+| controlRecoveryLevel | For control: actual level | CONTROL_VERIFIED / DOWNGRADED_TO_REGION / DOWNGRADED_TO_APP / UNSUPPORTED |
+
+## Honesty Rules
+
+1. **Never report success if final verification fails** — DOWNGRADED or ABORTED, never RECOVERED_*
+2. **Never report deeper recovery than verified** — If region failed, report app only
+3. **Never report non-degraded when verified < intended** — Always set degraded=true when verification is shallower than intent
+4. **Never trust delegate claims over verification** — Verification is the source of truth
+
+---
+
+# Honesty Principles (FP-5C)
+
+The following principles ensure recovery never overclaims its achievements:
+
+## Rule 1: Label by Verified Level, Not Intended Level
+
+**Never label recovery by what it intended to recover. Label recovery by the deepest level it actually re-verified.**
+
+* Intended control restore, verified only app → `app-level degraded recovery`
+* Intended prior-state restore, verified app+region → `partial restore`
+* Intended full restore, verified nothing → `abort`
+
+## Rule 2: Restore Depth Must Be Explicit
+
+Restore results must include `restoreDepth`:
+
+* `APP_ONLY` — only the application was restored
+* `APP_REGION` — app + region restored
+* `APP_REGION_CONTROL` — app + region + control restored
+
+## Rule 3: Control Recovery Must Be Capability-Gated
+
+Control recovery results must include `recoveryLevel`:
+
+* `CONTROL_VERIFIED` — control-level focus achieved and verified
+* `DOWNGRADED_TO_REGION` — control failed, region-level fallback
+* `DOWNGRADED_TO_APP` — control failed, app-level fallback
+* `UNSUPPORTED` — surface does not support control recovery
+
+## Rule 4: Telemetry Must Track Three Dimensions
+
+Every recovery attempt must record:
+
+1. **Intended target** — what we tried to recover (app/region/control)
+2. **Verified level** — what was actually verified (app/region/control/none)
+3. **Degraded** — whether verified level < intended level
+
+---
+
+# Layered Restore Implementation
+
+## Current Behavior (Honest Label)
+
+The current `restoreDelegate` is implemented as **app restore only**:
+
+* Restores application focus
+* Does NOT automatically restore region
+* Does NOT automatically restore control
+
+This is honestly labeled as `restore_application_only` in telemetry.
+
+## Better Implementation: Layered Restore Pipeline
+
+### Restore Level 1 — Application
+
+Try to restore the app first.
+
+### Restore Level 2 — Region
+
+If prior state had a supported region, restore the region next.
+
+### Restore Level 3 — Control
+
+If prior state had a supported control, restore the control next.
+
+### Restore Level 4 — Precision State
+
+Do **not** overclaim this yet unless you can actually verify caret/editable state after restore.
+
+## Restore Flow
+
+**app → verify → region → verify → control → verify**
+
+Stop at the highest level you can actually verify.
+
+## RestoreResult Interface
+
+```typescript
+interface RestoreResult {
+  appRestored: boolean;
+  regionRestored: boolean;
+  controlRestored: boolean;
+  finalVerified: boolean;
+  restoreDepth: RecoveryDepth;  // APP_ONLY | APP_REGION | APP_REGION_CONTROL | NONE
+  degraded: boolean;  // true if restoreDepth < intended
+  details: {
+    app?: string;
+    region?: string;
+    control?: string;
+    verificationFailedAt?: string;
+  };
+}
+```
+
+---
+
+# Capability-Gated Control Recovery
+
+## Current Behavior (Honest Label)
+
+The current `controlFocusDelegate` falls back to `system.focus(app)` when control recovery fails.
+
+This is honestly labeled as `control_recovery_degraded_to_app_focus` in telemetry.
+
+## Better Implementation: Capability-Gated Recovery
+
+### Step 1 — Control-Capability Check
+
+Can this app/surface/control actually be recovered at control level?
+
+### Step 2 — Verified Control Recovery
+
+If yes:
+
+* Attempt control focus
+* Verify control focus
+* Otherwise downgrade or abort
+
+## ControlRecoveryResult Interface
+
+```typescript
+interface ControlRecoveryResult {
+  supported: boolean;  // Can this surface support control recovery?
+  attemptedControlFocus: boolean;
+  controlVerified: boolean;
+  recoveryLevel: ControlRecoveryLevel;
+  // CONTROL_VERIFIED | DOWNGRADED_TO_REGION | DOWNGRADED_TO_APP | UNSUPPORTED | NONE
+  downgraded: boolean;
+  details: string;
+}
+```
+
+## Gotchas Addressed
+
+### Gotcha 1 — App restore can create false confidence
+
+You may restore the app successfully while still landing in wrong region/control.
+
+**Solution:** Verify after each layer, track `restoreDepth` honestly.
+
+### Gotcha 2 — Region restore may not be stable after app restore
+
+Sometimes app focus returns, but a modal/popup steals the next focus moment.
+
+**Solution:** Re-verify after each restore stage.
+
+### Gotcha 3 — Stored prior state may be semantically stale
+
+A state can be temporally fresh but semantically invalid (tab closed, panel disappeared).
+
+**Solution:** Semantic validation in addition to temporal validation.
+
+### Gotcha 4 — Restore must not become "go anywhere" mechanism
+
+**Solution:** Bounded to known supported surfaces/layers/verified transitions.
+
+### Gotcha 5 — Region-first restore without app verification is dangerous
+
+**Solution:** Never attempt region/control restore until app restoration is verified.
+
+---
+
+# Recovery Telemetry (Enhanced)
+
+Every recovery attempt now records:
+
+```typescript
+interface RecoveryTelemetry {
+  // Basic fields
+  driftDetected: boolean;
+  reason: RecoveryReason | null;
+  action: RecoveryAction | null;
+  policy: RecoveryPolicy | null;
+  result: RecoveryResultStatus;
+  finalConfidence: number;
+  attempts: RecoveryAttempt[];
+
+  // New: Honesty fields
+  intendedTarget: {
+    app?: string;
+    region?: string;
+    control?: string;
+  };
+  verifiedLevel: "app" | "region" | "control" | "none";
+  degraded: boolean;  // true if verified < intended
+
+  // For restore: actual depth achieved
+  restoreDepth?: RecoveryDepth;
+
+  // For control recovery: actual level achieved
+  controlRecoveryLevel?: ControlRecoveryLevel;
+}
+```

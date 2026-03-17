@@ -3,7 +3,7 @@
 **Version:** 0.1  
 **Status:** Draft  
 **Branch:** `feature/focus-architecture-v2`  
-**Last Updated:** 2026-03-15
+**Last Updated:** 2026-03-17
 
 ---
 
@@ -231,11 +231,102 @@ The following principles govern the evolution of the Focus Project and must be f
 
 ---
 
-## 8. Revision History
+## 8. Focus Recovery Architecture (FP-5A/5B)
+
+The Focus Project includes a bounded recovery system for handling focus failures. Recovery follows a policy-driven orchestrator pattern (ADM-048).
+
+### 8.1 Recovery Flow
+
+```mermaid
+flowchart TD
+    A[performRecovery input] --> B{Drift Detected?}
+    B -->|No| C[NO_RECOVERY_NEEDED]
+    B -->|Yes| D[checkStateIntegrity]
+    
+    D --> E{TRUSTED UNVERIFIED<br/>UNTRUSTED ORPHANED}
+    
+    E --> F{isRecoverySupported?}
+    F -->|No| G[ABORT_UNSUPPORTED]
+    F -->|Yes| H[determinePolicy]
+    
+    H --> I{RETRY_ONCE<br/>RESTORE_PREVIOUS<br/>ABORT}
+    
+    I -->|RETRY| J[determineAction]
+    I -->|RESTORE| K{checkEligibility}
+    I -->|ABORT| L[ABORTED]
+    
+    K -->|eligible| M[determineAction]
+    K -->|not eligible| N[ABORT_MISSING_TARGET]
+    
+    J --> O[DELEGATE EXECUTION]
+    O --> P{action.success?}
+    
+    P -->|Yes| Q[reverifyFocusState]
+    P -->|No| R[ABORTED]
+    
+    Q --> S{verified?}
+    S -->|Yes| T[RECOVERED<br/>conf≥0.85]
+    S -->|No| U[DOWNGRADED<br/>conf=0.4]
+    
+    style O fill:#d4a017,stroke:#333,color:#000
+    style T fill:#228b22,stroke:#333,color:#000
+    style U fill:#d4a017,stroke:#333,color:#000
+    style G fill:#dc143c,stroke:#333,color:#fff
+    style N fill:#dc143c,stroke:#333,color:#fff
+    style R fill:#dc143c,stroke:#333,color:#fff
+```
+
+### 8.2 Delegation Model (ADM-048)
+
+Recovery **does NOT call xdotool directly**. Instead, it delegates to existing subsystems:
+
+```mermaid
+flowchart LR
+    subgraph Recovery["Focus Recovery Service"]
+        A[performRecovery] --> B[executeRecoveryAction]
+    end
+    
+    subgraph Delegates["Delegates (ADM-048)"]
+        B --> C[appFocusDelegate]
+        B --> D[regionFocusDelegate]
+        B --> E[controlFocusDelegate]
+        B --> F[restoreDelegate]
+        B --> G[verifyDelegate]
+    end
+    
+    subgraph Subsystems["Existing Subsystems"]
+        C --> H[system.focus]
+        D --> I[focus-region-handler]
+        E --> J[focus-precision-service]
+        F --> K[focus-history-service]
+        G --> L[focus-verification-service]
+    end
+    
+    style Recovery fill:#4a90d9,stroke:#333,color:#fff
+    style Delegates fill:#5dadec,stroke:#333,color:#000
+    style Subsystems fill:#2e8b57,stroke:#333,color:#fff
+```
+
+### 8.3 Recovery Result Statuses
+
+| Status | Description | Confidence |
+|--------|-------------|------------|
+| NO_RECOVERY_NEEDED | No drift detected | 1.0 |
+| RECOVERED_BY_RETRY | Retry succeeded + verified | ≥ 0.85 |
+| RECOVERED_BY_RESTORE | Restore succeeded + verified | 0.7 - 0.85 |
+| DOWNGRADED | Action succeeded but verification failed | 0.4 |
+| ABORTED_UNSAFE_RECOVERY | Aborted - unsafe or unsupported | 0.2 |
+| ABORTED_UNTRUSTED_STATE | Aborted - state integrity untrusted | 0.2 |
+| ABORTED_MISSING_TARGET | Aborted - target missing or restore ineligible | 0.2 |
+
+---
+
+## 9. Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 0.1 | 2026-03-15 | FP-0 Lead | Initial charter draft |
+| 0.2 | 2026-03-17 | FP-0 Lead | Added Focus Recovery Architecture diagrams (FP-5A/5B) |
 
 ---
 

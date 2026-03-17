@@ -31,15 +31,15 @@ import FocusPreValidator from "../runtime/focus-pre-validator";
 
 // Focus post-validation imports (FP-2.2)
 import FocusPostValidator, { FocusTransfer } from "../runtime/focus-post-validator";
-import { ContractValidationResult, ContractResult, ContractViolation } from "../runtime/focus-transfer-contract";
+import { ContractResult, ContractViolation } from "../runtime/focus-transfer-contract";
 
 // Focus safety monitor imports (FP-2.3)
 import FocusSafetyMonitor from "../runtime/focus-safety-monitor";
-import { InvariantResult, InvariantCheckRecord } from "../runtime/focus-safety-monitor";
+import { InvariantResult } from "../runtime/focus-safety-monitor";
 
 // Focus failure analyzer imports (FP-2.4)
 import FocusFailureAnalyzer from "../runtime/focus-failure-analyzer";
-import { FocusFailure, FailureAnalysis, FailureType, FailureSeverity, RecommendedAction } from "../runtime/focus-failure-modes";
+import { FocusFailure, FailureAnalysis, FailureType, FailureSeverity } from "../runtime/focus-failure-modes";
 
 // Intent routing imports (FP-6A/6B)
 import IntentRoutingService from "../runtime/intent-routing-service";
@@ -86,15 +86,15 @@ export default class Executor {
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
-    "editor": RegionKind.EDITOR,
-    "sidebar": RegionKind.SIDEBAR,
-    "terminal": RegionKind.TERMINAL,
-    "explorer": RegionKind.EXPLORER,
-    "search": RegionKind.SEARCH,
+    editor: RegionKind.EDITOR,
+    sidebar: RegionKind.SIDEBAR,
+    terminal: RegionKind.TERMINAL,
+    explorer: RegionKind.EXPLORER,
+    search: RegionKind.SEARCH,
     "address bar": RegionKind.ADDRESS_BAR,
-    "address": RegionKind.ADDRESS_BAR,
-    "page": RegionKind.PAGE,
-    "panel": RegionKind.PANEL,
+    address: RegionKind.ADDRESS_BAR,
+    page: RegionKind.PAGE,
+    panel: RegionKind.PANEL,
   };
 
   /**
@@ -105,20 +105,24 @@ export default class Executor {
    */
   private normalizeFocusTarget(targetName: string): string {
     const normalized = (targetName || "").toLowerCase().trim();
-    
+
     if (normalized.includes("chrome") || normalized.includes("browser")) {
       return "chrome";
     }
     if (normalized.includes("code") || normalized.includes("editor")) {
       return "vscode";
     }
-    if (normalized.includes("console") || normalized.includes("shell")) {
-      return "gnome-terminal";  // System terminal
+    if (
+      normalized.includes("console") ||
+      normalized.includes("shell") ||
+      normalized === "gnome-terminal"
+    ) {
+      return "gnome-terminal"; // System terminal
     }
     if (normalized.includes("terminal") || normalized.includes("term")) {
-      return "vscode";  // VS Code internal terminal
+      return "vscode"; // VS Code internal terminal
     }
-    
+
     return targetName;
   }
 
@@ -126,19 +130,18 @@ export default class Executor {
    * Detect if a focus command targets a region within an application
    * e.g., "focus editor" -> region: EDITOR, app: vscode
    * e.g., "focus address bar" -> region: ADDRESS_BAR, app: chrome
-   * 
+   *
    * NOTE: "terminal" and "term" specifically refer to VS Code terminal (region focus)
    * Use "focus console" to focus the system terminal (gnome-terminal)
    */
   private detectRegionTarget(commandText: string): { app: string; region: RegionKind } | null {
     const lower = commandText.toLowerCase().trim();
-    
+
     // Special handling: "focus console" should go to gnome-terminal (not a region)
-    // Return null so it goes through normal focus handling
     if (lower === "console" || lower.startsWith("focus console")) {
       return null;
     }
-    
+
     // Check for VS Code regions
     if (lower.includes("vscode") || lower.includes("code")) {
       for (const [keyword, region] of Object.entries(this.regionKeywords)) {
@@ -149,7 +152,7 @@ export default class Executor {
         }
       }
     }
-    
+
     // Check for Chrome regions
     if (lower.includes("chrome") || lower.includes("browser")) {
       for (const [keyword, region] of Object.entries(this.regionKeywords)) {
@@ -158,21 +161,366 @@ export default class Executor {
         }
       }
     }
-    
+
     // Check for standalone region commands (assume VS Code as default)
-    // BUT exclude "terminal" and "term" - those should be region focus in VS Code
     for (const [keyword, region] of Object.entries(this.regionKeywords)) {
       if (lower.endsWith(keyword) || lower === keyword) {
-        // Terminal ambiguity - redirect to VS Code terminal region
         if (region === RegionKind.TERMINAL) {
-          // This is "focus terminal" or "focus term" - VS Code terminal region
           return { app: "vscode", region };
         }
         return { app: "vscode", region };
       }
     }
-    
+
     return null;
+  }
+
+  /**
+   * Parse expected recovery target for drift input.
+   * This is more precise than the older partial-match logic so that
+   * gnome-terminal / console do not collapse incorrectly to vscode.
+   */
+  private parseRecoveryExpectation(targetName: string): {
+    expectedApp: string;
+    expectedRegion?: RegionKind;
+  } {
+    const normalized = (targetName || "").toLowerCase().trim();
+
+    if (
+      normalized === "gnome-terminal" ||
+      normalized.includes("console") ||
+      normalized.includes("shell")
+    ) {
+      return { expectedApp: "gnome-terminal" };
+    }
+
+    if (normalized.includes("address")) {
+      return { expectedApp: "chrome", expectedRegion: RegionKind.ADDRESS_BAR };
+    }
+
+    if (normalized.includes("page")) {
+      return { expectedApp: "chrome", expectedRegion: RegionKind.PAGE };
+    }
+
+    if (normalized.includes("editor")) {
+      return { expectedApp: "vscode", expectedRegion: RegionKind.EDITOR };
+    }
+
+    if (normalized === "terminal" || normalized === "term") {
+      return { expectedApp: "vscode", expectedRegion: RegionKind.TERMINAL };
+    }
+
+    if (normalized.includes("chrome") || normalized.includes("browser")) {
+      return { expectedApp: "chrome" };
+    }
+
+    if (normalized.includes("code") || normalized.includes("vscode")) {
+      return { expectedApp: "vscode" };
+    }
+
+    return { expectedApp: targetName };
+  }
+
+  /**
+   * Map control name to an honest region fallback.
+   * This is used by control recovery delegates so we do not fake control recovery.
+   */
+  private mapControlToRegion(app: string, control: string): RegionKind | null {
+    const normalizedApp = (app || "").toLowerCase().trim();
+    const normalizedControl = (control || "").toLowerCase().trim();
+
+    if (
+      (normalizedApp.includes("vscode") || normalizedApp.includes("code")) &&
+      (normalizedControl === ControlType.TEXT_EDITOR ||
+        normalizedControl.includes("editor"))
+    ) {
+      return RegionKind.EDITOR;
+    }
+
+    if (
+      (normalizedApp.includes("vscode") || normalizedApp.includes("code")) &&
+      (normalizedControl === ControlType.TERMINAL ||
+        normalizedControl.includes("terminal"))
+    ) {
+      return RegionKind.TERMINAL;
+    }
+
+    if (
+      (normalizedApp.includes("chrome") || normalizedApp.includes("browser")) &&
+      (normalizedControl === ControlType.ADDRESS_BAR ||
+        normalizedControl.includes("address"))
+    ) {
+      return RegionKind.ADDRESS_BAR;
+    }
+
+    return null;
+  }
+
+  /**
+   * Best-effort restore delegate implementation.
+   * This is still a boolean delegate, so it cannot report restore depth,
+   * but it will try app -> region -> control in order.
+   *
+   * IMPORTANT:
+   * Success here only means the restore action was attempted successfully;
+   * final truth still comes from re-verification inside recovery.
+   */
+  private async executeBestEffortRestore(
+    state: import("../runtime/focus-recovery-service").VerifiedFocusState
+  ): Promise<boolean> {
+    try {
+      await this.system.focus(state.application);
+
+      if (state.region) {
+        const target: FocusTarget = {
+          entity: state.application,
+          layer: FocusLayer.REGION,
+          regionKind: state.region,
+        };
+        await this.regionHandler.executeRegionTransfer(target, {});
+      }
+
+      if (state.precisionSurface) {
+        const controlRegion = this.mapControlToRegion(
+          state.application,
+          state.precisionSurface.controlType
+        );
+        if (controlRegion) {
+          const target: FocusTarget = {
+            entity: state.application,
+            layer: FocusLayer.REGION,
+            regionKind: controlRegion,
+          };
+          await this.regionHandler.executeRegionTransfer(target, {});
+        }
+      }
+
+      return true;
+    } catch (error) {
+      console.log(`[RECOVERY DELEGATE] Best-effort restore failed for ${state.application}: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Honest control-focus delegate.
+   *
+   * It does NOT fall back to raw app focus and claim control recovery.
+   * Instead, it maps supported controls to region-level focus where possible.
+   * Unsupported controls return false so the recovery service can downgrade or abort honestly.
+   */
+  private async executeHonestControlFocus(app: string, control: string): Promise<boolean> {
+    try {
+      const region = this.mapControlToRegion(app, control);
+      if (!region) {
+        console.log(
+          `[RECOVERY DELEGATE] Control focus unsupported for control=${control} app=${app}`
+        );
+        return false;
+      }
+
+      const target: FocusTarget = {
+        entity: app,
+        layer: FocusLayer.REGION,
+        regionKind: region,
+      };
+
+      const result = await this.regionHandler.executeRegionTransfer(target, {});
+      return result.success;
+    } catch (error) {
+      console.log(
+        `[RECOVERY DELEGATE] Honest control focus failed for control=${control} app=${app}: ${error}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Dedicated focus command path.
+   * This ensures:
+   * - routing runs before focus
+   * - pre-transfer state is captured before focus
+   * - pre-validation is evaluated before focus
+   * - post-validation sees the real pre-transfer state
+   */
+  private async handleFocusCommand(command: core.ICommand): Promise<void> {
+    if (!command.text) {
+      return;
+    }
+
+    const originalText = command.text;
+    const regionTarget = this.detectRegionTarget(originalText);
+
+    console.log(`[EXECUTOR] Running intent routing for: ${originalText}`);
+    const routingResult = this.intentRoutingService.routeCommandHardened({
+      command: originalText,
+      currentApplication: this.active.app,
+    });
+
+    console.log(
+      `[EXECUTOR] Routing result: success=${routingResult.telemetry.success}, outcome=${routingResult.telemetry.outcome}`
+    );
+
+    this.log.logVerbose(
+      `[ROUTING] command="${originalText}"` +
+        ` outcome=${routingResult.telemetry.outcome}` +
+        ` focusAgreement=${routingResult.telemetry.focusRoutingAgreement}` +
+        ` success=${routingResult.telemetry.success}`
+    );
+
+    // For FOCUS commands, routing is advisory right now. Do not block if routing says unsupported.
+    if (!routingResult.telemetry.success) {
+      console.log(
+        `[EXECUTOR] FOCUS command - routing failed but allowing through: ${routingResult.telemetry.error}`
+      );
+    }
+
+    await this.checkSafetyInvariantsPreTransfer();
+
+    let preTransferState: FocusState | undefined;
+
+    try {
+      // Capture true pre-transfer state before any focus transfer occurs.
+      preTransferState = await this.focusPreValidator.capturePreTransferState();
+      this.focusPostValidator.setPreTransferState(preTransferState);
+
+      const preValidationTargetName = regionTarget ? regionTarget.app : originalText;
+      const preValidationLayer = regionTarget ? FocusLayer.REGION : FocusLayer.APPLICATION;
+
+      const preValidation = await this.preValidateFocusTransfer(
+        preValidationTargetName,
+        preValidationLayer
+      );
+
+      this.lastPreValidationResult = {
+        canProceed: preValidation.canProceed,
+        blockingIssues: preValidation.blockingIssues,
+      };
+
+      if (!preValidation.canProceed) {
+        this.log.logVerbose(
+          `Focus pre-validation FAILED: ${preValidation.blockingIssues.join("; ")}`
+        );
+        return;
+      }
+
+      this.log.logVerbose("Focus pre-validation PASSED - proceeding with transfer");
+
+      // Execute focus action
+      if (regionTarget) {
+        console.log(
+          `[EXECUTOR] Region focus detected: app=${regionTarget.app}, region=${regionTarget.region}`
+        );
+        this.log.logVerbose(
+          `Region focus: ${regionTarget.region} in ${regionTarget.app}`
+        );
+
+        const target: FocusTarget = {
+          entity: regionTarget.app,
+          layer: FocusLayer.REGION,
+          regionKind: regionTarget.region,
+        };
+
+        try {
+          const regionResult = await this.regionHandler.executeRegionTransfer(target, {});
+          if (regionResult.success) {
+            console.log(`[EXECUTOR] Region focus SUCCESS: ${regionResult.details}`);
+            this.log.logVerbose(`Region focus succeeded: ${regionResult.details}`);
+          } else {
+            console.log(`[EXECUTOR] Region focus FAILED: ${regionResult.details}`);
+            this.log.logVerbose(`Region focus failed: ${regionResult.details}`);
+          }
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          console.log(`[EXECUTOR] Region focus error: ${errorMsg}`);
+          this.log.logVerbose(`Region focus error: ${errorMsg}`);
+        }
+
+        // Region verification is still app-level here unless the region handler
+        // itself exposes a stronger verified region signal.
+        const verificationResult = await this.verifyFocusTransfer(
+          regionTarget.app,
+          FocusLayer.APPLICATION
+        );
+
+        await this.postValidateFocusTransfer(
+          regionTarget.app,
+          FocusLayer.APPLICATION,
+          preTransferState,
+          verificationResult
+        );
+
+        await this.checkSafetyInvariantsPostTransfer();
+
+        if (!verificationResult.success) {
+          await this.runFocusRecovery(regionTarget.app, verificationResult);
+
+          const recoveryVerification = await this.verifyFocusTransfer(
+            regionTarget.app,
+            FocusLayer.APPLICATION
+          );
+
+          if (!recoveryVerification.success) {
+            console.log(
+              `[RECOVERY] Post-recovery verification still failed: ${recoveryVerification.details}`
+            );
+          } else {
+            console.log(
+              `[RECOVERY] Post-recovery verification SUCCESS: ${recoveryVerification.details}`
+            );
+          }
+        }
+      } else {
+        const commandType = commandTypeToString(command.type!);
+        if (!(commandType in this.commandHandler())) {
+          return;
+        }
+
+        await this.commandHandler()[commandType](command);
+
+        const normalizedTarget = this.normalizeFocusTarget(originalText);
+        console.log(
+          `[EXECUTOR] Verifying focus transfer to normalized target: ${normalizedTarget} (original: ${originalText})`
+        );
+
+        const verificationResult = await this.verifyFocusTransfer(
+          normalizedTarget,
+          FocusLayer.APPLICATION
+        );
+
+        await this.postValidateFocusTransfer(
+          normalizedTarget,
+          FocusLayer.APPLICATION,
+          preTransferState,
+          verificationResult
+        );
+
+        await this.checkSafetyInvariantsPostTransfer();
+
+        if (!verificationResult.success) {
+          await this.runFocusRecovery(normalizedTarget, verificationResult);
+
+          const recoveryVerification = await this.verifyFocusTransfer(
+            normalizedTarget,
+            FocusLayer.APPLICATION
+          );
+
+          if (!recoveryVerification.success) {
+            console.log(
+              `[RECOVERY] Post-recovery verification still failed: ${recoveryVerification.details}`
+            );
+          } else {
+            console.log(
+              `[RECOVERY] Post-recovery verification SUCCESS: ${recoveryVerification.details}`
+            );
+          }
+        }
+      }
+    } finally {
+      // Always invalidate pre-transfer cache so future validations do not reuse stale state.
+      this.focusPreValidator.invalidateCache();
+      this.focusPostValidator.clearCache();
+    }
   }
 
   // Store pre-validation result for comparison
@@ -199,6 +547,7 @@ export default class Executor {
     private commandHandler: () => any
   ) {
     this.newChainFinishedPromise();
+
     // Initialize focus verification services
     this.focusVerificationService = new FocusVerificationService();
     this.focusHistoryService = new FocusHistoryService({ maxEntries: 100 });
@@ -229,9 +578,8 @@ export default class Executor {
     this.focusRecoveryService = new FocusRecoveryService();
 
     // Wire up delegates for recovery orchestrator (ADM-048)
-    // Recovery is an orchestrator that delegates to existing subsystems
+
     this.focusRecoveryService.setAppFocusDelegate(async (app: string): Promise<boolean> => {
-      // Delegate to system.focus() - this is the proper app focus path
       try {
         await this.system.focus(app);
         return true;
@@ -241,61 +589,56 @@ export default class Executor {
       }
     });
 
-    this.focusRecoveryService.setRegionFocusDelegate(async (app: string, region: string): Promise<boolean> => {
-      // Delegate to region handler
-      try {
-        const regionKind = region as any; // Could map string to RegionKind
-        const target: FocusTarget = {
-          entity: app,
-          layer: FocusLayer.REGION,
-          regionKind,
-        };
-        const result = await this.regionHandler.executeRegionTransfer(target, {});
-        return result.success;
-      } catch (error) {
-        console.log(`[RECOVERY DELEGATE] Region focus failed for ${region} in ${app}: ${error}`);
-        return false;
+    this.focusRecoveryService.setRegionFocusDelegate(
+      async (app: string, region: string): Promise<boolean> => {
+        try {
+          const regionKind = region as RegionKind;
+          const target: FocusTarget = {
+            entity: app,
+            layer: FocusLayer.REGION,
+            regionKind,
+          };
+          const result = await this.regionHandler.executeRegionTransfer(target, {});
+          return result.success;
+        } catch (error) {
+          console.log(
+            `[RECOVERY DELEGATE] Region focus failed for ${region} in ${app}: ${error}`
+          );
+          return false;
+        }
       }
-    });
+    );
 
-    this.focusRecoveryService.setRestoreDelegate(async (state: import("../runtime/focus-recovery-service").VerifiedFocusState): Promise<boolean> => {
-      // Delegate to history service for restore
-      try {
-        await this.system.focus(state.application);
-        return true;
-      } catch (error) {
-        console.log(`[RECOVERY DELEGATE] Restore failed for ${state.application}: ${error}`);
-        return false;
+    // Keep legacy restore delegate, but make it best-effort layered restore instead of app-only.
+    this.focusRecoveryService.setRestoreDelegate(
+      async (
+        state: import("../runtime/focus-recovery-service").VerifiedFocusState
+      ): Promise<boolean> => {
+        return this.executeBestEffortRestore(state);
       }
-    });
+    );
 
-    this.focusRecoveryService.setVerifyDelegate(async (): Promise<{ verified: boolean; state: FocusState | null }> => {
-      // Delegate to verification service for re-verification
-      try {
-        const state = await this.focusVerificationService.queryCurrentFocus();
-        return {
-          verified: state !== null,
-          state,
-        };
-      } catch (error) {
-        console.log(`[RECOVERY DELEGATE] Verification failed: ${error}`);
-        return { verified: false, state: null };
+    this.focusRecoveryService.setVerifyDelegate(
+      async (): Promise<{ verified: boolean; state: FocusState | null }> => {
+        try {
+          const state = await this.focusVerificationService.queryCurrentFocus();
+          return {
+            verified: state !== null,
+            state,
+          };
+        } catch (error) {
+          console.log(`[RECOVERY DELEGATE] Verification failed: ${error}`);
+          return { verified: false, state: null };
+        }
       }
-    });
+    );
 
-    // Delegate for control focus (FP-5A - precision recovery)
-    this.focusRecoveryService.setControlFocusDelegate(async (app: string, control: string): Promise<boolean> => {
-      // Delegate to precision service for control-level recovery
-      try {
-        // Map control string to precision surface
-        const controlType = control as any;
-        await this.system.focus(app); // Fallback to app focus
-        return true;
-      } catch (error) {
-        console.log(`[RECOVERY DELEGATE] Control focus failed for ${control} in ${app}: ${error}`);
-        return false;
+    // Honest control delegate: region-backed where supported, otherwise false.
+    this.focusRecoveryService.setControlFocusDelegate(
+      async (app: string, control: string): Promise<boolean> => {
+        return this.executeHonestControlFocus(app, control);
       }
-    });
+    );
   }
 
   private addToHistory(response: core.ICommandsResponse) {
@@ -332,11 +675,6 @@ export default class Executor {
   }
 
   private async handleResponseFromPlugin(forwarded: any) {
-    // ChunkManager calls this with await this.executor.execute(this.response); so we want to be sure that
-    // all the commands in a chain are executed before this returns. In the branch above, if there are
-    // remaining commands, send a text request to run the next one and await this.chainFinishedPromise.
-    // By the time we reach this branch, we will have executed all the remaining commands, so we want to resolve
-    // this.chainFinishedPromise by calling its resolve function, this.resolveChainFinished, and make a new one.
     this.resolveChainFinished();
     this.newChainFinishedPromise();
 
@@ -354,7 +692,6 @@ export default class Executor {
           type: core.CallbackType.CALLBACK_TYPE_OPEN_FILE,
         });
       } else if (forwarded.message == "paste") {
-        // remove once deprecated from the chrome extension
         await this.system.pressKey("v", [os.platform() === "darwin" ? "command" : "control"]);
       }
     }
@@ -384,7 +721,6 @@ export default class Executor {
       try {
         apps = await getApps();
       } catch (e) {
-        // If we can't get running apps, don't invalidate (fail-open)
         this.log.logVerbose("Could not get running apps - not invalidating commands");
         return response;
       }
@@ -421,7 +757,6 @@ export default class Executor {
   }
 
   private async invalidateBadClickCommands(response: core.ICommandsResponse): Promise<any> {
-    // invalidate click commands that don't correspond to any elements on the page
     if (
       response.alternatives &&
       response.alternatives.length > 0 &&
@@ -448,7 +783,6 @@ export default class Executor {
   }
 
   private async invalidateBadUseCommands(response: core.ICommandsResponse): Promise<any> {
-    // invalidate use commands that are too big for the pending list
     const isInvalid = async (alternative: core.ICommandsResponseAlternative) => {
       if (!alternative) {
         return true;
@@ -473,7 +807,6 @@ export default class Executor {
           if (!clickableResult || !clickableResult.data.clickable) {
             invalidChrome = true;
           } else {
-            // the extension tells us there's a valid command, so don't run any pending command on the client too
             this.clearPending();
           }
         }
@@ -553,7 +886,6 @@ export default class Executor {
   }
 
   private savePendingResponseIfNeeded(response: core.ICommandsResponse) {
-    // ignore execute-only responses
     if (
       (!response.alternatives || response.alternatives.length == 0) &&
       this.hasExecute(response)
@@ -610,7 +942,6 @@ export default class Executor {
       core.CommandType.COMMAND_TYPE_STOP_DICTATE,
       core.CommandType.COMMAND_TYPE_SHOW_REVISION_BOX,
       core.CommandType.COMMAND_TYPE_HIDE_REVISION_BOX,
-      // FP-6A: Add FOCUS to auto-execute so "focus chrome" works automatically
       core.CommandType.COMMAND_TYPE_FOCUS,
     ];
 
@@ -630,12 +961,10 @@ export default class Executor {
       return response;
     }
 
-    // run commands are often in a terminal, where we don't want to do things unexpectedly
     if (valid[0].transcript.startsWith("run")) {
       return response;
     }
 
-    // focus commands should always auto-execute (FP-6A)
     if (valid[0].transcript.startsWith("focus")) {
       response.execute = valid[0];
       return response;
@@ -670,8 +999,6 @@ export default class Executor {
   async execute(response: core.ICommandsResponse, updateRenderer: boolean = true) {
     this.lastEndpointId = response.endpointId!;
 
-    // reset the state of the alternatives spinner each time a new command is executed,
-    // and if the command needs a spinner, it will set it back below
     this.bridge.setState(
       {
         alternativesSpinner: [],
@@ -717,7 +1044,6 @@ export default class Executor {
 
     let pluginResponse;
     if (forwardToPlugin) {
-      // try forwarding commands to the active application plugin
       try {
         pluginResponse = await this.pluginManager.sendResponseToApp(this.active.app, response);
       } catch (e) {
@@ -725,10 +1051,16 @@ export default class Executor {
       }
     }
 
-    // process supported commands with the client's handler directly
     if (response.execute && response.execute.commands) {
       for (const command of response.execute.commands) {
         const commandType = commandTypeToString(command.type!);
+
+        // Dedicated focus command path
+        if (command.type == core.CommandType.COMMAND_TYPE_FOCUS) {
+          await this.handleFocusCommand(command);
+          continue;
+        }
+
         if (commandType in this.commandHandler()) {
           if (
             command.type != core.CommandType.COMMAND_TYPE_DIFF &&
@@ -738,154 +1070,7 @@ export default class Executor {
             this.insertHistory.clear();
           }
 
-          // FP-3A: Check if this is a region focus command BEFORE executing the command
-          // "focus terminal" should go to VS Code terminal, not gnome-terminal
-          let skipCommandHandler = false;
-          if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text) {
-            const regionTarget = this.detectRegionTarget(command.text);
-            if (regionTarget) {
-              console.log(`[EXECUTOR] Region focus detected: app=${regionTarget.app}, region=${regionTarget.region}`);
-              
-              // Log region focus for history
-              this.log.logVerbose(`Region focus: ${regionTarget.region} in ${regionTarget.app}`);
-              
-              // Focus the region within the application using the region handler
-              try {
-                const target: FocusTarget = {
-                  entity: regionTarget.app,
-                  layer: FocusLayer.REGION,
-                  regionKind: regionTarget.region,
-                };
-                
-                const regionResult = await this.regionHandler.executeRegionTransfer(target, {});
-                if (regionResult.success) {
-                  console.log(`[EXECUTOR] Region focus SUCCESS: ${regionResult.details}`);
-                  this.log.logVerbose(`Region focus succeeded: ${regionResult.details}`);
-                } else {
-                  console.log(`[EXECUTOR] Region focus FAILED: ${regionResult.details}`);
-                  this.log.logVerbose(`Region focus failed: ${regionResult.details}`);
-                }
-              } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error);
-                console.log(`[EXECUTOR] Region focus error: ${errorMsg}`);
-                this.log.logVerbose(`Region focus error: ${errorMsg}`);
-              }
-              
-              // Skip the normal focus handler - we've already handled the region
-              skipCommandHandler = true;
-            }
-          }
-
-          // Execute the command handler unless we handled it as a region focus
-          if (!skipCommandHandler) {
-            await this.commandHandler()[commandType](command);
-          }
-
-          // FP-1.1: Verify focus transfer after FOCUS command
-          if (command.type == core.CommandType.COMMAND_TYPE_FOCUS && command.text && !skipCommandHandler) {
-            
-            // FP-6A/6B: Run intent routing before focus transfer
-            console.log(`[EXECUTOR] Running intent routing for: ${command.text}`);
-            const routingResult = this.intentRoutingService.routeCommandHardened({
-              command: command.text!,
-              currentApplication: this.active.app,
-            });
-
-            console.log(`[EXECUTOR] Routing result: success=${routingResult.telemetry.success}, outcome=${routingResult.telemetry.outcome}`);
-
-            // Log intent routing result
-            this.log.logVerbose(
-              `[ROUTING] command="${command.text}"` +
-              ` outcome=${routingResult.telemetry.outcome}` +
-              ` focusAgreement=${routingResult.telemetry.focusRoutingAgreement}` +
-              ` success=${routingResult.telemetry.success}`
-            );
-
-            // If routing failed, abort the focus transfer (but focus may have already happened)
-            // For FOCUS commands, allow through even if routing fails - focus already executed
-            if (!routingResult.telemetry.success && command.type != core.CommandType.COMMAND_TYPE_FOCUS) {
-              console.log(`[EXECUTOR] Routing failed, aborting focus transfer: ${routingResult.telemetry.error}`);
-              this.log.logVerbose(
-                `[ROUTING] Aborted: ${routingResult.telemetry.error || routingResult.result.error}`
-              );
-              // Continue to next command - don't attempt the transfer
-              continue;
-            } else if (!routingResult.telemetry.success) {
-              // FOCUS command - routing failed but xdotool may have already run, allow through
-              console.log(`[EXECUTOR] FOCUS command - routing failed but allowing through: ${routingResult.telemetry.error}`);
-            }
-
-            // FP-2.3: Run pre-transfer invariant checks
-            await this.checkSafetyInvariantsPreTransfer();
-
-            // FP-2.1: Run pre-validation before focus transfer
-            const preValidation = await this.preValidateFocusTransfer(
-              command.text,
-              FocusLayer.APPLICATION
-            );
-
-            // Store pre-validation result for post-comparison
-            this.lastPreValidationResult = {
-              canProceed: preValidation.canProceed,
-              blockingIssues: preValidation.blockingIssues,
-            };
-
-            // Get and store pre-transfer state for side-effect comparison
-            const preTransferState = await this.focusPreValidator.getCurrentSourceState();
-            this.focusPostValidator.setPreTransferState(preTransferState);
-
-            // Skip transfer if pre-validation failed
-            if (!preValidation.canProceed) {
-              this.log.logVerbose(
-                `Focus pre-validation FAILED: ${preValidation.blockingIssues.join("; ")}`
-              );
-              // Continue to next command - don't attempt the transfer
-              continue;
-            }
-
-            this.log.logVerbose(
-              "Focus pre-validation PASSED - proceeding with transfer"
-            );
-
-            // Normalize target for verification (e.g., "console" -> "gnome-terminal")
-            const normalizedTarget = this.normalizeFocusTarget(command.text);
-            console.log(`[EXECUTOR] Verifying focus transfer to normalized target: ${normalizedTarget} (original: ${command.text})`);
-
-            // Proceed with focus transfer verification
-            const verificationResult = await this.verifyFocusTransfer(
-              normalizedTarget,
-              FocusLayer.APPLICATION
-            );
-
-            // FP-2.2: Run post-validation after focus transfer
-            await this.postValidateFocusTransfer(
-              normalizedTarget,
-              FocusLayer.APPLICATION,
-              preTransferState,
-              verificationResult
-            );
-
-            // FP-2.3: Run post-transfer invariant checks
-            await this.checkSafetyInvariantsPostTransfer();
-
-            // FP-5A: Run recovery check if focus verification failed
-            if (!verificationResult.success) {
-              await this.runFocusRecovery(normalizedTarget, verificationResult);
-              
-              // After recovery attempt, try verification again
-              const recoveryVerification = await this.verifyFocusTransfer(
-                normalizedTarget,
-                FocusLayer.APPLICATION
-              );
-              
-              if (!recoveryVerification.success) {
-                // Recovery failed - log and continue
-                console.log(`[RECOVERY] Post-recovery verification still failed: ${recoveryVerification.details}`);
-              } else {
-                console.log(`[RECOVERY] Post-recovery verification SUCCESS: ${recoveryVerification.details}`);
-              }
-            }
-          }
+          await this.commandHandler()[commandType](command);
 
           if (
             command.type == core.CommandType.COMMAND_TYPE_RUN ||
@@ -959,8 +1144,7 @@ export default class Executor {
     response = await this.invalidateBadApplicationCommands(
       response,
       () => this.system.runningApplications(),
-      (command: core.ICommand) =>
-        command.type == core.CommandType.COMMAND_TYPE_QUIT
+      (command: core.ICommand) => command.type == core.CommandType.COMMAND_TYPE_QUIT
     );
 
     response = await this.invalidateBadClickCommands(response);
@@ -973,21 +1157,26 @@ export default class Executor {
   }
 
   showAlternativesIfPresent(response: core.ICommandsResponse) {
-    // don't show alternatives for meta responses, since that would blow away the choices
     if (isMetaResponse(response)) {
       return;
     }
 
     if (response.alternatives && response.alternatives.length > 0) {
-      // Debug: Log all alternatives with their commands
-      for (const alt of (response.alternatives || [])) {
-        console.log("[EXECUTOR] Alternative:", alt.transcript, "commands:", JSON.stringify((alt.commands || []).map((cmd: any) => ({ 
-          type: core.CommandType[cmd.type], 
-          typeNum: cmd.type,
-          text: cmd.text 
-        }))));
+      for (const alt of response.alternatives || []) {
+        console.log(
+          "[EXECUTOR] Alternative:",
+          alt.transcript,
+          "commands:",
+          JSON.stringify(
+            (alt.commands || []).map((cmd: any) => ({
+              type: core.CommandType[cmd.type],
+              typeNum: cmd.type,
+              text: cmd.text,
+            }))
+          )
+        );
       }
-      
+
       this.log.logVerbose(
         `Showing alternatives [${response.alternatives.map((e: any) => e.transcript).join(", ")}]`
       );
@@ -1052,7 +1241,7 @@ export default class Executor {
    * Part of FP-1.1: Verification step after focus transfer
    *
    * @param targetName - The name of the target application/window
-   * @param layer - The focus layer (APPLICATION or WINDOW)
+   * @param layer - The focus layer
    * @returns The verification result
    */
   async verifyFocusTransfer(
@@ -1071,20 +1260,28 @@ export default class Executor {
     try {
       const result = await this.focusVerificationService.verifyFocusTransfer(target);
 
-      // Log the verification result
       this.log.logVerbose(
-        "Focus verification: " + (result.success ? "SUCCESS" : "FAILED") + " - " +
-          result.details + " (confidence: " + result.confidence.toFixed(2) + ")"
+        "Focus verification: " +
+          (result.success ? "SUCCESS" : "FAILED") +
+          " - " +
+          result.details +
+          " (confidence: " +
+          result.confidence.toFixed(2) +
+          ")"
       );
 
-      // Add to history
       this.focusHistoryService.addEntry(target, result);
 
-      // Log history stats
       const stats = this.focusHistoryService.getStats();
       this.log.logVerbose(
-        "Focus history: " + stats.successfulTransfers + "/" + stats.totalAttempts + " successful " +
-          "(rate: " + (stats.successRate * 100).toFixed(1) + "%)"
+        "Focus history: " +
+          stats.successfulTransfers +
+          "/" +
+          stats.totalAttempts +
+          " successful " +
+          "(rate: " +
+          (stats.successRate * 100).toFixed(1) +
+          "%)"
       );
 
       return {
@@ -1104,9 +1301,6 @@ export default class Executor {
     }
   }
 
-  /**
-   * Get the focus history service for external access
-   */
   getFocusHistoryService(): FocusHistoryService {
     return this.focusHistoryService;
   }
@@ -1116,7 +1310,7 @@ export default class Executor {
    * Part of FP-2.1: Pre-transfer validation checks
    *
    * @param targetName - The name of the target application/window
-   * @param layer - The focus layer (APPLICATION or WINDOW)
+   * @param layer - The focus layer
    * @returns Pre-validation result with canProceed flag
    */
   async preValidateFocusTransfer(
@@ -1134,10 +1328,8 @@ export default class Executor {
     };
 
     try {
-      // Run pre-validation
       const validationResult = await this.focusPreValidator.validatePreConditions(target);
 
-      // Log validation details
       this.log.logVerbose(
         `Focus pre-validation: ${validationResult.canProceed ? "PASSED" : "FAILED"}`
       );
@@ -1164,8 +1356,7 @@ export default class Executor {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.log.logVerbose(`Focus pre-validation error: ${errorMessage}`);
 
-      // On error, we allow the transfer to proceed (fail-open policy)
-      // This prevents blocking transfers due to validation issues
+      // Keep fail-open behavior for now, but surface it loudly.
       return {
         canProceed: true,
         valid: false,
@@ -1175,9 +1366,6 @@ export default class Executor {
     }
   }
 
-  /**
-   * Get the pre-validator for external access
-   */
   getFocusPreValidator(): FocusPreValidator {
     return this.focusPreValidator;
   }
@@ -1187,7 +1375,7 @@ export default class Executor {
    * Part of FP-2.2: Post-transfer contract verification
    *
    * @param targetName - The name of the target application/window
-   * @param layer - The focus layer (APPLICATION or WINDOW)
+   * @param layer - The focus layer
    * @param preTransferState - The focus state before transfer
    * @param verificationResult - The result from focus verification
    * @returns Contract result with pass/fail status
@@ -1195,7 +1383,7 @@ export default class Executor {
   async postValidateFocusTransfer(
     targetName: string,
     layer: FocusLayer,
-    preTransferState: import("../runtime/focus-verification-service").FocusState,
+    preTransferState: FocusState,
     verificationResult: { success: boolean; confidence: number; details: string }
   ): Promise<ContractResult> {
     const target: FocusTarget = {
@@ -1204,33 +1392,30 @@ export default class Executor {
     };
 
     try {
-      // Get the current (post-transfer) state
       const postTransferState = await this.focusVerificationService.queryCurrentFocus();
 
-      // Build verification result object for the post-validator
-      const focusVerificationResult: import("../runtime/focus-verification-service").FocusVerificationResult = {
-        success: verificationResult.success,
-        confidence: verificationResult.confidence,
-        actual: postTransferState,
-        expected: {
-          entity: targetName.toLowerCase(),
-          layer,
-          sourceOfTruth: FocusSourceOfTruth.OPERATING_SYSTEM,
-          timestamp: new Date().toISOString(),
-        },
-        details: verificationResult.details,
-        authorityAnalysis: {
-          classifications: [],
-          primaryAuthority: FocusAuthority.OS_NATIVE,
-          hasConflicts: false,
-          timestamp: new Date().toISOString(),
-        },
-      };
+      const focusVerificationResult: import("../runtime/focus-verification-service").FocusVerificationResult =
+        {
+          success: verificationResult.success,
+          confidence: verificationResult.confidence,
+          actual: postTransferState,
+          expected: {
+            entity: targetName.toLowerCase(),
+            layer,
+            sourceOfTruth: FocusSourceOfTruth.OPERATING_SYSTEM,
+            timestamp: new Date().toISOString(),
+          },
+          details: verificationResult.details,
+          authorityAnalysis: {
+            classifications: [],
+            primaryAuthority: FocusAuthority.OS_NATIVE,
+            hasConflicts: false,
+            timestamp: new Date().toISOString(),
+          },
+        };
 
-      // Set the verification result in the post-validator
       this.focusPostValidator.setVerificationResult(focusVerificationResult, target);
 
-      // Build the focus transfer object
       const transfer: FocusTransfer = {
         target,
         sourceState: preTransferState,
@@ -1239,10 +1424,8 @@ export default class Executor {
         timestamp: new Date().toISOString(),
       };
 
-      // Run post-validation
       const validationResult = await this.focusPostValidator.validatePostConditions(transfer);
 
-      // Log contract violations
       if (!validationResult.passed) {
         this.log.logVerbose(
           `Focus post-validation FAILED: ${validationResult.postConditions
@@ -1270,7 +1453,6 @@ export default class Executor {
         );
       }
 
-      // Compare with pre-validation expectations
       if (this.lastPreValidationResult) {
         if (this.lastPreValidationResult.canProceed && !validationResult.passed) {
           this.log.logVerbose(
@@ -1283,11 +1465,11 @@ export default class Executor {
         }
       }
 
-      // Add to history with contract result
-      this.focusHistoryService.addEntryWithContractResult(target, focusVerificationResult, validationResult);
-
-      // Clear the cached state
-      this.focusPostValidator.clearCache();
+      this.focusHistoryService.addEntryWithContractResult(
+        target,
+        focusVerificationResult,
+        validationResult
+      );
 
       return {
         passed: validationResult.passed,
@@ -1328,16 +1510,10 @@ export default class Executor {
     }
   }
 
-  /**
-   * Get the post-validator for external access
-   */
   getFocusPostValidator(): FocusPostValidator {
     return this.focusPostValidator;
   }
 
-  /**
-   * Get the safety monitor for external access
-   */
   getFocusSafetyMonitor(): FocusSafetyMonitor {
     return this.focusSafetyMonitor;
   }
@@ -1384,7 +1560,6 @@ export default class Executor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.log.logVerbose(`Pre-transfer invariant check error: ${errorMessage}`);
-      // Fail open - allow transfer to proceed if invariant check fails
       return { allSatisfied: true, violations: [] };
     }
   }
@@ -1424,7 +1599,6 @@ export default class Executor {
           );
         }
 
-        // Store invariant check results in history
         const historyRecords = this.focusSafetyMonitor.getHistory(10);
         for (const record of historyRecords) {
           if (!record.satisfied) {
@@ -1441,32 +1615,20 @@ export default class Executor {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.log.logVerbose(`Post-transfer invariant check error: ${errorMessage}`);
-      // Fail open - don't block on check error
       return { allSatisfied: true, violations: [] };
     }
   }
 
-  /**
-   * Start the continuous safety invariant monitoring
-   * Should be called when the application starts
-   */
   startSafetyMonitoring(): void {
     this.focusSafetyMonitor.startMonitoring();
     this.log.logVerbose("Safety invariant monitoring started");
   }
 
-  /**
-   * Stop the continuous safety invariant monitoring
-   * Should be called when the application shuts down
-   */
   stopSafetyMonitoring(): void {
     this.focusSafetyMonitor.stopMonitoring();
     this.log.logVerbose("Safety invariant monitoring stopped");
   }
 
-  /**
-   * Get the failure analyzer for external access
-   */
   getFocusFailureAnalyzer(): FocusFailureAnalyzer {
     return this.focusFailureAnalyzer;
   }
@@ -1479,28 +1641,14 @@ export default class Executor {
    * @returns Complete failure analysis
    */
   analyzeFocusFailure(failure: FocusFailure): FailureAnalysis {
-    // Analyze the failure
     const analysis = this.focusFailureAnalyzer.analyzeFailure(failure);
-
-    // Log failure analysis results
     this.logFailureAnalysis(analysis);
-
-    // Add failure analysis to history
     this.focusHistoryService.addFailureAnalysis(analysis);
-
     return analysis;
   }
 
   /**
    * Create and analyze a failure from current focus transfer state
-   *
-   * @param type - The type of failure
-   * @param error - The error that occurred
-   * @param target - The target that was being transferred to
-   * @param sourceState - The source state before transfer
-   * @param actualState - The actual state when failure occurred
-   * @param violations - Contract violations if any
-   * @returns Complete failure analysis
    */
   createAndAnalyzeFailure(
     type: FailureType,
@@ -1532,7 +1680,9 @@ export default class Executor {
     this.log.logVerbose(`  Severity: ${analysis.severity}`);
     this.log.logVerbose(`  Recoverable: ${analysis.isRecoverable}`);
     this.log.logVerbose(`  Recommended Action: ${analysis.recommendedAction}`);
-    this.log.logVerbose(`  Root Cause: ${analysis.rootCause.category} - ${analysis.rootCause.explanation}`);
+    this.log.logVerbose(
+      `  Root Cause: ${analysis.rootCause.category} - ${analysis.rootCause.explanation}`
+    );
 
     if (analysis.rootCause.evidence.length > 0) {
       this.log.logVerbose(`  Evidence:`);
@@ -1544,7 +1694,9 @@ export default class Executor {
     if (analysis.recoverySuggestions.length > 0) {
       this.log.logVerbose(`  Recovery Suggestions:`);
       for (const suggestion of analysis.recoverySuggestions) {
-        this.log.logVerbose(`    [${suggestion.action}] ${suggestion.description} (priority: ${suggestion.priority})`);
+        this.log.logVerbose(
+          `    [${suggestion.action}] ${suggestion.description} (priority: ${suggestion.priority})`
+        );
         if (suggestion.warnings && suggestion.warnings.length > 0) {
           for (const warning of suggestion.warnings) {
             this.log.logVerbose(`      WARNING: ${warning}`);
@@ -1571,13 +1723,6 @@ export default class Executor {
   /**
    * Run focus recovery when verification fails (FP-5A / FP-5B)
    *
-   * Recovery is an orchestrator that delegates to existing subsystems.
-   * The FocusRecoveryService handles:
-   * - Drift detection via FocusRecoveryAnalyzer
-   * - Policy determination via FocusRecoveryPolicy
-   * - Action execution via configured delegates
-   * - Re-verification after recovery
-   *
    * @param targetName - The target that was supposed to receive focus
    * @param verificationResult - The result from focus verification
    */
@@ -1587,33 +1732,7 @@ export default class Executor {
   ): Promise<{ recovered: boolean; action: string }> {
     try {
       const currentFocusState = await this.focusVerificationService.queryCurrentFocus();
-
-      // Map spoken commands to actual app names
-      // "console" -> gnome-terminal (system terminal)
-      // "terminal" -> vscode (VS Code internal terminal)
-      // NOTE: Order matters! Check specific strings before partial matches
-      const normalizedTarget = (targetName || "").toLowerCase().trim();
-      const expectedApp =
-        normalizedTarget.includes("chrome") || normalizedTarget.includes("browser")
-          ? "chrome"
-          : normalizedTarget.includes("code") || normalizedTarget.includes("editor")
-          ? "vscode"
-          : normalizedTarget.includes("console") || normalizedTarget.includes("shell") || normalizedTarget === "gnome-terminal"
-          ? "gnome-terminal"  // System terminal - check BEFORE terminal partial match
-          : normalizedTarget.includes("terminal") || normalizedTarget.includes("term")
-          ? "vscode"  // VS Code internal terminal - only if not gnome-terminal
-          : targetName;
-
-      const expectedRegion =
-        normalizedTarget.includes("address")
-          ? RegionKind.ADDRESS_BAR
-          : normalizedTarget.includes("page")
-          ? RegionKind.PAGE
-          : normalizedTarget.includes("editor")
-          ? RegionKind.EDITOR
-          : normalizedTarget.includes("terminal")
-          ? RegionKind.TERMINAL
-          : undefined;
+      const { expectedApp, expectedRegion } = this.parseRecoveryExpectation(targetName);
 
       const driftInput = {
         expectedApp,
@@ -1693,8 +1812,6 @@ export default class Executor {
   /**
    * Test method to simulate a focus failure and trigger recovery.
    * Use from browser console: window.executor.testRecovery('chrome')
-   * 
-   * @param targetName - The target to try focusing (e.g., 'chrome', 'console', 'code')
    */
   async testRecovery(targetName: string): Promise<{
     success: boolean;
@@ -1703,39 +1820,35 @@ export default class Executor {
     finalFocusState: FocusState | null;
   }> {
     console.log(`[TEST] Starting recovery test for target: ${targetName}`);
-    
-    // First, try to focus the target normally
+
     const normalizedTarget = this.normalizeFocusTarget(targetName);
     console.log(`[TEST] Normalized target: ${normalizedTarget}`);
-    
+
     try {
       await this.system.focus(normalizedTarget);
       console.log(`[TEST] Focus command executed for: ${normalizedTarget}`);
     } catch (error) {
       console.log(`[TEST] Focus command error (expected if app not running): ${error}`);
     }
-    
-    // Wait a moment for focus to settle
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Verify the current focus state
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     const focusState = await this.focusVerificationService.queryCurrentFocus();
     console.log(`[TEST] Current focus state: ${JSON.stringify(focusState)}`);
-    
-    // Create a simulated verification failure
-    // If the focus didn't land on the expected target, verification will fail
+
     const simulatedVerificationResult = {
-      success: focusState?.entity.toLowerCase().includes(normalizedTarget.toLowerCase()) ?? false,
-      confidence: focusState?.entity.toLowerCase().includes(normalizedTarget.toLowerCase()) ? 1 : 0,
-      details: `Simulated verification: expected ${normalizedTarget}, got ${focusState?.entity ?? 'unknown'}`
+      success:
+        focusState?.entity.toLowerCase().includes(normalizedTarget.toLowerCase()) ?? false,
+      confidence:
+        focusState?.entity.toLowerCase().includes(normalizedTarget.toLowerCase()) ? 1 : 0,
+      details: `Simulated verification: expected ${normalizedTarget}, got ${focusState?.entity ?? "unknown"}`,
     };
-    
+
     console.log(`[TEST] Simulated verification result:`, simulatedVerificationResult);
-    
-    // If verification failed, trigger recovery
+
     let recoveryTriggered = false;
     let recoveryResult = null;
-    
+
     if (!simulatedVerificationResult.success) {
       recoveryTriggered = true;
       console.log(`[TEST] Verification failed - triggering recovery!`);
@@ -1744,43 +1857,38 @@ export default class Executor {
     } else {
       console.log(`[TEST] Verification passed - no recovery needed`);
     }
-    
-    // Get final focus state
+
     const finalFocusState = await this.focusVerificationService.queryCurrentFocus();
     console.log(`[TEST] Final focus state: ${JSON.stringify(finalFocusState)}`);
-    
+
     return {
       success: simulatedVerificationResult.success,
       recoveryTriggered,
       recoveryResult,
-      finalFocusState
+      finalFocusState,
     };
   }
 
   /**
    * Test method to force-trigger recovery with a simulated failure.
    * Use from browser console: window.executor.forceRecoveryTest('chrome')
-   * 
-   * This always triggers recovery regardless of actual focus state,
-   * useful for testing the recovery flow itself.
    */
   async forceRecoveryTest(targetName: string): Promise<any> {
     console.log(`[TEST] Force-triggering recovery test for: ${targetName}`);
-    
+
     const normalizedTarget = this.normalizeFocusTarget(targetName);
-    
-    // Create a guaranteed failure to trigger recovery
+
     const forcedFailureResult = {
       success: false,
       confidence: 0,
-      details: `Forced test failure for ${normalizedTarget}`
+      details: `Forced test failure for ${normalizedTarget}`,
     };
-    
+
     console.log(`[TEST] Simulating verification failure to trigger recovery...`);
     const recoveryResult = await this.runFocusRecovery(normalizedTarget, forcedFailureResult);
-    
+
     console.log(`[TEST] Force recovery result:`, recoveryResult);
-    
+
     return recoveryResult;
   }
 

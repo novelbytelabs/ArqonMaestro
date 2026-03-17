@@ -70,6 +70,38 @@ export enum RecoveryResultStatus {
 }
 
 /**
+ * Recovery depth for layered restore (FP-5C)
+ * Indicates how much of the prior state was actually restored and verified
+ */
+export enum RecoveryDepth {
+  /** Only the application was restored */
+  APP_ONLY = "app_only",
+  /** Application and region were restored */
+  APP_REGION = "app_region",
+  /** Application, region, and control were restored */
+  APP_REGION_CONTROL = "app_region_control",
+  /** No restore achieved */
+  NONE = "none",
+}
+
+/**
+ * Control recovery level (FP-5C)
+ * Indicates what level of control focus was actually achieved
+ */
+export enum ControlRecoveryLevel {
+  /** Control-level focus achieved and verified */
+  CONTROL_VERIFIED = "control_verified",
+  /** Control focus attempted but only region-level verified */
+  DOWNGRADED_TO_REGION = "downgraded_to_region",
+  /** Control focus attempted but only app-level verified */
+  DOWNGRADED_TO_APP = "downgraded_to_app",
+  /** Control recovery not supported for this surface */
+  UNSUPPORTED = "unsupported",
+  /** No control recovery attempted */
+  NONE = "none",
+}
+
+/**
  * Recovery policy configuration
  */
 export interface RecoveryPolicyConfig {

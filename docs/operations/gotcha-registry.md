@@ -585,6 +585,81 @@ Use for:
   - reuse existing state validation logic
   - treat recovery as orchestrator, not owner of state management
 
+### GOTCHA-035: Telemetry Honesty Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Recovery types can be honest, but if delegate implementations return success too eagerly, telemetry can still be misleading. Verification must remain the authority.
+- **Impact**: High
+- **Where it matters**:
+  - Focus recovery telemetry
+  - recovery result accuracy
+  - operational debugging
+- **Avoidance**:
+  - never trust delegate success without re-verification
+  - verification service is the source of truth
+  - log when verification contradicts delegate claims
+
+### GOTCHA-036: Layered Restore Double-Count Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: In layered restore, if app restored but region failed and control skipped, the result can be summarized in a confusing way. The final reported level should be the deepest verified level only.
+- **Impact**: Medium
+- **Where it matters**:
+  - Layered restore telemetry
+  - restore depth reporting
+  - degraded result communication
+- **Avoidance**:
+  - report only the deepest verified level
+  - do not count partial successes toward higher levels
+  - clearly distinguish verified from attempted
+
+### GOTCHA-037: Control Recovery Optimism Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: If control verification is weak on some surfaces, "attempted control focus" can drift into "verified control recovery" inappropriately.
+- **Impact**: High
+- **Where it matters**:
+  - Control-level recovery
+  - precision focus
+  - verification surface strength
+- **Avoidance**:
+  - distinguish attempted from verified at control level
+  - downgrade explicitly when verification is weak
+  - capability-gate control recovery per surface
+
+### GOTCHA-038: Partial Restore Caller Mismatch
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: If a caller needed control-level recovery, an app-only restore may be a valid degraded result but not necessarily an operational success for that caller.
+- **Impact**: Medium
+- **Where it matters**:
+  - Caller expectations
+  - degraded result handling
+  - operational success vs technical success
+- **Avoidance**:
+  - make degraded results explicit to callers
+  - allow callers to reject partial restores
+  - document minimum acceptable restore depth per use case
+
+### GOTCHA-039: History Restore Semantic Staleness
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Even a temporally fresh stored state can be semantically invalid if the tab changed, panel disappeared, or app layout changed. Time-based trust is necessary but not sufficient.
+- **Impact**: High
+- **Where it matters**:
+  - RESTORE_PREVIOUS functionality
+  - state freshness validation
+  - semantic validity checks
+- **Avoidance**:
+  - validate semantic state in addition to temporal freshness
+  - verify after restore, not just before
+  - treat "fresh but wrong" as untrusted
+
 ## Entry Template
 
 ```markdown
