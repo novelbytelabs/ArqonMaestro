@@ -482,7 +482,7 @@ export async function runAcceptanceCriteriaTests(): Promise<TestResult[]> {
     displayName: "Suspended User",
     role: SpeakerRole.APPROVED_USER,
   });
-  await gateway.enrollmentService.suspendEnrollment("suspended_user");
+  await gateway.suspendEnrollment("suspended_user");
   await gateway.processVerificationResult({
     matched: true,
     claimedIdentityId: "suspended_user",

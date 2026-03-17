@@ -350,7 +350,7 @@ export async function runFP2BTests(): Promise<TestResult[]> {
     results.push({
       name: "3.1 Accept valid proposal",
       passed: result.accepted && !!result.workflowId,
-      details: result.accepted ? `Workflow: ${result.workflowId}` : result.reason,
+      details: result.accepted ? `Workflow: ${result.workflowId || ""}` : result.reason || "",
     });
     console.log(`✓ Valid proposal accepted: ${result.accepted}`);
   } catch (error) {

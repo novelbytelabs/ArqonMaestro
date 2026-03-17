@@ -170,6 +170,20 @@ export default class IdentityGatewayService {
   }
 
   /**
+   * Suspend an enrollment
+   */
+  async suspendEnrollment(identityId: string): Promise<SpeakerEnrollment> {
+    return this.enrollmentService.suspendEnrollment(identityId);
+  }
+
+  /**
+   * Reactivate an enrollment
+   */
+  async reactivateEnrollment(identityId: string): Promise<SpeakerEnrollment> {
+    return this.enrollmentService.reactivateEnrollment(identityId);
+  }
+
+  /**
    * Get enrollment by ID
    */
   getEnrollment(identityId: string): SpeakerEnrollment | undefined {

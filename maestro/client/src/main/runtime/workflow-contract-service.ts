@@ -377,8 +377,10 @@ export function computeWorkflowRiskLevel(steps: WorkflowStepContract[]): Workflo
     if (stepRisk === WorkflowRiskLevel.PRIVILEGED) {
       return WorkflowRiskLevel.PRIVILEGED;
     }
-    if (stepRisk === WorkflowRiskLevel.HIGH && highestRisk !== WorkflowRiskLevel.PRIVILEGED) {
-      highestRisk = WorkflowRiskLevel.HIGH;
+    if (stepRisk === WorkflowRiskLevel.HIGH) {
+      if (highestRisk !== WorkflowRiskLevel.PRIVILEGED) {
+        highestRisk = WorkflowRiskLevel.HIGH;
+      }
     }
     if (stepRisk === WorkflowRiskLevel.MODERATE && highestRisk === WorkflowRiskLevel.LOW) {
       highestRisk = WorkflowRiskLevel.MODERATE;
