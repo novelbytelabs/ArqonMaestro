@@ -276,7 +276,7 @@ The services exist with real authorization logic but lack real STT/voice integra
 | Component | File | Status | Gap |
 |-----------|------|--------|-----|
 | Speaker Enrollment | [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts) | STUB | In-memory only - needs persistence |
-| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No STT provider integration - returns mock states |
+| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No dedicated backend - returns mock states |
 | Voice Identity | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No diarization integration |
 | Authorization | [`authorization-service.ts`](../../maestro/client/src/main/runtime/authorization-service.ts) | REAL | Decision logic works correctly |
 | Security Mode | [`security-mode-service.ts`](../../maestro/client/src/main/runtime/security-mode-service.ts) | REAL | State machine is functional |
@@ -285,7 +285,7 @@ The services exist with real authorization logic but lack real STT/voice integra
 **To complete Phase 2A:**
 
 1. Add file-based or database persistence to speaker enrollment
-2. Integrate STT provider for actual speaker verification
+2. Integrate dedicated speaker verification backend (pyannote.audio or WeSpeaker)
 3. Add diarization support for multi-speaker detection
 4. Add unit tests for authorization decisions
 5. Add integration tests for identity flow

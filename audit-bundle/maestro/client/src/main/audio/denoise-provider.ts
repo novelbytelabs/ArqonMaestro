@@ -13,6 +13,7 @@ export interface DenoiseFrame {
   sampleRate: number;
   channels: number;
   frameIndex: number;
+  captureStartWallClockMs: number;
   timestampMs: number;
   streamTimeMs: number;
 }

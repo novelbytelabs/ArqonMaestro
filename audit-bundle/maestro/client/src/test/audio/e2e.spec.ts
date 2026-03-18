@@ -60,6 +60,7 @@ describe("E2E: SpeechRecorder with Replayed PCM", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 0,
         streamTimeMs: 0,
       };
@@ -170,6 +171,7 @@ describe("E2E: Provider Path Verification", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: Date.now(),
         streamTimeMs: 0,
       };
@@ -197,6 +199,7 @@ describe("E2E: Provider Path Verification", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 42,
+        captureStartWallClockMs: 2000,
         timestampMs: 5000,
         streamTimeMs: 3000,
       };

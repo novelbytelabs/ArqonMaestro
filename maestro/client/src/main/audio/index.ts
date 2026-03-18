@@ -34,6 +34,11 @@ export interface AudioDeviceInfo {
 /**
  * Audio frame contract with metadata
  * Wave A: Frame metadata attached at frame creation point
+ * 
+ * Timestamp model:
+ * - captureStartWallClockMs: Wall-clock ms when recording started
+ * - streamTimeMs: Progressive stream time (frameIndex * samples / sampleRate * 1000)
+ * - timestampMs: Combined timestamp = captureStartWallClockMs + streamTimeMs
  */
 export interface AudioFrame {
   /** PCM audio data */
@@ -44,10 +49,12 @@ export interface AudioFrame {
   channels: number;
   /** Monotonic frame index */
   frameIndex: number;
-  /** Wall-clock timestamp at capture */
-  timestampMs: number;
+  /** Wall-clock timestamp at capture start (set when recording starts) */
+  captureStartWallClockMs: number;
   /** Stream time in milliseconds (derived from frame count and sample rate) */
   streamTimeMs: number;
+  /** Combined timestamp: captureStartWallClockMs + streamTimeMs */
+  timestampMs: number;
 }
 
 const SAMPLE_RATE = 16000;
@@ -76,7 +83,7 @@ class SpeechRecorder {
   
   // Wave A: Frame metadata tracking
   private frameIndex = 0;
-  private streamStartTime = 0;
+  private captureStartWallClockMs = 0;
   
   // Wave A: Provider chain
   private denoiseProvider: DenoiseProvider;
@@ -236,16 +243,17 @@ class SpeechRecorder {
    * Wave A: Frame metadata attached at frame creation point
    */
   private createAudioFrame(pcmData: Int16Array): AudioFrame {
-    const timestampMs = Date.now();
     const streamTimeMs = (this.frameIndex * FRAME_SAMPLES / SAMPLE_RATE) * 1000;
+    const timestampMs = this.captureStartWallClockMs + streamTimeMs;
     
     return {
       pcm16: pcmData,
       sampleRate: SAMPLE_RATE,
       channels: CHANNELS,
       frameIndex: this.frameIndex,
-      timestampMs,
+      captureStartWallClockMs: this.captureStartWallClockMs,
       streamTimeMs,
+      timestampMs,
     };
   }
 
@@ -274,6 +282,7 @@ class SpeechRecorder {
         sampleRate: audioFrame.sampleRate,
         channels: audioFrame.channels,
         frameIndex: audioFrame.frameIndex,
+        captureStartWallClockMs: audioFrame.captureStartWallClockMs,
         timestampMs: audioFrame.timestampMs,
         streamTimeMs: audioFrame.streamTimeMs,
       });
@@ -288,6 +297,7 @@ class SpeechRecorder {
         sampleRate: audioFrame.sampleRate,
         channels: audioFrame.channels,
         frameIndex: audioFrame.frameIndex,
+        captureStartWallClockMs: audioFrame.captureStartWallClockMs,
         timestampMs: audioFrame.timestampMs,
         streamTimeMs: audioFrame.streamTimeMs,
       });
@@ -390,7 +400,7 @@ class SpeechRecorder {
     
     // Wave A: Reset frame metadata
     this.frameIndex = 0;
-    this.streamStartTime = Date.now();
+    this.captureStartWallClockMs = Date.now();
     
     // Wave A: Reset providers
     this.denoiseProvider.reset();

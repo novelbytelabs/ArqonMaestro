@@ -21,6 +21,7 @@ describe("NoopDenoiseProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -36,6 +37,7 @@ describe("NoopDenoiseProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -52,6 +54,7 @@ describe("NoopDenoiseProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 42,
+        captureStartWallClockMs: 2000,
         timestampMs: 5000,
         streamTimeMs: 3000,
       };
@@ -61,6 +64,7 @@ describe("NoopDenoiseProvider", () => {
       expect(result.frame.sampleRate).toBe(16000);
       expect(result.frame.channels).toBe(1);
       expect(result.frame.frameIndex).toBe(42);
+      expect(result.frame.captureStartWallClockMs).toBe(2000);
       expect(result.frame.timestampMs).toBe(5000);
       expect(result.frame.streamTimeMs).toBe(3000);
     });
@@ -71,6 +75,7 @@ describe("NoopDenoiseProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -89,6 +94,7 @@ describe("NoopDenoiseProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -117,6 +123,7 @@ describe("NoopDenoiseProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };

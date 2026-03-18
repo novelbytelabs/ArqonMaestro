@@ -11,11 +11,12 @@ import { DenoiseFrame } from "../../main/audio/denoise-provider";
 describe("DefaultVadProvider", () => {
   let provider: DefaultVadProvider;
 
-  const createTestFrame = (frameIndex: number, timestampMs: number): DenoiseFrame => ({
+  const createTestFrame = (frameIndex: number, timestampMs: number, captureStartMs: number = 1000): DenoiseFrame => ({
     pcm16: new Int16Array(480), // 480 samples = 30ms at 16kHz
     sampleRate: 16000,
     channels: 1,
     frameIndex,
+    captureStartWallClockMs: captureStartMs,
     timestampMs,
     streamTimeMs: (frameIndex * 480 / 16000) * 1000,
   });
@@ -48,6 +49,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -65,6 +67,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -81,6 +84,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -100,6 +104,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -109,6 +114,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -136,6 +142,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -189,6 +196,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -211,6 +219,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -250,6 +259,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -259,6 +269,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
@@ -281,6 +292,7 @@ describe("DefaultVadProvider", () => {
         sampleRate: 16000,
         channels: 1,
         frameIndex: 0,
+        captureStartWallClockMs: 1000,
         timestampMs: 1000,
         streamTimeMs: 0,
       };
