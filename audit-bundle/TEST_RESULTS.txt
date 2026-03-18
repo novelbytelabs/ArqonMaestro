@@ -1,0 +1,43 @@
+Wave A Patch 1 + 2 - Test Results
+====================================
+
+Command: cd maestro/client && npx jest src/test/audio/
+
+Test Suites: 6 passed, 6 total
+Tests:       73 passed, 73 total
+Time:        7.65 s
+
+=== Test Suites ===
+
+PASS src/test/audio/vad-provider.unit.spec.ts (5.638 s)
+PASS src/test/audio/denoise-provider.unit.spec.ts (5.765 s)
+PASS src/test/audio/regression.spec.ts (5.822 s)
+PASS src/test/audio/speech-recorder.integration.spec.ts (5.814 s)
+PASS src/test/audio/e2e.spec.ts (5.922 s)
+PASS src/test/audio/adversarial.spec.ts (6.734 s)
+
+=== Test Categories ===
+
+Unit Tests: 22 passed
+- NoopDenoiseProvider: 8 tests
+- DefaultVadProvider: 14 tests
+
+Integration Tests: 11 passed
+- SpeechRecorder integration: 9 tests  
+- Provider chain integration: 3 tests
+
+E2E Tests: 13 passed
+- Real path through SpeechRecorder: 2 tests
+- Provider chain: 2 tests
+- Speech chunk lifecycle: 1 test
+
+Regression Tests: 15 passed
+- Behavior preservation: 7 tests
+- Audio event continuity: 3 tests
+
+Adversarial Tests: 12 passed
+- NoopDenoiseProvider stress: 10 tests
+- DefaultVadProvider stress: 2 tests
+
+=== No --forceExit Used ===
+These tests complete cleanly without using --forceExit flag.

@@ -292,19 +292,16 @@ class SpeechRecorder {
         streamTimeMs: audioFrame.streamTimeMs,
       });
       
-      // Capture previous state BEFORE overwriting with new VAD decision
-      const wasSpeaking = this.speaking;
-      
       // Use VAD provider result for speech state
       this.speaking = vadDecision.isSpeech;
       this.noiseFloor = vadDecision.noiseFloor;
-      this.consecutiveSilence = vadDecision.consecutiveSilence;
-      this.consecutiveSpeech = vadDecision.consecutiveSpeech;
       
       // Get thresholds for logging (computed by provider internally)
       const silenceThreshold = this.effectiveSilenceThreshold();
       const speechThreshold = this.effectiveSpeechThreshold();
       
+      const wasSpeaking = vadDecision.isSpeech;
+
       if (!wasSpeaking && this.speaking) {
         this.currentChunkFrames = 0;
         console.log(

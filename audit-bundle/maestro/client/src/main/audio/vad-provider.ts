@@ -23,10 +23,6 @@ export interface VadDecision {
   timestampMs: number;
   /** Frame index */
   frameIndex: number;
-  /** Consecutive speech frames count */
-  consecutiveSpeech: number;
-  /** Consecutive silence frames count */
-  consecutiveSilence: number;
 }
 
 /**
@@ -174,8 +170,6 @@ export class DefaultVadProvider implements VadProvider {
       noiseFloor: this.noiseFloor,
       timestampMs: frame.timestampMs,
       frameIndex: frame.frameIndex,
-      consecutiveSpeech: this.consecutiveSpeech,
-      consecutiveSilence: this.consecutiveSilence,
     };
   }
 

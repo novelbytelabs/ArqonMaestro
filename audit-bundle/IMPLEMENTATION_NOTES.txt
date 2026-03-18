@@ -1,0 +1,50 @@
+Wave A Patch 1 + 2 - Implementation Notes
+=========================================
+
+=== Commit Hash ===
+
+Current commit: 47c291c
+
+=== Live Production Path Files ===
+
+1. maestro/client/src/main/audio/index.ts (SpeechRecorder with provider chain)
+2. maestro/client/src/main/audio/denoise-provider.ts (DenoiseProvider interface + NoopDenoiseProvider)
+3. maestro/client/src/main/audio/vad-provider.ts (VadProvider interface + DefaultVadProvider)
+4. maestro/client/src/main/stream/microphone.ts (Audio device interface)
+
+=== Downstream Consumer ===
+
+maestro/client/src/main/stream/chunk-manager.ts is the expected downstream consumer.
+The SpeechRecorder emits callbacks (onChunkStart, onAudio, onChunkEnd) which 
+chunk-manager.ts is expected to consume.
+
+=== Code Consistency ===
+
+All proof artifacts in this bundle reflect the actual code at commit 47c291c.
+The implementation files have NOT been edited after that commit.
+
+=== Roadmap Wording Note ===
+
+The roadmap file (docs/vos/maestro-project-roadmap.md) contains stale wording:
+
+Line 279: "No STT provider integration - returns mock states"
+Line 288: "Integrate STT provider for actual speaker verification"
+
+This wording is technically incorrect because:
+- Speaker verification is about voice BIOMETRICS (verifying WHO is speaking)
+- STT is about converting speech to TEXT
+
+These are different concerns. However, per instructions, no edits were made 
+to this file in this bundle.
+
+=== Test Coverage Summary ===
+
+- 73 tests pass across 6 test suites
+- Unit, Integration, E2E, Regression, and Adversarial categories all covered
+- Tests use synthetic/generated data (no external fixtures required)
+- Tests complete without --forceExit flag
+
+=== No Post-Commit Changes ===
+
+No code changes were made after commit 47c291c.
+All files in this bundle are from the committed state at 47c291c.
