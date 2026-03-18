@@ -1997,39 +1997,41 @@ export default class Executor {
     riskLevel: CommandRiskLevel;
   } {
     const text = (commandText || "").toLowerCase();
+    const type = commandType.toLowerCase();
 
-    // Focus commands - LOW risk
-    if (commandType === "focus" || text.startsWith("focus")) {
+    // Focus commands - LOW risk (check text first since it contains the full phrase)
+    if (type === "focus" || text.startsWith("focus")) {
       return { commandFamily: "focus", riskLevel: CommandRiskLevel.LOW };
     }
 
     // Navigation commands - LOW risk
-    if (commandType === "next" || commandType === "up" || commandType === "down") {
+    if (type === "next" || type === "up" || type === "down" || 
+        text.startsWith("next") || text.startsWith("go to")) {
       return { commandFamily: "navigation", riskLevel: CommandRiskLevel.LOW };
     }
 
     // Insert/Edit commands - MEDIUM risk
-    if (commandType === "insert" || commandType === "diff" || commandType === "paste") {
+    if (type === "insert" || type === "diff" || type === "paste") {
       return { commandFamily: "edit", riskLevel: CommandRiskLevel.MEDIUM };
     }
 
     // Run/Terminal commands - MEDIUM risk
-    if (commandType === "run" || text.startsWith("run ")) {
+    if (type === "run" || text.startsWith("run ") || text.startsWith("execute")) {
       return { commandFamily: "terminal", riskLevel: CommandRiskLevel.MEDIUM };
     }
 
     // File system commands - HIGH risk
-    if (commandType === "delete" || text.includes("delete") || text.includes("remove")) {
+    if (type === "delete" || text.includes("delete") || text.includes("remove")) {
       return { commandFamily: "filesystem", riskLevel: CommandRiskLevel.HIGH };
     }
 
     // Settings/System commands - HIGH/PRIVILEGED risk
-    if (commandType === "settings" || text.includes("config") || text.includes("system")) {
+    if (type === "settings" || text.includes("config") || text.includes("system")) {
       return { commandFamily: "system", riskLevel: CommandRiskLevel.HIGH };
     }
 
-    // Default - assume MEDIUM risk
-    return { commandFamily: "general", riskLevel: CommandRiskLevel.MEDIUM };
+    // Default - assume LOW risk for basic operating commands
+    return { commandFamily: "general", riskLevel: CommandRiskLevel.LOW };
   }
 
   /**
