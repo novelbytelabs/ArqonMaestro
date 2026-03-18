@@ -11,7 +11,7 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 | Layer | Name | Description |
 |-------|------|-------------|
 | 2 | **Application Focus** | Focus at the application level. When an application has Application Focus, it is the active application in the OS and receives keyboard input by default. |
-| 3 | **Window Focus** | Focus at the window level within an application. When a window has Window Focus, it is the active window within its application and receives input within that applications window stack. |
+| 3 | **Window Focus** | Focus at the window level within an application. When a window has Window Focus, it is the active window within its application and receives input within that application's window stack. |
 | 4 | **Region** | Focus within a specific region of a window (e.g., sidebar, content area, toolbar). |
 | 5 | **Control** | Focus on a specific UI control within a region (e.g., button, text field, dropdown). |
 | 6 | **Item** | Focus on items within controls (e.g., list items, grid rows, tree nodes). |
@@ -76,7 +76,7 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 | Component | File | Status | Notes |
 |-----------|------|--------|-------|
 | Speaker Enrollment | `maestro/client/src/main/runtime/speaker-enrollment-service.ts` | STUB | In-memory Map, no persistence |
-| Speaker Verification | `maestro/client/src/main/runtime/speaker-verification-service.ts` | STUB | Returns mock states, no dedicated backend |
+| Speaker Verification | `maestro/client/src/main/runtime/speaker-verification-service.ts` | STUB | Returns mock states, no STT integration |
 | Authorization Service | `maestro/client/src/main/runtime/authorization-service.ts` | ✅ REAL | Decision logic is functional |
 | Security Mode | `maestro/client/src/main/runtime/security-mode-service.ts` | ✅ REAL | State machine works |
 | Identity Gateway | `maestro/client/src/main/runtime/identity-gateway-service.ts` | ✅ REAL | API integrated in executor |
