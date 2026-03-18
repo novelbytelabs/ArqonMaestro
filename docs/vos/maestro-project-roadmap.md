@@ -238,6 +238,27 @@ Deliver:
 2. Enforce secure mode, shared-room mode, confirmation policy, and always-available reflex rules.
 3. Thread identity state into route approval and execution outcomes.
 
+**Current status: STUBBED - Implementation incomplete**
+
+The services exist with real authorization logic but lack real STT/voice integration:
+
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| Speaker Enrollment | [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts) | STUB | In-memory only - needs persistence |
+| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No STT provider integration - returns mock states |
+| Voice Identity | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No diarization integration |
+| Authorization | [`authorization-service.ts`](../../maestro/client/src/main/runtime/authorization-service.ts) | REAL | Decision logic works correctly |
+| Security Mode | [`security-mode-service.ts`](../../maestro/client/src/main/runtime/security-mode-service.ts) | REAL | State machine is functional |
+| Identity Gateway | [`identity-gateway-service.ts`](../../maestro/client/src/main/runtime/identity-gateway-service.ts) | REAL | API surface works, uses stubbed services |
+
+**To complete Phase 2A:**
+
+1. Add file-based or database persistence to speaker enrollment
+2. Integrate STT provider for actual speaker verification
+3. Add diarization support for multi-speaker detection
+4. Add unit tests for authorization decisions
+5. Add integration tests for identity flow
+
 Exit evidence:
 
 * risky commands fail closed when identity is insufficient
@@ -250,6 +271,23 @@ Deliver:
 1. Compile lawful multi-step workflow contracts into governed execution plans.
 2. Implement the first Maestro-Nexus message boundary for proposals, outcomes, and scoped delegation grants.
 3. Keep Maestro as the execution authority while allowing Nexus to propose and learn.
+
+**Current status: STUBBED - Implementation incomplete**
+
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| Workflow Contracts | [`workflow-contract-service.ts`](../../maestro/client/src/main/runtime/workflow-contract-service.ts) | REAL | Types and execution logic exist |
+| Workflow Execution | [`workflow-nexus-integration.ts`](../../maestro/client/src/main/runtime/workflow-nexus-integration.ts) | STUB | Not integrated into command chain |
+| Nexus Protocol | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | STUB | Protocol defined, no Arqon Bus connection |
+| Delegation Grants | [`delegation-grant-service.ts`](../../maestro/client/src/main/runtime/delegation-grant-service.ts) | STUB | In-memory only, no persistence |
+
+**To complete Phase 2B:**
+
+1. Integrate workflow execution into the command pipeline (hook into executor.ts)
+2. Add Arqon Bus IPC for Nexus communication
+3. Add persistence for delegation grants
+4. Add unit tests for workflow state machine
+5. Add integration tests for Nexus message boundary
 
 Exit evidence:
 

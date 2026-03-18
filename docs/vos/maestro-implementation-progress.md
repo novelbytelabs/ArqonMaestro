@@ -28,10 +28,82 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 
 ## Current snapshot
 
-* Date: 2026-03-16
-* Program state: FP-6B complete
-* Active phase: Focus Project - FP-6B (Intent Routing Hardening) complete
+* Date: 2026-03-18
+* Program state: FP-2A/2B integrated (stubbed implementations)
+* Active phase: Phase 2A/2B - Integration complete, implementations need completion
 * Reasoning posture: `high` is appropriate while acceptance criteria are being verified
+
+---
+
+## Phase 2A/2B Implementation Status
+
+> **⚠️ IMPORTANT**: Phase 2A and 2B have been integrated into the executor but contain STUBBED implementations. See [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) for detailed gap analysis.
+
+### FP-2A: Identity and Safety Gating
+
+| Component | File | Status | Notes |
+|-----------|------|--------|-------|
+| Speaker Enrollment | `maestro/client/src/main/runtime/speaker-enrollment-service.ts` | STUB | In-memory Map, no persistence |
+| Speaker Verification | `maestro/client/src/main/runtime/speaker-verification-service.ts` | STUB | Returns mock states, no STT integration |
+| Authorization Service | `maestro/client/src/main/runtime/authorization-service.ts` | ✅ REAL | Decision logic is functional |
+| Security Mode | `maestro/client/src/main/runtime/security-mode-service.ts` | ✅ REAL | State machine works |
+| Identity Gateway | `maestro/client/src/main/runtime/identity-gateway-service.ts` | ✅ REAL | API integrated in executor |
+
+**Integration Status:**
+- ✅ Identity gateway integrated into executor.ts
+- ✅ Authorization check runs before command execution
+- ✅ LOW risk commands (focus, navigation) pass for unknown speakers
+- ⚠️ HIGH risk commands blocked (as designed, but based on stub data)
+
+### FP-2B: Workflow and Delegation
+
+| Component | File | Status | Notes |
+|-----------|------|--------|-------|
+| Workflow Contracts | `maestro/client/src/main/runtime/workflow-contract-service.ts` | ✅ REAL | Types and execution logic |
+| Workflow Execution | `maestro/client/src/main/runtime/workflow-nexus-integration.ts` | STUB | Not integrated into command chain |
+| Nexus Protocol | `maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts` | STUB | Protocol defined, no IPC |
+| Delegation Grants | `maestro/client/src/main/runtime/delegation-grant-service.ts` | STUB | In-memory only |
+
+**Integration Status:**
+- ⚠️ Workflow service instantiated in executor but not used
+- ⚠️ Nexus boundary instantiated but not connected to Arqon Bus
+
+### To Complete FP-2A:
+
+1. **Add persistence to Speaker Enrollment**
+   - File: [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts)
+   - Add: `persist()` / `load()` methods using file system or database
+
+2. **Integrate STT Provider for Speaker Verification**
+   - File: [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts)
+   - Add: Call to STT provider for voiceprint matching
+   - Methods to implement: `verifySpeaker()`, `enrollSpeaker()`, `getVoiceProfile()`
+
+3. **Add Diarization Support**
+   - File: [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts)
+   - Add: Multi-speaker detection for shared-room mode
+
+4. **Add Tests**
+   - Unit tests for authorization decisions
+   - Integration tests for identity flow
+
+### To Complete FP-2B:
+
+1. **Integrate Workflow into Command Chain**
+   - File: [`executor.ts`](../../maestro/client/src/main/execute/executor.ts)
+   - Add: Workflow execution step after command parsing for multi-step commands
+
+2. **Add Arqon Bus IPC for Nexus**
+   - File: [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts)
+   - Add: Real IPC calls to Nexus instead of in-memory message store
+
+3. **Add Delegation Persistence**
+   - File: [`delegation-grant-service.ts`](../../maestro/client/src/main/runtime/delegation-grant-service.ts)
+   - Add: File-based or database storage for grants
+
+4. **Add Tests**
+   - Unit tests for workflow state machine
+   - Integration tests for Nexus boundary
 
 ---
 
