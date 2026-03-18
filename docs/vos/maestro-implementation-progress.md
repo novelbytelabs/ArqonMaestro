@@ -11,7 +11,7 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 | Layer | Name | Description |
 |-------|------|-------------|
 | 2 | **Application Focus** | Focus at the application level. When an application has Application Focus, it is the active application in the OS and receives keyboard input by default. |
-| 3 | **Window Focus** | Focus at the window level within an application. When a window has Window Focus, it is the active window within its application and receives input within that application's window stack. |
+| 3 | **Window Focus** | Focus at the window level within an application. When a window has Window Focus, it is the active window within its application and receives input within that applications window stack. |
 | 4 | **Region** | Focus within a specific region of a window (e.g., sidebar, content area, toolbar). |
 | 5 | **Control** | Focus on a specific UI control within a region (e.g., button, text field, dropdown). |
 | 6 | **Item** | Focus on items within controls (e.g., list items, grid rows, tree nodes). |
@@ -31,28 +31,37 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 * Date: 2026-03-18
 * Program state: Phase 1 complete; Voice Plane Modernization is the active implementation wave
 * Active wave: **Wave A** - Audio Front-End Modernization
-* Wave A Status: **Patch 1+2 implemented** - Frame contract and provider boundaries complete, tests passing
+* Wave A Status: **Patch 1+2 hard-closed** - real recorder-path integration/E2E/regression/adversarial coverage added and passing
 * Phase 2A/2B: Scaffolding integrated, implementations stubbed - cannot complete until Waves A-D complete
 * Reasoning posture: `high` is appropriate while voice plane modernization begins
 
 ## Wave A Implementation Status (Audio Front-End Modernization)
 
 ### Patch 1: Frame Contract + Timestamps
-- **Status**: ✅ Implemented
+- **Status**: ✅ Hard-closed
 - **Files**: `maestro/client/src/main/audio/index.ts`
-- **Changes**: Added AudioFrame interface with frameIndex, timestampMs, streamTimeMs, sampleRate, channels
+- **Changes**: Added AudioFrame interface with frameIndex, timestampMs, streamTimeMs, captureStartWallClockMs, sampleRate, channels
 
 ### Patch 2: Provider Boundaries
-- **Status**: ✅ Implemented
+- **Status**: ✅ Hard-closed
 - **Files**: 
   - `maestro/client/src/main/audio/denoise-provider.ts` - DenoiseProvider interface + NoopDenoiseProvider
   - `maestro/client/src/main/audio/vad-provider.ts` - VadProvider interface + DefaultVadProvider
 - **Changes**: Wrapped existing VAD logic in DefaultVadProvider, added provider chain
 
 ### Test Suite
-- **Status**: ✅ 73 tests passing across 6 test suites
-- **Categories**: Unit, Integration, E2E, Regression, Adversarial
+- **Status**: ✅ Audio hard-close suite passing (`45/45` tests, `7/7` suites)
+- **Categories**: Unit, Integration, E2E, Regression (baseline commit `2c2a7b7` vs current), Adversarial
 - **Location**: `maestro/client/src/test/audio/`
+
+### Wave A Patch 1+2 Hard-Close Acceptance Record
+- **Closeout date**: 2026-03-18
+- **Evidence run**: `cd maestro/client && ./node_modules/.bin/jest src/test/audio --runInBand`
+- **What Patch 1 delivered**: coherent frame timestamp contract validated on real recorder path (`frameIndex`, `streamTimeMs`, `timestampMs`)
+- **What Patch 2 delivered**: provider boundaries validated in recorder path (`NoopDenoiseProvider` -> `DefaultVadProvider`) with transition parity checks
+- **Regression status**: fixture-based baseline comparison against commit `2c2a7b7` passed for event ordering, start/end counts, and pre-roll behavior
+- **Production-code delta during closeout**: none required (closeout changes were test/docs only)
+- **Patch 3 status**: still open; no Patch 3 scope was pulled into this closeout
 
 ---
 
@@ -67,7 +76,7 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 | Component | File | Status | Notes |
 |-----------|------|--------|-------|
 | Speaker Enrollment | `maestro/client/src/main/runtime/speaker-enrollment-service.ts` | STUB | In-memory Map, no persistence |
-| Speaker Verification | `maestro/client/src/main/runtime/speaker-verification-service.ts` | STUB | Returns mock states, no STT integration |
+| Speaker Verification | `maestro/client/src/main/runtime/speaker-verification-service.ts` | STUB | Returns mock states, no dedicated backend |
 | Authorization Service | `maestro/client/src/main/runtime/authorization-service.ts` | ✅ REAL | Decision logic is functional |
 | Security Mode | `maestro/client/src/main/runtime/security-mode-service.ts` | ✅ REAL | State machine works |
 | Identity Gateway | `maestro/client/src/main/runtime/identity-gateway-service.ts` | ✅ REAL | API integrated in executor |

@@ -1,192 +1,197 @@
-/**
- * Regression Tests for Wave A Patch 1+2
- * 
- * Test categories: Regression
- * Purpose: Prove behavior preservation vs prior implementation
- * 
- * NOTE: These tests establish baseline behavior. For true regression testing,
- * compare results before and after the patch.
- */
+import path from "path";
+import vm from "vm";
+import { execSync } from "child_process";
+import ts from "typescript";
+import { SpeechRecorder } from "../../main/audio/index";
+import { runRecorderScenario } from "./helpers/recorder-harness";
+import { buildRegressionFixtures } from "./helpers/pcm-fixtures";
 
-import { NoopDenoiseProvider, DefaultVadProvider, SpeechRecorder } from "../../main/audio/index";
+const BASELINE_COMMIT = "2c2a7b7";
 
-describe("Regression: Behavior Preservation", () => {
-  describe("Chunk start/end behavior", () => {
-    let recorder: SpeechRecorder;
-    let chunkStartCount = 0;
-    let chunkEndCount = 0;
-    let lastSpeakingState = false;
+type ModuleExports = Record<string, unknown>;
+type RecorderConstructor = new (...args: unknown[]) => SpeechRecorder;
 
-    beforeEach(() => {
-      chunkStartCount = 0;
-      chunkEndCount = 0;
-      recorder = new SpeechRecorder({
-        onChunkStart: () => {
-          chunkStartCount++;
-        },
-        onChunkEnd: () => {
-          chunkEndCount++;
-        },
-        onAudio: (data) => {
-          lastSpeakingState = data.speaking;
-        },
-      });
+interface FixtureComparison {
+  fixture: string;
+  baseline: string;
+  current: string;
+  expected: string;
+}
+
+function gitShow(filePath: string): string {
+  return execSync(`git show ${BASELINE_COMMIT}:${filePath}`, { encoding: "utf8" }).toString();
+}
+
+function pathExistsInCommit(filePath: string): boolean {
+  try {
+    execSync(`git cat-file -e ${BASELINE_COMMIT}:${filePath}`, {
+      stdio: "ignore",
     });
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
 
-    afterEach(() => {
-      recorder.stop();
-    });
+function transpileTs(source: string, fileName: string): string {
+  return ts.transpileModule(source, {
+    fileName,
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2019,
+      esModuleInterop: true,
+    },
+  }).outputText;
+}
 
-    it("should maintain chunk start count invariant", () => {
-      // Baseline expectation: chunk start count should equal chunk end count
-      // unless interrupted mid-speech
-      // This test documents the expected invariant
-      expect(chunkStartCount).toBeGreaterThanOrEqual(0);
-      expect(chunkEndCount).toBeGreaterThanOrEqual(0);
-    });
+function evaluateCommonJs(
+  source: string,
+  fileName: string,
+  requireImpl: (id: string) => unknown,
+): ModuleExports {
+  const module = { exports: {} as ModuleExports };
+  const wrapped = `(function (require, module, exports, __filename, __dirname) { ${source}\n })`;
+  const script = new vm.Script(wrapped, { filename: fileName });
+  const fn = script.runInThisContext() as (
+    require: (id: string) => unknown,
+    module: { exports: ModuleExports },
+    exports: ModuleExports,
+    __filename: string,
+    __dirname: string,
+  ) => void;
 
-    it("should maintain start before end ordering", () => {
-      // Document the invariant that chunk_start must come before chunk_end
-      // for any given speech segment
-      const testOrder: string[] = [];
-      
-      const testRecorder = new SpeechRecorder({
-        onChunkStart: () => testOrder.push("start"),
-        onChunkEnd: () => testOrder.push("end"),
-        onAudio: () => {},
-      });
+  fn(requireImpl, module, module.exports, fileName, path.dirname(fileName));
+  return module.exports;
+}
 
-      expect(testOrder).toEqual([]);
-    });
-  });
+function loadBaselineRecorderCtor(): RecorderConstructor {
+  const indexPath = "maestro/client/src/main/audio/index.ts";
+  const denoisePath = "maestro/client/src/main/audio/denoise-provider.ts";
+  const vadPath = "maestro/client/src/main/audio/vad-provider.ts";
 
-  describe("Threshold behavior parity", () => {
-    it("should use same default thresholds as prior implementation", () => {
-      const provider = new DefaultVadProvider();
-      const config = provider.getConfig();
+  if (!pathExistsInCommit(denoisePath) || !pathExistsInCommit(vadPath)) {
+    const indexOnlyExports = evaluateCommonJs(
+      transpileTs(gitShow(indexPath), "baseline-audio-index.ts"),
+      "baseline-audio-index.js",
+      (id) => require(id),
+    );
 
-      // These values match the hardcoded defaults in the original SpeechRecorder
-      // baseSilenceThreshold = 0.008
-      // baseSpeechThreshold = 0.015
-      expect(config.baseSilenceThreshold).toBeCloseTo(0.008, 3);
-      expect(config.baseSpeechThreshold).toBeCloseTo(0.015, 3);
-    });
+    const baselineCtor = indexOnlyExports.SpeechRecorder;
+    if (typeof baselineCtor !== "function") {
+      throw new Error("Failed to load baseline index-only SpeechRecorder constructor from git commit.");
+    }
 
-    it("should use same silence frames to end count", () => {
-      const provider = new DefaultVadProvider();
-      const config = provider.getConfig();
+    return baselineCtor as RecorderConstructor;
+  }
 
-      // Matches: private silenceFramesToEnd = 10;
-      expect(config.silenceFramesToEnd).toBe(10);
-    });
+  const denoiseExports = evaluateCommonJs(
+    transpileTs(gitShow(denoisePath), "baseline-denoise-provider.ts"),
+    "baseline-denoise-provider.js",
+    (id) => require(id),
+  );
 
-    it("should use same consecutive frames for speaking", () => {
-      const provider = new DefaultVadProvider();
-      const config = provider.getConfig();
-
-      // Matches: private consecutiveFramesForSpeaking = 1;
-      expect(config.consecutiveFramesForSpeaking).toBe(1);
-    });
-  });
-
-  describe("NoopDenoiseProvider baseline", () => {
-    it("should produce same output as input (identity function)", () => {
-      const provider = new NoopDenoiseProvider();
-
-      const testInput = {
-        pcm16: new Int16Array([100, 200, 300, -400, 500]),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 5,
-        timestampMs: 5000,
-        streamTimeMs: 3000,
-      };
-
-      const result = provider.process(testInput);
-
-      // PCM data should be identical
-      expect(result.frame.pcm16).toEqual(testInput.pcm16);
-      
-      // Metadata should be preserved
-      expect(result.frame.sampleRate).toBe(testInput.sampleRate);
-      expect(result.frame.channels).toBe(testInput.channels);
-      expect(result.frame.frameIndex).toBe(testInput.frameIndex);
-      expect(result.frame.timestampMs).toBe(testInput.timestampMs);
-      expect(result.frame.streamTimeMs).toBe(testInput.streamTimeMs);
-    });
-  });
-
-  describe("Leading buffer preservation", () => {
-    it("should preserve leading buffer size invariant", () => {
-      // Document that leadingBufferFrames = 10 is still used
-      const recorder = new SpeechRecorder({});
-      
-      // The recorder should have access to the internal buffer size
-      // This is tested by ensuring the recorder can be created and stopped
-      recorder.stop();
-      
-      expect(true).toBe(true); // Placeholder for actual invariant check
-    });
-  });
-});
-
-describe("Regression: Audio Event Continuity", () => {
-  describe("Frame metadata continuity", () => {
-    it("should maintain monotonic timestampMs", () => {
-      const provider = new DefaultVadProvider();
-      let lastTimestamp = 0;
-
-      for (let i = 0; i < 100; i++) {
-        const frame = {
-          pcm16: new Int16Array(480),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: 1000 + i * 30, // 30ms apart
-          streamTimeMs: i * 30,
-        };
-
-        const result = provider.process(frame);
-
-        expect(result.timestampMs).toBeGreaterThanOrEqual(lastTimestamp);
-        lastTimestamp = result.timestampMs;
+  const vadExports = evaluateCommonJs(
+    transpileTs(gitShow(vadPath), "baseline-vad-provider.ts"),
+    "baseline-vad-provider.js",
+    (id) => {
+      if (id === "./denoise-provider") {
+        return denoiseExports;
       }
-    });
+      return require(id);
+    },
+  );
 
-    it("should maintain monotonic frameIndex", () => {
-      const provider = new DefaultVadProvider();
-      let lastFrameIndex = -1;
-
-      for (let i = 0; i < 100; i++) {
-        const frame = {
-          pcm16: new Int16Array(480),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: 1000 + i * 30,
-          streamTimeMs: i * 30,
-        };
-
-        const result = provider.process(frame);
-
-        expect(result.frameIndex).toBeGreaterThan(lastFrameIndex);
-        lastFrameIndex = result.frameIndex;
+  const indexExports = evaluateCommonJs(
+    transpileTs(gitShow(indexPath), "baseline-audio-index.ts"),
+    "baseline-audio-index.js",
+    (id) => {
+      if (id === "./denoise-provider") {
+        return denoiseExports;
       }
+      if (id === "./vad-provider") {
+        return vadExports;
+      }
+      return require(id);
+    },
+  );
+
+  const baselineCtor = indexExports.SpeechRecorder;
+  if (typeof baselineCtor !== "function") {
+    throw new Error("Failed to load baseline SpeechRecorder constructor from git commit.");
+  }
+
+  return baselineCtor as RecorderConstructor;
+}
+
+describe("Regression: baseline (2c2a7b7) vs current", () => {
+  const comparisons: FixtureComparison[] = [];
+  const fixtures = buildRegressionFixtures();
+  let BaselineRecorder: RecorderConstructor;
+
+  beforeAll(() => {
+    BaselineRecorder = loadBaselineRecorderCtor();
+  });
+
+  it("preserves transition behavior across the fixture corpus", () => {
+    for (const fixture of fixtures) {
+      const baseline = runRecorderScenario({
+        buffers: fixture.buffers,
+        recorderCtor: BaselineRecorder,
+        captureStartWallClockMs: 1_710_000_000_000,
+      });
+
+      const current = runRecorderScenario({
+        buffers: fixture.buffers,
+        captureStartWallClockMs: 1_710_000_000_000,
+      });
+
+      const baselineOrder = baseline.eventOrder.map((event) => event.kind).join(",");
+      const currentOrder = current.eventOrder.map((event) => event.kind).join(",");
+
+      comparisons.push({
+        fixture: fixture.name,
+        baseline: `${baseline.chunkStarts.length}/${baseline.chunkEnds}/${baselineOrder}`,
+        current: `${current.chunkStarts.length}/${current.chunkEnds}/${currentOrder}`,
+        expected: "match for start/end counts and event ordering",
+      });
+
+      expect(current.chunkStarts.length).toBe(baseline.chunkStarts.length);
+      expect(current.chunkEnds).toBe(baseline.chunkEnds);
+      expect(currentOrder).toBe(baselineOrder);
+      expect(current.chunkStarts.map((entry) => entry.audioLength)).toEqual(
+        baseline.chunkStarts.map((entry) => entry.audioLength),
+      );
+    }
+  });
+
+  it("allows Patch 1 metadata additions while preserving callback compatibility", () => {
+    const fixture = buildRegressionFixtures().find((entry) => entry.name === "clean-speech");
+    expect(fixture).toBeDefined();
+
+    const current = runRecorderScenario({
+      buffers: fixture!.buffers,
+      captureStartWallClockMs: 1_710_555_000_000,
     });
 
-    it("should calculate streamTimeMs correctly", () => {
-      const frame = {
-        pcm16: new Int16Array(480),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 5,
-        timestampMs: 1000,
-        streamTimeMs: (5 * 480 / 16000) * 1000, // Should be 150ms
-      };
+    expect(current.audioEvents.length).toBeGreaterThan(0);
+    for (const event of current.audioEvents) {
+      expect(event.audioLength).toBeGreaterThan(0);
+      expect(typeof event.speaking).toBe("boolean");
+      expect(typeof event.consecutiveSilence).toBe("number");
+      expect(typeof event.volume).toBe("number");
 
-      // 480 samples per frame at 16kHz = 30ms per frame
-      // frameIndex 5 = 150ms
-      expect(frame.streamTimeMs).toBe(150);
-    });
+      expect(typeof event.frameIndex).toBe("number");
+      expect(typeof event.timestampMs).toBe("number");
+      expect(typeof event.streamTimeMs).toBe("number");
+    }
+  });
+
+  afterAll(() => {
+    const summary = comparisons
+      .map((row) => `${row.fixture} | ${row.baseline} | ${row.current} | ${row.expected}`)
+      .join("\n");
+    process.stdout.write(
+      `\n[regression-summary]\nfixture | baseline | current | expected\n${summary}\n`,
+    );
   });
 });
