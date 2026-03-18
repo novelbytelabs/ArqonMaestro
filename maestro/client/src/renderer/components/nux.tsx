@@ -44,13 +44,15 @@ const NuxComponent: React.FC<{
     <div
       id="nux"
       className={classNames(
-        "border rounded shadow p-3 relative bg-white dark:bg-neutral-800 dark:border-neutral-500",
+        "glass-card p-4 relative overflow-hidden z-20",
         {
-          "border shadow mt-2 mb-4 mx-2": !miniMode,
+          "mt-2 mb-4 mx-2": !miniMode,
           "mb-2": miniMode,
         }
       )}
     >
+      {/* Background Glowing Orb */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] bg-cyan-500/10 blur-[60px] rounded-full pointer-events-none z-0" />
       <h2 className="font-bold pb-1">{nuxStep.title}</h2>
       <a className="absolute top-[-4px] right-[4px]" href="#" onClick={close}>
         &times;
@@ -70,7 +72,7 @@ const NuxComponent: React.FC<{
         ) : null}
         {nuxStep.transcript ? (
           <div
-            className={classNames("p-[2px] rainbow rounded-md", {
+            className={classNames("p-[2px] border border-cyan-400/30 bg-cyan-500/10 rounded-md", {
               hidden: nuxStep.hideAnswer && !nuxHintShown,
             })}
           >
@@ -81,9 +83,9 @@ const NuxComponent: React.FC<{
         ) : null}
       </div>
       {!nuxStep.last ? (
-        <div className="mt-2 flex w-full">
+        <div className="mt-4 flex w-full relative z-10">
           {!nuxStep.error && nuxStep.index !== undefined && nuxStep.index > 0 ? (
-            <button className="primary-button text-xs" onClick={back}>
+            <button className="secondary-button glow-cyan !py-1 !px-4 !text-[10px] uppercase font-bold tracking-widest" onClick={back}>
               &lsaquo; Back
             </button>
           ) : null}
@@ -91,8 +93,8 @@ const NuxComponent: React.FC<{
             <button
               onClick={next}
               disabled={!nuxNextButtonEnabled}
-              className={classNames("primary-button text-xs ml-auto", {
-                "bg-gray-500 hover:bg-gray-500": !nuxNextButtonEnabled,
+              className={classNames("secondary-button glow-cyan !py-1 !px-4 !text-[10px] uppercase font-bold tracking-widest ml-auto", {
+                "opacity-50 grayscale pointer-events-none": !nuxNextButtonEnabled,
               })}
             >
               Next &rsaquo;
@@ -100,14 +102,14 @@ const NuxComponent: React.FC<{
           ) : null}
         </div>
       ) : (
-        <div className="my-1">
+        <div className="mt-4 relative z-10">
           <div className="mb-2">
-            <a href="#" className="primary-button block text-center text-sm" onClick={reset}>
+            <a href="#" className="secondary-button glow-cyan block text-center !py-2 !text-[10px] uppercase font-bold tracking-widest" onClick={reset}>
               More tutorials
             </a>
           </div>
           <div>
-            <a href="#" className="primary-button block text-center text-sm" onClick={next}>
+            <a href="#" className="secondary-button glow-cyan block text-center !py-2 !text-[10px] uppercase font-bold tracking-widest" onClick={next}>
               Done
             </a>
           </div>

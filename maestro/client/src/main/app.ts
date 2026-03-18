@@ -205,6 +205,9 @@ export default class App {
       () => commandHandler
     ));
 
+    // Note: Executor test methods are available but not exposed to window
+    // Recovery is tested automatically when focus commands fail verification
+
     const chunkManager: ChunkManager = (instance.chunkManager = new ChunkManager(
       active,
       api,

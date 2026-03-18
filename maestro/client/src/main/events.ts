@@ -137,8 +137,9 @@ export default class RendererProcessEventHandlers {
       this.stream.sendTextRequest(data.text, data.includeAlternatives);
     });
 
-    ipcMain.on("setLanguage", (_event: any, language: core.Language) => {
-      this.active.languageSwitcherLanguage = language;
+    ipcMain.on("setLanguage", (_event: any, data: { language: core.Language; name: string }) => {
+      this.active.languageSwitcherLanguage = data.language;
+      this.active.languageSwitcherName = data.name;
       this.active.update(true);
     });
 

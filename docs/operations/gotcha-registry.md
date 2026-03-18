@@ -541,6 +541,125 @@ Use for:
   - require build + harness + rollback proof together
   - block closeout when any operational gate lacks evidence
 
+### GOTCHA-032: Recovery Service Direct Xdotool Bypass
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: The focus recovery service directly calls xdotool instead of delegating to existing subsystems (system.focus, focus-region-handler, focus-precision-service). This violates architectural layering and creates a second raw driver layer.
+- **Impact**: High
+- **Where it matters**:
+  - Focus recovery (FP-5)
+  - architectural boundaries
+  - subsystem delegation model
+- **Avoidance**:
+  - recovery must call existing services, not reimplement driver logic
+  - use system.focus() for app focus, focus-region-handler for regions, focus-precision-service for control
+
+### GOTCHA-033: Fake Recovery Re-Verification
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Recovery service hardcodes finalStateReverified=true without actually re-verifying the recovered state. This creates false confidence in recovery outcomes.
+- **Impact**: High
+- **Where it matters**:
+  - Focus recovery verification
+  - recovery telemetry accuracy
+  - safety guarantees
+- **Avoidance**:
+  - always call focus-verification-service after recovery action
+  - require actual verification before marking recovery as successful
+  - telemetry must reflect real verification results
+
+### GOTCHA-034: Recovery Service Isolation Violation
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Recovery service duplicates logic from focus-history-service instead of delegating to it for restore operations.
+- **Impact**: Medium
+- **Where it matters**:
+  - RESTORE_PREVIOUS functionality
+  - state history management
+  - code duplication
+- **Avoidance**:
+  - delegate restore operations to focus-history-service
+  - reuse existing state validation logic
+  - treat recovery as orchestrator, not owner of state management
+
+### GOTCHA-035: Telemetry Honesty Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Recovery types can be honest, but if delegate implementations return success too eagerly, telemetry can still be misleading. Verification must remain the authority.
+- **Impact**: High
+- **Where it matters**:
+  - Focus recovery telemetry
+  - recovery result accuracy
+  - operational debugging
+- **Avoidance**:
+  - never trust delegate success without re-verification
+  - verification service is the source of truth
+  - log when verification contradicts delegate claims
+
+### GOTCHA-036: Layered Restore Double-Count Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: In layered restore, if app restored but region failed and control skipped, the result can be summarized in a confusing way. The final reported level should be the deepest verified level only.
+- **Impact**: Medium
+- **Where it matters**:
+  - Layered restore telemetry
+  - restore depth reporting
+  - degraded result communication
+- **Avoidance**:
+  - report only the deepest verified level
+  - do not count partial successes toward higher levels
+  - clearly distinguish verified from attempted
+
+### GOTCHA-037: Control Recovery Optimism Trap
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: If control verification is weak on some surfaces, "attempted control focus" can drift into "verified control recovery" inappropriately.
+- **Impact**: High
+- **Where it matters**:
+  - Control-level recovery
+  - precision focus
+  - verification surface strength
+- **Avoidance**:
+  - distinguish attempted from verified at control level
+  - downgrade explicitly when verification is weak
+  - capability-gate control recovery per surface
+
+### GOTCHA-038: Partial Restore Caller Mismatch
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: If a caller needed control-level recovery, an app-only restore may be a valid degraded result but not necessarily an operational success for that caller.
+- **Impact**: Medium
+- **Where it matters**:
+  - Caller expectations
+  - degraded result handling
+  - operational success vs technical success
+- **Avoidance**:
+  - make degraded results explicit to callers
+  - allow callers to reject partial restores
+  - document minimum acceptable restore depth per use case
+
+### GOTCHA-039: History Restore Semantic Staleness
+
+- **Category**: Protocol And Plugin Integration
+- **Status**: active
+- **Summary**: Even a temporally fresh stored state can be semantically invalid if the tab changed, panel disappeared, or app layout changed. Time-based trust is necessary but not sufficient.
+- **Impact**: High
+- **Where it matters**:
+  - RESTORE_PREVIOUS functionality
+  - state freshness validation
+  - semantic validity checks
+- **Avoidance**:
+  - validate semantic state in addition to temporal freshness
+  - verify after restore, not just before
+  - treat "fresh but wrong" as untrusted
+
 ## Entry Template
 
 ```markdown

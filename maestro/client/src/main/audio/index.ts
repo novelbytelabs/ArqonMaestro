@@ -4,25 +4,68 @@ import {
   spawnSync,
 } from "child_process";
 
+import { DenoiseProvider, NoopDenoiseProvider, DenoiseFrame } from "./denoise-provider";
+import { VadProvider, DefaultVadProvider, VadDecision, VadConfig } from "./vad-provider";
+import { SileroVadProvider } from "./silero-vad-provider";
+import {
+  buildVadShadowComparison,
+  shouldEmitBargeInCandidate,
+  shouldEmitInterruptCandidate,
+  TurnEvent,
+  VadShadowComparison,
+} from "./turn-events";
+
 export interface SpeechRecorderOptions {
   device?: number;
+  enableSileroShadowMode?: boolean;
   sileroVadSilenceThreshold?: number;
   sileroVadSpeechThreshold?: number;
   sileroVadSpeakingThreshold?: number;
-  onChunkStart?: (data: { audio: Int16Array }) => void;
+  onChunkStart?: (data: { audio: Int16Array; frameIndex: number; timestampMs: number; streamTimeMs: number }) => void;
   onAudio?: (data: {
     audio: Int16Array;
     consecutiveSilence: number;
     speaking: boolean;
     volume: number;
+    frameIndex: number;
+    timestampMs: number;
+    streamTimeMs: number;
   }) => void;
   onChunkEnd?: () => void;
+  onTurnEvent?: (event: TurnEvent) => void;
+  onVadComparison?: (comparison: VadShadowComparison) => void;
 }
 
 export interface AudioDeviceInfo {
   id: number;
   name: string;
   maxInputChannels: number;
+}
+
+/**
+ * Audio frame contract with metadata
+ * Wave A: Frame metadata attached at frame creation point
+ * 
+ * Timestamp model:
+ * - captureStartWallClockMs: Wall-clock ms when recording started
+ * - streamTimeMs: Progressive stream time (frameIndex * samples / sampleRate * 1000)
+ * - timestampMs: Combined timestamp = captureStartWallClockMs + streamTimeMs
+ */
+export interface AudioFrame {
+  /** PCM audio data */
+  pcm16: Int16Array;
+  /** Sample rate (Hz) */
+  sampleRate: number;
+  /** Number of channels */
+  channels: number;
+  /** Monotonic frame index */
+  frameIndex: number;
+  /** Wall-clock timestamp at capture start (set when recording starts) */
+  captureStartWallClockMs: number;
+  /** Stream time in milliseconds (derived from frame count and sample rate) */
+  streamTimeMs: number;
+  /** Combined timestamp: captureStartWallClockMs + streamTimeMs */
+  timestampMs: number;
 }
 
 const SAMPLE_RATE = 16000;
@@ -48,6 +91,19 @@ class SpeechRecorder {
   private baseSilenceThreshold = 0.008;
   private baseSpeechThreshold = 0.015;
   private noiseFloor = 0.002;
+  
+  // Wave A: Frame metadata tracking
+  private frameIndex = 0;
+  private captureStartWallClockMs = 0;
+  
+  // Wave A: Provider chain
+  private denoiseProvider: DenoiseProvider;
+  private primaryVadProvider: VadProvider;
+  private shadowVadProvider?: VadProvider;
+  private shadowModeEnabled = true;
+  private shadowLeadFrames = 0;
+  private lastBargeInCandidateFrame = -1;
+  private lastInterruptCandidateFrame = -1;
 
   constructor(private options: SpeechRecorderOptions = {}) {
     this.baseSilenceThreshold = this.mapVadThreshold(options.sileroVadSilenceThreshold, 0.008);
@@ -57,6 +113,21 @@ class SpeechRecorder {
     );
     if (this.baseSilenceThreshold >= this.baseSpeechThreshold) {
       this.baseSilenceThreshold = Math.max(0.001, this.baseSpeechThreshold * 0.7);
+    }
+    
+    // Initialize providers with current VAD configuration
+    const vadConfig: VadConfig = {
+      baseSilenceThreshold: this.baseSilenceThreshold,
+      baseSpeechThreshold: this.baseSpeechThreshold,
+      silenceFramesToEnd: this.silenceFramesToEnd,
+      consecutiveFramesForSpeaking: this.consecutiveFramesForSpeaking,
+    };
+    
+    this.denoiseProvider = new NoopDenoiseProvider();
+    this.primaryVadProvider = new DefaultVadProvider(vadConfig);
+    this.shadowModeEnabled = options.enableSileroShadowMode !== false;
+    if (this.shadowModeEnabled) {
+      this.shadowVadProvider = new SileroVadProvider(vadConfig);
     }
   }
 
@@ -187,6 +258,120 @@ class SpeechRecorder {
     return this.pcmToInt16(Buffer.concat(frames));
   }
 
+  /**
+   * Create an AudioFrame with metadata
+   * Wave A: Frame metadata attached at frame creation point
+   */
+  private createAudioFrame(pcmData: Int16Array): AudioFrame {
+    const streamTimeMs = (this.frameIndex * FRAME_SAMPLES / SAMPLE_RATE) * 1000;
+    const timestampMs = this.captureStartWallClockMs + streamTimeMs;
+    
+    return {
+      pcm16: pcmData,
+      sampleRate: SAMPLE_RATE,
+      channels: CHANNELS,
+      frameIndex: this.frameIndex,
+      captureStartWallClockMs: this.captureStartWallClockMs,
+      streamTimeMs,
+      timestampMs,
+    };
+  }
+
+  private buildTurnEvent(
+    type: TurnEvent["type"],
+    reason: string,
+    audioFrame: AudioFrame,
+    primaryDecision: VadDecision,
+    shadowDecision?: VadDecision,
+  ): TurnEvent {
+    const fallbackShadow: VadDecision = shadowDecision ?? {
+      ...primaryDecision,
+      provider: "silero_shadow_unavailable",
+      source: "shadow",
+      reason: "shadow_provider_unavailable",
+    };
+
+    const comparison = buildVadShadowComparison({
+      frameIndex: audioFrame.frameIndex,
+      timestampMs: audioFrame.timestampMs,
+      streamTimeMs: audioFrame.streamTimeMs,
+      primary: primaryDecision,
+      shadow: fallbackShadow,
+      shadowLeadFrames: this.shadowLeadFrames,
+    });
+
+    return {
+      type,
+      frameIndex: audioFrame.frameIndex,
+      timestampMs: audioFrame.timestampMs,
+      streamTimeMs: audioFrame.streamTimeMs,
+      source: "turn_layer",
+      reason,
+      primary: comparison.primary,
+      shadow: comparison.shadow,
+    };
+  }
+
+  private maybeEmitCandidateEvents(
+    wasSpeaking: boolean,
+    audioFrame: AudioFrame,
+    primaryDecision: VadDecision,
+    shadowDecision?: VadDecision,
+  ): void {
+    const minGapFrames = 6;
+    const frameIndex = audioFrame.frameIndex;
+    const speechStart = !wasSpeaking && this.speaking;
+
+    if (
+      shouldEmitBargeInCandidate({
+        speechStart,
+        frameIndex,
+        lastBargeInCandidateFrame: this.lastBargeInCandidateFrame,
+        minGapFrames,
+        primarySpeechProb: primaryDecision.speechProb,
+        shadowLeadFrames: this.shadowLeadFrames,
+      })
+    ) {
+      this.lastBargeInCandidateFrame = frameIndex;
+      this.options.onTurnEvent?.(
+        this.buildTurnEvent(
+          "barge_in_candidate",
+          this.shadowLeadFrames >= 2 ? "shadow_detected_early_speech" : "high_confidence_speech_onset",
+          audioFrame,
+          primaryDecision,
+          shadowDecision,
+        ),
+      );
+    }
+
+    if (
+      shadowDecision &&
+      shouldEmitInterruptCandidate({
+        frameIndex,
+        lastInterruptCandidateFrame: this.lastInterruptCandidateFrame,
+        minGapFrames,
+        primarySpeech: primaryDecision.isSpeech,
+        shadowSpeech: shadowDecision.isSpeech,
+        shadowLeadFrames: this.shadowLeadFrames,
+      })
+    ) {
+      this.lastInterruptCandidateFrame = frameIndex;
+      this.options.onTurnEvent?.(
+        this.buildTurnEvent(
+          "interrupt_candidate",
+          "shadow_speech_leads_primary",
+          audioFrame,
+          primaryDecision,
+          shadowDecision,
+        ),
+      );
+    }
+  }
+
+  /**
+   * Process PCM data through the provider chain
+   * Wave A: Denoise -> VAD -> speech state decisions
+   */
   private processPcmData(data: Buffer): void {
     this.pcmBuffer = Buffer.concat([this.pcmBuffer, data]);
 
@@ -198,33 +383,79 @@ class SpeechRecorder {
         this.leadingFrames.shift();
       }
 
+      // Wave A: Create frame with metadata
       const audio = this.pcmToInt16(frame);
-      const volume = this.rms(audio);
+      const audioFrame = this.createAudioFrame(audio);
+      
+      // Wave A: Pass through denoise provider
+      const denoiseResult = this.denoiseProvider.process({
+        pcm16: audioFrame.pcm16,
+        sampleRate: audioFrame.sampleRate,
+        channels: audioFrame.channels,
+        frameIndex: audioFrame.frameIndex,
+        captureStartWallClockMs: audioFrame.captureStartWallClockMs,
+        timestampMs: audioFrame.timestampMs,
+        streamTimeMs: audioFrame.streamTimeMs,
+      });
+      
+      // Use denoised audio for VAD
+      const denoisedAudio = denoiseResult.frame.pcm16;
+      const volume = this.rms(denoisedAudio);
+      
+      // Primary VAD remains authoritative in Patch 3.
+      const primaryVadDecision = this.primaryVadProvider.process({
+        pcm16: denoisedAudio,
+        sampleRate: audioFrame.sampleRate,
+        channels: audioFrame.channels,
+        frameIndex: audioFrame.frameIndex,
+        captureStartWallClockMs: audioFrame.captureStartWallClockMs,
+        timestampMs: audioFrame.timestampMs,
+        streamTimeMs: audioFrame.streamTimeMs,
+      });
+
+      // Patch 3: Silero runs in shadow mode; it does not control transitions.
+      const shadowVadDecision =
+        this.shadowModeEnabled && this.shadowVadProvider
+          ? this.shadowVadProvider.process({
+              pcm16: denoisedAudio,
+              sampleRate: audioFrame.sampleRate,
+              channels: audioFrame.channels,
+              frameIndex: audioFrame.frameIndex,
+              captureStartWallClockMs: audioFrame.captureStartWallClockMs,
+              timestampMs: audioFrame.timestampMs,
+              streamTimeMs: audioFrame.streamTimeMs,
+            })
+          : undefined;
+      
+      // Capture previous state BEFORE overwriting with new VAD decision
       const wasSpeaking = this.speaking;
+      
+      // Preserve primary-authoritative behavior.
+      this.speaking = primaryVadDecision.isSpeech;
+      this.noiseFloor = primaryVadDecision.noiseFloor;
+      this.consecutiveSilence = primaryVadDecision.consecutiveSilence;
+      this.consecutiveSpeech = primaryVadDecision.consecutiveSpeech;
+
+      if (shadowVadDecision) {
+        this.shadowLeadFrames =
+          shadowVadDecision.isSpeech && !primaryVadDecision.isSpeech ? this.shadowLeadFrames + 1 : 0;
+
+        this.options.onVadComparison?.(
+          buildVadShadowComparison({
+            frameIndex: audioFrame.frameIndex,
+            timestampMs: audioFrame.timestampMs,
+            streamTimeMs: audioFrame.streamTimeMs,
+            primary: primaryVadDecision,
+            shadow: shadowVadDecision,
+            shadowLeadFrames: this.shadowLeadFrames,
+          }),
+        );
+      }
+      
+      // Get thresholds for logging (computed by provider internally)
       const silenceThreshold = this.effectiveSilenceThreshold();
       const speechThreshold = this.effectiveSpeechThreshold();
-
-      if (!this.speaking) {
-        this.noiseFloor = this.noiseFloor * 0.95 + volume * 0.05;
-      }
-
-      if (volume >= speechThreshold) {
-        this.consecutiveSpeech += 1;
-        this.consecutiveSilence = 0;
-        if (this.consecutiveSpeech >= this.consecutiveFramesForSpeaking) {
-          this.speaking = true;
-        }
-      } else if (volume <= silenceThreshold) {
-        this.consecutiveSpeech = 0;
-        this.consecutiveSilence += 1;
-        if (this.consecutiveSilence >= this.silenceFramesToEnd) {
-          this.speaking = false;
-        }
-      } else {
-        this.consecutiveSpeech = 0;
-        this.consecutiveSilence = 0;
-      }
-
+      
       if (!wasSpeaking && this.speaking) {
         this.currentChunkFrames = 0;
         console.log(
@@ -232,7 +463,23 @@ class SpeechRecorder {
             4
           )} noiseFloor=${this.noiseFloor.toFixed(4)}`
         );
-        this.options.onChunkStart?.({ audio: this.concatFrames(this.leadingFrames) });
+        // Wave A: Include frame metadata in callback
+        this.options.onChunkStart?.({ 
+          audio: this.concatFrames(this.leadingFrames),
+          frameIndex: audioFrame.frameIndex,
+          timestampMs: audioFrame.timestampMs,
+          streamTimeMs: audioFrame.streamTimeMs,
+        });
+        this.options.onTurnEvent?.(
+          this.buildTurnEvent(
+            "speech_start",
+            "primary_transition_to_speaking",
+            audioFrame,
+            primaryVadDecision,
+            shadowVadDecision,
+          ),
+        );
+        this.maybeEmitCandidateEvents(wasSpeaking, audioFrame, primaryVadDecision, shadowVadDecision);
       } else if (wasSpeaking && !this.speaking) {
         this.currentChunkFrames = 0;
         console.log(
@@ -241,6 +488,17 @@ class SpeechRecorder {
           )} noiseFloor=${this.noiseFloor.toFixed(4)}`
         );
         this.options.onChunkEnd?.();
+        this.options.onTurnEvent?.(
+          this.buildTurnEvent(
+            "speech_end",
+            "primary_transition_to_silence",
+            audioFrame,
+            primaryVadDecision,
+            shadowVadDecision,
+          ),
+        );
+      } else {
+        this.maybeEmitCandidateEvents(wasSpeaking, audioFrame, primaryVadDecision, shadowVadDecision);
       }
 
       if (this.speaking) {
@@ -271,12 +529,19 @@ class SpeechRecorder {
         );
       }
 
+      // Wave A: Include frame metadata in audio callback
       this.options.onAudio?.({
-        audio,
+        audio: denoisedAudio,
         consecutiveSilence: this.consecutiveSilence,
         speaking: this.speaking,
         volume,
+        frameIndex: audioFrame.frameIndex,
+        timestampMs: audioFrame.timestampMs,
+        streamTimeMs: audioFrame.streamTimeMs,
       });
+      
+      // Increment frame index after processing
+      this.frameIndex++;
     }
   }
 
@@ -294,6 +559,19 @@ class SpeechRecorder {
     this.pcmBuffer = Buffer.alloc(0);
     this.leadingFrames = [];
     this.noiseFloor = 0.002;
+    this.shadowLeadFrames = 0;
+    this.lastBargeInCandidateFrame = -1;
+    this.lastInterruptCandidateFrame = -1;
+    
+    // Wave A: Reset frame metadata
+    this.frameIndex = 0;
+    this.captureStartWallClockMs = Date.now();
+    
+    // Wave A: Reset providers
+    this.denoiseProvider.reset();
+    this.primaryVadProvider.reset();
+    this.shadowVadProvider?.reset();
+    
     console.log(
       `[Audio] Starting recorder device=${this.options.device ?? -1} silenceThreshold=${this.baseSilenceThreshold.toFixed(
         4
@@ -382,5 +660,21 @@ async function getDevices(): Promise<AudioDeviceInfo[]> {
   return devices();
 }
 
-export { SpeechRecorder, devices, getDevices };
+export {
+  SpeechRecorder,
+  devices,
+  getDevices,
+  NoopDenoiseProvider,
+  DefaultVadProvider,
+  SileroVadProvider,
+};
+export type {
+  DenoiseProvider,
+  DenoiseFrame,
+  VadProvider,
+  VadDecision,
+  VadConfig,
+  TurnEvent,
+  VadShadowComparison,
+};
 export default SpeechRecorder;

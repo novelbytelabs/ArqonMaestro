@@ -27,17 +27,26 @@ const Section: React.FC<{
     <a
       href="#"
       onClick={(e: React.MouseEvent) => showPage(e, page)}
-      className={classNames("block text-center py-2 w-full rounded-md transition-colors", {
-        "text-slate-600 hover:bg-gray-100 dark:text-neutral-200 dark:hover:bg-neutral-700":
-          current != page,
-        "bg-gray-200 hover:bg-gray-200 dark:bg-gray-700": current == page,
-      })}
+      className={classNames(
+        "block text-center py-2.5 w-full rounded-lg transition-all duration-300 border flex flex-col items-center justify-center group",
+        {
+          "text-white/60 border-white/5 hover:border-white/20 hover:bg-white/5": current != page,
+          "bg-cyan-500/20 border-cyan-400 text-white shadow-[0_0_15px_rgba(34,211,238,0.3)]":
+            current == page,
+        }
+      )}
       style={{
         minWidth: "80px",
       }}
     >
-      <FontAwesomeIcon icon={icon} className="settings-icon" />
-      <h2>{title}</h2>
+      <FontAwesomeIcon
+        icon={icon}
+        className={classNames("settings-icon text-lg mb-1 transition-colors", {
+          "text-cyan-400": current == page,
+          "text-white/40 group-hover:text-white/80": current != page,
+        })}
+      />
+      <h2 className="text-[10px] uppercase font-bold tracking-widest">{title}</h2>
     </a>
   );
 };
@@ -56,12 +65,12 @@ export const Row: React.FC<{
   subtitle?: any;
   action: any;
 }> = ({ title, subtitle, action }) => (
-  <div className="flex items-center border-b py-2 dark:border-neutral-500">
+  <div className="flex items-center border-b py-3 border-white/5">
     <div>
-      <h2 className="block font-medium text-sm">{title}</h2>
-      {subtitle ? <h3 className="block text-sm">{subtitle}</h3> : null}
+      <h2 className="block font-bold text-sm text-white/90">{title}</h2>
+      {subtitle ? <h3 className="block text-sm text-white/50 leading-tight">{subtitle}</h3> : null}
     </div>
-    <div className="ml-auto">{action}</div>
+    <div className="ml-auto flex items-center">{action}</div>
   </div>
 );
 
@@ -77,8 +86,8 @@ const SettingsPageComponent: React.FC<{
 
   const microphone = microphones.filter((e) => e.selected)[0];
   return (
-    <div className="pt-[24px] h-screen flex flex-col">
-      <div className="flex w-full justify-around px-4 mb-2">
+    <div className="pt-[48px] h-screen flex flex-col operator-surface">
+      <div className="flex w-full justify-around px-2 gap-2 mb-4">
         <Section current={settingsPage} icon={faCog} page="general" title="General" />
         <Section current={settingsPage} icon={faBookOpen} page="docs" title="Docs" />
         <Section current={settingsPage} icon={faPlug} page="plugins" title="Plugins" />

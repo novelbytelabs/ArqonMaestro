@@ -7,14 +7,21 @@ const DocsLink: React.FC<{
   title: string;
   subtitle: string;
   link: string;
-}> = ({ title, subtitle, link }) => (
+  installed?: boolean;
+}> = ({ title, subtitle, link, installed }) => (
   <Row
     title={title}
     subtitle={subtitle}
     action={
-      <a className="primary-button" href={link} target="_blank">
-        Open
-      </a>
+      installed ? (
+        <span className="secondary-button !bg-white/5 !border-white/10 !text-white/40 !py-1 !px-4 !text-[10px] !shadow-none cursor-default">
+          Installed
+        </span>
+      ) : (
+        <a className="secondary-button !py-1 !px-4 !text-[10px]" href={link} target="_blank">
+          Install
+        </a>
+      )
     }
   />
 );
@@ -34,7 +41,7 @@ const TutorialLink: React.FC<{
       title={title}
       subtitle={subtitle}
       action={
-        <button className="primary-button" onClick={click}>
+        <button className="secondary-button !py-1 !px-4 !text-[10px]" onClick={click}>
           Open
         </button>
       }
@@ -44,7 +51,7 @@ const TutorialLink: React.FC<{
 
 export const Docs = () => (
   <div className="px-4">
-    <h2 className="text-lg font-light">Documentation</h2>
+    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80 mb-2">Plugins</h2>
     <DocsLink
       title="Community"
       subtitle="Get help and report issues"
@@ -65,7 +72,7 @@ export const Docs = () => (
       subtitle="Create your own voice commands"
       link="https://novelbytelabs.github.io/ArqonMaestro/"
     />
-    <h2 className="text-lg font-light mt-4">Tutorials</h2>
+    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80 mt-6 mb-2">Tutorials</h2>
     {tutorials.map((e, i) => (
       <TutorialLink title={e.title} subtitle={e.description} name={e.tutorial} key={e.tutorial} />
     ))}

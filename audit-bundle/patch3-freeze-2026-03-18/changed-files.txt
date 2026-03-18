@@ -1,0 +1,10 @@
+docs/vos/maestro-implementation-progress.md
+docs/vos/maestro-voice-component-migration-matrix.md
+maestro/client/src/main/audio/index.ts
+maestro/client/src/main/audio/vad-provider.ts
+maestro/client/src/test/audio/adversarial.spec.ts
+maestro/client/src/test/audio/e2e.spec.ts
+maestro/client/src/test/audio/helpers/pcm-fixtures.ts
+maestro/client/src/test/audio/helpers/recorder-harness.ts
+maestro/client/src/test/audio/regression.spec.ts
+maestro/client/src/test/audio/speech-recorder.integration.spec.ts

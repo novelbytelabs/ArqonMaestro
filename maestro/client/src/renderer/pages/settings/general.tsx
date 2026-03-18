@@ -41,9 +41,9 @@ const GeneralComponent: React.FC<{
           title="Microphone"
           subtitle={
             <>
-              <div className="inline-block border rounded w-44 h-2">
+              <div className="inline-block border border-white/10 rounded w-44 h-1.5 bg-black/40 overflow-hidden">
                 <div
-                  className="bg-violet-600 h-full rounded transition-all"
+                  className="bg-cyan-400 h-full transition-all shadow-[0_0_8px_rgba(34,211,238,0.6)]"
                   style={{ width: volume * 100 + "%" }}
                 ></div>
               </div>
@@ -102,8 +102,8 @@ const GeneralComponent: React.FC<{
           <>
             In compact UI, hide after{" "}
             <input
-              type="text"
-              className="input w-8 inline-block disabled:bg-gray-300 py-0"
+              type="number"
+              className="input w-16 inline-block py-0 text-center"
               defaultValue={miniModeHideTimeout}
               disabled={!useMiniModeHideTimeout}
               onChange={(e) => {
@@ -131,8 +131,8 @@ const GeneralComponent: React.FC<{
           <>
             In compact UI, only show{" "}
             <input
-              type="text"
-              className="input w-8 inline-block disabled:bg-gray-300 py-0"
+              type="number"
+              className="input w-16 inline-block py-0 text-center"
               defaultValue={miniModeFewerAlternativesCount}
               disabled={!useMiniModeFewerAlternatives}
               onChange={(e) => {

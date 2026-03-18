@@ -1,0 +1,531 @@
+[Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+[Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+[Audio] Chunk start volume=0.2597 speechThreshold=0.0427 noiseFloor=0.0142
+[Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0142 thresholds=0.0256/0.0427
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0256 noiseFloor=0.0142
+  console.log
+    [Audio] Chunk start volume=0.2597 speechThreshold=0.0427 noiseFloor=0.0142
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0142 thresholds=0.0256/0.0427
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0256 noiseFloor=0.0142
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+[Audio] Chunk start volume=0.2145 speechThreshold=0.0342 noiseFloor=0.0114
+[Audio] Frame volume=0.2146 speaking=true silence=0 noiseFloor=0.0114 thresholds=0.0205/0.0342
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0205 noiseFloor=0.0114
+  console.log
+    [Audio] Chunk start volume=0.2145 speechThreshold=0.0342 noiseFloor=0.0114
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2146 speaking=true silence=0 noiseFloor=0.0114 thresholds=0.0205/0.0342
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0205 noiseFloor=0.0114
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+[Audio] Chunk start volume=0.3551 speechThreshold=0.0563 noiseFloor=0.0188
+[Audio] Frame volume=0.3538 speaking=true silence=0 noiseFloor=0.0188 thresholds=0.0338/0.0563
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0338 noiseFloor=0.0188
+  console.log
+    [Audio] Chunk start volume=0.3551 speechThreshold=0.0563 noiseFloor=0.0188
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.3538 speaking=true silence=0 noiseFloor=0.0188 thresholds=0.0338/0.0563
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0338 noiseFloor=0.0188
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+[Audio] Chunk start volume=0.0171 speechThreshold=0.0150 noiseFloor=0.0023
+[Audio] Frame volume=0.0076 speaking=true silence=1 noiseFloor=0.0023 thresholds=0.0080/0.0150
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0080 noiseFloor=0.0023
+  console.log
+    [Audio] Chunk start volume=0.0171 speechThreshold=0.0150 noiseFloor=0.0023
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.0076 speaking=true silence=1 noiseFloor=0.0023 thresholds=0.0080/0.0150
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0080 noiseFloor=0.0023
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+[Audio] Chunk start volume=1.0000 speechThreshold=0.1542 noiseFloor=0.0514
+[Audio] Frame volume=0.0000 speaking=true silence=7 noiseFloor=0.0514 thresholds=0.0925/0.1542
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0925 noiseFloor=0.0514
+  console.log
+    [Audio] Chunk start volume=1.0000 speechThreshold=0.1542 noiseFloor=0.0514
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.0000 speaking=true silence=7 noiseFloor=0.0514 thresholds=0.0925/0.1542
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0925 noiseFloor=0.0514
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+[Audio] Chunk start volume=0.2184 speechThreshold=0.0379 noiseFloor=0.0126
+[Audio] Chunk end silenceFrames=10 silenceThreshold=0.0227 noiseFloor=0.0126
+  console.log
+    [Audio] Chunk start volume=0.2184 speechThreshold=0.0379 noiseFloor=0.0126
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0227 noiseFloor=0.0126
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+
+[regression-summary]
+fixture | baseline | current | expected
+silence-only | 0/0/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio | 0/0/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio | match for start/end counts and event ordering
+clean-speech | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | match for start/end counts and event ordering
+speech-with-pause | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | match for start/end counts and event ordering
+interruption-candidate | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio,audio,audio | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio,audio,audio | match for start/end counts and event ordering
+burst-noise | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio,audio,audio,audio | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio,audio,audio,audio | match for start/end counts and event ordering
+near-threshold-oscillation | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | 1/1/audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | match for start/end counts and event ordering
+clipped-distorted | 1/1/audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | 1/1/audio,audio,audio,audio,audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | match for start/end counts and event ordering
+truncated-input | 1/1/audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | 1/1/audio,audio,chunk-start,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,audio,chunk-end,audio,audio,audio | match for start/end counts and event ordering
+  console.log
+    [Audio] Chunk start volume=0.2184 speechThreshold=0.0379 noiseFloor=0.0126
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0227 noiseFloor=0.0126
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.3052 speechThreshold=0.0515 noiseFloor=0.0172
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.3052 speaking=true silence=0 noiseFloor=0.0172 thresholds=0.0309/0.0515
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0000 speaking=true silence=1 noiseFloor=0.0172 thresholds=0.0309/0.0515
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.3052 speaking=true silence=0 noiseFloor=0.0172 thresholds=0.0309/0.0515
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk start volume=1.0000 speechThreshold=0.1542 noiseFloor=0.0514
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.0000 speaking=true silence=7 noiseFloor=0.0514 thresholds=0.0925/0.1542
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0925 noiseFloor=0.0514
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.3551 speechThreshold=0.0563 noiseFloor=0.0188
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.3538 speaking=true silence=0 noiseFloor=0.0188 thresholds=0.0338/0.0563
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0338 noiseFloor=0.0188
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=25 noiseFloor=0.0054 thresholds=0.0097/0.0162
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=50 noiseFloor=0.0064 thresholds=0.0114/0.0191
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=75 noiseFloor=0.0066 thresholds=0.0119/0.0198
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=100 noiseFloor=0.0067 thresholds=0.0120/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=125 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=150 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=175 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=200 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=225 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=250 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=275 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=300 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=325 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=350 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=375 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0067 speaking=false silence=400 noiseFloor=0.0067 thresholds=0.0121/0.0201
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk start volume=0.0171 speechThreshold=0.0150 noiseFloor=0.0030
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.0073 speaking=true silence=1 noiseFloor=0.0030 thresholds=0.0080/0.0150
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0171 speaking=true silence=0 noiseFloor=0.0030 thresholds=0.0080/0.0150
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0073 speaking=true silence=1 noiseFloor=0.0030 thresholds=0.0080/0.0150
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Frame volume=0.0171 speaking=true silence=0 noiseFloor=0.0030 thresholds=0.0080/0.0150
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk force-end maxChunkFrames=100 volume=0.0073
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:511:19)
+
+  console.log
+    [Audio] Chunk start volume=0.0171 speechThreshold=0.0150 noiseFloor=0.0030
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2574 speechThreshold=0.0420 noiseFloor=0.0140
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0252 noiseFloor=0.0140
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2576 speechThreshold=0.0414 noiseFloor=0.0138
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.0000 speaking=true silence=8 noiseFloor=0.0138 thresholds=0.0248/0.0414
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0248 noiseFloor=0.0138
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2597 speechThreshold=0.0427 noiseFloor=0.0142
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0142 thresholds=0.0256/0.0427
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0256 noiseFloor=0.0142
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.0171 speechThreshold=0.0150 noiseFloor=0.0023
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.0076 speaking=true silence=1 noiseFloor=0.0023 thresholds=0.0080/0.0150
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0080 noiseFloor=0.0023
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2597 speechThreshold=0.0427 noiseFloor=0.0142
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0142 thresholds=0.0256/0.0427
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0256 noiseFloor=0.0142
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2145 speechThreshold=0.0342 noiseFloor=0.0114
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2146 speaking=true silence=0 noiseFloor=0.0114 thresholds=0.0205/0.0342
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0205 noiseFloor=0.0114
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.3551 speechThreshold=0.0563 noiseFloor=0.0188
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.3538 speaking=true silence=0 noiseFloor=0.0188 thresholds=0.0338/0.0563
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0338 noiseFloor=0.0188
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.2608 speechThreshold=0.0422 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Frame volume=0.2576 speaking=true silence=0 noiseFloor=0.0141 thresholds=0.0253/0.0422
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:525:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0253 noiseFloor=0.0141
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.1722 speechThreshold=0.0316 noiseFloor=0.0105
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Chunk start volume=0.1722 speechThreshold=0.0315 noiseFloor=0.0105
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+
+  console.log
+    [Audio] Chunk end silenceFrames=10 silenceThreshold=0.0189 noiseFloor=0.0105
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:485:17)
+
+  console.log
+    [Audio] Chunk start volume=0.1722 speechThreshold=0.0315 noiseFloor=0.0105
+
+      at SpeechRecorder.processPcmData (src/main/audio/index.ts:461:17)
+

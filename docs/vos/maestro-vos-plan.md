@@ -16,17 +16,12 @@ This is the biggest immediate missing piece.
 
 2. We have not yet audited Serenade grammar and Talon grammar directly
 
-We said this is the right next comparative move, and it still is.
-
-We need a real source analysis of:
-
-what Serenade already does well
-
-what Talon does better
-
-what Maestro should inherit
-
-what Maestro should reject
+- We said this is the right next comparative move, and it still is.
+- We need a real source analysis of:
+    - what Serenade already does well
+    - what Talon does better
+    - what Maestro should inherit
+    - what Maestro should reject
 
 That is still undone.
 
@@ -132,8 +127,7 @@ what to defer
 
 This is still needed.
 
-My current maturity assessment
-
+**My current maturity assessment**
 If I had to score where we are:
 
 Conceptual architecture

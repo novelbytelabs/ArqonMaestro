@@ -30,7 +30,7 @@ const ListenStatusComponent: React.FC<{
       href="#"
       onClick={toggle}
       className={classNames("block font-medium drop-shadow-sm text-sm", {
-        "text-violet-600 dark:text-violet-400": active,
+        "text-white": active,
         "ml-2": localLoading,
       })}
     >

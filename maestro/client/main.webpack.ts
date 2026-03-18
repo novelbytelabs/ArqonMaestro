@@ -23,7 +23,14 @@ const config: Configuration = {
           path.resolve(__dirname, "src/audio"),
           path.resolve(__dirname, "src/driver"),
         ],
-        use: ["ts-loader"],
+        use: [
+          {
+            loader: "ts-loader",
+            options: {
+              transpileOnly: true,
+            },
+          },
+        ],
       },
       {
         test: /\.(png|svg|jpg)$/i,

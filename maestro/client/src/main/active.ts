@@ -10,7 +10,7 @@ import Settings from "./settings";
 import System from "./execute/system";
 import RendererBridge from "./bridge";
 import { isValidAlternative } from "../shared/alternatives";
-import { filenameToLanguage, languages } from "../shared/languages";
+import { filenameToLanguageConfig, getConfig, languages } from "../shared/languages";
 import { plugins } from "../shared/plugins";
 import { core } from "../gen/core";
 
@@ -26,7 +26,9 @@ export default class Active {
   dictateMode: boolean = false;
   filename: string = "";
   language: core.Language = core.Language.LANGUAGE_DEFAULT;
+  languageName: string = "Auto-Detect";
   languageSwitcherLanguage: core.Language = core.Language.LANGUAGE_NONE;
+  languageSwitcherName: string = "Auto-Detect";
   sourceAvailable = false;
   refocused = false;
 
@@ -382,10 +384,14 @@ export default class Active {
       filename = "terminal.sh";
     }
 
-    const language =
+    const languageConfig =
       this.languageSwitcherLanguage != core.Language.LANGUAGE_NONE
-        ? this.languageSwitcherLanguage
-        : filenameToLanguage(filename);
+        ? getConfig(this.languageSwitcherLanguage, this.languageSwitcherName) ||
+          filenameToLanguageConfig(filename)
+        : filenameToLanguageConfig(filename);
+
+    const language = languageConfig.id;
+    const languageName = languageConfig.name;
 
     const icon = plugin?.icon;
 
@@ -395,13 +401,19 @@ export default class Active {
       icon != this.icon ||
       filename != this.filename ||
       language != this.language ||
+      languageName != this.languageName ||
       sourceAvailable != this.sourceAvailable;
 
     this.app = app;
     this.icon = icon;
     this.filename = filename;
     this.language = language;
+    this.languageName = languageName;
     this.sourceAvailable = sourceAvailable;
+
+    if (filename !== "" && filename !== "terminal.sh") {
+      console.log(`[Active] app: ${app}, filename: ${filename}, language: ${language}, name: ${languageName}`);
+    }
 
     if (send) {
       this.showSuggestionIfNeeded();
@@ -413,7 +425,9 @@ export default class Active {
           filename: this.filename,
           firstPartyPluginAvailable: this.firstPartyPluginAvailable(),
           language: this.language,
+          languageName: this.languageName,
           languageSwitcherLanguage: this.languageSwitcherLanguage,
+          languageSwitcherName: this.languageSwitcherName,
           pluginConnected: this.pluginConnected(),
           pluginInstalled: this.pluginInstalled(),
           sourceAvailable: this.sourceAvailable,
@@ -424,7 +438,7 @@ export default class Active {
       this.custom.send("contextChanged", {
         application: app,
         filename,
-        language: languages[language] ? languages[language]!.name : "",
+        language: this.languageName,
       });
     }
   }

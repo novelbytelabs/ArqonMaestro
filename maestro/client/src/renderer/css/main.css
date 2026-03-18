@@ -12,12 +12,35 @@
   }
 
   .secondary-button {
-    @apply rounded-full text-white bg-violet-600 hover:bg-violet-700 shadow-violet-600/50 dark:bg-violet-800 dark:hover:bg-violet-900 dark:shadow-violet-800/50 shadow-md transition-colors;
-    padding: 0.5em 1.5em;
+    @apply rounded-full text-white bg-cyan-600 hover:bg-cyan-700 shadow-cyan-600/50 dark:bg-cyan-500 dark:hover:bg-cyan-600 dark:shadow-cyan-500/50 shadow-md transition-all duration-300;
+    padding: 0.6em 2em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .pilot-pill {
+    @apply px-3 py-1 rounded-full border border-amber-500 text-amber-500 text-[10px] uppercase font-bold tracking-widest bg-amber-500/10;
   }
 
   .input {
-    @apply text-slate-600 border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-violet-600 shadow dark:bg-gray-700 dark:text-slate-200;
+    @apply text-white border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-cyan-400/50 shadow-sm font-mono text-sm transition-all;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .input:disabled {
+    @apply opacity-40 cursor-not-allowed bg-black/20;
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .installed-button {
+    @apply rounded-full text-center text-white/40 bg-white/5 border border-white/10 shadow-inner px-4 py-2 cursor-default transition-all;
+    font-size: 0.875rem;
+  }
+
+  .settings-row-title {
+    @apply font-bold text-white mb-0.5;
   }
 }
 
@@ -27,8 +50,24 @@
 }
 
 .app.dark {
-  background: #1e293b;
+  background: #081c26;
   color: #e5e5e5;
+}
+
+.operator-surface {
+  background: radial-gradient(circle at top right, #0d2a38 0%, #081c26 100%);
+  color: #f8fafc;
+}
+
+.glass-card {
+  background: rgba(13, 42, 56, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 12px;
+}
+
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
 }
 
 .app.mini-mode-window {
@@ -43,8 +82,19 @@
   display: none !important;
 }
 
-.rainbow {
-  background: linear-gradient(#a46dff 3.88%, #ff8388 40.34%, #eec14d 70.02%, #82c0ff 100%);
+@keyframes pulse-cyan {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+    border-color: rgba(34, 211, 238, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(34, 211, 238, 0.8), 0 0 35px rgba(34, 211, 238, 0.4);
+    border-color: rgba(34, 211, 238, 1);
+  }
+}
+
+.animate-pulse-cyan {
+  animation: pulse-cyan 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 #nux p {
@@ -57,6 +107,33 @@ input,
 textarea {
   font-family: aktiv-grotesk, sans-serif;
   color: #475569;
+}
+
+/* Precision scaling for Maestro's narrow sidecar (275px) */
+@media (max-width: 320px) {
+  .operator-surface h1 {
+    font-size: 1.25rem !important; /* Shrink to prevent TitleBar overlap */
+    line-height: 1.1 !important;
+    margin-top: 1rem;
+  }
+  .operator-surface p {
+    font-size: 0.75rem !important;
+    line-height: 1.4 !important;
+    max-width: 100% !important;
+    margin-bottom: 1rem !important;
+  }
+  .operator-surface .secondary-button {
+    padding: 0.4em 1em !important;
+    font-size: 0.75rem !important;
+  }
+  .welcome-container {
+    padding-top: 2rem !important; /* Extra clearance for TitleBar */
+    gap: 1rem !important;
+  }
+  .welcome-hero {
+    width: 60% !important;
+    margin-top: 1rem !important;
+  }
 }
 
 html,
