@@ -29,15 +29,18 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 ## Current snapshot
 
 * Date: 2026-03-18
-* Program state: FP-2A/2B integrated (stubbed implementations)
-* Active phase: Phase 2A/2B - Integration complete, implementations need completion
-* Reasoning posture: `high` is appropriate while acceptance criteria are being verified
+* Program state: Phase 1 complete; Voice Plane Modernization is the active implementation wave
+* Active wave: **Wave A** - Audio Front-End Modernization
+* Phase 2A/2B: Scaffolding integrated, implementations stubbed - cannot complete until Waves A-D complete
+* Reasoning posture: `high` is appropriate while voice plane modernization begins
 
 ---
 
 ## Phase 2A/2B Implementation Status
 
-> **⚠️ IMPORTANT**: Phase 2A and 2B have been integrated into the executor but contain STUBBED implementations. See [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) for detailed gap analysis.
+> **⚠️ IMPORTANT**: Phase 2A and 2B have been integrated into the executor but contain STUBBED implementations. These phases cannot complete until **Voice Plane Modernization (Waves A-D)** is complete. See [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) for detailed gap analysis and prerequisite order.
+
+> **⚠️ GOVERNANCE NOTE**: `maestro-project-roadmap.md` is the canonical phase authority. This document is a code snapshot. If they conflict, the roadmap wins.
 
 ### FP-2A: Identity and Safety Gating
 
@@ -74,9 +77,10 @@ The Focus Project implements a layered focus management system for Arqon Maestro
    - File: [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts)
    - Add: `persist()` / `load()` methods using file system or database
 
-2. **Integrate STT Provider for Speaker Verification**
+2. **Integrate Dedicated Speaker Verification Backend**
    - File: [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts)
-   - Add: Call to STT provider for voiceprint matching
+   - Add: Call to dedicated verification backend (pyannote.audio or WeSpeaker) for voiceprint matching
+   - Note: Speaker verification is separate from STT; it consumes audio segments but does not depend on STT provider integration
    - Methods to implement: `verifySpeaker()`, `enrollSpeaker()`, `getVoiceProfile()`
 
 3. **Add Diarization Support**
