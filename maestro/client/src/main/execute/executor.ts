@@ -1959,12 +1959,17 @@ export default class Executor {
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
 
+      console.log(`[FP-2A] Authorizing: ${commandFamily}/${commandType} risk=${riskLevel}`);
+      console.log(`[FP-2A] Identity state: ${JSON.stringify(this.identityGateway.getIdentityContext())}`);
+
       // Authorize through identity gateway
       const result = await this.identityGateway.authorize({
         commandFamily,
         commandVerb: command.text || commandType,
         riskLevel,
       });
+
+      console.log(`[FP-2A] Auth result: ${result.decision} - ${result.reason}`);
 
       if (result.decision === AuthorizationDecision.ALLOW) {
         return { authorized: true };
