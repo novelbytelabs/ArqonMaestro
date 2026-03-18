@@ -283,44 +283,23 @@ class SpeechRecorder {
       const volume = this.rms(denoisedAudio);
       
       // Wave A: Get VAD decision from provider
-      const vadDecision: VadDecision = {
-        isSpeech: false,
-        speechProb: 0,
-        volume,
-        noiseFloor: this.noiseFloor,
-        timestampMs: audioFrame.timestampMs,
+      const vadDecision = this.vadProvider.process({
+        pcm16: denoisedAudio,
+        sampleRate: audioFrame.sampleRate,
+        channels: audioFrame.channels,
         frameIndex: audioFrame.frameIndex,
-      };
+        timestampMs: audioFrame.timestampMs,
+        streamTimeMs: audioFrame.streamTimeMs,
+      });
       
-      // Apply VAD logic (matching existing behavior)
+      // Use VAD provider result for speech state
+      this.speaking = vadDecision.isSpeech;
+      this.noiseFloor = vadDecision.noiseFloor;
+      
+      // Get thresholds for logging (computed by provider internally)
       const silenceThreshold = this.effectiveSilenceThreshold();
       const speechThreshold = this.effectiveSpeechThreshold();
-
-      if (!this.speaking) {
-        this.noiseFloor = this.noiseFloor * 0.95 + volume * 0.05;
-      }
-
-      if (volume >= speechThreshold) {
-        this.consecutiveSpeech += 1;
-        this.consecutiveSilence = 0;
-        if (this.consecutiveSpeech >= this.consecutiveFramesForSpeaking) {
-          this.speaking = true;
-        }
-      } else if (volume <= silenceThreshold) {
-        this.consecutiveSpeech = 0;
-        this.consecutiveSilence += 1;
-        if (this.consecutiveSilence >= this.silenceFramesToEnd) {
-          this.speaking = false;
-        }
-      } else {
-        this.consecutiveSpeech = 0;
-        this.consecutiveSilence = 0;
-      }
-
-      // Update VAD decision with actual speech state
-      vadDecision.isSpeech = this.speaking;
-      vadDecision.noiseFloor = this.noiseFloor;
-
+      
       const wasSpeaking = vadDecision.isSpeech;
 
       if (!wasSpeaking && this.speaking) {
