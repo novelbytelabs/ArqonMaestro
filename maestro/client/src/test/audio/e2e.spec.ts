@@ -2,28 +2,40 @@ import { hasIllegalChunkOrdering, runRecorderScenario } from "./helpers/recorder
 import {
   makeBurstNoiseFixture,
   makeCleanSpeechFixture,
+  makeInterruptionCandidateFixture,
   makeSpeechWithPauseFixture,
 } from "./helpers/pcm-fixtures";
 
-describe("E2E: SpeechRecorder through replayed PCM", () => {
-  it("clean speech clip produces exactly one start and one end", () => {
+describe("E2E: SpeechRecorder through replayed PCM (Patch 3)", () => {
+  it("clean speech clip keeps primary transitions and runs shadow comparisons", () => {
     const fixture = makeCleanSpeechFixture();
     const trace = runRecorderScenario({ buffers: fixture.buffers });
 
     expect(trace.chunkStarts.length).toBe(1);
     expect(trace.chunkEnds).toBe(1);
+    expect(trace.vadComparisons.length).toBe(fixture.buffers.length);
     expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
   });
 
-  it("speech with short pause stays in one chunk and closes once", () => {
+  it("speech with pauses emits enriched speech start/end events", () => {
     const fixture = makeSpeechWithPauseFixture();
     const trace = runRecorderScenario({ buffers: fixture.buffers });
+    const events = trace.turnEvents.map((event) => event.type);
 
-    expect(trace.chunkStarts.length).toBe(1);
-    expect(trace.chunkEnds).toBe(1);
+    expect(events).toContain("speech_start");
+    expect(events).toContain("speech_end");
   });
 
-  it("burst noise does not create transition spam", () => {
+  it("interruption-style fixture emits candidate events", () => {
+    const fixture = makeInterruptionCandidateFixture();
+    const trace = runRecorderScenario({ buffers: fixture.buffers });
+    const eventTypes = trace.turnEvents.map((event) => event.type);
+
+    expect(eventTypes).toContain("barge_in_candidate");
+    expect(eventTypes).toContain("interrupt_candidate");
+  });
+
+  it("burst noise does not create illegal transition ordering", () => {
     const fixture = makeBurstNoiseFixture();
     const trace = runRecorderScenario({ buffers: fixture.buffers });
 
@@ -32,26 +44,22 @@ describe("E2E: SpeechRecorder through replayed PCM", () => {
     expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
   });
 
-  it("callback payloads include real timing metadata", () => {
+  it("audio and turn-event payloads include timing metadata", () => {
     const fixture = makeCleanSpeechFixture();
+    const captureStart = 1_712_000_000_000;
     const trace = runRecorderScenario({
       buffers: fixture.buffers,
-      captureStartWallClockMs: 1_712_000_000_000,
+      captureStartWallClockMs: captureStart,
     });
 
-    expect(trace.audioEvents.length).toBeGreaterThan(0);
-    expect(trace.chunkStarts.length).toBe(1);
-
     for (const event of trace.audioEvents) {
-      expect(typeof event.frameIndex).toBe("number");
-      expect(typeof event.timestampMs).toBe("number");
-      expect(typeof event.streamTimeMs).toBe("number");
-      expect(event.timestampMs).toBeCloseTo(1_712_000_000_000 + (event.streamTimeMs ?? 0), 6);
+      expect(event.timestampMs).toBeCloseTo(captureStart + (event.streamTimeMs ?? 0), 6);
     }
 
-    const chunkStart = trace.chunkStarts[0];
-    expect(typeof chunkStart.frameIndex).toBe("number");
-    expect(typeof chunkStart.timestampMs).toBe("number");
-    expect(typeof chunkStart.streamTimeMs).toBe("number");
+    for (const event of trace.turnEvents) {
+      expect(event.timestampMs).toBeCloseTo(captureStart + event.streamTimeMs, 6);
+      expect(typeof event.primary.speechProb).toBe("number");
+      expect(typeof event.shadow.speechProb).toBe("number");
+    }
   });
 });

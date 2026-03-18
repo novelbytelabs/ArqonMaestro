@@ -13,6 +13,8 @@ describe("Adversarial: SpeechRecorder real recorder path", () => {
   it("handles long silence without crashing or emitting chunks", () => {
     const trace = runRecorderScenario({ buffers: framesToBuffers(buildSilenceFrames(1000)) });
     expect(trace.audioEvents.length).toBe(1000);
+    expect(trace.vadComparisons.length).toBe(1000);
+    expect(trace.providerCalls.shadowVad).toBe(1000);
     expect(trace.chunkStarts.length).toBe(0);
     expect(trace.chunkEnds).toBe(0);
   });
@@ -65,6 +67,17 @@ describe("Adversarial: SpeechRecorder real recorder path", () => {
     const trace = runRecorderScenario({ buffers: framesToBuffers(lowNoise) });
     expect(trace.chunkStarts.length).toBe(0);
     expect(trace.chunkEnds).toBe(0);
+    expect(trace.vadComparisons.length).toBe(400);
+  });
+
+  it("handles near-threshold oscillation while keeping shadow observable", () => {
+    const nearThreshold = Array.from({ length: 120 }, (_, index) =>
+      index % 2 === 0 ? constantFrame(240) : constantFrame(560),
+    );
+    const trace = runRecorderScenario({ buffers: framesToBuffers(nearThreshold) });
+    expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
+    expect(trace.vadComparisons.length).toBe(120);
+    expect(trace.vadComparisons.some((comparison) => !comparison.agreement)).toBe(true);
   });
 
   it("handles duplicate buffer injection with monotonic metadata", () => {

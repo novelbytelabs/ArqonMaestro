@@ -109,6 +109,13 @@ Includes:
 * turn-detection/VAD contract hardening
 * measurable barge-in and interrupt behavior
 
+Current implementation note (2026-03-18):
+
+* Patch 3 now runs `SileroVadProvider` in **shadow mode** alongside the primary `DefaultVadProvider`
+* live chunk transitions still follow the primary provider (no silent cutover)
+* turn-layer events now include `speech_start`, `speech_end`, `barge_in_candidate`, and `interrupt_candidate`
+* shadow comparison telemetry is emitted per frame for agreement/disagreement analysis
+
 Roadmap relationship:
 
 * prerequisite for Wave B

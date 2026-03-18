@@ -1,4 +1,9 @@
-import { SpeechRecorder, SpeechRecorderOptions } from "../../../main/audio/index";
+import {
+  SpeechRecorder,
+  SpeechRecorderOptions,
+  TurnEvent,
+  VadShadowComparison,
+} from "../../../main/audio/index";
 
 export type RecorderCtor = new (options?: SpeechRecorderOptions) => SpeechRecorder;
 
@@ -20,7 +25,7 @@ export interface AudioEvent {
 }
 
 export interface TraceEvent {
-  kind: "chunk-start" | "chunk-end" | "audio";
+  kind: "chunk-start" | "chunk-end" | "audio" | "turn-event" | "vad-comparison";
   frameIndex?: number;
 }
 
@@ -28,10 +33,13 @@ export interface RecorderTrace {
   chunkStarts: ChunkStartEvent[];
   chunkEnds: number;
   audioEvents: AudioEvent[];
+  turnEvents: TurnEvent[];
+  vadComparisons: VadShadowComparison[];
   eventOrder: TraceEvent[];
   providerCalls: {
     denoise: number;
-    vad: number;
+    primaryVad: number;
+    shadowVad: number;
   };
 }
 
@@ -47,14 +55,18 @@ interface InternalRecorder {
   currentChunkFrames?: number;
   debugFrameCounter?: number;
   denoiseProvider?: { process: (frame: unknown) => unknown };
-  vadProvider?: { process: (frame: unknown) => unknown };
+  primaryVadProvider?: { process: (frame: unknown) => unknown };
+  shadowVadProvider?: { process: (frame: unknown) => unknown };
 }
 
 export interface RunScenarioOptions {
   buffers: Buffer[];
   captureStartWallClockMs?: number;
   recorderCtor?: RecorderCtor;
-  recorderOptions?: Omit<SpeechRecorderOptions, "onChunkStart" | "onAudio" | "onChunkEnd">;
+  recorderOptions?: Omit<
+    SpeechRecorderOptions,
+    "onChunkStart" | "onAudio" | "onChunkEnd" | "onTurnEvent" | "onVadComparison"
+  >;
 }
 
 const DEFAULT_CAPTURE_START_MS = 1_710_000_000_000;
@@ -62,6 +74,8 @@ const DEFAULT_CAPTURE_START_MS = 1_710_000_000_000;
 export function runRecorderScenario(options: RunScenarioOptions): RecorderTrace {
   const chunkStarts: ChunkStartEvent[] = [];
   const audioEvents: AudioEvent[] = [];
+  const turnEvents: TurnEvent[] = [];
+  const vadComparisons: VadShadowComparison[] = [];
   const eventOrder: TraceEvent[] = [];
   let chunkEnds = 0;
 
@@ -93,6 +107,14 @@ export function runRecorderScenario(options: RunScenarioOptions): RecorderTrace 
       chunkEnds += 1;
       eventOrder.push({ kind: "chunk-end" });
     },
+    onTurnEvent: (event) => {
+      turnEvents.push(event);
+      eventOrder.push({ kind: "turn-event", frameIndex: event.frameIndex });
+    },
+    onVadComparison: (comparison) => {
+      vadComparisons.push(comparison);
+      eventOrder.push({ kind: "vad-comparison", frameIndex: comparison.frameIndex });
+    },
   });
 
   const internal = recorder as unknown as InternalRecorder;
@@ -113,7 +135,8 @@ export function runRecorderScenario(options: RunScenarioOptions): RecorderTrace 
   internal.debugFrameCounter = 0;
 
   let denoiseCalls = 0;
-  let vadCalls = 0;
+  let primaryVadCalls = 0;
+  let shadowVadCalls = 0;
 
   if (internal.denoiseProvider && typeof internal.denoiseProvider.process === "function") {
     const original = internal.denoiseProvider.process.bind(internal.denoiseProvider);
@@ -123,10 +146,18 @@ export function runRecorderScenario(options: RunScenarioOptions): RecorderTrace 
     };
   }
 
-  if (internal.vadProvider && typeof internal.vadProvider.process === "function") {
-    const original = internal.vadProvider.process.bind(internal.vadProvider);
-    internal.vadProvider.process = (frame: unknown) => {
-      vadCalls += 1;
+  if (internal.primaryVadProvider && typeof internal.primaryVadProvider.process === "function") {
+    const original = internal.primaryVadProvider.process.bind(internal.primaryVadProvider);
+    internal.primaryVadProvider.process = (frame: unknown) => {
+      primaryVadCalls += 1;
+      return original(frame);
+    };
+  }
+
+  if (internal.shadowVadProvider && typeof internal.shadowVadProvider.process === "function") {
+    const original = internal.shadowVadProvider.process.bind(internal.shadowVadProvider);
+    internal.shadowVadProvider.process = (frame: unknown) => {
+      shadowVadCalls += 1;
       return original(frame);
     };
   }
@@ -139,10 +170,13 @@ export function runRecorderScenario(options: RunScenarioOptions): RecorderTrace 
     chunkStarts,
     chunkEnds,
     audioEvents,
+    turnEvents,
+    vadComparisons,
     eventOrder,
     providerCalls: {
       denoise: denoiseCalls,
-      vad: vadCalls,
+      primaryVad: primaryVadCalls,
+      shadowVad: shadowVadCalls,
     },
   };
 }

@@ -88,6 +88,17 @@ export function makeSpeechWithPauseFixture(): PcmFixture {
   return { name: "speech-with-pause", buffers: framesToBuffers(frames) };
 }
 
+export function makeInterruptionCandidateFixture(): PcmFixture {
+  const frames = [
+    ...buildSilenceFrames(20),
+    ...buildSpeechFrames(5, 20, 10000),
+    ...buildSilenceFrames(4),
+    ...buildSpeechFrames(5, 29, 12000),
+    ...buildSilenceFrames(14),
+  ];
+  return { name: "interruption-candidate", buffers: framesToBuffers(frames) };
+}
+
 export function makeBurstNoiseFixture(): PcmFixture {
   const frames: Int16Array[] = [];
   frames.push(...buildSilenceFrames(12));
@@ -142,6 +153,7 @@ export function buildRegressionFixtures(): PcmFixture[] {
     { name: "silence-only", buffers: framesToBuffers(buildSilenceFrames(30)) },
     makeCleanSpeechFixture(),
     makeSpeechWithPauseFixture(),
+    makeInterruptionCandidateFixture(),
     makeBurstNoiseFixture(),
     makeNearThresholdOscillationFixture(),
     makeClippedDistortedFixture(),

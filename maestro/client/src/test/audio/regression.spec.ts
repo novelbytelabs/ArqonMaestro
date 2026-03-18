@@ -6,7 +6,7 @@ import { SpeechRecorder } from "../../main/audio/index";
 import { runRecorderScenario } from "./helpers/recorder-harness";
 import { buildRegressionFixtures } from "./helpers/pcm-fixtures";
 
-const BASELINE_COMMIT = "2c2a7b7";
+const BASELINE_COMMIT = "a05bf45";
 
 type ModuleExports = Record<string, unknown>;
 type RecorderConstructor = new (...args: unknown[]) => SpeechRecorder;
@@ -123,7 +123,7 @@ function loadBaselineRecorderCtor(): RecorderConstructor {
   return baselineCtor as RecorderConstructor;
 }
 
-describe("Regression: baseline (2c2a7b7) vs current", () => {
+describe("Regression: baseline (a05bf45) vs current", () => {
   const comparisons: FixtureComparison[] = [];
   const fixtures = buildRegressionFixtures();
   let BaselineRecorder: RecorderConstructor;
@@ -145,8 +145,14 @@ describe("Regression: baseline (2c2a7b7) vs current", () => {
         captureStartWallClockMs: 1_710_000_000_000,
       });
 
-      const baselineOrder = baseline.eventOrder.map((event) => event.kind).join(",");
-      const currentOrder = current.eventOrder.map((event) => event.kind).join(",");
+      const baselineOrder = baseline.eventOrder
+        .filter((event) => event.kind === "audio" || event.kind === "chunk-start" || event.kind === "chunk-end")
+        .map((event) => event.kind)
+        .join(",");
+      const currentOrder = current.eventOrder
+        .filter((event) => event.kind === "audio" || event.kind === "chunk-start" || event.kind === "chunk-end")
+        .map((event) => event.kind)
+        .join(",");
 
       comparisons.push({
         fixture: fixture.name,
@@ -161,6 +167,11 @@ describe("Regression: baseline (2c2a7b7) vs current", () => {
       expect(current.chunkStarts.map((entry) => entry.audioLength)).toEqual(
         baseline.chunkStarts.map((entry) => entry.audioLength),
       );
+      if (baseline.audioEvents.length > 0 && current.audioEvents.length > 0) {
+        expect(Object.keys(current.audioEvents[0]).sort()).toEqual(
+          Object.keys(baseline.audioEvents[0]).sort(),
+        );
+      }
     }
   });
 
