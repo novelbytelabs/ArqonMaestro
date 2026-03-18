@@ -4,17 +4,23 @@ import {
   spawnSync,
 } from "child_process";
 
+import { DenoiseProvider, NoopDenoiseProvider, DenoiseFrame } from "./denoise-provider";
+import { VadProvider, DefaultVadProvider, VadDecision, VadConfig } from "./vad-provider";
+
 export interface SpeechRecorderOptions {
   device?: number;
   sileroVadSilenceThreshold?: number;
   sileroVadSpeechThreshold?: number;
   sileroVadSpeakingThreshold?: number;
-  onChunkStart?: (data: { audio: Int16Array }) => void;
+  onChunkStart?: (data: { audio: Int16Array; frameIndex: number; timestampMs: number; streamTimeMs: number }) => void;
   onAudio?: (data: {
     audio: Int16Array;
     consecutiveSilence: number;
     speaking: boolean;
     volume: number;
+    frameIndex: number;
+    timestampMs: number;
+    streamTimeMs: number;
   }) => void;
   onChunkEnd?: () => void;
 }
@@ -23,6 +29,25 @@ export interface AudioDeviceInfo {
   id: number;
   name: string;
   maxInputChannels: number;
+}
+
+/**
+ * Audio frame contract with metadata
+ * Wave A: Frame metadata attached at frame creation point
+ */
+export interface AudioFrame {
+  /** PCM audio data */
+  pcm16: Int16Array;
+  /** Sample rate (Hz) */
+  sampleRate: number;
+  /** Number of channels */
+  channels: number;
+  /** Monotonic frame index */
+  frameIndex: number;
+  /** Wall-clock timestamp at capture */
+  timestampMs: number;
+  /** Stream time in milliseconds (derived from frame count and sample rate) */
+  streamTimeMs: number;
 }
 
 const SAMPLE_RATE = 16000;
@@ -48,6 +73,14 @@ class SpeechRecorder {
   private baseSilenceThreshold = 0.008;
   private baseSpeechThreshold = 0.015;
   private noiseFloor = 0.002;
+  
+  // Wave A: Frame metadata tracking
+  private frameIndex = 0;
+  private streamStartTime = 0;
+  
+  // Wave A: Provider chain
+  private denoiseProvider: DenoiseProvider;
+  private vadProvider: VadProvider;
 
   constructor(private options: SpeechRecorderOptions = {}) {
     this.baseSilenceThreshold = this.mapVadThreshold(options.sileroVadSilenceThreshold, 0.008);
@@ -58,6 +91,17 @@ class SpeechRecorder {
     if (this.baseSilenceThreshold >= this.baseSpeechThreshold) {
       this.baseSilenceThreshold = Math.max(0.001, this.baseSpeechThreshold * 0.7);
     }
+    
+    // Initialize providers with current VAD configuration
+    const vadConfig: VadConfig = {
+      baseSilenceThreshold: this.baseSilenceThreshold,
+      baseSpeechThreshold: this.baseSpeechThreshold,
+      silenceFramesToEnd: this.silenceFramesToEnd,
+      consecutiveFramesForSpeaking: this.consecutiveFramesForSpeaking,
+    };
+    
+    this.denoiseProvider = new NoopDenoiseProvider();
+    this.vadProvider = new DefaultVadProvider(vadConfig);
   }
 
   private mapVadThreshold(value: number | undefined, fallback: number): number {
@@ -187,6 +231,28 @@ class SpeechRecorder {
     return this.pcmToInt16(Buffer.concat(frames));
   }
 
+  /**
+   * Create an AudioFrame with metadata
+   * Wave A: Frame metadata attached at frame creation point
+   */
+  private createAudioFrame(pcmData: Int16Array): AudioFrame {
+    const timestampMs = Date.now();
+    const streamTimeMs = (this.frameIndex * FRAME_SAMPLES / SAMPLE_RATE) * 1000;
+    
+    return {
+      pcm16: pcmData,
+      sampleRate: SAMPLE_RATE,
+      channels: CHANNELS,
+      frameIndex: this.frameIndex,
+      timestampMs,
+      streamTimeMs,
+    };
+  }
+
+  /**
+   * Process PCM data through the provider chain
+   * Wave A: Denoise -> VAD -> speech state decisions
+   */
   private processPcmData(data: Buffer): void {
     this.pcmBuffer = Buffer.concat([this.pcmBuffer, data]);
 
@@ -198,9 +264,35 @@ class SpeechRecorder {
         this.leadingFrames.shift();
       }
 
+      // Wave A: Create frame with metadata
       const audio = this.pcmToInt16(frame);
-      const volume = this.rms(audio);
-      const wasSpeaking = this.speaking;
+      const audioFrame = this.createAudioFrame(audio);
+      
+      // Wave A: Pass through denoise provider
+      const denoiseResult = this.denoiseProvider.process({
+        pcm16: audioFrame.pcm16,
+        sampleRate: audioFrame.sampleRate,
+        channels: audioFrame.channels,
+        frameIndex: audioFrame.frameIndex,
+        timestampMs: audioFrame.timestampMs,
+        streamTimeMs: audioFrame.streamTimeMs,
+      });
+      
+      // Use denoised audio for VAD
+      const denoisedAudio = denoiseResult.frame.pcm16;
+      const volume = this.rms(denoisedAudio);
+      
+      // Wave A: Get VAD decision from provider
+      const vadDecision: VadDecision = {
+        isSpeech: false,
+        speechProb: 0,
+        volume,
+        noiseFloor: this.noiseFloor,
+        timestampMs: audioFrame.timestampMs,
+        frameIndex: audioFrame.frameIndex,
+      };
+      
+      // Apply VAD logic (matching existing behavior)
       const silenceThreshold = this.effectiveSilenceThreshold();
       const speechThreshold = this.effectiveSpeechThreshold();
 
@@ -225,6 +317,12 @@ class SpeechRecorder {
         this.consecutiveSilence = 0;
       }
 
+      // Update VAD decision with actual speech state
+      vadDecision.isSpeech = this.speaking;
+      vadDecision.noiseFloor = this.noiseFloor;
+
+      const wasSpeaking = vadDecision.isSpeech;
+
       if (!wasSpeaking && this.speaking) {
         this.currentChunkFrames = 0;
         console.log(
@@ -232,7 +330,13 @@ class SpeechRecorder {
             4
           )} noiseFloor=${this.noiseFloor.toFixed(4)}`
         );
-        this.options.onChunkStart?.({ audio: this.concatFrames(this.leadingFrames) });
+        // Wave A: Include frame metadata in callback
+        this.options.onChunkStart?.({ 
+          audio: this.concatFrames(this.leadingFrames),
+          frameIndex: audioFrame.frameIndex,
+          timestampMs: audioFrame.timestampMs,
+          streamTimeMs: audioFrame.streamTimeMs,
+        });
       } else if (wasSpeaking && !this.speaking) {
         this.currentChunkFrames = 0;
         console.log(
@@ -271,12 +375,19 @@ class SpeechRecorder {
         );
       }
 
+      // Wave A: Include frame metadata in audio callback
       this.options.onAudio?.({
-        audio,
+        audio: denoisedAudio,
         consecutiveSilence: this.consecutiveSilence,
         speaking: this.speaking,
         volume,
+        frameIndex: audioFrame.frameIndex,
+        timestampMs: audioFrame.timestampMs,
+        streamTimeMs: audioFrame.streamTimeMs,
       });
+      
+      // Increment frame index after processing
+      this.frameIndex++;
     }
   }
 
@@ -294,6 +405,15 @@ class SpeechRecorder {
     this.pcmBuffer = Buffer.alloc(0);
     this.leadingFrames = [];
     this.noiseFloor = 0.002;
+    
+    // Wave A: Reset frame metadata
+    this.frameIndex = 0;
+    this.streamStartTime = Date.now();
+    
+    // Wave A: Reset providers
+    this.denoiseProvider.reset();
+    this.vadProvider.reset();
+    
     console.log(
       `[Audio] Starting recorder device=${this.options.device ?? -1} silenceThreshold=${this.baseSilenceThreshold.toFixed(
         4
@@ -382,5 +502,6 @@ async function getDevices(): Promise<AudioDeviceInfo[]> {
   return devices();
 }
 
-export { SpeechRecorder, devices, getDevices };
+export { SpeechRecorder, devices, getDevices, NoopDenoiseProvider, DefaultVadProvider };
+export type { DenoiseProvider, DenoiseFrame, VadProvider, VadDecision, VadConfig, AudioFrame };
 export default SpeechRecorder;

@@ -63,13 +63,13 @@ export default class Microphone {
       sileroVadSilenceThreshold: this.settings.getChunkSilenceThreshold(),
       sileroVadSpeechThreshold: this.settings.getChunkSpeechThreshold(),
       sileroVadSpeakingThreshold: this.settings.getChunkSpeechThreshold(),
-      onChunkStart: ({ audio }: { audio: any }) => {
+      onChunkStart: ({ audio, frameIndex, timestampMs, streamTimeMs }: { audio: any; frameIndex?: number; timestampMs?: number; streamTimeMs?: number }) => {
         this.currentChunkAudio = audio;
         this.currentSpeaking = true;
         this.currentConsecutiveSilence = 0;
         this.volumeWhileSpeakingBuffer = [];
         for (const callback of Object.values(this.callbacks)) {
-          callback({ event: "chunk_start", audio });
+          callback({ event: "chunk_start", audio, frameIndex, timestampMs, streamTimeMs });
         }
       },
       onAudio: async ({
@@ -77,11 +77,17 @@ export default class Microphone {
         consecutiveSilence,
         speaking,
         volume,
+        frameIndex,
+        timestampMs,
+        streamTimeMs,
       }: {
         audio: any;
         consecutiveSilence: number;
         speaking: boolean;
         volume: number;
+        frameIndex?: number;
+        timestampMs?: number;
+        streamTimeMs?: number;
       }) => {
         this.currentChunkAudio = audio;
         this.currentConsecutiveSilence = consecutiveSilence;
@@ -118,7 +124,7 @@ export default class Microphone {
         }
 
         for (const callback of Object.values(this.callbacks)) {
-          callback({ event: "audio", audio, volume, speaking, consecutiveSilence });
+          callback({ event: "audio", audio, volume, speaking, consecutiveSilence, frameIndex, timestampMs, streamTimeMs });
         }
       },
       onChunkEnd: () => {
@@ -161,13 +167,16 @@ export default class Microphone {
     } else if (!this.running) {
       this.start();
     } else if (this.currentSpeaking) {
-      callback({ event: "chunk_start", audio: this.currentChunkAudio });
+      callback({ event: "chunk_start", audio: this.currentChunkAudio, frameIndex: undefined, timestampMs: undefined, streamTimeMs: undefined });
       callback({
         event: "audio",
         audio: this.currentChunkAudio,
         volume: this.currentVolume,
         speaking: this.currentSpeaking,
         consecutiveSilence: this.currentConsecutiveSilence,
+        frameIndex: undefined,
+        timestampMs: undefined,
+        streamTimeMs: undefined,
       });
     }
   }
