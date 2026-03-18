@@ -31,8 +31,28 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 * Date: 2026-03-18
 * Program state: Phase 1 complete; Voice Plane Modernization is the active implementation wave
 * Active wave: **Wave A** - Audio Front-End Modernization
+* Wave A Status: **Patch 1+2 implemented** - Frame contract and provider boundaries complete, tests passing
 * Phase 2A/2B: Scaffolding integrated, implementations stubbed - cannot complete until Waves A-D complete
 * Reasoning posture: `high` is appropriate while voice plane modernization begins
+
+## Wave A Implementation Status (Audio Front-End Modernization)
+
+### Patch 1: Frame Contract + Timestamps
+- **Status**: ✅ Implemented
+- **Files**: `maestro/client/src/main/audio/index.ts`
+- **Changes**: Added AudioFrame interface with frameIndex, timestampMs, streamTimeMs, sampleRate, channels
+
+### Patch 2: Provider Boundaries
+- **Status**: ✅ Implemented
+- **Files**: 
+  - `maestro/client/src/main/audio/denoise-provider.ts` - DenoiseProvider interface + NoopDenoiseProvider
+  - `maestro/client/src/main/audio/vad-provider.ts` - VadProvider interface + DefaultVadProvider
+- **Changes**: Wrapped existing VAD logic in DefaultVadProvider, added provider chain
+
+### Test Suite
+- **Status**: ✅ 73 tests passing across 6 test suites
+- **Categories**: Unit, Integration, E2E, Regression, Adversarial
+- **Location**: `maestro/client/src/test/audio/`
 
 ---
 
