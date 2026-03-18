@@ -503,5 +503,5 @@ async function getDevices(): Promise<AudioDeviceInfo[]> {
 }
 
 export { SpeechRecorder, devices, getDevices, NoopDenoiseProvider, DefaultVadProvider };
-export type { DenoiseProvider, DenoiseFrame, VadProvider, VadDecision, VadConfig, AudioFrame };
+export type { DenoiseProvider, DenoiseFrame, VadProvider, VadDecision, VadConfig };
 export default SpeechRecorder;

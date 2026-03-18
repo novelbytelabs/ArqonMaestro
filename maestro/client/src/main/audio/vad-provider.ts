@@ -92,12 +92,17 @@ export class DefaultVadProvider implements VadProvider {
         this.config.baseSpeechThreshold * 0.7
       );
     }
+    
+    this.ready = true;
   }
 
   /**
    * Calculate RMS of audio frame
    */
   private calculateRms(audio: Int16Array): number {
+    if (audio.length === 0) {
+      return 0;
+    }
     let sum = 0;
     for (let i = 0; i < audio.length; i++) {
       const sample = audio[i] / 32768;

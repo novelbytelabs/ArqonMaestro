@@ -63,7 +63,7 @@ export class NoopDenoiseProvider implements DenoiseProvider {
   }
 
   process(frame: DenoiseFrame): DenoiseResult {
-    const startTime = performance.now();
+    const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
     
     // Return frame unchanged
     return {
@@ -72,7 +72,7 @@ export class NoopDenoiseProvider implements DenoiseProvider {
         // Clone to ensure immutability
         pcm16: new Int16Array(frame.pcm16),
       },
-      processingTimeMs: performance.now() - startTime,
+      processingTimeMs: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime,
     };
   }
 
