@@ -137,6 +137,18 @@ There are no remaining major planning-spec gaps in the current `/docs/vos` roadm
 
 The next work is implementation, benchmark evidence, and phase-close verification artifacts.
 
+## Runtime Service Implementation Docs (FP-2A/2B)
+
+These documents cover the implemented runtime services for Phase 2A and 2B.
+
+| Document | Status | Description |
+| --- | --- | --- |
+| [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md) | ✅ IMPLEMENTED | Unified API for identity operations |
+| [`maestro-authorization-service.md`](./maestro-authorization-service.md) | ⚠️ STUBBED | Command authorization (real logic, stubbed data) |
+| [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md) | ⚠️ STUBBED | Multi-step workflow execution (not integrated) |
+
+See [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) for detailed gap analysis.
+
 ## Detail worth keeping in mind
 
 The filename [`maestro-mcaro-system.md`](./maestro-mcaro-system.md) appears to contain a typo and is currently serving as the macro-system spec.
