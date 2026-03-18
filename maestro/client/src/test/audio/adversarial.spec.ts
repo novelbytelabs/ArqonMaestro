@@ -1,362 +1,99 @@
-/**
- * Adversarial Tests for Wave A Patch 1+2
- * 
- * Test categories: Adversarial
- * Purpose: Deliberately hostile inputs to break the pipeline
- */
+import { hasIllegalChunkOrdering, runRecorderScenario } from "./helpers/recorder-harness";
+import {
+  buildSilenceFrames,
+  buildSpeechFrames,
+  constantFrame,
+  framesToBuffers,
+  makeBurstNoiseFixture,
+  makeClippedDistortedFixture,
+  makeTruncatedInputFixture,
+} from "./helpers/pcm-fixtures";
 
-import { NoopDenoiseProvider, DefaultVadProvider } from "../../main/audio/index";
-import { DenoiseFrame } from "../../main/audio/denoise-provider";
-
-describe("Adversarial: NoopDenoiseProvider", () => {
-  let provider: NoopDenoiseProvider;
-
-  beforeEach(() => {
-    provider = new NoopDenoiseProvider();
+describe("Adversarial: SpeechRecorder real recorder path", () => {
+  it("handles long silence without crashing or emitting chunks", () => {
+    const trace = runRecorderScenario({ buffers: framesToBuffers(buildSilenceFrames(1000)) });
+    expect(trace.audioEvents.length).toBe(1000);
+    expect(trace.vadComparisons.length).toBe(1000);
+    expect(trace.providerCalls.shadowVad).toBe(1000);
+    expect(trace.chunkStarts.length).toBe(0);
+    expect(trace.chunkEnds).toBe(0);
   });
 
-  describe("Very long silence", () => {
-    it("should handle 1000 consecutive silent frames", () => {
-      const silentFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(0),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
-
-      for (let i = 0; i < 1000; i++) {
-        silentFrame.frameIndex = i;
-        silentFrame.timestampMs = i * 30;
-        silentFrame.streamTimeMs = i * 30;
-
-        expect(() => {
-          provider.process(silentFrame);
-        }).not.toThrow();
-      }
-
-      expect(provider.isReady()).toBe(true);
-    });
+  it("handles repeated zero-length buffers safely", () => {
+    const buffers = [Buffer.alloc(0), Buffer.alloc(0), Buffer.alloc(0), ...framesToBuffers(buildSilenceFrames(5))];
+    const trace = runRecorderScenario({ buffers });
+    expect(trace.audioEvents.length).toBe(5);
+    expect(trace.chunkStarts.length).toBe(0);
+    expect(trace.chunkEnds).toBe(0);
   });
 
-  describe("Repeated zero-length input", () => {
-    it("should handle zero-length PCM repeated 100 times", () => {
-      for (let i = 0; i < 100; i++) {
-        const emptyFrame: DenoiseFrame = {
-          pcm16: new Int16Array(0),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: i * 30,
-          streamTimeMs: i * 30,
-        };
+  it("handles truncated input without illegal transitions", () => {
+    const trace = runRecorderScenario({ buffers: makeTruncatedInputFixture().buffers });
+    expect(trace.audioEvents.length).toBeGreaterThan(0);
+    expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
 
-        expect(() => {
-          provider.process(emptyFrame);
-        }).not.toThrow();
-      }
-    });
+    const frameIndices = trace.audioEvents.map((event) => event.frameIndex ?? -1);
+    for (let i = 1; i < frameIndices.length; i++) {
+      expect(frameIndices[i]).toBe(frameIndices[i - 1] + 1);
+    }
   });
 
-  describe("Malformed/truncated chunk", () => {
-    it("should handle non-standard frame size", () => {
-      const oddSizedFrame: DenoiseFrame = {
-        pcm16: new Int16Array(123), // Not divisible by 480
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
+  it("handles rapid speech/silence alternation without illegal ordering", () => {
+    const alternating = Array.from({ length: 80 }, (_, index) =>
+      index % 2 === 0 ? constantFrame(10000) : constantFrame(0),
+    );
+    const trace = runRecorderScenario({ buffers: framesToBuffers(alternating) });
 
-      expect(() => {
-        provider.process(oddSizedFrame);
-      }).not.toThrow();
-    });
-
-    it("should handle single sample frame", () => {
-      const singleSample: DenoiseFrame = {
-        pcm16: new Int16Array(1),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
-
-      expect(() => {
-        provider.process(singleSample);
-      }).not.toThrow();
-    });
+    expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
+    expect(trace.chunkStarts.length).toBeGreaterThanOrEqual(trace.chunkEnds);
   });
 
-  describe("Oscillating near threshold", () => {
-    it("should handle rapid threshold oscillation", () => {
-      for (let i = 0; i < 100; i++) {
-        const nearThreshold = Math.random() * 10 + 200; // Random near threshold
-
-        const frame: DenoiseFrame = {
-          pcm16: new Int16Array(480).fill(Math.floor(nearThreshold)),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: i * 30,
-          streamTimeMs: i * 30,
-        };
-
-        expect(() => {
-          provider.process(frame);
-        }).not.toThrow();
-      }
-    });
+  it("handles clipped input and still closes chunks cleanly", () => {
+    const trace = runRecorderScenario({ buffers: makeClippedDistortedFixture().buffers });
+    expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
+    expect(trace.chunkStarts.length).toBe(1);
+    expect(trace.chunkEnds).toBe(1);
   });
 
-  describe("Rapid speech/silence alternation", () => {
-    it("should handle alternating loud/quiet every frame", () => {
-      for (let i = 0; i < 200; i++) {
-        const frame: DenoiseFrame = {
-          pcm16: new Int16Array(480).fill(i % 2 === 0 ? 8000 : 10),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: i * 30,
-          streamTimeMs: i * 30,
-        };
-
-        expect(() => {
-          provider.process(frame);
-        }).not.toThrow();
-      }
-    });
+  it("handles burst noise without transition spam", () => {
+    const trace = runRecorderScenario({ buffers: makeBurstNoiseFixture().buffers });
+    expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
+    expect(trace.chunkStarts.length).toBeLessThanOrEqual(1);
+    expect(trace.chunkEnds).toBeLessThanOrEqual(1);
   });
 
-  describe("Clipped samples", () => {
-    it("should handle max amplitude samples", () => {
-      const clippedFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(32767), // Max Int16
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
-
-      expect(() => {
-        provider.process(clippedFrame);
-      }).not.toThrow();
-    });
-
-    it("should handle negative clipping", () => {
-      const clippedFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(-32768), // Min Int16
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
-
-      expect(() => {
-        provider.process(clippedFrame);
-      }).not.toThrow();
-    });
+  it("handles sustained background noise without false speech", () => {
+    const lowNoise = Array.from({ length: 400 }, () => constantFrame(220));
+    const trace = runRecorderScenario({ buffers: framesToBuffers(lowNoise) });
+    expect(trace.chunkStarts.length).toBe(0);
+    expect(trace.chunkEnds).toBe(0);
+    expect(trace.vadComparisons.length).toBe(400);
   });
 
-  describe("Burst noise", () => {
-    it("should handle random noise burst", () => {
-      for (let burst = 0; burst < 10; burst++) {
-        const noiseFrame: DenoiseFrame = {
-          pcm16: new Int16Array(480).map(() => Math.floor(Math.random() * 65536 - 32768)),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: burst,
-          timestampMs: burst * 30,
-          streamTimeMs: burst * 30,
-        };
-
-        expect(() => {
-          provider.process(noiseFrame);
-        }).not.toThrow();
-      }
-    });
+  it("handles near-threshold oscillation while keeping shadow observable", () => {
+    const nearThreshold = Array.from({ length: 120 }, (_, index) =>
+      index % 2 === 0 ? constantFrame(240) : constantFrame(560),
+    );
+    const trace = runRecorderScenario({ buffers: framesToBuffers(nearThreshold) });
+    expect(hasIllegalChunkOrdering(trace.eventOrder)).toBe(false);
+    expect(trace.vadComparisons.length).toBe(120);
+    expect(trace.vadComparisons.some((comparison) => !comparison.agreement)).toBe(true);
   });
 
-  describe("Sustained background noise", () => {
-    it("should handle constant background noise", () => {
-      const noiseFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(200), // Constant background
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
+  it("handles duplicate buffer injection with monotonic metadata", () => {
+    const speechFrame = framesToBuffers(buildSpeechFrames(1, 0))[0];
+    const buffers = [
+      ...framesToBuffers(buildSilenceFrames(10)),
+      speechFrame,
+      speechFrame,
+      ...framesToBuffers(buildSilenceFrames(12)),
+    ];
 
-      for (let i = 0; i < 500; i++) {
-        noiseFrame.frameIndex = i;
-        noiseFrame.timestampMs = i * 30;
-        noiseFrame.streamTimeMs = i * 30;
-
-        expect(() => {
-          provider.process(noiseFrame);
-        }).not.toThrow();
-      }
-    });
-  });
-
-  describe("Duplicate frame injection", () => {
-    it("should handle duplicate frameIndex", () => {
-      const frame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(1000),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 42, // Same index repeated
-        timestampMs: 1000,
-        streamTimeMs: 1000,
-      };
-
-      // Process same frame multiple times
-      expect(() => {
-        provider.process(frame);
-        provider.process(frame);
-        provider.process(frame);
-      }).not.toThrow();
-    });
-  });
-});
-
-describe("Adversarial: DefaultVadProvider", () => {
-  let provider: DefaultVadProvider;
-
-  beforeEach(() => {
-    provider = new DefaultVadProvider();
-  });
-
-  describe("No crash under stress", () => {
-    it("should not crash with 10000 rapid frames", () => {
-      for (let i = 0; i < 10000; i++) {
-        const frame: DenoiseFrame = {
-          pcm16: new Int16Array(480).fill(Math.floor(Math.random() * 10000)),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: i * 30,
-          streamTimeMs: i * 30,
-        };
-
-        expect(() => {
-          provider.process(frame);
-        }).not.toThrow();
-      }
-    });
-
-    it("should not crash with NaN input", () => {
-      const nanFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(NaN as any),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
-
-      expect(() => {
-        provider.process(nanFrame);
-      }).not.toThrow();
-    });
-
-    it("should not crash with Infinity input", () => {
-      const infFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(Infinity as any),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 0,
-        timestampMs: 0,
-        streamTimeMs: 0,
-      };
-
-      expect(() => {
-        provider.process(infFrame);
-      }).not.toThrow();
-    });
-  });
-
-  describe("Metadata corruption prevention", () => {
-    it("should preserve frameIndex despite chaotic input", () => {
-      for (let i = 0; i < 100; i++) {
-        const frame: DenoiseFrame = {
-          pcm16: new Int16Array(480).fill(Math.floor(Math.random() * 65536 - 32768)),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: i * 30,
-          streamTimeMs: i * 30,
-        };
-
-        const result = provider.process(frame);
-        expect(result.frameIndex).toBe(i);
-      }
-    });
-
-    it("should preserve timestampMs monotonicity", () => {
-      let lastTimestamp = 0;
-      for (let i = 0; i < 1000; i++) {
-        const frame: DenoiseFrame = {
-          pcm16: new Int16Array(480),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i,
-          timestampMs: i * 30, // Intentionally monotonic
-          streamTimeMs: i * 30,
-        };
-
-        const result = provider.process(frame);
-        expect(result.timestampMs).toBeGreaterThanOrEqual(lastTimestamp);
-        lastTimestamp = result.timestampMs;
-      }
-    });
-  });
-
-  describe("Illegal state transition prevention", () => {
-    it("should handle rapid on/off switching", () => {
-      for (let i = 0; i < 50; i++) {
-        // Alternating loud then silent
-        const loudFrame: DenoiseFrame = {
-          pcm16: new Int16Array(480).fill(8000),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i * 2,
-          timestampMs: i * 60,
-          streamTimeMs: i * 60,
-        };
-
-        const silentFrame: DenoiseFrame = {
-          pcm16: new Int16Array(480).fill(10),
-          sampleRate: 16000,
-          channels: 1,
-          frameIndex: i * 2 + 1,
-          timestampMs: i * 60 + 30,
-          streamTimeMs: i * 60 + 30,
-        };
-
-        provider.process(loudFrame);
-        provider.process(silentFrame);
-      }
-
-      // Provider should still be functional
-      const finalFrame: DenoiseFrame = {
-        pcm16: new Int16Array(480).fill(1000),
-        sampleRate: 16000,
-        channels: 1,
-        frameIndex: 999,
-        timestampMs: 29970,
-        streamTimeMs: 29970,
-      };
-
-      expect(() => {
-        provider.process(finalFrame);
-      }).not.toThrow();
-    });
+    const trace = runRecorderScenario({ buffers });
+    const frameIndices = trace.audioEvents.map((event) => event.frameIndex ?? -1);
+    expect(frameIndices.length).toBe(buffers.length);
+    for (let i = 1; i < frameIndices.length; i++) {
+      expect(frameIndices[i]).toBe(frameIndices[i - 1] + 1);
+    }
   });
 });

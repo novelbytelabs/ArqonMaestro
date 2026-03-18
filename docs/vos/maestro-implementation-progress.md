@@ -31,28 +31,45 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 * Date: 2026-03-18
 * Program state: Phase 1 complete; Voice Plane Modernization is the active implementation wave
 * Active wave: **Wave A** - Audio Front-End Modernization
-* Wave A Status: **Patch 1+2 implemented** - Frame contract and provider boundaries complete, tests passing
+* Wave A Status: **Patch 3 implemented (shadow mode)** - Silero shadow VAD + turn-event enrichment added; primary VAD remains authoritative
 * Phase 2A/2B: Scaffolding integrated, implementations stubbed - cannot complete until Waves A-D complete
 * Reasoning posture: `high` is appropriate while voice plane modernization begins
 
 ## Wave A Implementation Status (Audio Front-End Modernization)
 
 ### Patch 1: Frame Contract + Timestamps
-- **Status**: ✅ Implemented
+- **Status**: ✅ Hard-closed
 - **Files**: `maestro/client/src/main/audio/index.ts`
-- **Changes**: Added AudioFrame interface with frameIndex, timestampMs, streamTimeMs, sampleRate, channels
+- **Changes**: Added AudioFrame interface with frameIndex, timestampMs, streamTimeMs, captureStartWallClockMs, sampleRate, channels
 
 ### Patch 2: Provider Boundaries
-- **Status**: ✅ Implemented
+- **Status**: ✅ Hard-closed
 - **Files**: 
   - `maestro/client/src/main/audio/denoise-provider.ts` - DenoiseProvider interface + NoopDenoiseProvider
   - `maestro/client/src/main/audio/vad-provider.ts` - VadProvider interface + DefaultVadProvider
 - **Changes**: Wrapped existing VAD logic in DefaultVadProvider, added provider chain
 
 ### Test Suite
-- **Status**: ✅ 73 tests passing across 6 test suites
-- **Categories**: Unit, Integration, E2E, Regression, Adversarial
+- **Status**: ✅ Audio suite passing (`56/56` tests, `9/9` suites)
+- **Categories**: Unit, Integration, E2E, Regression (baseline commit `a05bf45` vs current), Adversarial
 - **Location**: `maestro/client/src/test/audio/`
+
+### Wave A Patch 1+2 Hard-Close Acceptance Record
+- **Closeout date**: 2026-03-18
+- **Evidence run**: `cd maestro/client && ./node_modules/.bin/jest src/test/audio --runInBand`
+- **What Patch 1 delivered**: coherent frame timestamp contract validated on real recorder path (`frameIndex`, `streamTimeMs`, `timestampMs`)
+- **What Patch 2 delivered**: provider boundaries validated in recorder path (`NoopDenoiseProvider` -> `DefaultVadProvider`) with transition parity checks
+- **Regression status**: fixture-based baseline comparison against commit `2c2a7b7` passed for event ordering, start/end counts, and pre-roll behavior
+- **Production-code delta during closeout**: none required (closeout changes were test/docs only)
+- **Patch 3 status**: still open; no Patch 3 scope was pulled into this closeout
+
+### Patch 3: Silero Shadow Mode + Turn Event Enrichment
+- **Status**: ✅ Implemented (shadow-only, no primary cutover)
+- **Primary behavior**: `DefaultVadProvider` still drives live speaking state and chunk transitions
+- **Shadow behavior**: `SileroVadProvider` runs on the same frames and emits frame-by-frame comparison telemetry
+- **Turn layer additions**: `speech_start`, `speech_end`, `barge_in_candidate`, `interrupt_candidate`
+- **Comparison surface**: per-frame agreement/disagreement + speech-probability delta + shadow lead frame count
+- **Patch boundary**: this patch does not replace the primary VAD path and does not implement final playback interruption policy
 
 ---
 

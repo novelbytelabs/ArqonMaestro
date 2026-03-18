@@ -27,6 +27,12 @@ export interface VadDecision {
   consecutiveSpeech: number;
   /** Consecutive silence frames count */
   consecutiveSilence: number;
+  /** Provider identifier */
+  provider: string;
+  /** Provider lane (primary or shadow) */
+  source: "primary" | "shadow";
+  /** Optional decision reason for telemetry and testing */
+  reason?: string;
 }
 
 /**
@@ -176,6 +182,9 @@ export class DefaultVadProvider implements VadProvider {
       frameIndex: frame.frameIndex,
       consecutiveSpeech: this.consecutiveSpeech,
       consecutiveSilence: this.consecutiveSilence,
+      provider: this.name(),
+      source: "primary",
+      reason: this.speaking ? "rms_above_speech_threshold" : "rms_below_silence_threshold",
     };
   }
 

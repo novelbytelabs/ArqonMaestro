@@ -1,0 +1,16 @@
+ M docs/vos/maestro-implementation-progress.md
+ M docs/vos/maestro-voice-component-migration-matrix.md
+ M maestro/client/src/main/audio/index.ts
+ M maestro/client/src/main/audio/vad-provider.ts
+ M maestro/client/src/test/audio/adversarial.spec.ts
+ M maestro/client/src/test/audio/e2e.spec.ts
+ M maestro/client/src/test/audio/helpers/pcm-fixtures.ts
+ M maestro/client/src/test/audio/helpers/recorder-harness.ts
+ M maestro/client/src/test/audio/regression.spec.ts
+ M maestro/client/src/test/audio/speech-recorder.integration.spec.ts
+?? audit-bundle/patch3-freeze-2026-03-18/
+?? docs/vos/ultimate-vos-reference-architecture.md
+?? maestro/client/src/main/audio/silero-vad-provider.ts
+?? maestro/client/src/main/audio/turn-events.ts
+?? maestro/client/src/test/audio/silero-vad-provider.unit.spec.ts
+?? maestro/client/src/test/audio/turn-events.unit.spec.ts
