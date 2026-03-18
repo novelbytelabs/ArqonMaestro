@@ -370,7 +370,204 @@ Modal Policy handles modals and popups that can steal focus after a focus transf
 
 ---
 
-## 10. Revision History
+## 10. Referential Intent (FP-7)
+
+Referential Intent enables Maestro to understand and resolve deictic references like "this", "that", "it", and "here" based on contextual analysis of the user's current workspace state.
+
+### 10.1 FP-7A: Referential Intent Foundations
+
+| Capability | Description |
+|------------|-------------|
+| **Pronoun Resolution** | Resolve "this", "that", "it" to specific targets in the focus stack |
+| **Deictic Location** | Resolve "here" to current context (editor, terminal, browser) |
+| **Context Window** | Maintain temporal context for referential disambiguation |
+| **Intent Classification** | Classify referential intent vs. literal command intent |
+
+**Acceptance Criteria**:
+- [ ] "switch to this" resolves to the most recently focused application
+- [ ] "go back to that" navigates to second-most-recent focus target
+- [ ] "open it here" resolves "it" to context-appropriate target
+- [ ] Confidence scoring for referential resolution ≥ 0.85
+
+**Reference**: [Maestro Referential Intent v0.1](maestro-referential-intent-v0.1.md)
+
+### 10.2 FP-7B: Referential Hardening + Disambiguation
+
+| Capability | Description |
+|------------|-------------|
+| **Hardening Rules** | Prevent focus drift during referential commands |
+| **Disambiguation UI** | Present choices when referent is ambiguous |
+| **Fallback Resolution** | Graceful degradation when referent cannot be resolved |
+| **Learning Model** | Improve resolution based on user correction patterns |
+
+**Acceptance Criteria**:
+- [ ] Ambiguous references trigger disambiguation prompt
+- [ ] User corrections feed back into resolution model
+- [ ] Hardening prevents focus hijacking during resolution
+- [ ] Fallback to explicit command when resolution fails
+
+---
+
+## 11. Modal Awareness + Restore (FP-8)
+
+Modal Awareness extends beyond simple modal detection to comprehensive understanding and handling of dialogs, overlays, and popup contexts that intercept focus.
+
+### 11.1 FP-8A: Modal Awareness
+
+| Capability | Description |
+|------------|-------------|
+| **Dialog Detection** | Detect modal dialogs, modeless dialogs, and overlays |
+| **Overlay Recognition** | Identify semi-transparent overlays and focus-capturing layers |
+| **Popup Context** | Track popup windows, context menus, and tooltips |
+| **Z-Order Analysis** | Analyze window stacking order for focus interception |
+
+**Detection Strategies**:
+| Strategy | Description |
+|----------|---------|
+| Window Attribute Analysis | Inspect window properties (type, style, transient_for) |
+| Focus Timestamp Sequencing | Detect rapid focus events indicating modal behavior |
+| UI Framework Hooks | Integrate with GTK, Qt, Win32 modal notification systems |
+| Visual Region Detection | Computer vision for overlay detection |
+
+**Acceptance Criteria**:
+- [ ] Detect modal dialogs within 200ms of focus interception
+- [ ] Classify modal type (dialog/overlay/popup/tooltip) with ≥ 0.90 accuracy
+- [ ] Track modal lifecycle (open, interact, dismiss)
+- [ ] Handle nested modals correctly
+
+**Reference**: [Maestro Modal Awareness v0.1](maestro-modal-awareness-v0.1.md)
+
+### 11.2 FP-8B: Modal Interaction + Restore
+
+| Capability | Description |
+|------------|-------------|
+| **Modal Dismissal** | Close/dismiss modals via keyboard, API, or UI automation |
+| **Focus Restoration** | Restore focus to pre-modal target after dismissal |
+| **Modal Waiting** | Wait for expected modals (save, confirm) during operations |
+| **Interaction Pipeline** | Execute commands through modal dialogs when needed |
+
+**Modal Handling Actions**:
+| Action | Trigger | Result |
+|--------|---------|--------|
+| DISMISS | Modal blocks target | Close modal, restore focus |
+| WAIT | Expected modal (save dialog) | Pause operation until modal clears |
+| INTERACT | Command targets modal content | Execute within modal context |
+| BYPASS | Non-blocking modal | Proceed with original target |
+| REPORT | Unhandled modal | Notify user, log for analysis |
+
+**Acceptance Criteria**:
+- [ ] Auto-dismiss common modals (OK, Cancel, Close buttons)
+- [ ] Restore focus to pre-modal target within 300ms of dismissal
+- [ ] Handle modal during active voice command gracefully
+- [ ] Maintain focus stack integrity through modal lifecycle
+
+---
+
+## 12. Surface Expansion (FP-9)
+
+Surface Expansion unifies focus control across all computing surfaces: IDE, browser, terminal, and system-level interfaces.
+
+### 12.1 Surface Model
+
+| Surface | Focus Layer | Detection Method |
+|---------|-------------|-------------------|
+| **IDE** | Language Server Protocol, editor APIs | VS Code API, JetBrains platform |
+| **Browser** | DOM focus, accessibility tree | Chrome DevTools Protocol, ARIA |
+| **Terminal** | TTY focus, pane/window | Terminal emulator APIs, OSC sequence |
+| **System** | Window manager, compositor | X11/Wayland, Window Manager APIs |
+
+### 12.2 Unified Control API
+
+| Capability | Description |
+|------------|-------------|
+| **Surface Abstraction** | Uniform interface across all surface types |
+| **Hot-Switching** | Seamless focus transfer between surfaces |
+| **State Synchronization** | Maintain coherent focus state across surfaces |
+| **Cross-Surface History** | Unified navigation history spanning surfaces |
+
+**Acceptance Criteria**:
+- [ ] "switch to browser" transfers focus from IDE to browser
+- [ ] "go back" navigates across surface boundaries
+- [ ] Focus verification works consistently across all surfaces
+- [ ] Recovery actions execute on correct surface
+
+**Reference**: [Maestro Surface Expansion v0.1](maestro-surface-expansion-v0.1.md)
+
+### 12.3 Surface-Specific Handlers
+
+| Surface | Handler | Capabilities |
+|---------|---------|--------------|
+| IDE | `IdeFocusHandler` | Editor focus, sidebar, panel, terminal tabs |
+| Browser | `BrowserFocusHandler` | Tab focus, address bar, dev tools, extensions |
+| Terminal | `TerminalFocusHandler` | Pane focus, scrollback, command input |
+| System | `SystemFocusHandler` | Application switcher, desktop, notification area |
+
+---
+
+## 13. Language/System Integration (FP-10)
+
+FP-10 represents the culmination of the Focus Project: a unified VOS runtime model that integrates focus management with precision targeting, error recovery, intelligent routing, and grammatical parsing.
+
+### 13.1 Unified Runtime Model
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    VOS RUNTIME MODEL                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   FOCUS      │  │  PRECISION   │  │   RECOVERY   │          │
+│  │   LAYERS     │──│  TARGETING   │──│    ENGINE    │          │
+│  │   (2-8)      │  │   (FP-3)     │  │   (FP-5)     │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│         │                 │                  │                 │
+│         └─────────────────┼──────────────────┘                 │
+│                           ▼                                    │
+│                  ┌──────────────┐                              │
+│                  │   ROUTING    │                              │
+│                  │   LAYER      │                              │
+│                  └──────────────┘                              │
+│                           │                                    │
+│                           ▼                                    │
+│                  ┌──────────────┐                              │
+│                  │   GRAMMAR    │                              │
+│                  │   PARSER     │                              │
+│                  └──────────────┘                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 13.2 Integration Points
+
+| Component | Integration | Description |
+|-----------|-------------|-------------|
+| **Focus + Precision** | Layer 3 → Layer 5 | Precision targeting builds on window focus |
+| **Focus + Recovery** | All layers | Recovery acts as cross-layer safety net |
+| **Focus + Routing** | All layers | Routing determines optimal focus target |
+| **Focus + Grammar** | All layers | Grammar interprets focus-related commands |
+| **Precision + Recovery** | Layers 3-5 | Precision failures trigger recovery |
+| **Routing + Grammar** | Parser → Router | Semantic parse routes to appropriate handler |
+
+### 13.3 FP-10 Acceptance Criteria
+
+| ID | Criterion | Description |
+|----|-----------|-------------|
+| FP-10.1 | Unified State | Single source of truth for focus state across all layers |
+| FP-10.2 | Cross-Layer Recovery | Recovery works seamlessly across layer boundaries |
+| FP-10.3 | Grammar Integration | Focus commands parsed with full semantic understanding |
+| FP-10.4 | Routing Intelligence | Focus routing uses context, history, and user preference |
+| FP-10.5 | Surface Unification | Focus control consistent across IDE, browser, terminal |
+
+**Acceptance Tests**:
+- [ ] "open settings in the sidebar then go to terminal" executes across surfaces
+- [ ] Focus failure at any layer triggers appropriate recovery
+- [ ] Grammar parser correctly interprets complex focus commands
+- [ ] Routing considers user preferences and historical patterns
+- [ ] All surfaces respond to focus commands with consistent latency
+
+**Reference**: [Maestro Language/System Integration v0.1](maestro-language-system-integration-v0.1.md)
+
+---
+
+## 14. Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
@@ -378,6 +575,7 @@ Modal Policy handles modals and popups that can steal focus after a focus transf
 | 0.2 | 2026-03-17 | FP-0 Lead | Added Focus Recovery Architecture diagrams (FP-5A/5B) |
 | 0.3 | 2026-03-17 | FP-0 Lead | **COMPLETE**: FP-1, FP-3A, FP-5A/5B all verified. Recovery Truthfulness Tests pass. |
 | 0.4 | 2026-03-17 | FP-0 Lead | Added FP-7 Modal Policy for handling modals/popups that steal focus. |
+| 0.5 | 2026-03-18 | FP-0 Lead | Added FP-7 Referential Intent, FP-8 Modal Awareness + Restore, FP-9 Surface Expansion, FP-10 Language/System Integration. |
 
 ---
 
@@ -385,3 +583,7 @@ Modal Policy handles modals and popups that can steal focus after a focus transf
 
 - [Maestro Focus Phase Handoff](maestro-focus-phase-handoff.md)
 - [Maestro Executor Architecture](maestro-executor-architecture.md)
+- [Maestro Referential Intent v0.1](maestro-referential-intent-v0.1.md)
+- [Maestro Modal Awareness v0.1](maestro-modal-awareness-v0.1.md)
+- [Maestro Surface Expansion v0.1](maestro-surface-expansion-v0.1.md)
+- [Maestro Language/System Integration v0.1](maestro-language-system-integration-v0.1.md)

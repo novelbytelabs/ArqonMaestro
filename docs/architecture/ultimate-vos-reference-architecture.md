@@ -105,11 +105,14 @@ These anchors must be preserved while the system evolves.
 
 The following stack elements are explicitly selected as near-term defaults for Maestro:
 
-- Wake word: `openWakeWord`
-- VAD: `Silero VAD`
-- STT (`command-fast`): `whisper.cpp` as leading local default
-- STT (`dictation-accurate`): separate benchmark-driven provider track (not locked)
-- TTS: `Kokoro` (primary) with `Piper` as local fallback
+- **Wake word:** deferred / optional; explicit listening remains the default
+- **Denoise:** `RNNoise`
+- **VAD / turn detection:** `Silero VAD` with optional fast first-pass gating
+- **STT (`command-fast`):** `whisper.cpp`
+- **STT (`dictation-accurate`):** `faster-whisper`
+- **Speaker diarization:** `pyannote.audio`
+- **Speaker verification / authentication:** `WeSpeaker`
+- **TTS:** `Kokoro` primary, `Piper` fallback
 
 These defaults are implementation targets, not a permanent lock-in. They still sit behind provider/service contracts so components can evolve without rewriting core runtime boundaries.
 
@@ -248,11 +251,44 @@ Future optional profiles:
 Near-term baseline:
 
 - `command-fast` should target `whisper.cpp`
-- `dictation-accurate` remains provider-flexible and benchmark-selected
+- `dictation-accurate` should target `faster-whisper`
+
+**Explicit STT Lanes:**
+
+- `maestro-stt-fast` → `whisper.cpp`
+- `maestro-stt-accurate` → `faster-whisper`
 
 Architectural rule:
 
 - STT is a provider contract, not a single permanent engine choice
+
+### `maestro-speaker`
+
+Owns speaker identity services under two explicit profiles:
+
+- **Speaker Diarization** (`maestro-speaker-diarization`): Uses `pyannote.audio` to determine "who spoke when" in multi-speaker environments. This enables session-level speaker tracking and attribution.
+
+- **Speaker Verification / Authentication** (`maestro-speaker-verification`): Uses `WeSpeaker` to verify that the current speaker matches an enrolled voiceprint. This is critical for secure mode, privileged commands, and identity-gated actions.
+
+Architectural rule:
+
+- Speaker identity is a first-class contract, not an optional add-on
+- Both diarization and verification should be swappable providers
+
+### `maestro-wake` (Optional)
+
+Owns wake word detection as an optional activation trigger.
+
+**Status:** Deferred / Optional
+
+- Wake word detection is not required for initial Voice OS correctness
+- Explicit listening (push-to-talk or always-on via VAD) remains the default
+- Wake word may be added after security hardening is complete
+
+Architectural rule:
+
+- The system must function correctly without wake word detection
+- Wake word is an enhancement, not a prerequisite
 
 ### `maestro-voice-adapter`
 
@@ -873,6 +909,46 @@ The target system should preserve the following:
 4. Introduce persona-based voice routing and a voice profile registry.
 5. Expand the TTS abstraction from provider switching into full voice-library management.
 6. Harden barge-in and turn-taking as first-class runtime behavior.
+
+## Voice Plane Migration Phases
+
+**Maestro's voice plane is modular by contract: denoise, VAD/turning, STT, speaker identity, wakeword, and TTS are separate replaceable services, not one monolithic speech engine.**
+
+### Wave 0: Freeze Baseline
+
+- Document current voice path contracts
+- Establish CI/CD for voice components
+- Define integration test harness for each service lane
+
+### Wave 1: Modernize Input Front End
+
+- Integrate `RNNoise` for denoising
+- Implement `Silero VAD` with optional fast first-pass gating
+- Verify turn-taking accuracy improvements
+
+### Wave 2: Split STT Lanes
+
+- Deploy `maestro-stt-fast` → `whisper.cpp` for command-fast profile
+- Deploy `maestro-stt-accurate` → `faster-whisper` for dictation-accurate profile
+- Validate latency and accuracy benchmarks for each lane
+
+### Wave 3: Add Identity as Secure Lane
+
+- Integrate `pyannote.audio` for speaker diarization
+- Integrate `WeSpeaker` for speaker verification
+- Establish secure mode with voice-authenticated commands
+
+### Wave 4: Modernize TTS Broker
+
+- Finalize Kokoro as primary provider
+- Validate Piper fallback chain
+- Expand voice profile registry with persona mappings
+
+### Wave 5: Add Wakeword After Security Hardening
+
+- Evaluate wake word detection options
+- Implement after identity verification is proven
+- Ensure graceful degradation when wake word is unavailable
 
 ## Open Design Questions
 

@@ -290,21 +290,37 @@ export function getRunningApplications(): Promise<string[]> {
   
   if (platform === "linux") {
     try {
-      const result = spawnSync("wmctrl", ["-l"], { encoding: "utf8" });
+      // Use xdotool to get the class name of all visible windows
+      const result = spawnSync("xdotool", ["search", "--onlyvisible", "--class", ".*"], { 
+        encoding: "utf8" 
+      });
+      
       if (result.status === 0 && result.stdout) {
-        const apps = result.stdout
-          .split("\n")
-          .filter(function(line) { return line.trim(); })
-          .map(function(line) {
-            // Format: "0x00c00000  0 hostname Application Name"
-            const parts = line.split(/\s+/);
-            if (parts.length >= 3) {
-              return parts.slice(2).join(" ");
+        const windowIds = result.stdout.trim().split("\n").filter(id => id.trim());
+        
+        // Get unique class names for each window
+        const classNames = new Set<string>();
+        
+        for (const windowId of windowIds) {
+          try {
+            const classResult = spawnSync("xdotool", ["getwindowprop", "--shell", windowId, "WM_CLASS"], {
+              encoding: "utf8"
+            });
+            if (classResult.status === 0 && classResult.stdout) {
+              // WM_CLASS returns lines like: WM_CLASS(STRING) = "gnome-terminal-server", "Gnome-terminal"
+              const match = classResult.stdout.match(/WM_CLASS\(STRING\)\s*=\s*"(.+)"/);
+              if (match) {
+                // Take the last instance (usually the app name, not the class)
+                const classes = match[1].split(/,\s*/);
+                classNames.add(classes[classes.length - 1].toLowerCase());
+              }
             }
-            return "";
-          })
-          .filter(function(app) { return app.length > 0; });
-        return Promise.resolve(apps);
+          } catch (e) {
+            // Skip this window
+          }
+        }
+        
+        return Promise.resolve(Array.from(classNames));
       }
     } catch (e) {
       console.warn("[arqon-driver] getRunningApplications failed:", e);

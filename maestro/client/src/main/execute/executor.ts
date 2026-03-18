@@ -400,7 +400,7 @@ export default class Executor {
       preTransferState = await this.focusPreValidator.capturePreTransferState();
       this.focusPostValidator.setPreTransferState(preTransferState);
 
-      const preValidationTargetName = regionTarget ? regionTarget.app : originalText;
+      const preValidationTargetName = regionTarget ? regionTarget.app : this.normalizeFocusTarget(originalText);
       const preValidationLayer = regionTarget ? FocusLayer.REGION : FocusLayer.APPLICATION;
 
       const preValidation = await this.preValidateFocusTransfer(

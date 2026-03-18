@@ -195,7 +195,7 @@ Current status:
 
 * **COMPLETE - HARD CLOSED** (2026-03-17)
 * All focus commands implemented and verified
-* Focus Project complete through FP-6B
+* Focus Project complete through FP-6B, extending into Phase 4 (FP-7 through FP-10)
 
 Exit evidence:
 
@@ -230,7 +230,38 @@ Phase 2 should connect the deterministic operating path to the broader trust, as
 
 > **Status: NOT YET STARTED** (2026-03-17)
 
+> **Execution Order: Voice Plane Modernization must complete before Phase 2A or Phase 2C can begin. Phase 2B can run in parallel or after 2A/2C.**
+
+### Voice Plane Modernization Prerequisites
+
+Before Phase 2A or Phase 2C can begin, the voice plane must be modernized to provide stable contracts for identity and TTS. This is a voice-plane-first execution order—Phase 2A and 2C depend on these waves being complete.
+
+#### Wave A: Audio Front-End Modernization (Prerequisite)
+
+- **Denoise**: RNNoise integration
+- **VAD / turn detection**: Silero VAD with optional fast first-pass gating
+- **Stable audio contract** for maestro-audio
+
+#### Wave B: STT Lane Modernization (Prerequisite)
+
+- **command-fast** → whisper.cpp
+- **dictation-accurate** → faster-whisper
+
+#### Wave C: Speaker Identity Stack (Prerequisite for Phase 2A)
+
+- **Speaker diarization**: pyannote.audio
+- **Speaker verification**: WeSpeaker
+
+#### Wave D: TTS Broker Modernization (Prerequisite for Phase 2C)
+
+- **Kokoro** primary
+- **Piper** fallback
+- **Interruption-safe** playback
+- **Persona routing**
+
 ### Phase 2A: Identity and safety gating
+
+> **Depends on: Wave C (Speaker Identity Stack) must be complete before Phase 2A can begin**
 
 Deliver:
 
@@ -296,6 +327,8 @@ Exit evidence:
 
 ### Phase 2C: Output and feedback system
 
+> **Depends on: Wave D (TTS Broker Modernization) must be complete before Phase 2C can begin**
+
 Deliver:
 
 1. Stand up the TTS broker with persona routing, interruption rules, and local fallback behavior.
@@ -350,6 +383,90 @@ Exit evidence:
 * Electron remains a compatibility shell, not the runtime brainstem
 * Tauri is evaluated by evidence, not aspiration
 
+## Phase 4: VOS Runtime Completion
+
+*Phase 4 completes the Focus Program by extending focus into referential binding, modal handling, restore semantics, cross-surface operation, and full runtime integration.*
+
+Phase 4 should complete the VOS runtime by adding referential, modal, cross-surface, and language integration capabilities.
+
+> **Status: PROPOSED** (2026-03-18)
+
+### Phase 4A: Referential Runtime (FP-7A / FP-7B)
+
+Deliver:
+
+1. Bounded support for referential pronouns: "this", "that", "it", "here"
+2. Referent confidence scoring to evaluate referential certainty
+3. Disambiguation behavior for resolving ambiguous references
+4. Safe abort when referential certainty is below threshold
+
+Status: **Proposed**
+
+Supporting documentation: [`maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
+
+**Exit evidence:**
+
+* commands using "this", "that", "it", "here" succeed only when referent confidence is above threshold
+* ambiguous referents trigger disambiguation or safe abort
+* referent telemetry can explain why a referent was accepted or rejected
+
+### Phase 4B: Modal Runtime and Restore (FP-8A / FP-8B)
+
+Deliver:
+
+1. Modal detection for identifying modal dialogs, popups, and overlays
+2. Modal interaction rules for handling commands within modals
+3. Restore prior focus when modal closes
+4. Track focus history across modal boundaries
+
+Status: **Proposed**
+
+Supporting documentation: [`maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+
+**Exit evidence:**
+
+* modal detection accuracy is demonstrated on at least one editor, browser, and system dialog
+* commands route correctly into active modal scope
+* prior focus is restored correctly after modal close
+
+### Phase 4C: Cross-Surface Expansion (FP-9)
+
+Deliver:
+
+1. Unify IDE, browser, terminal, and system surface abstractions
+2. Cross-surface focus tracking for commands that span surfaces
+3. Cross-surface referential resolution
+4. Surface-specific routing with unified fallback
+
+Status: **Proposed**
+
+Supporting documentation: [`maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+
+**Exit evidence:**
+
+* at least one workflow spanning IDE + terminal + browser is executed without breaking focus law
+* cross-surface focus tracking remains explicit and auditable
+* cross-surface referential commands resolve or abort lawfully
+
+### Phase 4D: Language/System Integration (FP-10)
+
+Deliver:
+
+1. Unify focus, routing, grammar, precision, and recovery systems
+2. Establish mature VOS runtime behavior across all surfaces
+3. Complete the language-to-action pipeline
+4. Unify grammar, routing, focus, precision, and recovery through one integrated runtime path with lawful system behavior and unified control plane
+
+Status: **Proposed**
+
+Supporting documentation: [`maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+
+**Exit evidence:**
+
+* grammar, routing, focus, precision, and recovery operate through one integrated runtime path
+* the system can explain end-to-end why a spoken command was accepted, blocked, clarified, or restored
+* at least one multi-surface voice workflow works under the unified runtime model
+
 ## Benchmark plan
 
 The benchmark plan should become a standing implementation artifact, not a one-time exercise.
@@ -401,10 +518,23 @@ Measure:
 * shell crash recovery behavior
 * service reconnect behavior
 
+### Phase 4 benchmarks
+
+Measure:
+
+* referent resolution accuracy
+* disambiguation frequency
+* safe abort frequency for referential commands
+* modal detection precision/recall
+* focus restore success rate
+* cross-surface routing success rate
+* cross-surface referential resolution success rate
+
 ## Deferral list
 
 These are the right things to defer until the earlier phases create leverage.
 
+* openWakeWord — marked as optional / later, not a prerequisite for v0.1. Serenade itself exposed explicit listening control. Wakeword is useful later but should not gate v0.1 correctness.
 * full Tauri migration
 * broad multi-app semantic integrations beyond the first editor and terminal surfaces
 * proxy-authority delegation beyond tightly scoped routines

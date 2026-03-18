@@ -135,6 +135,10 @@ See: [`recovery-truthfulness-test-sheet.md`](./recovery-truthfulness-test-sheet.
 | [`maestro-focus-recovery-plan.md`](./maestro-focus-recovery-plan.md) | Recovery implementation details |
 | [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md) | Precision focus specification |
 | [`recovery-truthfulness-test-sheet.md`](./recovery-truthfulness-test-sheet.md) | Test evidence |
+| [`maestro-referential-intent-v0.1.md`](./maestro-referential-intent-v0.1.md) | FP-7: Referential Intent specification |
+| [`maestro-modal-awareness-v0.1.md`](./maestro-modal-awareness-v0.1.md) | FP-8: Modal Awareness specification |
+| [`maestro-surface-expansion-v0.1.md`](./maestro-surface-expansion-v0.1.md) | FP-9: Surface Expansion specification |
+| [`maestro-language-system-integration-v0.1.md`](./maestro-language-system-integration-v0.1.md) | FP-10: Language/System Integration specification |
 
 ---
 
@@ -151,7 +155,65 @@ See: [`recovery-truthfulness-test-sheet.md`](./recovery-truthfulness-test-sheet.
 
 ## Future Work
 
-- **FP-7: Modal Policy** - Handle modals/popups that steal focus
+### Focus Plane (FP) Roadmap
+
+The complete Focus Plane roadmap spans 10 phases:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         FOCUS PLANE ROADMAP                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ FP-1:  Verification        → FP-2: Safety + Contracts                       │
+│        [COMPLETE]                [COMPLETE]                                  │
+│                                  ↓                                          │
+│ FP-10: Language Integration ← FP-9: Surface Expansion                       │
+│        [PROPOSED]                 [PROPOSED]                                 │
+│             ↑                         ↓                                      │
+│ FP-8:  Modal + Restore       FP-7: Referential Intent                       │
+│        [PROPOSED]                 [PROPOSED]                                │
+│             ↑                         ↓                                      │
+│ FP-6:  Intent Routing ← FP-5: Recovery ← FP-4: Precision Focus ← FP-3: Region│
+│        [COMPLETE]      [COMPLETE]        [COMPLETE]            [COMPLETE]   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Phase | Name | Status | Reference |
+|-------|------|--------|-----------|
+| FP-1 | Verification | ✅ COMPLETE | Core implementation |
+| FP-2 | Safety + Contracts | ✅ COMPLETE | focus-transfer-contract.ts |
+| FP-3 | Region Focus | ✅ COMPLETE | focus-region-service.ts |
+| FP-4 | Precision Focus | ✅ COMPLETE | maestro-focus-precision-v0.1.md |
+| FP-5 | Recovery | ✅ COMPLETE | focus-recovery-service.ts |
+| FP-6 | Intent Routing | ✅ COMPLETE | intent-routing-service.ts |
+| FP-7 | Referential Intent | 🔄 IN PROGRESS | [`maestro-referential-intent-v0.1.md`](./maestro-referential-intent-v0.1.md) |
+| FP-8 | Modal Awareness + Restore | 📋 PROPOSED | [`maestro-modal-awareness-v0.1.md`](./maestro-modal-awareness-v0.1.md) |
+| FP-9 | Surface Expansion | 📋 PROPOSED | [`maestro-surface-expansion-v0.1.md`](./maestro-surface-expansion-v0.1.md) |
+| FP-10 | Language/System Integration | 📋 PROPOSED | [`maestro-language-system-integration-v0.1.md`](./maestro-language-system-integration-v0.1.md) |
+
+### Phase Details
+
+#### FP-7: Referential Intent
+- **Purpose:** Resolve ambiguous references ("that thing", "the previous one") using context and history
+- **Specification:** [`maestro-referential-intent-v0.1.md`](./maestro-referential-intent-v0.1.md)
+- **Status:** In Progress
+
+#### FP-8: Modal Awareness + Restore
+- **Purpose:** Detect and handle modal dialogs that steal focus, with automatic restoration
+- **Specification:** [`maestro-modal-awareness-v0.1.md`](./maestro-modal-awareness-v0.1.md)
+- **Status:** Proposed
+
+#### FP-9: Surface Expansion
+- **Purpose:** Extend focus beyond traditional boundaries (multiple monitors, virtual desktops)
+- **Specification:** [`maestro-surface-expansion-v0.1.md`](./maestro-surface-expansion-v0.1.md)
+- **Status:** Proposed
+
+#### FP-10: Language/System Integration
+- **Purpose:** Deep integration with OS input methods, accessibility APIs, and language services
+- **Specification:** [`maestro-language-system-integration-v0.1.md`](./maestro-language-system-integration-v0.1.md)
+- **Status:** Proposed
+
+### Legacy Future Work
+
 - **Phase 2A: Identity and Safety Gating** - Voice identity verification
 - **Phase 2B: Workflow and Delegation** - Maestro-Nexus protocol
 - **Phase 2C: Output and Feedback** - TTS broker with persona routing
