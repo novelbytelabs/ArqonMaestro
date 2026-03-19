@@ -8,6 +8,7 @@ import { RuntimeOutcomeClassifier } from "./runtime-outcome";
 import ActuationPolicyService, { PolicyContext, PolicyDecision, SecurityMode } from "./actuation-policy-service";
 import TalonAdapter from "./talon-adapter";
 import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
+import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -433,6 +434,34 @@ export default class RuntimeCommandDispatcher {
     const recordDispatchTotal = () => {
       phase3ABenchmarkService.recordHotPathStage("dispatch_total_ms", Date.now() - dispatchStartedAt);
     };
+    const recordDispatchAudit = (
+      boundaryBlocked: boolean,
+      boundaryBlockReason?: string,
+      outcomeType?: string
+    ) => {
+      phase3BReplayAuditService.recordDispatchDecision({
+        chunkId: response.chunkId || "unknown",
+        sessionId,
+        executionOrigin,
+        delegationGrantId,
+        nexusProposalId,
+        dispatchRoute: plan.route,
+        dispatchFamily: plan.dominantFamily,
+        dispatchReason: plan.reason,
+        policyDecision: policyDecision.decision,
+        policySummary: policyDecision.explanation.summary,
+        approvedRoute: policyDecision.approvedRoute,
+        trustTier: policyDecision.approvedTrustTier,
+        confirmationRequired: policyDecision.confirmationRequired,
+        chooserRequired: policyDecision.chooserRequired,
+        securityMode,
+        speakerVerified,
+        interactionMode,
+        boundaryBlocked,
+        boundaryBlockReason,
+        outcomeType,
+      });
+    };
     
     // Record policy decision in trace
     if (response.chunkId) {
@@ -466,6 +495,7 @@ export default class RuntimeCommandDispatcher {
       );
       // Override outcome type to blocked/refusal based on policy
       this.executionTrace?.recordOutcome(outcome, sessionId);
+      recordDispatchAudit(false, undefined, outcome.type);
       return; // Do not execute - route is blocked
     }
     
@@ -496,6 +526,7 @@ export default class RuntimeCommandDispatcher {
         sessionId || undefined
       );
       this.executionTrace?.recordOutcome(outcome, sessionId);
+      recordDispatchAudit(true, boundaryBlockReason, outcome.type);
       return;
     }
 
@@ -509,6 +540,7 @@ export default class RuntimeCommandDispatcher {
       sessionId || undefined
     );
     this.executionTrace?.recordOutcome(outcome, sessionId);
+    recordDispatchAudit(false, undefined, outcome.type);
     this.log.logVerbose(`[RuntimeCommandDispatcher] Outcome: ${JSON.stringify(outcome)}`);
     if (
       plan.route === "app_control_local" ||

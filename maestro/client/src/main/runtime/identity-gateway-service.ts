@@ -43,6 +43,7 @@ import SecurityModeService, {
   SecurityMode,
   ModeSettings,
 } from "./security-mode-service";
+import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 
 /**
  * Identity context for command execution
@@ -350,7 +351,27 @@ export default class IdentityGatewayService {
       identityEvidenceReady: evidence.ready,
     };
 
-    return this.authorizationService.authorize(fullRequest);
+    const result = await this.authorizationService.authorize(fullRequest);
+    const identity = this.getIdentityContext();
+    phase3BReplayAuditService.recordAuthorizationDecision({
+      commandFamily: fullRequest.commandFamily,
+      commandVerb: fullRequest.commandVerb,
+      target: fullRequest.target,
+      riskLevel,
+      decision: result.decision,
+      reason: result.reason,
+      confirmationLevel: result.confirmationLevel,
+      isFallback: result.isFallback,
+      securityMode: fullRequest.securityMode,
+      sharedRoomMode: fullRequest.sharedRoomMode,
+      interactionMode: fullRequest.interactionMode,
+      identityState: identity.identityState,
+      identityId: identity.identityId,
+      speakerVerified: identity.isVerified,
+      contaminated: identity.contaminated,
+      identityEvidenceReady: fullRequest.identityEvidenceReady ?? true,
+    });
+    return result;
   }
 
   /**

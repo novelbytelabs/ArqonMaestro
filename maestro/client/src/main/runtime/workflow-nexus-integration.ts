@@ -33,6 +33,7 @@ import NexusProtocolBoundaryService, {
   ProposalExecutionContext,
   ProposalType,
 } from "./nexus-protocol-boundary-service";
+import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 
 /**
  * Execution state
@@ -100,6 +101,17 @@ export default class WorkflowExecutionService {
     }
 
     // Update status to running
+    phase3BReplayAuditService.recordWorkflowTransition({
+      workflowId,
+      origin: contract.origin,
+      fromStatus: contract.status,
+      toStatus: WorkflowStatus.RUNNING,
+      reason: "workflow_execution_started",
+      riskLevel: contract.riskLevel,
+      delegationGrantId: contract.delegationGrantId,
+      proposalId: contract.proposalId,
+      authorityContext: contract.authorityContext,
+    });
     this.workflowService.updateWorkflowStatus(workflowId, WorkflowStatus.RUNNING);
 
     const state: WorkflowExecutionState = {
@@ -133,6 +145,22 @@ export default class WorkflowExecutionService {
           proposalId: contract.proposalId,
         });
         stepResults.push(result);
+        phase3BReplayAuditService.recordWorkflowStep({
+          workflowId,
+          stepId: step.stepId,
+          stepIndex: i,
+          totalSteps: contract.steps.length,
+          commandFamily: step.commandFamily,
+          commandVerb: step.commandVerb,
+          status: result.status,
+          success: result.success,
+          elapsedMs: result.elapsedMs,
+          errorCode: result.errorCode,
+          errorMessage: result.errorMessage,
+          origin: contract.origin,
+          delegationGrantId: contract.delegationGrantId,
+          proposalId: contract.proposalId,
+        });
 
         // Check if we should continue
         if (result.status === StepStatus.HARD_FAILED) {
@@ -158,6 +186,17 @@ export default class WorkflowExecutionService {
       const workflowResult = createWorkflowResult(contract, stepResults, elapsedMs);
 
       // Update workflow status
+      phase3BReplayAuditService.recordWorkflowTransition({
+        workflowId,
+        origin: contract.origin,
+        fromStatus: WorkflowStatus.RUNNING,
+        toStatus: workflowResult.finalStatus,
+        reason: "workflow_execution_finished",
+        riskLevel: contract.riskLevel,
+        delegationGrantId: contract.delegationGrantId,
+        proposalId: contract.proposalId,
+        authorityContext: contract.authorityContext,
+      });
       this.workflowService.updateWorkflowStatus(workflowId, workflowResult.finalStatus);
       this.workflowService.storeWorkflowResult(workflowResult);
 
@@ -167,6 +206,17 @@ export default class WorkflowExecutionService {
       log(`Workflow completed: ${workflowId} - ${workflowResult.finalStatus}`);
     } catch (error) {
       log(`Workflow error: ${workflowId} - ${error}`);
+      phase3BReplayAuditService.recordWorkflowTransition({
+        workflowId,
+        origin: contract.origin,
+        fromStatus: WorkflowStatus.RUNNING,
+        toStatus: WorkflowStatus.FAILED,
+        reason: `workflow_execution_error:${error instanceof Error ? error.message : String(error)}`,
+        riskLevel: contract.riskLevel,
+        delegationGrantId: contract.delegationGrantId,
+        proposalId: contract.proposalId,
+        authorityContext: contract.authorityContext,
+      });
       this.workflowService.updateWorkflowStatus(workflowId, WorkflowStatus.FAILED);
       throw error;
     }
@@ -182,6 +232,18 @@ export default class WorkflowExecutionService {
     }
 
     state.status = WorkflowStatus.AWAITING_CONFIRMATION;
+    const contract = this.workflowService.getWorkflow(workflowId);
+    phase3BReplayAuditService.recordWorkflowTransition({
+      workflowId,
+      origin: contract?.origin || "user",
+      fromStatus: WorkflowStatus.RUNNING,
+      toStatus: WorkflowStatus.AWAITING_CONFIRMATION,
+      reason: "workflow_paused",
+      riskLevel: contract?.riskLevel,
+      delegationGrantId: contract?.delegationGrantId,
+      proposalId: contract?.proposalId,
+      authorityContext: contract?.authorityContext,
+    });
     this.workflowService.updateWorkflowStatus(
       workflowId,
       WorkflowStatus.AWAITING_CONFIRMATION
@@ -201,6 +263,18 @@ export default class WorkflowExecutionService {
     }
 
     state.status = WorkflowStatus.RUNNING;
+    const contract = this.workflowService.getWorkflow(workflowId);
+    phase3BReplayAuditService.recordWorkflowTransition({
+      workflowId,
+      origin: contract?.origin || "user",
+      fromStatus: WorkflowStatus.AWAITING_CONFIRMATION,
+      toStatus: WorkflowStatus.RUNNING,
+      reason: "workflow_resumed",
+      riskLevel: contract?.riskLevel,
+      delegationGrantId: contract?.delegationGrantId,
+      proposalId: contract?.proposalId,
+      authorityContext: contract?.authorityContext,
+    });
     this.workflowService.updateWorkflowStatus(workflowId, WorkflowStatus.RUNNING);
 
     log(`Workflow resumed: ${workflowId}`);
@@ -213,12 +287,41 @@ export default class WorkflowExecutionService {
   cancelWorkflow(workflowId: string): boolean {
     const state = this.executionState.get(workflowId);
     if (!state) {
-      return this.workflowService.cancelWorkflow(workflowId);
+      const contract = this.workflowService.getWorkflow(workflowId);
+      const previousStatus = contract?.status;
+      const cancelled = this.workflowService.cancelWorkflow(workflowId);
+      if (cancelled) {
+        phase3BReplayAuditService.recordWorkflowTransition({
+          workflowId,
+          origin: contract?.origin || "user",
+          fromStatus: previousStatus,
+          toStatus: WorkflowStatus.CANCELLED,
+          reason: "workflow_cancelled_without_execution_state",
+          riskLevel: contract?.riskLevel,
+          delegationGrantId: contract?.delegationGrantId,
+          proposalId: contract?.proposalId,
+          authorityContext: contract?.authorityContext,
+        });
+      }
+      return cancelled;
     }
 
     const cancelled = this.workflowService.cancelWorkflow(workflowId);
     if (cancelled) {
+      const previousStatus = state.status;
       state.status = WorkflowStatus.CANCELLED;
+      const contract = this.workflowService.getWorkflow(workflowId);
+      phase3BReplayAuditService.recordWorkflowTransition({
+        workflowId,
+        origin: contract?.origin || "user",
+        fromStatus: previousStatus,
+        toStatus: WorkflowStatus.CANCELLED,
+        reason: "workflow_cancelled",
+        riskLevel: contract?.riskLevel,
+        delegationGrantId: contract?.delegationGrantId,
+        proposalId: contract?.proposalId,
+        authorityContext: contract?.authorityContext,
+      });
       log(`Workflow cancelled: ${workflowId}`);
     }
     return cancelled;
@@ -272,6 +375,17 @@ export default class WorkflowExecutionService {
           authorityContext: context,
         }
       );
+      phase3BReplayAuditService.recordWorkflowTransition({
+        workflowId: workflow.workflowId,
+        origin: workflow.origin,
+        fromStatus: undefined,
+        toStatus: workflow.status,
+        reason: "workflow_created_from_nexus_proposal",
+        riskLevel: workflow.riskLevel,
+        delegationGrantId: workflow.delegationGrantId,
+        proposalId: workflow.proposalId,
+        authorityContext: workflow.authorityContext,
+      });
 
       return {
         workflowId: workflow.workflowId,
