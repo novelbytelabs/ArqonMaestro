@@ -393,6 +393,15 @@ Deliver:
 2. Measure hot-path latency by stage rather than only end-to-end.
 3. Measure route reliability, chooser frequency, confirmation frequency, and rollback success.
 
+**Current status: PARTIAL - bounded benchmark instrumentation landed**
+
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| Phase 3A Benchmark Service | [`phase3a-benchmark-service.ts`](../../maestro/client/src/main/runtime/phase3a-benchmark-service.ts) | PARTIAL | Stage/lane/reliability metrics now captured in-memory; corpus runner and persisted reports still pending |
+| Benchmark Harness Accessors | [`phase3a-benchmark-harness.ts`](../../maestro/client/src/main/runtime/phase3a-benchmark-harness.ts) | PARTIAL | Snapshot/reset helpers landed; no standalone benchmark CLI/report export yet |
+| STT Lane Instrumentation | [`chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts), [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | PARTIAL | command_fast / dictation_accurate / secure_speaker_aware measurements now captured; benchmark corpora execution automation still pending |
+| Hot-path / route instrumentation | [`runtime-command-dispatcher.ts`](../../maestro/client/src/main/runtime/runtime-command-dispatcher.ts) | PARTIAL | dispatch stage timings and route-policy reliability signals now captured; rollback-quality metrics still pending |
+
 Exit evidence:
 
 * provider and route choices are backed by evidence

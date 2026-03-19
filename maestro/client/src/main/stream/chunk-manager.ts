@@ -26,6 +26,7 @@ import RuntimeCommandDispatcher from "../runtime/runtime-command-dispatcher";
 import STTRoutingService from "../runtime/stt-routing-service";
 import STTShadowPublisher from "../runtime/stt-shadow-publisher";
 import TranscriptResponseObserver from "../runtime/transcript-response-observer";
+import { phase3ABenchmarkService } from "../runtime/phase3a-benchmark-service";
 import { TurnEvent } from "../audio/turn-events";
 import WhisperCommandFastProvider from "../stt/whisper-command-fast-provider";
 import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-provider";
@@ -393,6 +394,12 @@ export default class ChunkManager {
         latency_ms: result.latencyMs,
         transcript_chars: result.transcript.length,
       });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "command_fast",
+        provider: "whisper.cpp",
+        success: true,
+        latencyMs: result.latencyMs,
+      });
 
       this.sttShadowPublisher.onTranscriptObserved(
         result.transcript,
@@ -422,6 +429,15 @@ export default class ChunkManager {
         chunk_id: chunkId,
         reason,
         fallback: "endpoint_request",
+      });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "command_fast",
+        provider: "whisper.cpp",
+        success: false,
+        latencyMs: 0,
+        fallbackUsed: true,
+        degraded: true,
+        reason,
       });
       return false;
     } finally {
@@ -468,6 +484,12 @@ export default class ChunkManager {
         model: result.model,
         device: result.device,
       });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "dictation_accurate",
+        provider: `faster-whisper/${result.model}/${result.device}`,
+        success: true,
+        latencyMs: result.latencyMs,
+      });
 
       this.sttShadowPublisher.onTranscriptObserved(
         result.text,
@@ -499,6 +521,15 @@ export default class ChunkManager {
         chunk_id: chunkId,
         reason,
         fallback: "endpoint_request",
+      });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "dictation_accurate",
+        provider: "faster-whisper",
+        success: false,
+        latencyMs: 0,
+        fallbackUsed: true,
+        degraded: true,
+        reason,
       });
       this.chunkUseFasterWhisperDictation.delete(chunkId);
       return false;

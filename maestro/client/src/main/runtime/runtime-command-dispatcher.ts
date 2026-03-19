@@ -7,6 +7,7 @@ import RuntimeCommandEmitter, { RuntimeCommand, RuntimeCommandFamily } from "./r
 import { RuntimeOutcomeClassifier } from "./runtime-outcome";
 import ActuationPolicyService, { PolicyContext, PolicyDecision, SecurityMode } from "./actuation-policy-service";
 import TalonAdapter from "./talon-adapter";
+import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -362,7 +363,9 @@ export default class RuntimeCommandDispatcher {
       nexusProposalId,
     }: DispatchOptions = {}
   ): Promise<void> {
+    const dispatchStartedAt = Date.now();
     const plan = this.plan(response, sessionId);
+    phase3ABenchmarkService.recordHotPathStage("dispatch_plan_ms", Date.now() - dispatchStartedAt);
     onPlanned?.(plan);
     if (emitNormalizedCommands) {
       onNormalizedCommands?.(plan.commands.length);
@@ -401,11 +404,35 @@ export default class RuntimeCommandDispatcher {
       interactionMode,
     };
     
+    const policyDecisionStartedAt = Date.now();
     const policyDecision = this.policyService.decide(
       plan.route,
       plan.dominantFamily,
       policyContext
     );
+    phase3ABenchmarkService.recordHotPathStage(
+      "policy_decision_ms",
+      Date.now() - policyDecisionStartedAt
+    );
+
+    const recordRouteDecision = (boundaryBlocked: boolean = false) => {
+      const degradedRoute =
+        policyDecision.decision === "downgrade_route" ||
+        plan.route === "talon_fallback" ||
+        plan.route.includes("legacy");
+      phase3ABenchmarkService.recordRouteDecision({
+        route: plan.route,
+        policyDecision: policyDecision.decision,
+        confirmationRequired: policyDecision.confirmationRequired,
+        chooserRequired: policyDecision.chooserRequired,
+        boundaryBlocked,
+        degraded: degradedRoute,
+        executionOrigin,
+      });
+    };
+    const recordDispatchTotal = () => {
+      phase3ABenchmarkService.recordHotPathStage("dispatch_total_ms", Date.now() - dispatchStartedAt);
+    };
     
     // Record policy decision in trace
     if (response.chunkId) {
@@ -425,6 +452,8 @@ export default class RuntimeCommandDispatcher {
     
     // Phase 1C: Handle policy-blocked routes
     if (policyDecision.decision === "block_route") {
+      recordRouteDecision(false);
+      recordDispatchTotal();
       this.log.logVerbose(
         `[RuntimeCommandDispatcher] Route ${plan.route} blocked by policy: ${policyDecision.explanation.summary}`
       );
@@ -455,6 +484,8 @@ export default class RuntimeCommandDispatcher {
       delegationGrantId,
     });
     if (boundaryBlockReason) {
+      recordRouteDecision(true);
+      recordDispatchTotal();
       this.log.logVerbose(
         `[RuntimeCommandDispatcher] Boundary blocked ${executionOrigin} execution: ${boundaryBlockReason}`
       );
@@ -467,6 +498,8 @@ export default class RuntimeCommandDispatcher {
       this.executionTrace?.recordOutcome(outcome, sessionId);
       return;
     }
+
+    recordRouteDecision(false);
 
     // Classify and record the outcome
     const outcome = this.outcomeClassifier.classify(
@@ -485,6 +518,11 @@ export default class RuntimeCommandDispatcher {
       plan.route === "focus_local" ||
       plan.route === "execution_local"
     ) {
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.executeLocalRoute(response, updateRenderer);
       return;
     }
@@ -502,35 +540,70 @@ export default class RuntimeCommandDispatcher {
           adapterRecord: this.talonAdapter.getAdapterRecord().adapterId,
         })}`
       );
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.execute(response, updateRenderer);
       return;
     }
 
     if (plan.route === "navigation_plugin") {
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
     if (plan.route === "focus_plugin") {
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
     if (plan.route === "editing_plugin") {
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
     if (plan.route === "mixed_plugin_assisted") {
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
     if (plan.route === "system_plugin") {
+      phase3ABenchmarkService.recordHotPathStage(
+        "executor_handoff_ms",
+        Date.now() - dispatchStartedAt
+      );
+      recordDispatchTotal();
       await this.executor.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
+    phase3ABenchmarkService.recordHotPathStage(
+      "executor_handoff_ms",
+      Date.now() - dispatchStartedAt
+    );
+    recordDispatchTotal();
     await this.executor.execute(response, updateRenderer);
   }
 

@@ -23,6 +23,7 @@ import PyannoteDiarizationProvider, {
   DiarizationSegment,
 } from "./pyannote-diarization-provider";
 import WeSpeakerVerificationProvider from "./wespeaker-verification-provider";
+import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
 
 /**
  * Speaker identity states
@@ -230,7 +231,16 @@ export default class SpeakerVerificationService {
   }
 
   async processDiarizationAudio(input: DiarizationInput): Promise<DiarizationResult> {
+    const startedAt = Date.now();
     if (!this.diarizationProvider) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "diarization_disabled",
+      });
       return {
         ok: false,
         segments: [],
@@ -241,12 +251,21 @@ export default class SpeakerVerificationService {
     }
 
     if (!this.diarizationProvider.isReady()) {
+      const reason = this.diarizationProvider.getLoadError() || "diarization_unavailable";
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason,
+      });
       return {
         ok: false,
         segments: [],
         speakerCount: 0,
         contaminated: false,
-        error: this.diarizationProvider.getLoadError() || "diarization_unavailable",
+        error: reason,
       };
     }
 
@@ -255,6 +274,14 @@ export default class SpeakerVerificationService {
       const uniqueSpeakers = new Set(segments.map((segment) => segment.speaker));
       const speakerCount = uniqueSpeakers.size;
       const contaminated = speakerCount > 1;
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: true,
+        latencyMs: Date.now() - startedAt,
+        contaminated,
+        degraded: contaminated,
+      });
 
       if (contaminated) {
         const previousState = { ...this.currentState };
@@ -282,6 +309,14 @@ export default class SpeakerVerificationService {
         contaminated,
       };
     } catch (error) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: error instanceof Error ? error.message : String(error),
+      });
       return {
         ok: false,
         segments: [],
@@ -308,18 +343,52 @@ export default class SpeakerVerificationService {
   async processWeSpeakerVerification(
     request: WeSpeakerVerificationRequest
   ): Promise<WeSpeakerVerificationResult> {
+    const startedAt = Date.now();
     if (!this.weSpeakerProvider) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "wespeaker_disabled",
+      });
       return { ok: false, error: "wespeaker_disabled" };
     }
     if (!this.weSpeakerProvider.isReady()) {
-      return { ok: false, error: this.weSpeakerProvider.getLoadError() || "wespeaker_unavailable" };
+      const reason = this.weSpeakerProvider.getLoadError() || "wespeaker_unavailable";
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason,
+      });
+      return { ok: false, error: reason };
     }
 
     const enrollment = this.enrollmentService.getEnrollment(request.identityId);
     if (!enrollment || enrollment.status !== EnrollmentStatus.ACTIVE) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "enrollment_not_active",
+      });
       return { ok: false, error: "enrollment_not_active" };
     }
     if (!enrollment.voiceProfileData) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "missing_enrollment_voice_profile",
+      });
       return { ok: false, error: "missing_enrollment_voice_profile" };
     }
 
@@ -341,6 +410,13 @@ export default class SpeakerVerificationService {
           similarity,
         },
       });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: true,
+        latencyMs: Date.now() - startedAt,
+        degraded: !matched,
+      });
 
       return {
         ok: true,
@@ -348,9 +424,18 @@ export default class SpeakerVerificationService {
         state,
       };
     } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason,
+      });
       return {
         ok: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: reason,
       };
     }
   }
