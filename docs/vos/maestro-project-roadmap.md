@@ -241,7 +241,7 @@ Current modernization status (2026-03-19):
 * Wave A: **COMPLETE - HARD CLOSED**
 * Wave B: **COMPLETE - HARD CLOSED**
 * Wave C: **COMPLETE - HARD CLOSED** (C1 diarization + C2 WeSpeaker CPU verification lanes landed and accepted)
-* Wave D: **NOT STARTED**
+* Wave D: **IN PROGRESS** (bounded TTS broker integration landing: Kokoro primary, Piper fallback, interruption-safe playback, persona routing)
 
 #### Wave A: Audio Front-End Modernization (Prerequisite)
 
@@ -286,6 +286,10 @@ Status:
 - **Piper** fallback
 - **Interruption-safe** playback
 - **Persona routing**
+
+Status:
+
+* **IN PROGRESS** (Wave D1 bounded broker slice in implementation)
 
 ### Phase 2A: Identity and safety gating
 
@@ -362,6 +366,15 @@ Deliver:
 1. Stand up the TTS broker with persona routing, interruption rules, and local fallback behavior.
 2. Connect warning and sentinel speech to policy and security events.
 3. Keep acknowledgments short and keep cognitive speech separate from operating confirmations.
+
+**Current status: PARTIAL - Wave D1 bounded broker integration landing**
+
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| TTS Broker | [`tts-broker.ts`](../../maestro/client/src/main/stt/tts-broker.ts) | PARTIAL | Primary/fallback routing and interruption control landed; richer policy/event integration still pending |
+| Kokoro Provider | [`tts-providers.ts`](../../maestro/client/src/main/stt/tts-providers.ts) | PARTIAL | Primary provider path active with persona voice override; broader production hardening still pending |
+| Piper Fallback | [`tts-providers.ts`](../../maestro/client/src/main/stt/tts-providers.ts) | PARTIAL | Piper-named fallback path active; full standalone Piper synthesis contract still pending |
+| Voice Output Integration | [`voice-output.ts`](../../maestro/client/src/main/stt/voice-output.ts) | PARTIAL | Broker wired into speech output path; additional output-class wiring to more runtime events still pending |
 
 Exit evidence:
 

@@ -2,11 +2,7 @@ import Log from "../log";
 import Settings from "../settings";
 import STTTracking, { classifyTranscript } from "./tracking";
 import HPOTuner from "./hpo-tuner";
-import {
-  TtsProvider,
-  createTtsProvider,
-  FallbackTtsProvider,
-} from "./tts-providers";
+import TtsBroker, { TtsPersona, TtsPriorityClass } from "./tts-broker";
 
 /**
  * Handles voice output requests (TTS) received from the Bus.
@@ -18,29 +14,29 @@ import {
  * - Kokoro fails + fallback disabled => fail closed with explicit signal
  */
 export default class VoiceOutput {
-  private provider: TtsProvider;
+  private broker: TtsBroker;
   private settings: Settings;
   private tuner?: HPOTuner;
 
   constructor(private log: Log, private tracking: STTTracking, settings: Settings, tuner?: HPOTuner) {
     this.settings = settings;
     this.tuner = tuner;
-    this.provider = createTtsProvider(log, tracking, settings);
+    this.broker = new TtsBroker(log, tracking, settings);
   }
 
   /**
    * Refresh the TTS provider (called when settings change)
    */
   refreshProvider(): void {
-    this.provider = createTtsProvider(this.log, this.tracking, this.settings);
-    this.log.logVerbose(`[VoiceOutput] Provider refreshed to: ${this.provider.getType()}`);
+    this.broker.refreshProviders();
+    this.log.logVerbose(`[VoiceOutput] TTS broker providers refreshed`);
   }
 
   /**
    * Get current provider type
    */
   getProviderType(): string {
-    return this.provider.getType();
+    return this.broker.getProviderSummary();
   }
 
   /**
@@ -55,69 +51,44 @@ export default class VoiceOutput {
     messageId: string,
     audioDataB64: string,
     format: string,
-    transcript: string
+    transcript: string,
+    options?: {
+      persona?: TtsPersona;
+      priorityClass?: TtsPriorityClass;
+      interruptible?: boolean;
+      messageClass?: "ack" | "guidance" | "warning" | "cognitive";
+      interruptCurrentPlayback?: boolean;
+    }
   ): Promise<boolean> {
     const startMs = Date.now();
-    const initialProvider = this.provider.getType();
+    if (options?.interruptCurrentPlayback) {
+      this.broker.interruptCurrentPlayback("explicit_interrupt_request");
+    }
 
-    this.log.logVerbose(
-      `[VoiceOutput] Playing speech request ${messageId} with provider: ${initialProvider}`
-    );
-
-    // Try primary provider
-    const result = await this.provider.play(messageId, audioDataB64, format, transcript);
+    this.log.logVerbose(`[VoiceOutput] Playing speech request ${messageId} via TTS broker`);
+    const success = await this.broker.speak({
+      messageId,
+      audioDataB64,
+      format,
+      transcript,
+      persona: options?.persona,
+      priorityClass: options?.priorityClass,
+      interruptible: options?.interruptible,
+      messageClass: options?.messageClass,
+    });
     const ttfaMs = Date.now() - startMs;
     const scenario = classifyTranscript(transcript);
 
-    // If primary provider failed and fallback is enabled, try fallback
-    if (!result.success && initialProvider === "kokoro") {
-      const fallbackEnabled = this.settings.getArqonTtsKokoroFallbackEnabled();
-      
-      if (fallbackEnabled) {
-        this.log.logVerbose(
-          `[VoiceOutput] Kokoro failed, falling back to aplay`
-        );
-
-        // Emit fallback telemetry
-        this.tracking.logMetric("stt.tts.fallback.used", {
-          message_id: messageId,
-          kokoro_error: result.error,
-          fallback_provider: "fallback",
-        });
-
-        // Keep configured provider unchanged; fallback is per-request.
-        const fallbackProvider = new FallbackTtsProvider(this.log, this.tracking, this.settings);
-        const fallbackResult = await fallbackProvider.play(
-          messageId,
-          audioDataB64,
-          format,
-          transcript
-        );
-
-        return fallbackResult.success;
-      } else {
-        // Fallback disabled - fail closed
-        this.log.logError(
-          `[VoiceOutput] Kokoro failed and fallback disabled, failing closed for ${messageId}`
-        );
-
-        this.tracking.logMetric("stt.tts.fail_closed", {
-          message_id: messageId,
-          provider: "kokoro",
-          reason: result.error,
-          fallback_enabled: false,
-        });
-
-        return false;
-      }
-    }
-
     if (this.tuner) {
-      this.tuner.recordTelemetry(scenario, ttfaMs, result.success);
+      this.tuner.recordTelemetry(scenario, ttfaMs, success);
       // Let iteration cycle run asynchronously after tracking completion
       this.tuner.runLoopCycle().catch((e) => this.log.logError(`[VoiceOutput] Error running tuner loop: ${e}`));
     }
     
-    return result.success;
+    return success;
+  }
+
+  stop(reason: string = "voice_output_stop"): boolean {
+    return this.broker.interruptCurrentPlayback(reason);
   }
 }

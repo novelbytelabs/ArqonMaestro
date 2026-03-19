@@ -8,7 +8,7 @@ import Settings from "../settings";
 /**
  * TTS Provider types
  */
-export type TtsProviderType = "kokoro" | "fallback";
+export type TtsProviderType = "kokoro" | "piper";
 
 /**
  * Result of a TTS playback operation
@@ -18,6 +18,12 @@ export interface TtsPlaybackResult {
   provider: TtsProviderType;
   latencyMs: number;
   error?: string;
+}
+
+export interface TtsPlaybackOptions {
+  voiceOverride?: string;
+  persona?: string;
+  priorityClass?: "p1_reflex" | "p2_warning" | "p3_direct" | "p4_guidance" | "p5_background";
 }
 
 /**
@@ -41,8 +47,11 @@ export interface TtsProvider {
     messageId: string,
     audioDataB64: string,
     format: string,
-    transcript: string
+    transcript: string,
+    options?: TtsPlaybackOptions
   ): Promise<TtsPlaybackResult>;
+
+  stopCurrentPlayback(reason?: string): boolean;
 }
 
 /**
@@ -54,6 +63,7 @@ abstract class BaseTtsProvider implements TtsProvider {
   protected settings: Settings;
   protected playedMessages = new Set<string>();
   protected readonly MAX_TRACKED_MESSAGES = 100;
+  protected activePlaybackProcess: ReturnType<typeof spawn> | null = null;
 
   constructor(log: Log, tracking: STTTracking, settings: Settings) {
     this.log = log;
@@ -88,16 +98,47 @@ abstract class BaseTtsProvider implements TtsProvider {
     messageId: string,
     audioDataB64: string,
     format: string,
-    transcript: string
+    transcript: string,
+    options?: TtsPlaybackOptions
   ): Promise<TtsPlaybackResult>;
+
+  stopCurrentPlayback(reason: string = "interrupted"): boolean {
+    const proc = this.activePlaybackProcess;
+    if (!proc || proc.killed) {
+      return false;
+    }
+    try {
+      proc.kill();
+      this.log.logVerbose(`[${this.getType()}] Stopped active playback (${reason})`);
+      this.activePlaybackProcess = null;
+      return true;
+    } catch (error: any) {
+      this.log.logError(
+        `[${this.getType()}] Failed to stop active playback: ${error?.message || error}`
+      );
+      return false;
+    }
+  }
+
+  protected trackPlaybackProcess(proc: ReturnType<typeof spawn>): void {
+    this.activePlaybackProcess = proc;
+    const clear = () => {
+      if (this.activePlaybackProcess === proc) {
+        this.activePlaybackProcess = null;
+      }
+    };
+    proc.once("close", clear);
+    proc.once("error", clear);
+    proc.once("exit", clear);
+  }
 }
 
 /**
  * Fallback TTS provider using aplay (existing implementation)
  */
-export class FallbackTtsProvider extends BaseTtsProvider {
+export class PiperTtsProvider extends BaseTtsProvider {
   getType(): TtsProviderType {
-    return "fallback";
+    return "piper";
   }
 
   async play(
@@ -110,11 +151,11 @@ export class FallbackTtsProvider extends BaseTtsProvider {
     if (!this.checkAndTrackReplay(messageId)) {
       this.tracking.logMetric("stt.tts.replay_ignored", {
         message_id: messageId,
-        provider: "fallback",
+        provider: "piper",
       });
       return {
         success: false,
-        provider: "fallback",
+        provider: "piper",
         latencyMs: 0,
         error: "replay ignored",
       };
@@ -143,16 +184,17 @@ export class FallbackTtsProvider extends BaseTtsProvider {
         };
 
         const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+        this.trackPlaybackProcess(proc);
 
         proc.once("spawn", () => {
           this.tracking.logMetric("stt.tts.provider_selected", {
             message_id: messageId,
-            provider: "fallback",
+            provider: "piper",
           });
           this.tracking.logMetric("stt.tts.playback_started", {
             message_id: messageId,
             bytes: buffer.length,
-            provider: "fallback",
+            provider: "piper",
           });
         });
 
@@ -162,12 +204,12 @@ export class FallbackTtsProvider extends BaseTtsProvider {
           this.log.logError(`[FallbackTts] Playback error for ${messageId}: ${err.message}`);
           this.tracking.logMetric("stt.tts.playback_failed", {
             message_id: messageId,
-            provider: "fallback",
+            provider: "piper",
             reason: err.message,
           });
           resolveOnce({
             success: false,
-            provider: "fallback",
+            provider: "piper",
             latencyMs,
             error: err.message,
           });
@@ -182,29 +224,29 @@ export class FallbackTtsProvider extends BaseTtsProvider {
             this.playedMessages.delete(messageId);
             this.tracking.logMetric("stt.tts.playback_failed", {
               message_id: messageId,
-              provider: "fallback",
+              provider: "piper",
               reason: `exit_${code}`,
             });
             resolveOnce({
               success: false,
-              provider: "fallback",
+              provider: "piper",
               latencyMs,
               error: `exit code ${code}`,
             });
           } else {
             this.tracking.logMetric("stt.tts.playback_completed", {
               message_id: messageId,
-              provider: "fallback",
+              provider: "piper",
               duration_ms: latencyMs,
             });
             this.tracking.logMetric("stt.tts.latency_ms", {
               message_id: messageId,
-              provider: "fallback",
+              provider: "piper",
               latency_ms: latencyMs,
             });
             resolveOnce({
               success: true,
-              provider: "fallback",
+              provider: "piper",
               latencyMs,
             });
           }
@@ -216,12 +258,12 @@ export class FallbackTtsProvider extends BaseTtsProvider {
           this.log.logError(`[FallbackTts] Playback error for ${messageId}: missing stdin pipe`);
           this.tracking.logMetric("stt.tts.playback_failed", {
             message_id: messageId,
-            provider: "fallback",
+            provider: "piper",
             reason: "stdin_unavailable",
           });
           resolveOnce({
             success: false,
-            provider: "fallback",
+            provider: "piper",
             latencyMs,
             error: "stdin_unavailable",
           });
@@ -234,12 +276,12 @@ export class FallbackTtsProvider extends BaseTtsProvider {
           this.log.logError(`[FallbackTts] stdin error for ${messageId}: ${err.message}`);
           this.tracking.logMetric("stt.tts.playback_failed", {
             message_id: messageId,
-            provider: "fallback",
+            provider: "piper",
             reason: err.message,
           });
           resolveOnce({
             success: false,
-            provider: "fallback",
+            provider: "piper",
             latencyMs,
             error: err.message,
           });
@@ -253,18 +295,23 @@ export class FallbackTtsProvider extends BaseTtsProvider {
       this.log.logError(`[FallbackTts] Failed to start playback: ${e.message}`);
       this.tracking.logMetric("stt.tts.playback_failed", {
         message_id: messageId,
-        provider: "fallback",
+        provider: "piper",
         reason: e.message,
       });
       return {
         success: false,
-        provider: "fallback",
+        provider: "piper",
         latencyMs,
         error: e.message,
       };
     }
   }
 }
+
+/**
+ * Backward-compatible alias; migration prefers Piper naming.
+ */
+export class FallbackTtsProvider extends PiperTtsProvider {}
 
 interface KokoroSynthesizeResponse {
   audio_data_b64?: string;
@@ -616,7 +663,8 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     messageId: string,
     audioDataB64: string,
     format: string,
-    transcript: string
+    transcript: string,
+    options?: TtsPlaybackOptions
   ): Promise<TtsPlaybackResult> {
     // Check for replay
     if (!this.checkAndTrackReplay(messageId)) {
@@ -634,7 +682,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
 
     const startMs = Date.now();
     const baseUrl = this.settings.getArqonTtsKokoroUrl();
-    const voice = this.settings.getArqonTtsKokoroVoice();
+    const voice = options?.voiceOverride || this.settings.getArqonTtsKokoroVoice();
     const timeoutMs = this.settings.getArqonTtsKokoroTimeoutMs();
     const streamingEnabled = this.settings.getArqonTtsKokoroStreamingEnabled();
 
@@ -738,7 +786,8 @@ export class KokoroTtsProvider extends BaseTtsProvider {
           }
         };
 
-        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+      const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+      this.trackPlaybackProcess(proc);
         const buffer = Buffer.from(synthesizedAudioB64, "base64");
 
         proc.once("error", (err) => {
@@ -857,6 +906,10 @@ export function createTtsProvider(
     return new KokoroTtsProvider(log, tracking, settings);
   }
   
-  // Default to fallback
-  return new FallbackTtsProvider(log, tracking, settings);
+  // "fallback" remains accepted for migration compatibility and maps to Piper.
+  if (provider === "piper" || provider === "fallback") {
+    return new PiperTtsProvider(log, tracking, settings);
+  }
+
+  return new PiperTtsProvider(log, tracking, settings);
 }

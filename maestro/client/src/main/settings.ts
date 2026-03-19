@@ -965,11 +965,11 @@ export default class Settings {
 
   /**
    * Get TTS provider selection
-   * Options: "kokoro" | "fallback"
-   * Default: "fallback" (safe default - uses existing aplay path)
+   * Options: "kokoro" | "piper" | "fallback" (legacy alias for piper)
+   * Default: "kokoro" (Wave D primary)
    */
   getArqonTtsProvider(): string {
-    return this.get("system", "arqon_tts_provider", "fallback");
+    return this.get("system", "arqon_tts_provider", "kokoro");
   }
 
   setArqonTtsProvider(provider: string) {
@@ -1010,8 +1010,8 @@ export default class Settings {
   }
 
   /**
-   * Get whether fallback TTS is enabled when Kokoro fails
-   * Default: true (fallback to aplay path)
+   * Get whether fallback TTS is enabled when Kokoro fails.
+   * Fallback provider is Piper in Wave D.
    */
   getArqonTtsKokoroFallbackEnabled(): boolean {
     return this.get("system", "arqon_tts_kokoro_fallback_enabled", true);

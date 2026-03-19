@@ -604,10 +604,25 @@ export default class BusClient {
       return;
     }
 
-    const { audio_data, audio_format, transcript } = payload.payload;
+    const {
+      audio_data,
+      audio_format,
+      transcript,
+      persona,
+      priority_class,
+      interruptible,
+      message_class,
+      interrupt_current_playback,
+    } = payload.payload;
     
     // Voice output handles its own idempotency and replay deduping
-    this.voiceOutput.play(payload.message_id, audio_data, audio_format || "wav", transcript || "");
+    this.voiceOutput.play(payload.message_id, audio_data, audio_format || "wav", transcript || "", {
+      persona,
+      priorityClass: priority_class,
+      interruptible,
+      messageClass: message_class,
+      interruptCurrentPlayback: interrupt_current_playback,
+    });
   }
 
   /**
