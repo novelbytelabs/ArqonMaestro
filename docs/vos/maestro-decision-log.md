@@ -153,3 +153,29 @@ Consequences:
 * RNNoise is not default production direction
 * Tauri remains a later parity-gated track, not current Wave A scope
 * see repo decision: [`ADM-052`](../decision-log.md)
+
+---
+
+## VOS-007: Wave B1 Command-Fast Bridge Uses Local Transcribe -> `sendTextRequest(...)`
+
+* Date: 2026-03-19
+* Status: Accepted
+
+Decision:
+
+Wave B1 is accepted with an explicit bridge architecture note:
+
+* `whisper.cpp` now owns the command-fast STT lane
+* B1 uses a local-transcribe -> `sendTextRequest(...)` bridge for final command resolution
+* this preserves existing downstream command semantics without reopening backend/protocol design
+* response provenance and chunk-final correlation semantics are therefore not identical to the prior endpoint-final STT path
+* this is an accepted bounded compromise for B1, not the final ideal end-state
+
+Why:
+
+This keeps Wave B1 bounded and additive while modernizing command-fast STT now, without forcing a broader backend/protocol redesign inside this slice.
+
+Consequences:
+
+* bridge behavior is intentional and should remain visible in future design and migration decisions
+* future phases may replace this bridge with a more ideal end-state, but B1 should not be retroactively treated as hidden doctrine
