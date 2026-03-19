@@ -14,7 +14,6 @@
 // Use console.log - can be replaced with proper logger in production
 const log = (message: string): void => console.log(message);
 
-import { SpeakerRole } from "./speaker-enrollment-service";
 import { WorkflowRiskLevel } from "./workflow-contract-service";
 
 /**
@@ -96,8 +95,18 @@ export interface NexusProposal {
       commandVerb: string;
       commandFamily: string;
       target?: string;
+      riskLevel?: WorkflowRiskLevel;
     }>;
   };
+}
+
+export interface ProposalExecutionContext {
+  securityMode: "normal" | "secure" | "restricted" | "shared_room";
+  interactionMode: "command" | "dictation" | "conversation";
+  identityState: string;
+  speakerVerified: boolean;
+  contaminated: boolean;
+  identityEvidenceReady: boolean;
 }
 
 /**
@@ -320,7 +329,10 @@ export default class NexusProtocolBoundaryService {
   /**
    * Process Nexus proposal
    */
-  processNexusProposal(proposal: NexusProposal): {
+  processNexusProposal(
+    proposal: NexusProposal,
+    context?: ProposalExecutionContext
+  ): {
     accepted: boolean;
     reason?: string;
     convertedWorkflowId?: string;
@@ -338,26 +350,92 @@ export default class NexusProtocolBoundaryService {
       };
     }
 
-    // Check if delegation grant is required and valid
-    if (proposal.delegationGrantId) {
-      const validation = this.validateDelegationGrant(
-        proposal.delegationGrantId,
-        proposal.proposedWorkflow?.steps[0]?.commandFamily || "default",
-        WorkflowRiskLevel.MODERATE
-      );
+    // Dictation mode is not a lawful auto-execution mode for Nexus-originated operating actions.
+    if (context?.interactionMode === "dictation") {
+      return {
+        accepted: false,
+        reason: "Dictation mode blocks Nexus-originated execution proposals",
+        requiresConfirmation: true,
+      };
+    }
 
-      if (!validation.valid) {
+    const workflowSteps = proposal.proposedWorkflow?.steps || [];
+    const highestRequestedRisk = this.computeHighestRequestedRisk(proposal);
+    const requestedFamilies = new Set(workflowSteps.map((step) => step.commandFamily));
+
+    // Contamination and degraded identity should tighten delegated authority, not loosen it.
+    if (context?.contaminated && highestRequestedRisk !== WorkflowRiskLevel.LOW) {
+      return {
+        accepted: false,
+        reason: "Contaminated speaker state blocks delegated medium/high-risk proposals",
+        requiresConfirmation: true,
+      };
+    }
+
+    if (
+      context &&
+      !context.identityEvidenceReady &&
+      (highestRequestedRisk === WorkflowRiskLevel.HIGH ||
+        highestRequestedRisk === WorkflowRiskLevel.PRIVILEGED)
+    ) {
+      return {
+        accepted: false,
+        reason: "Identity evidence unavailable for high-risk delegated proposal",
+        requiresConfirmation: true,
+      };
+    }
+
+    // Check if delegation grant is required and valid.
+    // Nexus remains advisory unless explicit grant exists and passes Maestro policy.
+    if (proposal.delegationGrantId) {
+      for (const family of requestedFamilies.size > 0 ? requestedFamilies : new Set(["default"])) {
+        const validation = this.validateDelegationGrant(
+          proposal.delegationGrantId,
+          family,
+          highestRequestedRisk
+        );
+        if (!validation.valid) {
+          return {
+            accepted: false,
+            reason: validation.reason,
+            requiresConfirmation: true,
+          };
+        }
+      }
+    } else {
+      // No delegation grant means proposal remains advisory and needs explicit human confirmation.
+      // We return a controlled non-accept result to preserve Maestro ownership boundaries.
+      if (
+        proposal.proposalType === ProposalType.PROPOSED_COMMAND ||
+        proposal.proposalType === ProposalType.PROPOSED_WORKFLOW
+      ) {
         return {
           accepted: false,
-          reason: validation.reason,
+          reason: "Nexus proposal without delegation grant requires explicit user approval",
           requiresConfirmation: true,
         };
       }
-    } else if (proposal.confidence > 0.8) {
-      // High confidence but no grant - treat as advisory
+    }
+
+    if (
+      context?.securityMode === "secure" &&
+      !context.speakerVerified &&
+      highestRequestedRisk !== WorkflowRiskLevel.LOW
+    ) {
       return {
         accepted: false,
-        reason: "Nexus proposals without delegation grant require explicit user approval",
+        reason: "Secure mode requires verified speaker for delegated medium/high-risk proposals",
+        requiresConfirmation: true,
+      };
+    }
+
+    if (
+      context?.securityMode === "shared_room" &&
+      highestRequestedRisk !== WorkflowRiskLevel.LOW
+    ) {
+      return {
+        accepted: false,
+        reason: "Shared-room mode blocks delegated medium/high-risk proposals by default",
         requiresConfirmation: true,
       };
     }
@@ -376,6 +454,65 @@ export default class NexusProtocolBoundaryService {
       accepted: true,
       requiresConfirmation: false,
     };
+  }
+
+  private computeHighestRequestedRisk(proposal: NexusProposal): WorkflowRiskLevel {
+    const explicitLevels =
+      proposal.proposedWorkflow?.steps
+        ?.map((step) => step.riskLevel)
+        .filter((level): level is WorkflowRiskLevel => !!level) || [];
+    if (explicitLevels.length > 0) {
+      return explicitLevels.reduce((highest, next) =>
+        this.compareRisk(next, highest) > 0 ? next : highest
+      );
+    }
+
+    const families = proposal.proposedWorkflow?.steps?.map((step) => step.commandFamily) || [];
+    if (families.length === 0) {
+      return WorkflowRiskLevel.MODERATE;
+    }
+    let highest = WorkflowRiskLevel.LOW;
+    for (const family of families) {
+      const inferred = this.mapCommandFamilyToRisk(family);
+      if (this.compareRisk(inferred, highest) > 0) {
+        highest = inferred;
+      }
+    }
+    return highest;
+  }
+
+  private compareRisk(left: WorkflowRiskLevel, right: WorkflowRiskLevel): number {
+    const riskLevelOrder = [
+      WorkflowRiskLevel.LOW,
+      WorkflowRiskLevel.MODERATE,
+      WorkflowRiskLevel.HIGH,
+      WorkflowRiskLevel.PRIVILEGED,
+    ];
+    return riskLevelOrder.indexOf(left) - riskLevelOrder.indexOf(right);
+  }
+
+  private mapCommandFamilyToRisk(commandFamily: string): WorkflowRiskLevel {
+    const normalized = (commandFamily || "").toLowerCase();
+    if (["security", "admin", "privileged"].includes(normalized)) {
+      return WorkflowRiskLevel.PRIVILEGED;
+    }
+    if (
+      [
+        "filesystem",
+        "file_create",
+        "file_delete",
+        "file_rename",
+        "system",
+        "settings",
+        "process",
+      ].includes(normalized)
+    ) {
+      return WorkflowRiskLevel.HIGH;
+    }
+    if (["terminal", "execution", "build", "edit", "browser"].includes(normalized)) {
+      return WorkflowRiskLevel.MODERATE;
+    }
+    return WorkflowRiskLevel.LOW;
   }
 
   /**

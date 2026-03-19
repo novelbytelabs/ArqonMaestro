@@ -20,6 +20,9 @@ interface DispatchOptions {
   interactionMode?: "command" | "dictation" | "conversation";
   currentApp?: string;
   targetSurface?: string;
+  executionOrigin?: "user" | "nexus_proposal" | "macro";
+  delegationGrantId?: string;
+  nexusProposalId?: string;
 }
 
 type DispatchRoute =
@@ -354,6 +357,9 @@ export default class RuntimeCommandDispatcher {
       interactionMode = "command",
       currentApp,
       targetSurface,
+      executionOrigin = "user",
+      delegationGrantId,
+      nexusProposalId,
     }: DispatchOptions = {}
   ): Promise<void> {
     const plan = this.plan(response, sessionId);
@@ -374,6 +380,9 @@ export default class RuntimeCommandDispatcher {
     this.log.logVerbose(
       `[RuntimeCommandDispatcher] ${JSON.stringify({
         chunkId: response.chunkId || "unknown",
+        executionOrigin,
+        delegationGrantId: delegationGrantId || "none",
+        nexusProposalId: nexusProposalId || "none",
         dominantFamily: plan.dominantFamily,
         reason: plan.reason,
         route: plan.route,
@@ -440,6 +449,25 @@ export default class RuntimeCommandDispatcher {
       // In a fuller implementation, this would trigger UI confirmation
     }
 
+    const boundaryBlockReason = this.getBoundaryBlockReason({
+      route: plan.route,
+      executionOrigin,
+      delegationGrantId,
+    });
+    if (boundaryBlockReason) {
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Boundary blocked ${executionOrigin} execution: ${boundaryBlockReason}`
+      );
+      const outcome = this.outcomeClassifier.classify(
+        response,
+        plan.route,
+        response.chunkId || undefined,
+        sessionId || undefined
+      );
+      this.executionTrace?.recordOutcome(outcome, sessionId);
+      return;
+    }
+
     // Classify and record the outcome
     const outcome = this.outcomeClassifier.classify(
       response,
@@ -504,6 +532,32 @@ export default class RuntimeCommandDispatcher {
     }
 
     await this.executor.execute(response, updateRenderer);
+  }
+
+  private getBoundaryBlockReason({
+    route,
+    executionOrigin,
+    delegationGrantId,
+  }: {
+    route: DispatchRoute;
+    executionOrigin: "user" | "nexus_proposal" | "macro";
+    delegationGrantId?: string;
+  }): string | undefined {
+    if (executionOrigin !== "nexus_proposal") {
+      return undefined;
+    }
+
+    // Nexus proposals must not fall through unresolved/legacy routes.
+    if (route === "legacy_executor" || route === "mixed_legacy" || route === "unknown_legacy") {
+      return "nexus_proposal_requires_lawful_non_legacy_route";
+    }
+
+    // Any operational route from Nexus requires an explicit delegation grant.
+    if (route !== "presentation_only" && !delegationGrantId) {
+      return "nexus_operational_route_requires_delegation_grant";
+    }
+
+    return undefined;
   }
 
   /**

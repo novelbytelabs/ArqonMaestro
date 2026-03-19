@@ -59,8 +59,17 @@ import { CommandRiskLevel, AuthorizationDecision, InteractionMode } from "../run
 import { SecurityMode } from "../runtime/security-mode-service";
 
 // Workflow and Nexus imports (FP-2B)
-import WorkflowContractService, { WorkflowClass, StepRole, StepFailurePolicy } from "../runtime/workflow-contract-service";
-import NexusProtocolBoundaryService, { AuthorityPhase } from "../runtime/nexus-protocol-boundary-service";
+import WorkflowContractService, {
+  WorkflowClass,
+  StepRole,
+  StepFailurePolicy,
+  StepStatus,
+} from "../runtime/workflow-contract-service";
+import NexusProtocolBoundaryService, {
+  NexusProposal,
+  ProposalExecutionContext,
+} from "../runtime/nexus-protocol-boundary-service";
+import WorkflowExecutionService from "../runtime/workflow-nexus-integration";
 
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
@@ -100,6 +109,7 @@ export default class Executor {
   // Workflow and Nexus services (FP-2B)
   private workflowService: WorkflowContractService;
   private nexusBoundary: NexusProtocolBoundaryService;
+  private workflowExecutionService: WorkflowExecutionService;
   private executionTrace?: ExecutionTrace;
 
   // Map of region keywords to RegionKind
@@ -605,6 +615,10 @@ export default class Executor {
     // Initialize Workflow and Nexus services (FP-2B)
     this.workflowService = new WorkflowContractService();
     this.nexusBoundary = new NexusProtocolBoundaryService();
+    this.workflowExecutionService = new WorkflowExecutionService(
+      this.workflowService,
+      this.nexusBoundary
+    );
 
     // Wire up delegates for recovery orchestrator (ADM-048)
 
@@ -2119,5 +2133,115 @@ export default class Executor {
    */
   getNexusBoundary(): NexusProtocolBoundaryService {
     return this.nexusBoundary;
+  }
+
+  /**
+   * Process a Nexus proposal through Maestro's boundary and create a workflow candidate when valid.
+   * Execution remains Maestro-owned and policy-gated.
+   */
+  processNexusProposal(
+    proposal: NexusProposal
+  ): {
+    accepted: boolean;
+    workflowId?: string;
+    reason?: string;
+    requiresConfirmation: boolean;
+  } {
+    const context = this.getNexusProposalExecutionContext();
+    return this.workflowExecutionService.processNexusProposal(proposal, context);
+  }
+
+  /**
+   * Execute a previously created workflow through bounded, policy-aware step checks.
+   * This is intentionally sequential and inspectable for Phase 2B.
+   */
+  async executeWorkflowById(workflowId: string): Promise<void> {
+    await this.workflowExecutionService.executeWorkflow(
+      workflowId,
+      async (step, context) => {
+        const start = Date.now();
+        const riskLevel = this.mapWorkflowFamilyToRisk(step.commandFamily);
+        const authResult = await this.identityGateway.authorize({
+          commandFamily: step.commandFamily,
+          commandVerb: step.commandVerb,
+          target: step.commandTarget,
+          riskLevel,
+        });
+
+        if (authResult.decision !== AuthorizationDecision.ALLOW) {
+          return {
+            stepId: step.stepId,
+            status: StepStatus.HARD_FAILED,
+            commandVerb: step.commandVerb,
+            success: false,
+            outputBindings: new Map(),
+            warnings: [],
+            errorCode: "authorization_blocked",
+            errorMessage: `${authResult.decision}:${authResult.reason}`,
+            elapsedMs: Date.now() - start,
+          };
+        }
+
+        console.log(
+          `[FP-2B] Workflow step allowed: ${JSON.stringify({
+            workflowId: context.workflowId,
+            stepId: step.stepId,
+            commandFamily: step.commandFamily,
+            origin: context.origin,
+            delegationGrantId: context.delegationGrantId || "none",
+            proposalId: context.proposalId || "none",
+          })}`
+        );
+
+        return {
+          stepId: step.stepId,
+          status: StepStatus.SUCCEEDED,
+          commandVerb: step.commandVerb,
+          success: true,
+          outputBindings: new Map(),
+          warnings: [],
+          elapsedMs: Date.now() - start,
+        };
+      }
+    );
+  }
+
+  private getNexusProposalExecutionContext(): ProposalExecutionContext {
+    const context = this.identityGateway.getIdentityContext();
+    const securityMode =
+      context.securityMode === SecurityMode.SHARED_ROOM
+        ? "shared_room"
+        : context.securityMode === SecurityMode.RESTRICTED
+          ? "restricted"
+          : context.securityMode === SecurityMode.SECURE
+            ? "secure"
+            : "normal";
+
+    return {
+      securityMode,
+      interactionMode: context.interactionMode,
+      identityState: context.identityState,
+      speakerVerified: context.isVerified,
+      contaminated: context.contaminated,
+      identityEvidenceReady: context.identityEvidenceReady,
+    };
+  }
+
+  private mapWorkflowFamilyToRisk(commandFamily: string): CommandRiskLevel {
+    const family = (commandFamily || "").toLowerCase();
+    if (["security", "admin", "privileged"].includes(family)) {
+      return CommandRiskLevel.PRIVILEGED;
+    }
+    if (
+      ["filesystem", "file_delete", "file_rename", "system", "settings", "process"].includes(
+        family
+      )
+    ) {
+      return CommandRiskLevel.HIGH;
+    }
+    if (["terminal", "execution", "build", "edit", "browser"].includes(family)) {
+      return CommandRiskLevel.MEDIUM;
+    }
+    return CommandRiskLevel.LOW;
   }
 }

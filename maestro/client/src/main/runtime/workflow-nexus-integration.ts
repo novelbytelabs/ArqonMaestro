@@ -19,19 +19,19 @@ import WorkflowContractService, {
   WorkflowStepContract,
   StepStatus,
   WorkflowStatus,
-  WorkflowRiskLevel,
   StepResult,
   StepRole,
   StepFailurePolicy,
   WorkflowClass,
+  WorkflowAuthorityContext,
 } from "./workflow-contract-service";
 
 import NexusProtocolBoundaryService, {
   NexusProposal,
-  AuthorityPhase,
-  DelegationScope,
   MaestroExecutionOutcome,
   ExecutionOutcomeStatus,
+  ProposalExecutionContext,
+  ProposalType,
 } from "./nexus-protocol-boundary-service";
 
 /**
@@ -43,6 +43,23 @@ export interface WorkflowExecutionState {
   status: WorkflowStatus;
   startedAt: Date;
   lastUpdatedAt: Date;
+}
+
+export interface WorkflowStepExecutionContext {
+  workflowId: string;
+  stepIndex: number;
+  totalSteps: number;
+  origin: "user" | "nexus_proposal" | "macro";
+  authorityContext?: WorkflowAuthorityContext;
+  delegationGrantId?: string;
+  proposalId?: string;
+}
+
+export interface WorkflowProposalResult {
+  workflowId?: string;
+  accepted: boolean;
+  reason?: string;
+  requiresConfirmation: boolean;
 }
 
 /**
@@ -66,7 +83,10 @@ export default class WorkflowExecutionService {
    */
   async executeWorkflow(
     workflowId: string,
-    executeStep: (step: WorkflowStepContract) => Promise<StepResult>
+    executeStep: (
+      step: WorkflowStepContract,
+      context: WorkflowStepExecutionContext
+    ) => Promise<StepResult>
   ): Promise<void> {
     const contract = this.workflowService.getWorkflow(workflowId);
     if (!contract) {
@@ -103,7 +123,15 @@ export default class WorkflowExecutionService {
         log(`Executing step ${i + 1}/${contract.steps.length}: ${step.commandVerb}`);
 
         // Execute the step
-        const result = await executeStep(step);
+        const result = await executeStep(step, {
+          workflowId,
+          stepIndex: i,
+          totalSteps: contract.steps.length,
+          origin: contract.origin,
+          authorityContext: contract.authorityContext,
+          delegationGrantId: contract.delegationGrantId,
+          proposalId: contract.proposalId,
+        });
         stepResults.push(result);
 
         // Check if we should continue
@@ -199,14 +227,12 @@ export default class WorkflowExecutionService {
   /**
    * Process Nexus proposal into workflow
    */
-  processNexusProposal(proposal: NexusProposal): {
-    workflowId?: string;
-    accepted: boolean;
-    reason?: string;
-    requiresConfirmation: boolean;
-  } {
+  processNexusProposal(
+    proposal: NexusProposal,
+    context?: ProposalExecutionContext
+  ): WorkflowProposalResult {
     // Process through Nexus boundary
-    const result = this.nexusBoundary.processNexusProposal(proposal);
+    const result = this.nexusBoundary.processNexusProposal(proposal, context);
 
     if (!result.accepted) {
       return {
@@ -218,7 +244,7 @@ export default class WorkflowExecutionService {
 
     // If it's a workflow proposal, create workflow
     if (
-      proposal.proposalType === "proposed_workflow" &&
+      proposal.proposalType === ProposalType.PROPOSED_WORKFLOW &&
       proposal.proposedWorkflow?.steps
     ) {
       const steps = proposal.proposedWorkflow.steps.map(
@@ -238,7 +264,13 @@ export default class WorkflowExecutionService {
       const workflow = this.workflowService.createWorkflow(
         `Nexus proposal: ${proposal.requestedIntent}`,
         WorkflowClass.NAMED_MACRO,
-        steps
+        steps,
+        {
+          origin: "nexus_proposal",
+          proposalId: proposal.proposalId,
+          delegationGrantId: proposal.delegationGrantId,
+          authorityContext: context,
+        }
       );
 
       return {
@@ -280,10 +312,10 @@ export default class WorkflowExecutionService {
 
     const outcome: MaestroExecutionOutcome = {
       executionId: contract.workflowId,
-      source: "nexus_proposal",
+      source: contract.origin === "nexus_proposal" ? "nexus_proposal" : "macro",
       commandOrWorkflowId: contract.workflowId,
       status,
-      policyDecision: `risk_level_${contract.riskLevel}`,
+      policyDecision: `workflow_origin_${contract.origin}_risk_${contract.riskLevel}`,
       confirmationApplied: contract.confirmationPolicy !== "none",
       chooserApplied: contract.chooserPolicy !== "disallow_chooser_inside_workflow",
       elapsedMs: result.elapsedMs,

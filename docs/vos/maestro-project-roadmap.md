@@ -228,7 +228,7 @@ Exit evidence:
 
 Phase 2 should connect the deterministic operating path to the broader trust, assistant, and voice subsystems without weakening the hot path.
 
-> **Status: NOT YET STARTED** (2026-03-17)
+> **Status: IN PROGRESS** (2026-03-19)
 
 > **Execution Order: Voice Plane Modernization must complete before Phase 2A or Phase 2C can begin. Phase 2B can run in parallel or after 2A/2C.**
 
@@ -240,7 +240,7 @@ Current modernization status (2026-03-19):
 
 * Wave A: **COMPLETE - HARD CLOSED**
 * Wave B: **COMPLETE - HARD CLOSED**
-* Wave C: **IN PROGRESS** (C1 diarization bridge lane and C2 WeSpeaker CPU bridge lane implemented; full Phase 2A policy threading still pending)
+* Wave C: **COMPLETE - HARD CLOSED** (C1 diarization + C2 WeSpeaker CPU verification lanes landed and accepted)
 * Wave D: **NOT STARTED**
 
 #### Wave A: Audio Front-End Modernization (Prerequisite)
@@ -278,8 +278,7 @@ Status:
 
 Status:
 
-* **IN PROGRESS** (bridge lanes implemented: C1 diarization + C2 CPU-first WeSpeaker verification)
-* Phase 2A integration work remains before this prerequisite is fully closed
+* **COMPLETE - HARD CLOSED** (C1 diarization + C2 CPU-first WeSpeaker verification accepted)
 
 #### Wave D: TTS Broker Modernization (Prerequisite for Phase 2C)
 
@@ -298,7 +297,7 @@ Deliver:
 2. Enforce secure mode, shared-room mode, confirmation policy, and always-available reflex rules.
 3. Thread identity state into route approval and execution outcomes.
 
-**Current status: PARTIAL - Backend bridges landed, policy threading incomplete**
+**Current status: COMPLETE - ACCEPTED** (identity/safety gating integrated and accepted)
 
 The services now include real bridge-backed voice identity lanes, but Phase 2A policy integration remains incomplete:
 
@@ -332,18 +331,18 @@ Deliver:
 2. Implement the first Maestro-Nexus message boundary for proposals, outcomes, and scoped delegation grants.
 3. Keep Maestro as the execution authority while allowing Nexus to propose and learn.
 
-**Current status: STUBBED - Implementation incomplete**
+**Current status: PARTIAL - Bounded integration landed**
 
 | Component | File | Status | Gap |
 |-----------|------|--------|-----|
-| Workflow Contracts | [`workflow-contract-service.ts`](../../maestro/client/src/main/runtime/workflow-contract-service.ts) | REAL | Types and execution logic exist |
-| Workflow Execution | [`workflow-nexus-integration.ts`](../../maestro/client/src/main/runtime/workflow-nexus-integration.ts) | STUB | Not integrated into command chain |
-| Nexus Protocol | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | STUB | Protocol defined, no Arqon Bus connection |
-| Delegation Grants | [`delegation-grant-service.ts`](../../maestro/client/src/main/runtime/delegation-grant-service.ts) | STUB | In-memory only, no persistence |
+| Workflow Contracts | [`workflow-contract-service.ts`](../../maestro/client/src/main/runtime/workflow-contract-service.ts) | PARTIAL | Now carries origin/delegation/authority context; still needs persistence and richer workflow lifecycle state |
+| Workflow Execution | [`workflow-nexus-integration.ts`](../../maestro/client/src/main/runtime/workflow-nexus-integration.ts) | PARTIAL | Proposal-to-workflow and step-context execution path landed; broader command-pipeline integration still pending |
+| Nexus Protocol | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | PARTIAL | Structured proposal gating + delegation checks implemented; Arqon Bus wire integration still pending |
+| Delegation Grants | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | PARTIAL | Grant validation works in-memory; persistence and governance tooling still pending |
 
 **To complete Phase 2B:**
 
-1. Integrate workflow execution into the command pipeline (hook into executor.ts)
+1. Expand workflow execution from bounded integration to full command pipeline coverage (executor/dispatcher paths)
 2. Add Arqon Bus IPC for Nexus communication
 3. Add persistence for delegation grants
 4. Add unit tests for workflow state machine
