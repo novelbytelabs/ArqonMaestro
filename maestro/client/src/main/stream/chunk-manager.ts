@@ -28,6 +28,7 @@ import STTShadowPublisher from "../runtime/stt-shadow-publisher";
 import TranscriptResponseObserver from "../runtime/transcript-response-observer";
 import { TurnEvent } from "../audio/turn-events";
 import WhisperCommandFastProvider from "../stt/whisper-command-fast-provider";
+import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-provider";
 
 interface Request {
   requestType: "audio" | "editor" | "endpoint" | "initialize";
@@ -75,9 +76,12 @@ export default class ChunkManager {
   private sttShadowPublisher: STTShadowPublisher;
   private transcriptResponseObserver: TranscriptResponseObserver;
   private whisperCommandFastProvider: WhisperCommandFastProvider;
+  private fasterWhisperDictationProvider: FasterWhisperDictationProvider;
   private chunkAudioFrames = new Map<string, Buffer[]>();
   private chunkUseWhisperCommandFast = new Map<string, boolean>();
+  private chunkUseFasterWhisperDictation = new Map<string, boolean>();
   private loggedWhisperUnavailable = false;
+  private loggedFasterWhisperUnavailable = false;
 
   listening: boolean = false;
 
@@ -151,6 +155,7 @@ export default class ChunkManager {
       tracking,
     });
     this.whisperCommandFastProvider = new WhisperCommandFastProvider({}, log);
+    this.fasterWhisperDictationProvider = new FasterWhisperDictationProvider({}, log);
   }
 
   /**
@@ -302,6 +307,9 @@ export default class ChunkManager {
       if (request.chunkId && this.chunkUseWhisperCommandFast.get(request.chunkId)) {
         return;
       }
+      if (request.chunkId && this.chunkUseFasterWhisperDictation.get(request.chunkId)) {
+        return;
+      }
       this.stream.sendAudioRequest(request.audio!, request.chunkId!);
     } else if (request.requestType == "editor") {
       await this.stream.sendEditorStateRequest();
@@ -311,6 +319,15 @@ export default class ChunkManager {
           const handled = await this.handleWhisperFinalize(request.chunkId);
           if (!handled) {
             await this.stream.sendEndpointRequest(request.chunkId, request.finalize!);
+          }
+        }
+        return;
+      }
+      if (request.chunkId && this.chunkUseFasterWhisperDictation.get(request.chunkId)) {
+        if (request.finalize) {
+          const handled = await this.handleFasterWhisperDictationFinalize(request.chunkId);
+          if (!handled) {
+            await this.replayBufferedAudioAndFallbackToEndpoint(request.chunkId, request.finalize!);
           }
         }
         return;
@@ -328,6 +345,22 @@ export default class ChunkManager {
       if (!this.loggedWhisperUnavailable) {
         this.loggedWhisperUnavailable = true;
         this.whisperCommandFastProvider.logUnavailableOnce();
+      }
+      return false;
+    }
+
+    return true;
+  }
+
+  private shouldUseFasterWhisperForCurrentChunk(): boolean {
+    if (!this.active.dictateMode) {
+      return false;
+    }
+
+    if (!this.fasterWhisperDictationProvider.isReady()) {
+      if (!this.loggedFasterWhisperUnavailable) {
+        this.loggedFasterWhisperUnavailable = true;
+        this.fasterWhisperDictationProvider.logUnavailableOnce();
       }
       return false;
     }
@@ -394,6 +427,81 @@ export default class ChunkManager {
     } finally {
       this.chunkAudioFrames.delete(chunkId);
       this.chunkUseWhisperCommandFast.delete(chunkId);
+    }
+  }
+
+  private async replayBufferedAudioAndFallbackToEndpoint(
+    chunkId: string,
+    finalize: boolean
+  ): Promise<void> {
+    const frames = this.chunkAudioFrames.get(chunkId) || [];
+    for (const frame of frames) {
+      this.stream.sendAudioRequest(frame, chunkId);
+    }
+    await this.stream.sendEndpointRequest(chunkId, finalize);
+  }
+
+  private async handleFasterWhisperDictationFinalize(chunkId: string): Promise<boolean> {
+    const frames = this.chunkAudioFrames.get(chunkId) || [];
+    const audio = frames.length > 0 ? Buffer.concat(frames) : Buffer.alloc(0);
+    if (audio.length === 0) {
+      this.log.logVerbose(
+        `[Chunk] faster-whisper dictation finalize skipped for ${chunkId}: empty audio`
+      );
+      return false;
+    }
+
+    try {
+      const result = await this.fasterWhisperDictationProvider.transcribeDictation({
+        chunkId,
+        pcm16leAudio: audio,
+        sampleRateHz: 16000,
+      });
+
+      this.log.logVerbose(
+        `[Chunk] faster-whisper dictation transcript ${chunkId}: "${result.text}" (${result.latencyMs}ms)`
+      );
+      this.tracking.logMetric("stt.dictation.faster_whisper.success", {
+        chunk_id: chunkId,
+        latency_ms: result.latencyMs,
+        transcript_chars: result.text.length,
+        model: result.model,
+        device: result.device,
+      });
+
+      this.sttShadowPublisher.onTranscriptObserved(
+        result.text,
+        true,
+        chunkId,
+        [
+          {
+            transcript: result.text,
+            rank: 0,
+            score: 1,
+            is_final: true,
+          },
+        ],
+        result.latencyMs,
+        0.3,
+        `faster-whisper/${result.model}/${result.device}`
+      );
+
+      await this.stream.sendTextRequest(result.text, true);
+      this.chunkAudioFrames.delete(chunkId);
+      this.chunkUseFasterWhisperDictation.delete(chunkId);
+      return true;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.log.logVerbose(
+        `[Chunk] faster-whisper dictation failed for ${chunkId}; falling back to endpoint lane: ${reason}`
+      );
+      this.tracking.logMetric("stt.dictation.faster_whisper.failure", {
+        chunk_id: chunkId,
+        reason,
+        fallback: "endpoint_request",
+      });
+      this.chunkUseFasterWhisperDictation.delete(chunkId);
+      return false;
     }
   }
 
@@ -543,6 +651,7 @@ export default class ChunkManager {
     if (response.final) {
       this.chunkAudioFrames.delete(chunk.id);
       this.chunkUseWhisperCommandFast.delete(chunk.id);
+      this.chunkUseFasterWhisperDictation.delete(chunk.id);
     }
   }
 
@@ -678,7 +787,10 @@ export default class ChunkManager {
 
     // Reset audio sequence number for new chunk
     this.audioSequenceNumber = 0;
-    this.chunkUseWhisperCommandFast.set(id, this.shouldUseWhisperForCurrentChunk());
+    const useWhisperCommandFast = this.shouldUseWhisperForCurrentChunk();
+    const useFasterWhisperDictation = this.shouldUseFasterWhisperForCurrentChunk();
+    this.chunkUseWhisperCommandFast.set(id, useWhisperCommandFast);
+    this.chunkUseFasterWhisperDictation.set(id, useFasterWhisperDictation);
     this.chunkAudioFrames.set(
       id,
       [Buffer.from(audio.buffer, audio.byteOffset || 0, audio.byteLength)]
@@ -733,6 +845,7 @@ export default class ChunkManager {
     this.lastTurnEventPartialRequestAt = 0;
     this.chunkAudioFrames.clear();
     this.chunkUseWhisperCommandFast.clear();
+    this.chunkUseFasterWhisperDictation.clear();
   }
 
   private async startListeningSession(generation: number): Promise<boolean> {
