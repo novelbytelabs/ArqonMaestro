@@ -238,9 +238,18 @@ Before Phase 2A or Phase 2C can begin, the voice plane must be modernized to pro
 
 #### Wave A: Audio Front-End Modernization (Prerequisite)
 
-- **Denoise**: RNNoise integration
+- **Denoise**: ONNX denoiser integration on the 16 kHz-native speech path (primary candidate: DTLN-class ONNX denoiser)
 - **VAD / turn detection**: Silero VAD with optional fast first-pass gating
 - **Stable audio contract** for maestro-audio
+- **Turn layer**: interruption / barge-in plumbing aligned with Patch 3 turn-event model
+
+Wave A denoise direction note:
+
+- WebRTC APM is not the default production direction for this wave
+- RNNoise is not the default production direction for this wave
+- ONNX Runtime path is the primary denoiser integration strategy for Patch 4
+- DTLN-class ONNX denoiser is the current primary candidate
+- WebRTC APM and RNNoise remain benchmark / alternate candidates only and must earn promotion through measured results
 
 #### Wave B: STT Lane Modernization (Prerequisite)
 

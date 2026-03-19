@@ -109,3 +109,39 @@ This means a full client TypeScript pass may fail on dependency typing noise eve
 Use with care:
 
 Treat this as a known verification constraint until the dependency typing issue is cleaned up.
+
+### G-007: Denoise Runtime Framing May Be 10 ms Even When Recorder Contract Is 30 ms
+
+Current planning direction:
+
+* Wave A denoise default is ONNX denoiser integration on a 16 kHz-native path
+
+Implementation trap:
+
+* denoise internals may prefer 10 ms subframes while recorder/turn contracts currently operate on larger logical frames
+
+Why this matters:
+
+* accidental contract drift at this seam can break callback timing expectations, turn transitions, or regression fixtures
+
+Use with care:
+
+* keep 10 ms chunking internal to denoise/provider boundaries
+* keep external recorder/turn metadata semantics stable unless explicitly versioned
+
+### G-008: `onnxruntime-node` Must Stay Externalized In `main.webpack.ts`
+
+Symptom:
+
+`npm run build:main` fails with webpack parse errors on platform `.node` binaries under `onnxruntime-node/bin/napi-v6/...`.
+
+Required fix:
+
+In [`maestro/client/main.webpack.ts`](../../maestro/client/main.webpack.ts), keep these externals:
+
+* `onnxruntime-node`
+* `onnxruntime-node/dist/binding.js`
+
+Why this matters:
+
+`SileroVadProvider` imports the package and its binding subpath at runtime; bundling those native binaries causes webpack parse failures.

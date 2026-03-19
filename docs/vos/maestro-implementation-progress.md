@@ -64,13 +64,20 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 - **Patch 3 status (historical at Patch 1+2 closeout time)**: Patch 3 was still open when Patch 1+2 hard-close evidence was captured
 
 ### Patch 3: Silero Shadow Mode + Turn Event Enrichment
-- **Status**: ✅ Implemented (shadow-only, no primary cutover)
+- **Status**: ✅ Implemented and accepted (shadow-only, no primary cutover)
 - **Primary behavior**: `DefaultVadProvider` still drives live speaking state and chunk transitions
 - **Shadow behavior**: `SileroVadProvider` runs real ONNX inference on the same frames (`input`, `state`, `sr` -> `output`, `stateN`) and emits frame-by-frame comparison telemetry
 - **State handling**: recurrent Silero state is persisted across frames and reset with recorder/provider reset
 - **Turn layer additions**: `speech_start`, `speech_end`, `barge_in_candidate`, `interrupt_candidate`
 - **Comparison surface**: per-frame agreement/disagreement + speech-probability delta + shadow lead frame count
 - **Patch boundary**: this patch does not replace the primary VAD path and does not implement final playback interruption policy
+
+### Patch 4 Direction Update (Planning Decision Applied)
+- **Patch 4 next**: ONNX denoiser integration + interruption plumbing
+- **Denoise primary target**: ONNX-denoiser-first strategy on the 16 kHz-native speech path (primary candidate: DTLN-class ONNX denoiser)
+- **WebRTC APM status**: benchmark / alternate candidate only, not default production direction
+- **RNNoise status**: benchmark / alternate candidate only, not default production direction
+- **Host/runtime scope**: no Tauri migration in this phase; Electron remains the compatibility shell
 
 ---
 

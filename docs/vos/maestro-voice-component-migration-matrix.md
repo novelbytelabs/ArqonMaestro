@@ -78,7 +78,7 @@ Use these status labels consistently:
 | Voice function                        | Legacy Serenade reality                                  | Target decision                                                                | Migration action        | Target runtime home                  | Priority | Blockers / notes                                                                                | Why this decision                                                                               |
 | ------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------- | ------------------------------------ | -------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Audio capture                         | Native recorder addon and existing local microphone path | Preserve the concept, modernize the contract boundary                          | **REUSABLE**            | `maestro-audio`                      | P0       | Needs stable API boundary, timestamps, device handling, gain normalization review               | The shape is already right; the boundary is what needs modernization                            |
-| Noise reduction / enhancement         | No clearly first-class dedicated denoise contract        | `RNNoise`                                                                      | **ADD**                 | `maestro-audio`                      | P0       | Must be benchmarked for hot-path latency impact                                                 | Real-time denoise is now a first-class requirement, especially before speaker and STT hardening |
+| Noise reduction / enhancement         | No clearly first-class dedicated denoise contract        | `ONNX denoiser path` as primary (DTLN-class ONNX candidate); WebRTC APM and RNNoise as benchmark/alternate candidates | **ADD**                 | `maestro-audio`                      | P0       | Preserve 16 kHz-native hot path and align denoise runtime with the ONNX Runtime path already proven in Maestro | Real-time denoise is first-class, but whole-path coherence, cross-platform runtime consistency, and contract simplicity govern the default |
 | VAD / turn gating                     | Two-stage VAD pattern using WebRTC VAD + Silero VAD      | Preserve two-stage idea, center on `Silero VAD`, optional fast first-pass gate | **REUSABLE + UPGRADE**  | `maestro-turn`                       | P0       | Must align with barge-in, cancel, and dictation pause semantics                                 | Serenade already had the right pattern idea; Maestro needs a stronger contract around it        |
 | Command-fast STT                      | Older Kaldi/OpenFST-style local speech engine            | `whisper.cpp`                                                                  | **REPLACE**             | `maestro-stt-fast`                   | P0       | Must prove low-latency command performance on local hardware                                    | Best fit for local deterministic command lane                                                   |
 | Dictation-accurate STT                | Same older speech engine family                          | `faster-whisper`                                                               | **REPLACE**             | `maestro-stt-accurate`               | P0       | Must prove dictation quality and lane-switch correctness                                        | Better fit for heavier accurate lane than forcing one engine to do both jobs                    |
@@ -105,7 +105,7 @@ Establish a stable and modern audio front end for Maestro before replacing STT o
 Includes:
 
 * audio capture boundary cleanup
-* RNNoise integration
+* ONNX denoiser integration (16 kHz-native), with DTLN-class ONNX as current primary candidate
 * turn-detection/VAD contract hardening
 * measurable barge-in and interrupt behavior
 
@@ -180,7 +180,7 @@ Roadmap relationship:
 
 ### Wave A exit evidence
 
-* RNNoise is integrated and can be toggled or configured through a stable local contract
+* ONNX denoiser path is integrated and can be toggled or configured through a stable local contract
 * turn boundaries are measurable under the selected VAD strategy
 * barge-in and cancel behavior can be demonstrated reliably
 * `maestro-audio` and `maestro-turn` boundaries are documented and testable
@@ -235,7 +235,8 @@ The following rules now apply:
 
 These questions should be answered during migration, not ignored:
 
-* Should RNNoise live in-process with `maestro-audio`, or behind a sidecar/service boundary?
+* Which DTLN-class ONNX model variant provides the best latency/quality tradeoff on target hardware?
+* Under what measured conditions would WebRTC APM or RNNoise justify promotion from benchmark candidate to production default?
 * Should the fast first-pass gate remain WebRTC-based, or be retired if Silero alone is sufficient?
 * What exact lane-selection policy decides command-fast vs dictation-accurate?
 * What confidence thresholds are required before speaker verification state can affect authorization?

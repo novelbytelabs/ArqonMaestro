@@ -111,3 +111,45 @@ Consequences:
 * [`maestro/client/src/main/runtime/runtime-spine.ts`](../../maestro/client/src/main/runtime/runtime-spine.ts) now owns the first grouped main-process runtime cluster
 * `App.create()` becomes more orchestration-focused and less responsible for direct hot-path assembly
 * later Phase 1A work can decompose the runtime spine further without reopening the whole app boot path
+
+---
+
+## VOS-005: Wave A Denoise Default = WebRTC APM, RNNoise = Benchmark Candidate
+
+* Date: 2026-03-18
+* Status: Superseded by VOS-006
+
+Decision:
+
+Wave A denoise direction is WebRTC Audio Processing (APM) noise suppression on the 16 kHz-native speech path. RNNoise is retained as a benchmark candidate, not the default production integration target.
+
+Why:
+
+Current Maestro speech path and Silero VAD alignment favor 16 kHz coherence and deterministic low-latency behavior. Forcing a 48 kHz-oriented denoise island adds complexity and conversion risk unless benchmark evidence justifies it.
+
+Consequences:
+
+* (Historical) This decision was later replaced by ONNX-denoiser-first direction in VOS-006 / ADM-052
+
+---
+
+## VOS-006: Wave A Patch 4 Denoise Default = ONNX Denoiser Path
+
+* Date: 2026-03-19
+* Status: Accepted
+
+Decision:
+
+Patch 4 denoise direction is ONNX-denoiser-first on Maestro’s 16 kHz speech path, with DTLN-class ONNX as the primary current candidate. WebRTC APM and RNNoise remain benchmark/alternate candidates only.
+
+Why:
+
+ONNX Runtime integration is already proven in Maestro via Silero shadow mode, and 16 kHz alignment preserves a coherent speech-path contract without forcing host migration into this phase.
+
+Consequences:
+
+* Patch 4 should be described as ONNX denoiser integration + interruption plumbing
+* WebRTC APM is not default production direction
+* RNNoise is not default production direction
+* Tauri remains a later parity-gated track, not current Wave A scope
+* see repo decision: [`ADM-052`](../decision-log.md)
