@@ -27,7 +27,9 @@ import SpeakerVerificationService, {
   SpeakerIdentityState,
   VerificationConfidence,
   VerificationResult,
+  DiarizationResult,
 } from "./speaker-verification-service";
+import { DiarizationInput } from "./pyannote-diarization-provider";
 import AuthorizationService, {
   AuthorizationRequest,
   AuthorizationResult,
@@ -211,6 +213,18 @@ export default class IdentityGatewayService {
    */
   async processVerificationResult(result: VerificationResult): Promise<SpeakerState> {
     return this.verificationService.processVerificationResult(result);
+  }
+
+  async processDiarizationAudio(input: DiarizationInput): Promise<DiarizationResult> {
+    return this.verificationService.processDiarizationAudio(input);
+  }
+
+  getDiarizationProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    return this.verificationService.getDiarizationProviderStatus();
   }
 
   /**

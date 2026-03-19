@@ -18,6 +18,10 @@ import SpeakerEnrollmentService, {
   SpeakerRole,
   EnrollmentStatus 
 } from "./speaker-enrollment-service";
+import PyannoteDiarizationProvider, {
+  DiarizationInput,
+  DiarizationSegment,
+} from "./pyannote-diarization-provider";
 
 /**
  * Speaker identity states
@@ -125,6 +129,8 @@ export interface VerificationServiceConfig {
   verificationTimeoutMs: number;
   /** Maximum verification history events */
   maxHistoryEvents: number;
+  /** Enable pyannote diarization bridge lane */
+  enableDiarizationBridge: boolean;
 }
 
 /**
@@ -136,7 +142,16 @@ const DEFAULT_CONFIG: VerificationServiceConfig = {
   requireEnrollmentMatch: true,
   verificationTimeoutMs: 5000,
   maxHistoryEvents: 100,
+  enableDiarizationBridge: true,
 };
+
+export interface DiarizationResult {
+  ok: boolean;
+  segments: DiarizationSegment[];
+  speakerCount: number;
+  contaminated: boolean;
+  error?: string;
+}
 
 /**
  * Get verification confidence level from raw value
@@ -158,14 +173,100 @@ export default class SpeakerVerificationService {
   private config: VerificationServiceConfig;
   private currentState: SpeakerState;
   private verificationHistory: VerificationEvent[];
+  private diarizationProvider?: PyannoteDiarizationProvider;
 
-  constructor(enrollmentService: SpeakerEnrollmentService, config: Partial<VerificationServiceConfig> = {}) {
+  constructor(
+    enrollmentService: SpeakerEnrollmentService,
+    config: Partial<VerificationServiceConfig> = {},
+    diarizationProvider?: PyannoteDiarizationProvider
+  ) {
     this.enrollmentService = enrollmentService;
     this.config = { ...DEFAULT_CONFIG, ...config };
     
     // Initialize with unknown state
     this.currentState = this.createUnknownState();
     this.verificationHistory = [];
+    if (this.config.enableDiarizationBridge) {
+      this.diarizationProvider = diarizationProvider || new PyannoteDiarizationProvider();
+    } else if (diarizationProvider) {
+      this.diarizationProvider = diarizationProvider;
+    }
+  }
+
+  getDiarizationProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    const enabled = !!this.diarizationProvider;
+    return {
+      enabled,
+      ready: enabled ? this.diarizationProvider!.isReady() : false,
+      loadError: enabled ? this.diarizationProvider!.getLoadError() : "diarization_disabled",
+    };
+  }
+
+  async processDiarizationAudio(input: DiarizationInput): Promise<DiarizationResult> {
+    if (!this.diarizationProvider) {
+      return {
+        ok: false,
+        segments: [],
+        speakerCount: 0,
+        contaminated: false,
+        error: "diarization_disabled",
+      };
+    }
+
+    if (!this.diarizationProvider.isReady()) {
+      return {
+        ok: false,
+        segments: [],
+        speakerCount: 0,
+        contaminated: false,
+        error: this.diarizationProvider.getLoadError() || "diarization_unavailable",
+      };
+    }
+
+    try {
+      const segments = await this.diarizationProvider.diarize(input);
+      const uniqueSpeakers = new Set(segments.map((segment) => segment.speaker));
+      const speakerCount = uniqueSpeakers.size;
+      const contaminated = speakerCount > 1;
+
+      if (contaminated) {
+        const previousState = { ...this.currentState };
+        this.currentState = {
+          identityState: SpeakerIdentityState.CONTAMINATED,
+          confidence: VerificationConfidence.NONE,
+          confidenceValue: 0,
+          lastUpdated: new Date().toISOString(),
+          contaminated: true,
+          speakerCount,
+        };
+        this.addHistoryEvent({
+          eventType: "contamination",
+          previousState: previousState.identityState,
+          newState: SpeakerIdentityState.CONTAMINATED,
+          confidenceValue: 0,
+          contaminated: true,
+        });
+      }
+
+      return {
+        ok: true,
+        segments,
+        speakerCount,
+        contaminated,
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        segments: [],
+        speakerCount: 0,
+        contaminated: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**
