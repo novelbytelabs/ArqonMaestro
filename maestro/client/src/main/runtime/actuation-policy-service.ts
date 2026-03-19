@@ -99,6 +99,7 @@ export interface PolicyContext {
   currentApp?: string;
   securityMode: SecurityMode;
   speakerVerified: boolean;
+  interactionMode?: "command" | "dictation" | "conversation";
   recentRouteReliability?: Map<string, number>;
   userRoutingPreferences?: Map<string, string>;
 }
@@ -427,6 +428,12 @@ export default class ActuationPolicyService {
       value: context.securityMode,
       weight: context.securityMode === "secure" ? 4.0 : context.securityMode === "shared_room" ? 3.5 : 1.0,
     });
+
+    factors.push({
+      name: "interaction_mode",
+      value: context.interactionMode || "command",
+      weight: context.interactionMode === "dictation" ? 3.0 : 1.0,
+    });
     
     // Speaker verification factor
     factors.push({
@@ -471,6 +478,12 @@ export default class ActuationPolicyService {
     routeClass: RouteClass,
     context: PolicyContext
   ): string | null {
+    // Dictation mode is not an operating-command execution lane.
+    // Reflex remains available for safety.
+    if (context.interactionMode === "dictation" && dispatchRoute !== "reflex_local") {
+      return "non_reflex_route_blocked_in_dictation_mode";
+    }
+
     // In secure mode, Tier 4 routes are heavily restricted
     if (context.securityMode === "secure") {
       if (routeClass === "visual_actuation") {
@@ -514,6 +527,10 @@ export default class ActuationPolicyService {
     // Reflex commands don't require confirmation
     if (dispatchRoute === "reflex_local") {
       return false;
+    }
+
+    if (context.interactionMode === "dictation") {
+      return true;
     }
     
     // In secure mode, lower trust tiers require confirmation
@@ -663,6 +680,7 @@ export default class ActuationPolicyService {
         summary: decision.explanation.summary,
         securityMode: context.securityMode,
         speakerVerified: context.speakerVerified,
+        interactionMode: context.interactionMode || "command",
         decisionMadeAt: decision.decisionMadeAt,
       })}`
     );

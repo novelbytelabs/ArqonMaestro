@@ -258,10 +258,14 @@ export default class Stream {
       return;
     }
 
+    const policyContext = executor.getRuntimeDispatchPolicyContext();
     await this.runtimeCommandDispatcher.dispatch(response, {
       emitNormalizedCommands: true,
       sessionId: this.tracking.getCurrentSessionId() || undefined,
       updateRenderer: true,
+      securityMode: policyContext.securityMode,
+      speakerVerified: policyContext.speakerVerified,
+      interactionMode: policyContext.interactionMode,
     });
     this.runtimeCommandDispatcher.sendTextCallback(response);
   }

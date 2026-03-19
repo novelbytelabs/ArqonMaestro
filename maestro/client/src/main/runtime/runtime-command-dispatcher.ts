@@ -17,6 +17,7 @@ interface DispatchOptions {
   // Phase 1C: Policy context
   securityMode?: SecurityMode;
   speakerVerified?: boolean;
+  interactionMode?: "command" | "dictation" | "conversation";
   currentApp?: string;
   targetSurface?: string;
 }
@@ -350,6 +351,7 @@ export default class RuntimeCommandDispatcher {
       updateRenderer = true,
       securityMode = "standard",
       speakerVerified = false,
+      interactionMode = "command",
       currentApp,
       targetSurface,
     }: DispatchOptions = {}
@@ -387,6 +389,7 @@ export default class RuntimeCommandDispatcher {
       targetSurface,
       securityMode,
       speakerVerified,
+      interactionMode,
     };
     
     const policyDecision = this.policyService.decide(

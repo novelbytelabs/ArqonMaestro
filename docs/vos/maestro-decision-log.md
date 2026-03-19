@@ -179,3 +179,30 @@ Consequences:
 
 * bridge behavior is intentional and should remain visible in future design and migration decisions
 * future phases may replace this bridge with a more ideal end-state, but B1 should not be retroactively treated as hidden doctrine
+
+---
+
+## VOS-008: Wave C2 WeSpeaker Verification Is CPU-First And Policy-Input Only
+
+* Date: 2026-03-19
+* Status: Accepted
+
+Decision:
+
+Wave C2 is accepted with the following explicit architecture constraints:
+
+* WeSpeaker owns the verification lane for this slice via a bounded Python subprocess bridge
+* execution policy for this slice is CPU-first only; GPU mismatch hardening is explicitly deferred
+* diarization and verification remain distinct functions and must not be merged
+* speaker identity output in this slice feeds authorization/policy inputs, not command-language semantics
+* Wave C2 must align with voice-identity architecture docs without broadening into full Phase 2A policy implementation
+
+Why:
+
+This preserves the intended identity architecture while keeping Wave C2 tightly scoped, auditable, and reversible if needed.
+
+Consequences:
+
+* verification bridge behavior is intentional and visible, not implicit doctrine
+* hot-path expectations remain local/fast/interruptible without redesigning language interpretation
+* Phase 2A policy completion remains a separate follow-on scope after Wave C completion

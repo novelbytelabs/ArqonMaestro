@@ -55,7 +55,7 @@ import FocusRecoveryService from "../runtime/focus-recovery-service";
 
 // Identity and Security imports (FP-2A)
 import IdentityGatewayService from "../runtime/identity-gateway-service";
-import { CommandRiskLevel, AuthorizationDecision } from "../runtime/authorization-service";
+import { CommandRiskLevel, AuthorizationDecision, InteractionMode } from "../runtime/authorization-service";
 import { SecurityMode } from "../runtime/security-mode-service";
 
 // Workflow and Nexus imports (FP-2B)
@@ -1978,6 +1978,7 @@ export default class Executor {
       // Map command type to family and risk level
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
+      const commandVerb = command.text || commandType;
 
       console.log(`[FP-2A] Authorizing: ${commandFamily}/${commandType} risk=${riskLevel}`);
       console.log(`[FP-2A] Identity state: ${JSON.stringify(this.identityGateway.getIdentityContext())}`);
@@ -1985,13 +1986,19 @@ export default class Executor {
       // Authorize through identity gateway
       const result = await this.identityGateway.authorize({
         commandFamily,
-        commandVerb: command.text || commandType,
+        commandVerb,
         riskLevel,
       });
 
       console.log(`[FP-2A] Auth result: ${result.decision} - ${result.reason}`);
 
       if (result.decision === AuthorizationDecision.ALLOW) {
+        // Maintain interaction-mode state as part of the runtime state vector.
+        if (command.type === core.CommandType.COMMAND_TYPE_START_DICTATE) {
+          this.identityGateway.setInteractionMode(InteractionMode.DICTATION);
+        } else if (command.type === core.CommandType.COMMAND_TYPE_STOP_DICTATE) {
+          this.identityGateway.setInteractionMode(InteractionMode.COMMAND);
+        }
         return { authorized: true };
       }
 
@@ -2003,9 +2010,23 @@ export default class Executor {
 
       return { authorized: false, reason };
     } catch (error) {
-      // On error, fail open for now (can be made fail-closed later)
-      console.log(`[FP-2A] Authorization check error: ${error}, allowing command`);
-      return { authorized: true };
+      const commandType = response.execute?.commands?.[0]?.type;
+      const reflexLike =
+        commandType === core.CommandType.COMMAND_TYPE_CANCEL ||
+        commandType === core.CommandType.COMMAND_TYPE_PAUSE ||
+        commandType === core.CommandType.COMMAND_TYPE_UNDO ||
+        commandType === core.CommandType.COMMAND_TYPE_REDO ||
+        commandType === core.CommandType.COMMAND_TYPE_START_DICTATE ||
+        commandType === core.CommandType.COMMAND_TYPE_STOP_DICTATE;
+      if (reflexLike) {
+        console.log(`[FP-2A] Authorization check error: ${error}, allowing reflex command`);
+        return { authorized: true };
+      }
+      console.log(`[FP-2A] Authorization check error: ${error}, blocking command (fail-safe)`);
+      return {
+        authorized: false,
+        reason: "Authorization subsystem error (fail-safe block)",
+      };
     }
   }
 
@@ -2060,6 +2081,28 @@ export default class Executor {
    */
   getIdentityGateway(): IdentityGatewayService {
     return this.identityGateway;
+  }
+
+  /**
+   * Get identity-derived policy context for runtime dispatcher decisions.
+   */
+  getRuntimeDispatchPolicyContext(): {
+    securityMode: "standard" | "secure" | "shared_room";
+    speakerVerified: boolean;
+    interactionMode: InteractionMode;
+  } {
+    const context = this.identityGateway.getIdentityContext();
+    const securityMode =
+      context.securityMode === SecurityMode.SHARED_ROOM
+        ? "shared_room"
+        : context.securityMode === SecurityMode.NORMAL
+          ? "standard"
+          : "secure";
+    return {
+      securityMode,
+      speakerVerified: context.isVerified,
+      interactionMode: context.interactionMode,
+    };
   }
 
   /**

@@ -236,12 +236,23 @@ Phase 2 should connect the deterministic operating path to the broader trust, as
 
 Before Phase 2A or Phase 2C can begin, the voice plane must be modernized to provide stable contracts for identity and TTS. This is a voice-plane-first execution order—Phase 2A and 2C depend on these waves being complete.
 
+Current modernization status (2026-03-19):
+
+* Wave A: **COMPLETE - HARD CLOSED**
+* Wave B: **COMPLETE - HARD CLOSED**
+* Wave C: **IN PROGRESS** (C1 diarization bridge lane and C2 WeSpeaker CPU bridge lane implemented; full Phase 2A policy threading still pending)
+* Wave D: **NOT STARTED**
+
 #### Wave A: Audio Front-End Modernization (Prerequisite)
 
 - **Denoise**: ONNX denoiser integration on the 16 kHz-native speech path (primary candidate: DTLN-class ONNX denoiser)
 - **VAD / turn detection**: Silero VAD with optional fast first-pass gating
 - **Stable audio contract** for maestro-audio
 - **Turn layer**: interruption / barge-in plumbing aligned with Patch 3 turn-event model
+
+Status:
+
+* **COMPLETE - HARD CLOSED** (Wave A complete)
 
 Wave A denoise direction note:
 
@@ -256,10 +267,19 @@ Wave A denoise direction note:
 - **command-fast** → whisper.cpp
 - **dictation-accurate** → faster-whisper
 
+Status:
+
+* **COMPLETE - HARD CLOSED** (Wave B complete)
+
 #### Wave C: Speaker Identity Stack (Prerequisite for Phase 2A)
 
 - **Speaker diarization**: pyannote.audio
 - **Speaker verification**: WeSpeaker
+
+Status:
+
+* **IN PROGRESS** (bridge lanes implemented: C1 diarization + C2 CPU-first WeSpeaker verification)
+* Phase 2A integration work remains before this prerequisite is fully closed
 
 #### Wave D: TTS Broker Modernization (Prerequisite for Phase 2C)
 
@@ -278,15 +298,15 @@ Deliver:
 2. Enforce secure mode, shared-room mode, confirmation policy, and always-available reflex rules.
 3. Thread identity state into route approval and execution outcomes.
 
-**Current status: STUBBED - Implementation incomplete**
+**Current status: PARTIAL - Backend bridges landed, policy threading incomplete**
 
-The services exist with real authorization logic but lack real STT/voice integration:
+The services now include real bridge-backed voice identity lanes, but Phase 2A policy integration remains incomplete:
 
 | Component | File | Status | Gap |
 |-----------|------|--------|-----|
 | Speaker Enrollment | [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts) | STUB | In-memory only - needs persistence |
-| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No dedicated backend - returns mock states |
-| Voice Identity | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No diarization integration |
+| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | PARTIAL | C1/C2 bridge lanes implemented; not yet fully threaded into authorization/route gating outcomes |
+| Voice Identity | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | PARTIAL | Diarization + verification lanes available, but full session/policy orchestration is incomplete |
 | Authorization | [`authorization-service.ts`](../../maestro/client/src/main/runtime/authorization-service.ts) | REAL | Decision logic works correctly |
 | Security Mode | [`security-mode-service.ts`](../../maestro/client/src/main/runtime/security-mode-service.ts) | REAL | State machine is functional |
 | Identity Gateway | [`identity-gateway-service.ts`](../../maestro/client/src/main/runtime/identity-gateway-service.ts) | REAL | API surface works, uses stubbed services |
@@ -294,8 +314,8 @@ The services exist with real authorization logic but lack real STT/voice integra
 **To complete Phase 2A:**
 
 1. Add file-based or database persistence to speaker enrollment
-2. Integrate dedicated speaker verification backend (pyannote.audio or WeSpeaker)
-3. Add diarization support for multi-speaker detection
+2. Thread diarization + verification outputs through authorization and route-approval decisions end to end
+3. Finalize identity state handling across security mode / shared-room policy boundaries
 4. Add unit tests for authorization decisions
 5. Add integration tests for identity flow
 

@@ -22,6 +22,7 @@ import PyannoteDiarizationProvider, {
   DiarizationInput,
   DiarizationSegment,
 } from "./pyannote-diarization-provider";
+import WeSpeakerVerificationProvider from "./wespeaker-verification-provider";
 
 /**
  * Speaker identity states
@@ -131,6 +132,8 @@ export interface VerificationServiceConfig {
   maxHistoryEvents: number;
   /** Enable pyannote diarization bridge lane */
   enableDiarizationBridge: boolean;
+  /** Enable WeSpeaker verification bridge lane */
+  enableWeSpeakerBridge: boolean;
 }
 
 /**
@@ -143,6 +146,7 @@ const DEFAULT_CONFIG: VerificationServiceConfig = {
   verificationTimeoutMs: 5000,
   maxHistoryEvents: 100,
   enableDiarizationBridge: true,
+  enableWeSpeakerBridge: true,
 };
 
 export interface DiarizationResult {
@@ -150,6 +154,18 @@ export interface DiarizationResult {
   segments: DiarizationSegment[];
   speakerCount: number;
   contaminated: boolean;
+  error?: string;
+}
+
+export interface WeSpeakerVerificationRequest {
+  identityId: string;
+  probeAudioPath: string;
+}
+
+export interface WeSpeakerVerificationResult {
+  ok: boolean;
+  similarity?: number;
+  state?: SpeakerState;
   error?: string;
 }
 
@@ -174,11 +190,13 @@ export default class SpeakerVerificationService {
   private currentState: SpeakerState;
   private verificationHistory: VerificationEvent[];
   private diarizationProvider?: PyannoteDiarizationProvider;
+  private weSpeakerProvider?: WeSpeakerVerificationProvider;
 
   constructor(
     enrollmentService: SpeakerEnrollmentService,
     config: Partial<VerificationServiceConfig> = {},
-    diarizationProvider?: PyannoteDiarizationProvider
+    diarizationProvider?: PyannoteDiarizationProvider,
+    weSpeakerProvider?: WeSpeakerVerificationProvider
   ) {
     this.enrollmentService = enrollmentService;
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -190,6 +208,11 @@ export default class SpeakerVerificationService {
       this.diarizationProvider = diarizationProvider || new PyannoteDiarizationProvider();
     } else if (diarizationProvider) {
       this.diarizationProvider = diarizationProvider;
+    }
+    if (this.config.enableWeSpeakerBridge) {
+      this.weSpeakerProvider = weSpeakerProvider || new WeSpeakerVerificationProvider();
+    } else if (weSpeakerProvider) {
+      this.weSpeakerProvider = weSpeakerProvider;
     }
   }
 
@@ -264,6 +287,69 @@ export default class SpeakerVerificationService {
         segments: [],
         speakerCount: 0,
         contaminated: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  getWeSpeakerProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    const enabled = !!this.weSpeakerProvider;
+    return {
+      enabled,
+      ready: enabled ? this.weSpeakerProvider!.isReady() : false,
+      loadError: enabled ? this.weSpeakerProvider!.getLoadError() : "wespeaker_disabled",
+    };
+  }
+
+  async processWeSpeakerVerification(
+    request: WeSpeakerVerificationRequest
+  ): Promise<WeSpeakerVerificationResult> {
+    if (!this.weSpeakerProvider) {
+      return { ok: false, error: "wespeaker_disabled" };
+    }
+    if (!this.weSpeakerProvider.isReady()) {
+      return { ok: false, error: this.weSpeakerProvider.getLoadError() || "wespeaker_unavailable" };
+    }
+
+    const enrollment = this.enrollmentService.getEnrollment(request.identityId);
+    if (!enrollment || enrollment.status !== EnrollmentStatus.ACTIVE) {
+      return { ok: false, error: "enrollment_not_active" };
+    }
+    if (!enrollment.voiceProfileData) {
+      return { ok: false, error: "missing_enrollment_voice_profile" };
+    }
+
+    try {
+      const similarity = await this.weSpeakerProvider.verify({
+        enrollmentAudioPath: enrollment.voiceProfileData,
+        probeAudioPath: request.probeAudioPath,
+      });
+
+      const matched = similarity >= enrollment.verificationThreshold.minConfidence;
+      const state = await this.processVerificationResult({
+        matched,
+        claimedIdentityId: matched ? request.identityId : undefined,
+        confidence: similarity,
+        providerData: {
+          provider: "wespeaker",
+          modelTarget: this.weSpeakerProvider.getConfig().modelTarget,
+          device: "cpu",
+          similarity,
+        },
+      });
+
+      return {
+        ok: true,
+        similarity,
+        state,
+      };
+    } catch (error) {
+      return {
+        ok: false,
         error: error instanceof Error ? error.message : String(error),
       };
     }
