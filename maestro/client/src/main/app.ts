@@ -33,6 +33,9 @@ import { createBusClient } from "./stt/bus-client";
 import { createSTTComparator } from "./stt/comparator";
 import { createTrafficRouter } from "./stt/traffic-router";
 import HPOTuner from "./stt/hpo-tuner";
+import FocusHistoryService from "./runtime/focus-history-service";
+import RuntimeCommandEmitter from "./runtime/runtime-command-emitter";
+import RuntimeCommandDispatcher from "./runtime/runtime-command-dispatcher";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
@@ -139,6 +142,7 @@ export default class App {
       settings,
       () => settingsWindow
     ));
+    const focusHistory = new FocusHistoryService(log);
 
     const active = new Active(
       bridge,
@@ -150,7 +154,8 @@ export default class App {
       miniModeWindow,
       pluginManager,
       settings,
-      system
+      system,
+      focusHistory
     );
 
     const nativeCommands = new NativeCommands(active, insertHistory, revisionBoxWindow, system);
@@ -163,6 +168,7 @@ export default class App {
     const hpoTuner = (instance.hpoTuner = new HPOTuner(settings, log, tracking));
     
     const stream = (instance.stream = new Stream(active, api, log, settings, tracking));
+    const runtimeCommandEmitter = new RuntimeCommandEmitter(log);
     const local = (instance.local = new Local(bridge, log, mainWindow, metadata, settings));
     const nux = new NUX(
       active,
@@ -204,6 +210,13 @@ export default class App {
       system,
       () => commandHandler
     ));
+    const runtimeCommandDispatcher = new RuntimeCommandDispatcher(
+      custom,
+      runtimeCommandEmitter,
+      executor,
+      log
+    );
+    stream.setRuntimeCommandDispatcher(runtimeCommandDispatcher);
 
     // Note: Executor test methods are available but not exposed to window
     // Recovery is tested automatically when focus commands fail verification
@@ -222,7 +235,8 @@ export default class App {
       miniModeWindow,
       settings,
       stream,
-      tracking
+      tracking,
+      runtimeCommandDispatcher
     ));
 
     // Initialize Arqon Bus client for shadow publishing

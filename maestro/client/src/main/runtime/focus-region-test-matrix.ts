@@ -275,12 +275,7 @@ export class RegionTestRunner {
   /**
    * Run all test cases
    */
-  async runAllTests(): Promise<{
-    total: number;
-    passed: number;
-    failed: number;
-    results: typeof this.results;
-  }> {
+  async runAllTests() {
     for (const testCase of REGION_TEST_MATRIX) {
       await this.runTest(testCase);
     }

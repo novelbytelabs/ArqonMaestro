@@ -288,6 +288,12 @@ async function testTelemetryRecording() {
       command: result.target.sourceCommand,
       target: result.target,
       success: result.success,
+      outcome: (result as any).outcome ?? RoutingOutcome.RESOLVED_IMPLICIT,
+      focusRoutingAgreement:
+        (result as any).focusRoutingAgreement ?? FocusRoutingAgreement.NO_FOCUS_CONTEXT,
+      precisionGate: (result as any).precisionGate ?? GateStatus.NOT_APPLICABLE,
+      safetyGate: (result as any).safetyGate ?? GateStatus.NOT_APPLICABLE,
+      recoveryInvoked: (result as any).recoveryInvoked ?? false,
       error: result.error,
       timestamp: new Date().toISOString(),
     });

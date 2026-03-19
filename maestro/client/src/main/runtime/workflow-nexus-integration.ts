@@ -22,6 +22,8 @@ import WorkflowContractService, {
   WorkflowRiskLevel,
   StepResult,
   StepRole,
+  StepFailurePolicy,
+  WorkflowClass,
 } from "./workflow-contract-service";
 
 import NexusProtocolBoundaryService, {
@@ -229,13 +231,13 @@ export default class WorkflowExecutionService {
           required: true,
           inputBindings: [],
           outputBindings: [],
-          onFailure: "abort_workflow",
+          onFailure: StepFailurePolicy.ABORT_WORKFLOW,
         })
       );
 
       const workflow = this.workflowService.createWorkflow(
         `Nexus proposal: ${proposal.requestedIntent}`,
-        "named_macro",
+        WorkflowClass.NAMED_MACRO,
         steps
       );
 

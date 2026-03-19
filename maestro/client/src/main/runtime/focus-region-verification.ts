@@ -6,8 +6,7 @@
  */
 
 import { FocusTarget, FocusState, FocusLayer } from "./focus-verification-service";
-import {
-  FocusRegionService,
+import FocusRegionService, {
   RegionKind,
   RegionVerificationResult,
   SupportedApplication,
@@ -304,5 +303,3 @@ export default class FocusRegionVerificationService {
     }
   }
 }
-
-export default FocusRegionVerificationService;

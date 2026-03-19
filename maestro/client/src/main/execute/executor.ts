@@ -25,6 +25,7 @@ import FocusVerificationService, {
 } from "../runtime/focus-verification-service";
 import { FocusAuthority } from "../runtime/focus-authority-service";
 import FocusHistoryService from "../runtime/focus-history-service";
+import ExecutionTrace from "../runtime/execution-trace";
 
 // Focus pre-validation imports (FP-2.1)
 import FocusPreValidator from "../runtime/focus-pre-validator";
@@ -99,6 +100,7 @@ export default class Executor {
   // Workflow and Nexus services (FP-2B)
   private workflowService: WorkflowContractService;
   private nexusBoundary: NexusProtocolBoundaryService;
+  private executionTrace?: ExecutionTrace;
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -1021,6 +1023,24 @@ export default class Executor {
 
   clearPending() {
     this.pending = undefined;
+  }
+
+  setExecutionTrace(trace: ExecutionTrace): void {
+    this.executionTrace = trace;
+  }
+
+  async executeLocalRoute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true
+  ): Promise<void> {
+    await this.execute(response, updateRenderer);
+  }
+
+  async executePluginAssistedRoute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true
+  ): Promise<void> {
+    await this.execute(response, updateRenderer);
   }
 
   async execute(response: core.ICommandsResponse, updateRenderer: boolean = true) {

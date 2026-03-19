@@ -1089,7 +1089,7 @@ export default class FocusPrecisionService {
         reason: TextInsertionReason.SAFE,
         userSafeMessage: "",
         technicalDetails: "Non-insertion command - no blocking needed",
-        surface,
+        surface: surface ?? undefined,
         timestamp,
       };
     }

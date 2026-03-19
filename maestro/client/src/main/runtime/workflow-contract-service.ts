@@ -374,13 +374,8 @@ export function computeWorkflowRiskLevel(steps: WorkflowStepContract[]): Workflo
 
   for (const step of steps) {
     const stepRisk = stepRiskMap[step.commandFamily] || WorkflowRiskLevel.MODERATE;
-    if (stepRisk === WorkflowRiskLevel.PRIVILEGED) {
-      return WorkflowRiskLevel.PRIVILEGED;
-    }
     if (stepRisk === WorkflowRiskLevel.HIGH) {
-      if (highestRisk !== WorkflowRiskLevel.PRIVILEGED) {
-        highestRisk = WorkflowRiskLevel.HIGH;
-      }
+      highestRisk = WorkflowRiskLevel.HIGH;
     }
     if (stepRisk === WorkflowRiskLevel.MODERATE && highestRisk === WorkflowRiskLevel.LOW) {
       highestRisk = WorkflowRiskLevel.MODERATE;

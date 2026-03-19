@@ -235,32 +235,28 @@ async function testActionDetermination() {
   // Test APP_MISMATCH -> REFOCUS_APP
   let action = service.determineRecoveryAction(
     RecoveryReason.APP_MISMATCH,
-    RecoveryPolicy.RETRY_ONCE,
-    request
+    RecoveryPolicy.RETRY_ONCE
   );
   assertEquals(action, RecoveryAction.REFOCUS_APP, "APP_MISMATCH should use REFOCUS_APP");
 
   // Test REGION_MISMATCH -> REFOCUS_REGION
   action = service.determineRecoveryAction(
     RecoveryReason.REGION_MISMATCH,
-    RecoveryPolicy.RETRY_ONCE,
-    request
+    RecoveryPolicy.RETRY_ONCE
   );
   assertEquals(action, RecoveryAction.REFOCUS_REGION, "REGION_MISMATCH should use REFOCUS_REGION");
 
   // Test CONTROL_MISMATCH -> REFOCUS_CONTROL
   action = service.determineRecoveryAction(
     RecoveryReason.CONTROL_MISMATCH,
-    RecoveryPolicy.RETRY_ONCE,
-    request
+    RecoveryPolicy.RETRY_ONCE
   );
   assertEquals(action, RecoveryAction.REFOCUS_CONTROL, "CONTROL_MISMATCH should use REFOCUS_CONTROL");
 
   // Test CARET_MISSING -> ABORT
   action = service.determineRecoveryAction(
     RecoveryReason.CARET_MISSING,
-    RecoveryPolicy.ABORT,
-    request
+    RecoveryPolicy.ABORT
   );
   assertEquals(action, RecoveryAction.ABORT, "CARET_MISSING should use ABORT");
 

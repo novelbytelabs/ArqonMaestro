@@ -735,5 +735,3 @@ export default class FocusRegionHandler {
     }
   }
 }
-
-export default FocusRegionHandler;
