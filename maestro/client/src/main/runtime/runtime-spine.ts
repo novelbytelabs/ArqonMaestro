@@ -20,6 +20,7 @@ import type App from "../app";
 import ExecutionTrace from "./execution-trace";
 import RuntimeCommandDispatcher from "./runtime-command-dispatcher";
 import RuntimeCommandEmitter from "./runtime-command-emitter";
+import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime-dispatch-ports";
 
 interface RuntimeSpineCoreDeps {
   active: Active;
@@ -78,9 +79,9 @@ export default class RuntimeSpine {
     settings,
   }: RuntimeSpineChunkManagerDeps): ChunkManager {
     this.runtimeCommandDispatcher = new RuntimeCommandDispatcher(
-      custom,
+      custom as RuntimeShellCallbackPort,
       this.runtimeCommandEmitter,
-      executor,
+      executor as RuntimeExecutionPort,
       log,
       this.executionTrace
     );

@@ -1,5 +1,3 @@
-import Custom from "../ipc/custom";
-import Executor from "../execute/executor";
 import Log from "../log";
 import { core } from "../../gen/core";
 import ExecutionTrace from "./execution-trace";
@@ -9,6 +7,7 @@ import ActuationPolicyService, { PolicyContext, PolicyDecision, SecurityMode } f
 import TalonAdapter from "./talon-adapter";
 import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
 import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
+import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime-dispatch-ports";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -61,9 +60,9 @@ export default class RuntimeCommandDispatcher {
   private talonAdapter = new TalonAdapter();
 
   constructor(
-    private custom: Custom,
+    private shellCallbackPort: RuntimeShellCallbackPort,
     private emitter: RuntimeCommandEmitter,
-    private executor: Executor,
+    private executorPort: RuntimeExecutionPort,
     private log: Log,
     private executionTrace?: ExecutionTrace
   ) {
@@ -555,7 +554,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.executeLocalRoute(response, updateRenderer);
+      await this.executorPort.executeLocalRoute(response, updateRenderer);
       return;
     }
 
@@ -577,7 +576,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.execute(response, updateRenderer);
+      await this.executorPort.execute(response, updateRenderer);
       return;
     }
 
@@ -587,7 +586,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.executePluginAssistedRoute(response, updateRenderer);
+      await this.executorPort.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
@@ -597,7 +596,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.executePluginAssistedRoute(response, updateRenderer);
+      await this.executorPort.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
@@ -607,7 +606,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.executePluginAssistedRoute(response, updateRenderer);
+      await this.executorPort.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
@@ -617,7 +616,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.executePluginAssistedRoute(response, updateRenderer);
+      await this.executorPort.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
@@ -627,7 +626,7 @@ export default class RuntimeCommandDispatcher {
         Date.now() - dispatchStartedAt
       );
       recordDispatchTotal();
-      await this.executor.executePluginAssistedRoute(response, updateRenderer);
+      await this.executorPort.executePluginAssistedRoute(response, updateRenderer);
       return;
     }
 
@@ -636,7 +635,7 @@ export default class RuntimeCommandDispatcher {
       Date.now() - dispatchStartedAt
     );
     recordDispatchTotal();
-    await this.executor.execute(response, updateRenderer);
+    await this.executorPort.execute(response, updateRenderer);
   }
 
   private getBoundaryBlockReason({
@@ -688,7 +687,7 @@ export default class RuntimeCommandDispatcher {
   }
 
   sendTextCallback(response: core.ICommandsResponse): void {
-    this.custom.send("callback", {
+    this.shellCallbackPort.send("callback", {
       transcript: response.execute?.transcript,
     });
   }

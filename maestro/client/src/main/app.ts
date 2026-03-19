@@ -36,6 +36,7 @@ import HPOTuner from "./stt/hpo-tuner";
 import FocusHistoryService from "./runtime/focus-history-service";
 import RuntimeCommandEmitter from "./runtime/runtime-command-emitter";
 import RuntimeCommandDispatcher from "./runtime/runtime-command-dispatcher";
+import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime/runtime-dispatch-ports";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
@@ -211,9 +212,9 @@ export default class App {
       () => commandHandler
     ));
     const runtimeCommandDispatcher = new RuntimeCommandDispatcher(
-      custom,
+      custom as RuntimeShellCallbackPort,
       runtimeCommandEmitter,
-      executor,
+      executor as RuntimeExecutionPort,
       log
     );
     stream.setRuntimeCommandDispatcher(runtimeCommandDispatcher);

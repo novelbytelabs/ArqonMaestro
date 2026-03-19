@@ -228,7 +228,7 @@ Exit evidence:
 
 Phase 2 should connect the deterministic operating path to the broader trust, assistant, and voice subsystems without weakening the hot path.
 
-> **Status: NOT YET STARTED** (2026-03-17)
+> **Status: COMPLETE - ACCEPTED** (2026-03-19)
 
 > **Execution Order: Voice Plane Modernization must complete before Phase 2A or Phase 2C can begin. Phase 2B can run in parallel or after 2A/2C.**
 
@@ -236,21 +236,40 @@ Phase 2 should connect the deterministic operating path to the broader trust, as
 
 Before Phase 2A or Phase 2C can begin, the voice plane must be modernized to provide stable contracts for identity and TTS. This is a voice-plane-first execution order—Phase 2A and 2C depend on these waves being complete.
 
+Current modernization status (2026-03-19):
+
+* Wave A: **COMPLETE - HARD CLOSED**
+* Wave B: **COMPLETE - HARD CLOSED**
+* Wave C: **COMPLETE - HARD CLOSED**
+* Wave D1 / Phase 2C slice: **COMPLETE - ACCEPTED**
+
 #### Wave A: Audio Front-End Modernization (Prerequisite)
 
-- **Denoise**: RNNoise integration
+- **Denoise**: ONNX Runtime path (DTLN-class primary candidate), with RNNoise/WebRTC APM retained as benchmark alternates
 - **VAD / turn detection**: Silero VAD with optional fast first-pass gating
 - **Stable audio contract** for maestro-audio
+
+Status:
+
+* **COMPLETE - HARD CLOSED**
 
 #### Wave B: STT Lane Modernization (Prerequisite)
 
 - **command-fast** → whisper.cpp
 - **dictation-accurate** → faster-whisper
 
+Status:
+
+* **COMPLETE - HARD CLOSED**
+
 #### Wave C: Speaker Identity Stack (Prerequisite for Phase 2A)
 
 - **Speaker diarization**: pyannote.audio
 - **Speaker verification**: WeSpeaker
+
+Status:
+
+* **COMPLETE - HARD CLOSED** (C1 pyannote diarization + C2 WeSpeaker CPU verification lanes accepted)
 
 #### Wave D: TTS Broker Modernization (Prerequisite for Phase 2C)
 
@@ -258,6 +277,10 @@ Before Phase 2A or Phase 2C can begin, the voice plane must be modernized to pro
 - **Piper** fallback
 - **Interruption-safe** playback
 - **Persona routing**
+
+Status:
+
+* **COMPLETE - ACCEPTED** (Wave D1 bounded broker modernization accepted)
 
 ### Phase 2A: Identity and safety gating
 
@@ -269,26 +292,14 @@ Deliver:
 2. Enforce secure mode, shared-room mode, confirmation policy, and always-available reflex rules.
 3. Thread identity state into route approval and execution outcomes.
 
-**Current status: STUBBED - Implementation incomplete**
+**Current status: COMPLETE - ACCEPTED**
 
-The services exist with real authorization logic but lack real STT/voice integration:
+Accepted implementation shape:
 
-| Component | File | Status | Gap |
-|-----------|------|--------|-----|
-| Speaker Enrollment | [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts) | STUB | In-memory only - needs persistence |
-| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No dedicated backend - returns mock states |
-| Voice Identity | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | STUB | No diarization integration |
-| Authorization | [`authorization-service.ts`](../../maestro/client/src/main/runtime/authorization-service.ts) | REAL | Decision logic works correctly |
-| Security Mode | [`security-mode-service.ts`](../../maestro/client/src/main/runtime/security-mode-service.ts) | REAL | State machine is functional |
-| Identity Gateway | [`identity-gateway-service.ts`](../../maestro/client/src/main/runtime/identity-gateway-service.ts) | REAL | API surface works, uses stubbed services |
-
-**To complete Phase 2A:**
-
-1. Add file-based or database persistence to speaker enrollment
-2. Integrate dedicated speaker verification backend (pyannote.audio or WeSpeaker)
-3. Add diarization support for multi-speaker detection
-4. Add unit tests for authorization decisions
-5. Add integration tests for identity flow
+* identity evidence (verification + diarization contamination + mode state) is threaded into authorization decisions
+* authorization gates authority, not language semantics
+* secure/shared-room/dictation interaction constraints are enforced in bounded runtime paths
+* fail-safe behavior is explicit when identity evidence is missing or degraded
 
 Exit evidence:
 
@@ -303,22 +314,14 @@ Deliver:
 2. Implement the first Maestro-Nexus message boundary for proposals, outcomes, and scoped delegation grants.
 3. Keep Maestro as the execution authority while allowing Nexus to propose and learn.
 
-**Current status: STUBBED - Implementation incomplete**
+**Current status: COMPLETE - ACCEPTED**
 
-| Component | File | Status | Gap |
-|-----------|------|--------|-----|
-| Workflow Contracts | [`workflow-contract-service.ts`](../../maestro/client/src/main/runtime/workflow-contract-service.ts) | REAL | Types and execution logic exist |
-| Workflow Execution | [`workflow-nexus-integration.ts`](../../maestro/client/src/main/runtime/workflow-nexus-integration.ts) | STUB | Not integrated into command chain |
-| Nexus Protocol | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | STUB | Protocol defined, no Arqon Bus connection |
-| Delegation Grants | [`delegation-grant-service.ts`](../../maestro/client/src/main/runtime/delegation-grant-service.ts) | STUB | In-memory only, no persistence |
+Accepted implementation shape:
 
-**To complete Phase 2B:**
-
-1. Integrate workflow execution into the command pipeline (hook into executor.ts)
-2. Add Arqon Bus IPC for Nexus communication
-3. Add persistence for delegation grants
-4. Add unit tests for workflow state machine
-5. Add integration tests for Nexus message boundary
+* workflow is first-class (contracts + execution state + step outcomes)
+* Nexus proposals remain bounded by Maestro authority and delegation-grant checks
+* boundary decisions are explicit and policy-aware
+* execution origin/authority context is preserved through workflow execution
 
 Exit evidence:
 
@@ -335,6 +338,14 @@ Deliver:
 2. Connect warning and sentinel speech to policy and security events.
 3. Keep acknowledgments short and keep cognitive speech separate from operating confirmations.
 
+**Current status: COMPLETE - ACCEPTED (Wave D1 slice)**
+
+Accepted implementation shape:
+
+* bounded TTS broker path landed
+* Kokoro primary and Piper fallback are brokered
+* interruption-safe playback and persona-aware routing are in place
+
 Exit evidence:
 
 * reflex barge-in cleanly interrupts speech output
@@ -345,6 +356,10 @@ Exit evidence:
 Phase 3 should make the system trustworthy under failure, variance, and growth.
 
 ### Phase 3A: Benchmarking and tuning
+
+Status:
+
+* **COMPLETE - ACCEPTED** at commit `85d263b25dceb505b5845ee2aabd0d8eeecdd442`
 
 Deliver:
 
@@ -359,6 +374,10 @@ Exit evidence:
 
 ### Phase 3B: Fallback and replay hardening
 
+Status:
+
+* **COMPLETE - ACCEPTED** at commit `47cc12fb330d1502a1ef5aeb30777fa4c94f49e1`
+
 Deliver:
 
 1. Implement replay-safe audit artifacts for route choice, confirmation, downgrade, and refusal.
@@ -371,6 +390,10 @@ Exit evidence:
 * destructive-path regressions are caught by tests and replay fixtures
 
 ### Phase 3C: Host and runtime migration leverage
+
+Status:
+
+* **IMPLEMENTED - PENDING PM ACCEPTANCE** in current branch head (runtime now depends on dispatch ports for shell callback + execution handoff, reducing direct shell-class coupling on the hot dispatch path)
 
 Deliver:
 
