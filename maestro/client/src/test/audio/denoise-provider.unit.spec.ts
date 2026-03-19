@@ -5,7 +5,11 @@
  * Coverage: NoopDenoiseProvider behavior
  */
 
-import { NoopDenoiseProvider, DenoiseFrame } from "../../main/audio/denoise-provider";
+import {
+  NoopDenoiseProvider,
+  DenoiseFrame,
+  OnnxDenoiseProvider,
+} from "../../main/audio/denoise-provider";
 
 describe("NoopDenoiseProvider", () => {
   let provider: NoopDenoiseProvider;
@@ -131,5 +135,40 @@ describe("NoopDenoiseProvider", () => {
 
       expect(provider.isReady()).toBe(true);
     });
+  });
+});
+
+describe("OnnxDenoiseProvider", () => {
+  function frame(): DenoiseFrame {
+    return {
+      pcm16: new Int16Array([100, -200, 300, -400]),
+      sampleRate: 16000,
+      channels: 1,
+      frameIndex: 0,
+      captureStartWallClockMs: 1000,
+      timestampMs: 1000,
+      streamTimeMs: 0,
+    };
+  }
+
+  it("fails safe to passthrough when model path is missing", () => {
+    const provider = new OnnxDenoiseProvider({
+      modelPath: "/tmp/does-not-exist-denoiser-model.onnx",
+    });
+    const result = provider.process(frame());
+
+    expect(provider.isReady()).toBe(false);
+    expect(result.fallbackApplied).toBe(true);
+    expect(result.provider).toBe("OnnxDenoiseProvider");
+    expect(result.frame.pcm16).toEqual(frame().pcm16);
+  });
+
+  it("fails safe to passthrough when disabled", () => {
+    const provider = new OnnxDenoiseProvider({ enabled: false });
+    const result = provider.process(frame());
+
+    expect(provider.isReady()).toBe(false);
+    expect(result.fallbackApplied).toBe(true);
+    expect(result.reason).toContain("disabled");
   });
 });

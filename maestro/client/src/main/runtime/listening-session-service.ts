@@ -6,6 +6,7 @@ import MainWindow from "../windows/main";
 import Microphone from "../stream/microphone";
 import MiniModeWindow from "../windows/mini-mode";
 import Stream from "../stream/stream";
+import { TurnEvent } from "../audio/turn-events";
 
 interface ListeningSessionServiceDeps {
   app: App;
@@ -25,6 +26,7 @@ interface ListeningSessionStartParams {
   onChunkStart: (audio: any) => void;
   onAudio: (audio: any, consecutiveSilence: number) => void;
   onChunkEnd: () => void;
+  onTurnEvent: (event: TurnEvent) => void;
   onPrepareStart: () => void;
   onConnected: () => Promise<void>;
   onConnectionFailed: (error: string) => void;
@@ -44,6 +46,8 @@ export default class ListeningSessionService {
         params.onAudio(data.audio, data.consecutiveSilence);
       } else if (data.event == "chunk_end") {
         params.onChunkEnd();
+      } else if (data.event == "turn_event" && data.turnEvent) {
+        params.onTurnEvent(data.turnEvent as TurnEvent);
       }
     });
   }

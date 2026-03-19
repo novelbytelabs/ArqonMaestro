@@ -26,6 +26,7 @@ import RuntimeCommandDispatcher from "../runtime/runtime-command-dispatcher";
 import STTRoutingService from "../runtime/stt-routing-service";
 import STTShadowPublisher from "../runtime/stt-shadow-publisher";
 import TranscriptResponseObserver from "../runtime/transcript-response-observer";
+import { TurnEvent } from "../audio/turn-events";
 
 interface Request {
   requestType: "audio" | "editor" | "endpoint" | "initialize";
@@ -63,6 +64,7 @@ export default class ChunkManager {
   private lastToggleTime: number = 0;
   private sessionStartTime: number = 0;
   private audioSequenceNumber: number = 0;
+  private lastTurnEventPartialRequestAt = 0;
   private executionTrace?: ExecutionTrace;
   private listeningSessionService: ListeningSessionService;
   private listeningStateService: ListeningStateService;
@@ -501,6 +503,33 @@ export default class ChunkManager {
     }
   }
 
+  onTurnEvent(event: TurnEvent) {
+    const current = this.chunkQueue.getIndex(0);
+    if (!current) {
+      return;
+    }
+
+    this.log.logVerbose(
+      `[TurnEvent] type=${event.type} chunk=${current.id} frame=${event.frameIndex} reason=${event.reason}`
+    );
+
+    // Patch 4 interruption plumbing:
+    // Candidate interruption events should quickly surface partial hypotheses
+    // without force-finalizing the chunk.
+    if (
+      (event.type === "barge_in_candidate" || event.type === "interrupt_candidate") &&
+      this.speaking &&
+      current.audioSize > 0 &&
+      !current.forceFinalized
+    ) {
+      const now = Date.now();
+      if (now - this.lastTurnEventPartialRequestAt >= 120) {
+        this.lastTurnEventPartialRequestAt = now;
+        this.enqueue({ requestType: "endpoint", chunkId: current.id, finalize: false });
+      }
+    }
+  }
+
   async onChunkEnd() {
     this.speaking = false;
     console.log("[Chunk] Chunk end");
@@ -589,6 +618,7 @@ export default class ChunkManager {
     this.buffer = [];
     this.buffering = false;
     this.speaking = false;
+    this.lastTurnEventPartialRequestAt = 0;
   }
 
   private async startListeningSession(generation: number): Promise<boolean> {
@@ -599,6 +629,7 @@ export default class ChunkManager {
       onChunkStart: (audio) => this.onChunkStart(audio),
       onAudio: (audio, consecutiveSilence) => this.onAudio(audio, consecutiveSilence),
       onChunkEnd: () => this.onChunkEnd(),
+      onTurnEvent: (event) => this.onTurnEvent(event),
       onPrepareStart: () => {
         this.startBuffering();
         this.resetListeningBuffers();

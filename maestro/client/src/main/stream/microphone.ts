@@ -4,6 +4,7 @@ import Settings from "../settings";
 import SettingsWindow from "../windows/settings";
 import Window from "../windows/window";
 import { SpeechRecorder, devices } from "../audio";
+import { TurnEvent } from "../audio/turn-events";
 
 declare var __static: string;
 
@@ -132,6 +133,11 @@ export default class Microphone {
         this.currentConsecutiveSilence = 0;
         for (const callback of Object.values(this.callbacks)) {
           callback({ event: "chunk_end" });
+        }
+      },
+      onTurnEvent: (event: TurnEvent) => {
+        for (const callback of Object.values(this.callbacks)) {
+          callback({ event: "turn_event", turnEvent: event });
         }
       },
     });

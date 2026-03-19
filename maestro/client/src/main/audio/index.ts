@@ -4,7 +4,12 @@ import {
   spawnSync,
 } from "child_process";
 
-import { DenoiseProvider, NoopDenoiseProvider, DenoiseFrame } from "./denoise-provider";
+import {
+  DenoiseProvider,
+  NoopDenoiseProvider,
+  DenoiseFrame,
+  OnnxDenoiseProvider,
+} from "./denoise-provider";
 import { VadProvider, DefaultVadProvider, VadDecision, VadConfig } from "./vad-provider";
 import { SileroVadProvider } from "./silero-vad-provider";
 import {
@@ -17,6 +22,8 @@ import {
 
 export interface SpeechRecorderOptions {
   device?: number;
+  enableOnnxDenoise?: boolean;
+  onnxDenoiseModelPath?: string;
   enableSileroShadowMode?: boolean;
   sileroVadSilenceThreshold?: number;
   sileroVadSpeechThreshold?: number;
@@ -123,7 +130,18 @@ class SpeechRecorder {
       consecutiveFramesForSpeaking: this.consecutiveFramesForSpeaking,
     };
     
-    this.denoiseProvider = new NoopDenoiseProvider();
+    this.denoiseProvider = new OnnxDenoiseProvider({
+      enabled: options.enableOnnxDenoise !== false,
+      modelPath: options.onnxDenoiseModelPath,
+      modelFrameSamples: FRAME_SAMPLES,
+      sampleRateHz: SAMPLE_RATE,
+    });
+    if (!this.denoiseProvider.isReady()) {
+      console.warn(
+        "[Audio] ONNX denoiser unavailable, falling back to passthrough denoise lane"
+      );
+      this.denoiseProvider = new NoopDenoiseProvider();
+    }
     this.primaryVadProvider = new DefaultVadProvider(vadConfig);
     this.shadowModeEnabled = options.enableSileroShadowMode !== false;
     if (this.shadowModeEnabled) {
@@ -665,6 +683,7 @@ export {
   devices,
   getDevices,
   NoopDenoiseProvider,
+  OnnxDenoiseProvider,
   DefaultVadProvider,
   SileroVadProvider,
 };
