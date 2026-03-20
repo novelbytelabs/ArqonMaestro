@@ -450,7 +450,7 @@ Deliver:
 3. Disambiguation behavior for resolving ambiguous references
 4. Safe abort when referential certainty is below threshold
 
-Status: **Proposed**
+Status: **IN PROGRESS** (2026-03-19)
 
 Supporting documentation: [`maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
 
