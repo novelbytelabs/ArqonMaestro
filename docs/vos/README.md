@@ -28,6 +28,7 @@ The better structure is:
 
 | Document | Role |
 | --- | --- |
+| [`maestro-master-plan.md`](./maestro-master-plan.md) | Live top-level strategic control document after foundational implementation |
 | [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) | Canonical planning status, sequencing, and missing-work tracker |
 | [`maestro-implementation-progress.md`](./maestro-implementation-progress.md) | Current implementation snapshot and resume point |
 | [`maestro-decision-log.md`](./maestro-decision-log.md) | VOS-local architectural and phase-shaping decision record |
@@ -94,7 +95,8 @@ These are the first files to read when resuming active implementation work.
 
 | Document | Role |
 | --- | --- |
-| [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) | Canonical roadmap and phase sequence |
+| [`maestro-master-plan.md`](./maestro-master-plan.md) | Live strategic control document and post-foundation execution programs |
+| [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) | Historical foundational implementation sequence and continuity reference |
 | [`maestro-implementation-progress.md`](./maestro-implementation-progress.md) | Live status and next-step snapshot |
 | [`maestro-decision-log.md`](./maestro-decision-log.md) | VOS-local decisions worth preserving |
 | [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md) | Resume-critical traps and caveats |
@@ -116,18 +118,19 @@ These are the first files to read when resuming active implementation work.
 
 ## Recommended reading order
 
-1. [`maestro-project-roadmap.md`](./maestro-project-roadmap.md)
-2. [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
-3. [`maestro-decision-log.md`](./maestro-decision-log.md)
-4. [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
-5. [`maestro-language-constitution.md`](./maestro-language-constitution.md)
-6. [`maestro_spoken_command_grammar.md`](./maestro_spoken_command_grammar.md)
-7. [`maestro-syntax-specification.md`](./maestro-syntax-specification.md)
-8. [`maestro-surface-model.md`](./maestro-surface-model.md)
-9. [`maestro-modes-state-machine.md`](./maestro-modes-state-machine.md)
-10. [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
-11. [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
-12. [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+1. [`maestro-master-plan.md`](./maestro-master-plan.md)
+2. [`maestro-project-roadmap.md`](./maestro-project-roadmap.md)
+3. [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
+4. [`maestro-decision-log.md`](./maestro-decision-log.md)
+5. [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
+6. [`maestro-language-constitution.md`](./maestro-language-constitution.md)
+7. [`maestro_spoken_command_grammar.md`](./maestro_spoken_command_grammar.md)
+8. [`maestro-syntax-specification.md`](./maestro-syntax-specification.md)
+9. [`maestro-surface-model.md`](./maestro-surface-model.md)
+10. [`maestro-modes-state-machine.md`](./maestro-modes-state-machine.md)
+11. [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
+12. [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
+13. [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
 
 Then read the topic-specific docs only for the area you are actively refining.
 

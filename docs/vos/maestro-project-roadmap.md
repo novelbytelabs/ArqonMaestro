@@ -2,9 +2,13 @@
 
 ## Purpose
 
-This is now the canonical planning document for `/docs/vos`.
+This document is the foundational implementation roadmap for `/docs/vos`.
 
-Its job is to keep the planning set coherent by answering:
+It is maintained as a historical execution roadmap and continuity artifact.
+
+The live top-level strategic control document is now [`maestro-master-plan.md`](./maestro-master-plan.md).
+
+Its job is to preserve foundational implementation history by answering:
 
 * what is already specified
 * what is only partially specified
