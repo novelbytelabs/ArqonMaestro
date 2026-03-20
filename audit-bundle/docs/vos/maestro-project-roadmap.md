@@ -228,7 +228,7 @@ Exit evidence:
 
 Phase 2 should connect the deterministic operating path to the broader trust, assistant, and voice subsystems without weakening the hot path.
 
-> **Status: COMPLETE - ACCEPTED** (2026-03-19)
+> **Status: FOUNDATIONAL SLICES COMPLETE - ACCEPTED** (2026-03-20)
 
 > **Execution Order: Voice Plane Modernization must complete before Phase 2A or Phase 2C can begin. Phase 2B can run in parallel or after 2A/2C.**
 
@@ -240,18 +240,28 @@ Current modernization status (2026-03-19):
 
 * Wave A: **COMPLETE - HARD CLOSED**
 * Wave B: **COMPLETE - HARD CLOSED**
-* Wave C: **COMPLETE - HARD CLOSED**
-* Wave D1 / Phase 2C slice: **COMPLETE - ACCEPTED**
+* Wave C: **COMPLETE - HARD CLOSED** (C1 diarization + C2 WeSpeaker CPU verification lanes landed and accepted)
+* Wave D1: **COMPLETE - ACCEPTED** (bounded TTS broker slice: Kokoro primary, Piper fallback, interruption-safe playback, persona routing)
+* Wave D (full end-state): **PENDING HARDENING / PRODUCTIONIZATION**
 
 #### Wave A: Audio Front-End Modernization (Prerequisite)
 
-- **Denoise**: ONNX Runtime path (DTLN-class primary candidate), with RNNoise/WebRTC APM retained as benchmark alternates
+- **Denoise**: ONNX denoiser integration on the 16 kHz-native speech path (primary candidate: DTLN-class ONNX denoiser)
 - **VAD / turn detection**: Silero VAD with optional fast first-pass gating
 - **Stable audio contract** for maestro-audio
+- **Turn layer**: interruption / barge-in plumbing aligned with Patch 3 turn-event model
 
 Status:
 
-* **COMPLETE - HARD CLOSED**
+* **COMPLETE - HARD CLOSED** (Wave A complete)
+
+Wave A denoise direction note:
+
+- WebRTC APM is not the default production direction for this wave
+- RNNoise is not the default production direction for this wave
+- ONNX Runtime path is the primary denoiser integration strategy for Patch 4
+- DTLN-class ONNX denoiser is the current primary candidate
+- WebRTC APM and RNNoise remain benchmark / alternate candidates only and must earn promotion through measured results
 
 #### Wave B: STT Lane Modernization (Prerequisite)
 
@@ -260,7 +270,7 @@ Status:
 
 Status:
 
-* **COMPLETE - HARD CLOSED**
+* **COMPLETE - HARD CLOSED** (Wave B complete)
 
 #### Wave C: Speaker Identity Stack (Prerequisite for Phase 2A)
 
@@ -269,7 +279,7 @@ Status:
 
 Status:
 
-* **COMPLETE - HARD CLOSED** (C1 pyannote diarization + C2 WeSpeaker CPU verification lanes accepted)
+* **COMPLETE - HARD CLOSED** (C1 diarization + C2 CPU-first WeSpeaker verification accepted)
 
 #### Wave D: TTS Broker Modernization (Prerequisite for Phase 2C)
 
@@ -280,7 +290,7 @@ Status:
 
 Status:
 
-* **COMPLETE - ACCEPTED** (Wave D1 bounded broker modernization accepted)
+* **PARTIALLY COMPLETE** (Wave D1 accepted; broader Wave D completion remains in backlog)
 
 ### Phase 2A: Identity and safety gating
 
@@ -292,14 +302,18 @@ Deliver:
 2. Enforce secure mode, shared-room mode, confirmation policy, and always-available reflex rules.
 3. Thread identity state into route approval and execution outcomes.
 
-**Current status: COMPLETE - ACCEPTED**
+**Current status: COMPLETE - ACCEPTED** (identity/safety gating integrated and accepted)
 
-Accepted implementation shape:
+Foundational slice accepted:
 
-* identity evidence (verification + diarization contamination + mode state) is threaded into authorization decisions
-* authorization gates authority, not language semantics
-* secure/shared-room/dictation interaction constraints are enforced in bounded runtime paths
-* fail-safe behavior is explicit when identity evidence is missing or degraded
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| Speaker Enrollment | [`speaker-enrollment-service.ts`](../../maestro/client/src/main/runtime/speaker-enrollment-service.ts) | PARTIAL | Foundational logic accepted; persistence hardening remains |
+| Speaker Verification | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | PARTIAL | C1/C2 lanes accepted; production hardening remains |
+| Voice Identity | [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | PARTIAL | Foundational orchestration accepted; broader lifecycle hardening remains |
+| Authorization | [`authorization-service.ts`](../../maestro/client/src/main/runtime/authorization-service.ts) | REAL | Decision logic accepted |
+| Security Mode | [`security-mode-service.ts`](../../maestro/client/src/main/runtime/security-mode-service.ts) | REAL | State-machine integration accepted |
+| Identity Gateway | [`identity-gateway-service.ts`](../../maestro/client/src/main/runtime/identity-gateway-service.ts) | REAL | Bounded API/path accepted |
 
 Exit evidence:
 
@@ -314,14 +328,14 @@ Deliver:
 2. Implement the first Maestro-Nexus message boundary for proposals, outcomes, and scoped delegation grants.
 3. Keep Maestro as the execution authority while allowing Nexus to propose and learn.
 
-**Current status: COMPLETE - ACCEPTED**
+**Current status: COMPLETE - ACCEPTED (bounded Phase 2B slice)**
 
-Accepted implementation shape:
-
-* workflow is first-class (contracts + execution state + step outcomes)
-* Nexus proposals remain bounded by Maestro authority and delegation-grant checks
-* boundary decisions are explicit and policy-aware
-* execution origin/authority context is preserved through workflow execution
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| Workflow Contracts | [`workflow-contract-service.ts`](../../maestro/client/src/main/runtime/workflow-contract-service.ts) | PARTIAL | Foundational slice accepted; end-state persistence/lifecycle hardening remains |
+| Workflow Execution | [`workflow-nexus-integration.ts`](../../maestro/client/src/main/runtime/workflow-nexus-integration.ts) | PARTIAL | Bounded execution accepted; broader coverage hardening remains |
+| Nexus Protocol | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | PARTIAL | Boundary slice accepted; full wire/persistence hardening remains |
+| Delegation Grants | [`nexus-protocol-boundary-service.ts`](../../maestro/client/src/main/runtime/nexus-protocol-boundary-service.ts) | PARTIAL | In-memory slice accepted; persistence/governance hardening remains |
 
 Exit evidence:
 
@@ -338,13 +352,14 @@ Deliver:
 2. Connect warning and sentinel speech to policy and security events.
 3. Keep acknowledgments short and keep cognitive speech separate from operating confirmations.
 
-**Current status: COMPLETE - ACCEPTED (Wave D1 slice)**
+**Current status: COMPLETE - ACCEPTED (Wave D1 / bounded Phase 2C slice)**
 
-Accepted implementation shape:
-
-* bounded TTS broker path landed
-* Kokoro primary and Piper fallback are brokered
-* interruption-safe playback and persona-aware routing are in place
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| TTS Broker | [`tts-broker.ts`](../../maestro/client/src/main/stt/tts-broker.ts) | PARTIAL | Bounded broker slice accepted; full Wave D hardening remains |
+| Kokoro Provider | [`tts-providers.ts`](../../maestro/client/src/main/stt/tts-providers.ts) | PARTIAL | Primary path accepted; production hardening remains |
+| Piper Fallback | [`tts-providers.ts`](../../maestro/client/src/main/stt/tts-providers.ts) | PARTIAL | Fallback slice accepted; fuller provider hardening remains |
+| Voice Output Integration | [`voice-output.ts`](../../maestro/client/src/main/stt/voice-output.ts) | PARTIAL | Bounded integration accepted; broader event wiring remains |
 
 Exit evidence:
 
@@ -357,15 +372,20 @@ Phase 3 should make the system trustworthy under failure, variance, and growth.
 
 ### Phase 3A: Benchmarking and tuning
 
-Status:
-
-* **COMPLETE - ACCEPTED** at commit `85d263b25dceb505b5845ee2aabd0d8eeecdd442`
-
 Deliver:
 
 1. Run the STT benchmark corpora across command-fast, dictation-accurate, and secure-speaker-aware lanes.
 2. Measure hot-path latency by stage rather than only end-to-end.
 3. Measure route reliability, chooser frequency, confirmation frequency, and rollback success.
+
+**Current status: COMPLETE - ACCEPTED** (`85d263b25dceb505b5845ee2aabd0d8eeecdd442`)
+
+| Component | File | Status | Gap |
+|-----------|------|--------|-----|
+| Phase 3A Benchmark Service | [`phase3a-benchmark-service.ts`](../../maestro/client/src/main/runtime/phase3a-benchmark-service.ts) | REAL | Accepted bounded instrumentation slice |
+| Benchmark Harness Accessors | [`phase3a-benchmark-harness.ts`](../../maestro/client/src/main/runtime/phase3a-benchmark-harness.ts) | REAL | Snapshot/reset helpers accepted |
+| STT Lane Instrumentation | [`chunk-manager.ts`](../../maestro/client/src/main/stream/chunk-manager.ts), [`speaker-verification-service.ts`](../../maestro/client/src/main/runtime/speaker-verification-service.ts) | REAL | Lane-relative capture accepted |
+| Hot-path / route instrumentation | [`runtime-command-dispatcher.ts`](../../maestro/client/src/main/runtime/runtime-command-dispatcher.ts) | REAL | Stage/reliability capture accepted |
 
 Exit evidence:
 
@@ -374,9 +394,7 @@ Exit evidence:
 
 ### Phase 3B: Fallback and replay hardening
 
-Status:
-
-* **COMPLETE - ACCEPTED** at commit `47cc12fb330d1502a1ef5aeb30777fa4c94f49e1`
+**Current status: COMPLETE - ACCEPTED** (`47cc12fb330d1502a1ef5aeb30777fa4c94f49e1`)
 
 Deliver:
 
@@ -391,9 +409,7 @@ Exit evidence:
 
 ### Phase 3C: Host and runtime migration leverage
 
-Status:
-
-* **IMPLEMENTED - PENDING PM ACCEPTANCE** in current branch head (runtime now depends on dispatch ports for shell callback + execution handoff, reducing direct shell-class coupling on the hot dispatch path)
+**Current status: COMPLETE - ACCEPTED** (`606435d419108fff561dc79ba51aaf52b00399a7`)
 
 Deliver:
 
@@ -412,7 +428,7 @@ Exit evidence:
 
 Phase 4 should complete the VOS runtime by adding referential, modal, cross-surface, and language integration capabilities.
 
-> **Status: PROPOSED** (2026-03-18)
+> **Status: FOUNDATIONAL SLICES COMPLETE - ACCEPTED** (2026-03-20)
 
 ### Phase 4A: Referential Runtime (FP-7A / FP-7B)
 
@@ -423,7 +439,7 @@ Deliver:
 3. Disambiguation behavior for resolving ambiguous references
 4. Safe abort when referential certainty is below threshold
 
-Status: **Proposed**
+Status: **COMPLETE - ACCEPTED** (`8ce17fe`)
 
 Supporting documentation: [`maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
 
@@ -442,7 +458,7 @@ Deliver:
 3. Restore prior focus when modal closes
 4. Track focus history across modal boundaries
 
-Status: **Proposed**
+Status: **COMPLETE - ACCEPTED** (`7b4c8b6`)
 
 Supporting documentation: [`maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
 
@@ -461,7 +477,7 @@ Deliver:
 3. Cross-surface referential resolution
 4. Surface-specific routing with unified fallback
 
-Status: **Proposed**
+Status: **COMPLETE - ACCEPTED** (`b61b74d`)
 
 Supporting documentation: [`maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
 
@@ -480,7 +496,7 @@ Deliver:
 3. Complete the language-to-action pipeline
 4. Unify grammar, routing, focus, precision, and recovery through one integrated runtime path with lawful system behavior and unified control plane
 
-Status: **Proposed**
+Status: **COMPLETE - ACCEPTED** (`d616749be8a7fe5a5f3ad34314af7f974ecad2b2`)
 
 Supporting documentation: [`maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
 
@@ -489,6 +505,44 @@ Supporting documentation: [`maestro-language-system-integration-v0.1.md`](./focu
 * grammar, routing, focus, precision, and recovery operate through one integrated runtime path
 * the system can explain end-to-end why a spoken command was accepted, blocked, clarified, or restored
 * at least one multi-surface voice workflow works under the unified runtime model
+
+## Accepted vs Remaining
+
+### Accepted foundational slices
+
+The bounded implementation roadmap slices accepted so far are:
+
+* Wave A
+* Wave B
+* Wave C
+* Phase 2A
+* Phase 2B
+* Wave D1 / Phase 2C
+* Phase 3A
+* Phase 3B
+* Phase 3C
+* Phase 4A
+* Phase 4B
+* Phase 4C
+* Phase 4D
+
+### Remaining hardening / productionization backlog
+
+The following items are explicitly **not** treated as complete by bounded-slice acceptance:
+
+* Wave D completion beyond D1 (deeper output-class wiring, provider/runtime hardening)
+* identity/enrollment persistence and lifecycle hardening
+* delegation grant persistence and revocation/governance hardening
+* broader workflow execution coverage beyond bounded paths
+* benchmark operationalization (corpora runners, standing reports, ops workflows)
+* reconnect/recovery characterization and hardening
+* disambiguation and restore follow-on work beyond bounded foundations
+* cross-surface end-state workflow proof and richer surface orchestration
+* durable replay/audit persistence backend and retention policy
+
+### Deferred end-state work
+
+Deferred items remain in the explicit deferral list below and are not pulled into current bounded-slice acceptance.
 
 ## Benchmark plan
 
