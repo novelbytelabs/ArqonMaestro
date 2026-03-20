@@ -8,6 +8,7 @@ import TalonAdapter from "./talon-adapter";
 import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
 import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime-dispatch-ports";
+import { ModalContext, modalAwarenessService } from "./modal-awareness-service";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -24,6 +25,8 @@ interface DispatchOptions {
   executionOrigin?: "user" | "nexus_proposal" | "macro";
   delegationGrantId?: string;
   nexusProposalId?: string;
+  // Phase 4B: Modal awareness context
+  modalContext?: ModalContext;
 }
 
 type DispatchRoute =
@@ -361,6 +364,7 @@ export default class RuntimeCommandDispatcher {
       executionOrigin = "user",
       delegationGrantId,
       nexusProposalId,
+      modalContext,
     }: DispatchOptions = {}
   ): Promise<void> {
     const dispatchStartedAt = Date.now();
@@ -393,7 +397,6 @@ export default class RuntimeCommandDispatcher {
       })}`
     );
 
-    // Phase 1C: Make policy decision before executing
     const policyContext: PolicyContext = {
       commandTypes: plan.commands.map(c => c.type),
       commandFamilies: [...new Set(plan.commands.map(c => c.family))],
@@ -403,7 +406,7 @@ export default class RuntimeCommandDispatcher {
       speakerVerified,
       interactionMode,
     };
-    
+
     const policyDecisionStartedAt = Date.now();
     const policyDecision = this.policyService.decide(
       plan.route,
@@ -461,7 +464,44 @@ export default class RuntimeCommandDispatcher {
         outcomeType,
       });
     };
-    
+
+    // Phase 4B: Modal routing gate
+    // Runs after closures are fully declared. Per maestro-modes-state-machine Axis E priority
+    // rule: overlay mode captures interpretation priority. Reflex commands always pass.
+    const activeModalContext = modalContext ?? modalAwarenessService.noModalContext();
+    const isReflexCommand = plan.dominantFamily === "reflex";
+    const modalDecision = modalAwarenessService.evaluateRoutingImpact(activeModalContext, isReflexCommand);
+    if (modalDecision.impact === "block") {
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Modal gate blocked dispatch: ${modalDecision.reason}`
+      );
+      const outcome = this.outcomeClassifier.classify(
+        response,
+        plan.route,
+        response.chunkId || undefined,
+        sessionId || undefined
+      );
+      this.executionTrace?.recordOutcome(outcome, sessionId);
+      recordDispatchAudit(false, `modal_gate:${modalDecision.reason}`, outcome.type);
+      recordDispatchTotal();
+      return;
+    }
+    if (modalDecision.impact === "reflex_only" && !isReflexCommand) {
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Modal gate reflex_only: blocking non-reflex (${modalDecision.reason})`
+      );
+      const outcome = this.outcomeClassifier.classify(
+        response,
+        plan.route,
+        response.chunkId || undefined,
+        sessionId || undefined
+      );
+      this.executionTrace?.recordOutcome(outcome, sessionId);
+      recordDispatchAudit(false, `modal_gate:reflex_only:non_reflex_blocked`, outcome.type);
+      recordDispatchTotal();
+      return;
+    }
+
     // Record policy decision in trace
     if (response.chunkId) {
       this.executionTrace?.recordPolicyDecision(response.chunkId, policyDecision, sessionId);

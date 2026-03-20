@@ -469,7 +469,7 @@ Deliver:
 3. Restore prior focus when modal closes
 4. Track focus history across modal boundaries
 
-Status: **Proposed**
+Status: **IN PROGRESS** (2026-03-19)
 
 Supporting documentation: [`maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
 
