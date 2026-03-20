@@ -9,6 +9,7 @@ import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
 import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime-dispatch-ports";
 import { ModalContext, modalAwarenessService } from "./modal-awareness-service";
+import { SurfaceContext, surfaceModelService } from "./surface-model-service";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -27,6 +28,8 @@ interface DispatchOptions {
   nexusProposalId?: string;
   // Phase 4B: Modal awareness context
   modalContext?: ModalContext;
+  // Phase 4C: Surface model context
+  surfaceContext?: SurfaceContext;
 }
 
 type DispatchRoute =
@@ -365,6 +368,7 @@ export default class RuntimeCommandDispatcher {
       delegationGrantId,
       nexusProposalId,
       modalContext,
+      surfaceContext,
     }: DispatchOptions = {}
   ): Promise<void> {
     const dispatchStartedAt = Date.now();
@@ -498,6 +502,35 @@ export default class RuntimeCommandDispatcher {
       );
       this.executionTrace?.recordOutcome(outcome, sessionId);
       recordDispatchAudit(false, `modal_gate:reflex_only:non_reflex_blocked`, outcome.type);
+      recordDispatchTotal();
+      return;
+    }
+
+    // Phase 4C: Surface routing gate
+    // Evaluates surface context before reaching executor. If surface context is
+    // unknown or the surface capability is incompatible, safe-abort and return.
+    // requires_focus and requires_binding are logged but do not hard-block in
+    // Phase 4C — enforcement is a platform bridge concern for later phases.
+    const activeSurfaceContext = surfaceContext ?? surfaceModelService.noSurfaceContext();
+    const surfaceDecision = surfaceModelService.evaluateRoutingConstraint(
+      activeSurfaceContext,
+      null
+    );
+    this.log.logVerbose(
+      `[RuntimeCommandDispatcher] Surface gate: ${surfaceModelService.summarizeContext(activeSurfaceContext)} → ${surfaceDecision.constraint}`
+    );
+    if (surfaceDecision.constraint === "block") {
+      this.log.logVerbose(
+        `[RuntimeCommandDispatcher] Surface gate blocked dispatch: ${surfaceDecision.reason}`
+      );
+      const outcome = this.outcomeClassifier.classify(
+        response,
+        plan.route,
+        response.chunkId || undefined,
+        sessionId || undefined
+      );
+      this.executionTrace?.recordOutcome(outcome, sessionId);
+      recordDispatchAudit(false, `surface_gate:${surfaceDecision.reason}`, outcome.type);
       recordDispatchTotal();
       return;
     }

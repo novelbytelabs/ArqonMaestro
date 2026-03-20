@@ -488,7 +488,7 @@ Deliver:
 3. Cross-surface referential resolution
 4. Surface-specific routing with unified fallback
 
-Status: **Proposed**
+Status: **IN PROGRESS** (2026-03-19)
 
 Supporting documentation: [`maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
 
