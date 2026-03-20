@@ -10,6 +10,7 @@ import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime-dispatch-ports";
 import { ModalContext, modalAwarenessService } from "./modal-awareness-service";
 import { SurfaceContext, surfaceModelService } from "./surface-model-service";
+import { languageSystemIntegrationService } from "./language-system-integration-service";
 
 interface DispatchOptions {
   emitNormalizedCommands?: boolean;
@@ -472,57 +473,31 @@ export default class RuntimeCommandDispatcher {
     // Phase 4B: Modal routing gate
     // Runs after closures are fully declared. Per maestro-modes-state-machine Axis E priority
     // rule: overlay mode captures interpretation priority. Reflex commands always pass.
-    const activeModalContext = modalContext ?? modalAwarenessService.noModalContext();
-    const isReflexCommand = plan.dominantFamily === "reflex";
-    const modalDecision = modalAwarenessService.evaluateRoutingImpact(activeModalContext, isReflexCommand);
-    if (modalDecision.impact === "block") {
+    const integration = languageSystemIntegrationService.evaluate({
+      transcript: response.execute?.transcript || "",
+      securityMode,
+      speakerVerified,
+      interactionMode,
+      isReflexCommand: plan.dominantFamily === "reflex",
+      dominantFamily: plan.dominantFamily,
+      modalContext: modalContext ?? modalAwarenessService.noModalContext(),
+      surfaceContext,
+    });
+    if (surfaceContext) {
       this.log.logVerbose(
-        `[RuntimeCommandDispatcher] Modal gate blocked dispatch: ${modalDecision.reason}`
+        `[RuntimeCommandDispatcher] Surface gate: ${surfaceModelService.summarizeContext(surfaceContext)}`
       );
-      const outcome = this.outcomeClassifier.classify(
-        response,
-        plan.route,
-        response.chunkId || undefined,
-        sessionId || undefined
-      );
-      this.executionTrace?.recordOutcome(outcome, sessionId);
-      recordDispatchAudit(false, `modal_gate:${modalDecision.reason}`, outcome.type);
-      recordDispatchTotal();
-      return;
     }
-    if (modalDecision.impact === "reflex_only" && !isReflexCommand) {
-      this.log.logVerbose(
-        `[RuntimeCommandDispatcher] Modal gate reflex_only: blocking non-reflex (${modalDecision.reason})`
-      );
-      const outcome = this.outcomeClassifier.classify(
-        response,
-        plan.route,
-        response.chunkId || undefined,
-        sessionId || undefined
-      );
-      this.executionTrace?.recordOutcome(outcome, sessionId);
-      recordDispatchAudit(false, `modal_gate:reflex_only:non_reflex_blocked`, outcome.type);
-      recordDispatchTotal();
-      return;
-    }
-
-    // Phase 4C: Surface routing gate
-    // Evaluates surface context before reaching executor. If surface context is
-    // unknown or the surface capability is incompatible, safe-abort and return.
-    // requires_focus and requires_binding are logged but do not hard-block in
-    // Phase 4C — enforcement is a platform bridge concern for later phases.
-    const activeSurfaceContext = surfaceContext ?? surfaceModelService.noSurfaceContext();
-    const surfaceDecision = surfaceModelService.evaluateRoutingConstraint(
-      activeSurfaceContext,
-      null
-    );
     this.log.logVerbose(
-      `[RuntimeCommandDispatcher] Surface gate: ${surfaceModelService.summarizeContext(activeSurfaceContext)} → ${surfaceDecision.constraint}`
+      `[RuntimeCommandDispatcher] Language/system integration: ${JSON.stringify({
+        status: integration.status,
+        reason: integration.reason,
+        referentialOutcome: integration.referential?.outcome ?? "none",
+        modalImpact: integration.modal.impact,
+        surfaceConstraint: integration.surface?.constraint ?? "not_provided",
+      })}`
     );
-    if (surfaceDecision.constraint === "block") {
-      this.log.logVerbose(
-        `[RuntimeCommandDispatcher] Surface gate blocked dispatch: ${surfaceDecision.reason}`
-      );
+    if (integration.status === "block") {
       const outcome = this.outcomeClassifier.classify(
         response,
         plan.route,
@@ -530,7 +505,7 @@ export default class RuntimeCommandDispatcher {
         sessionId || undefined
       );
       this.executionTrace?.recordOutcome(outcome, sessionId);
-      recordDispatchAudit(false, `surface_gate:${surfaceDecision.reason}`, outcome.type);
+      recordDispatchAudit(false, `language_system_gate:${integration.reason}`, outcome.type);
       recordDispatchTotal();
       return;
     }
