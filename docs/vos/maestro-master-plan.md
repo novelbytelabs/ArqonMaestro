@@ -43,6 +43,7 @@ Core laws:
 * recovery from speech/runtime error is a first-class operating concern, not a fallback afterthought
 * personalization may bias lawful interpretation, but it may not redefine canonical meaning
 * phonetic survivability is part of the safety model, not just a benchmark concern
+* Maestro is treated as a Network Automaton instantiated as a Computational Fabric; topology, local rules, and distributed state are computational constituents, not passive metadata
 
 ## 3. Ecosystem Position and Runtime Role
 
@@ -79,6 +80,8 @@ Primary governing specs:
 * [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
 * [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md)
 * [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+* [`../architecture/maestro-computational-fabric.md`](../architecture/maestro-computational-fabric.md)
+* [`../architecture/maestro-actuation-and-control-stack.md`](../architecture/maestro-actuation-and-control-stack.md)
 
 ## 4. Accepted Foundational Baseline
 
@@ -110,10 +113,115 @@ The following documents are the canonical design authorities for Maestro’s maj
 
 * [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
 
+### Cross-directory architecture authorities
+
+* [`../architecture/ultimate-vos-reference-architecture.md`](../architecture/ultimate-vos-reference-architecture.md)
+* [`../architecture/maestro-computational-fabric.md`](../architecture/maestro-computational-fabric.md)
+* [`../architecture/maestro-actuation-and-control-stack.md`](../architecture/maestro-actuation-and-control-stack.md)
+* [`../architecture/request-lifecycle.md`](../architecture/request-lifecycle.md)
+* [`../architecture/codebase-layout.md`](../architecture/codebase-layout.md)
+
+### Ecosystem overview docs (cross-directory)
+
+* [`../overview/ecosystem.md`](../overview/ecosystem.md)
+* [`../overview/arqon-ecosystem-technotes.md`](../overview/arqon-ecosystem-technotes.md)
+
+### Parsing docs (cross-directory)
+
+* [`../parsing/grammars.md`](../parsing/grammars.md)
+
+### Operations docs (cross-directory, supporting governance/evidence/runbook layer)
+
+* [`../operations/configuration.md`](../operations/configuration.md)
+* [`../operations/troubleshooting-map.md`](../operations/troubleshooting-map.md)
+* [`../operations/port-reference.md`](../operations/port-reference.md)
+* [`../operations/walkthrough.md`](../operations/walkthrough.md)
+* [`../operations/arqon-bus-migration-flags.md`](../operations/arqon-bus-migration-flags.md)
+* [`../operations/arqon-bus-migration-runbook.md`](../operations/arqon-bus-migration-runbook.md)
+* [`../operations/external-infrastructure-ownership.md`](../operations/external-infrastructure-ownership.md)
+* [`../operations/frozen-requirements-registry.md`](../operations/frozen-requirements-registry.md)
+* [`../operations/rebrand-program.md`](../operations/rebrand-program.md)
+* [`../operations/historical-provenance-audit.md`](../operations/historical-provenance-audit.md)
+* [`../operations/rollback_proof.md`](../operations/rollback_proof.md)
+* [`../operations/decision_log.md`](../operations/decision_log.md)
+* [`../operations/gotcha-registry.md`](../operations/gotcha-registry.md)
+* [`../operations/phase-closeout-template.md`](../operations/phase-closeout-template.md)
+* [`../operations/phase-1-closeout.md`](../operations/phase-1-closeout.md)
+* [`../operations/phase-2-closeout.md`](../operations/phase-2-closeout.md)
+* [`../operations/phase-3-closeout.md`](../operations/phase-3-closeout.md)
+* [`../operations/phase-4-closeout.md`](../operations/phase-4-closeout.md)
+* [`../operations/phase-4-evidence.md`](../operations/phase-4-evidence.md)
+* [`../operations/phase-5-closeout.md`](../operations/phase-5-closeout.md)
+* [`../operations/phase-5-evidence.md`](../operations/phase-5-evidence.md)
+* [`../operations/phase-6-closeout.md`](../operations/phase-6-closeout.md)
+* [`../operations/phase-6-evidence.md`](../operations/phase-6-evidence.md)
+* [`../operations/phase-7-closeout.md`](../operations/phase-7-closeout.md)
+* [`../operations/phase-7-evidence.md`](../operations/phase-7-evidence.md)
+* [`../operations/phase-e-closeout.md`](../operations/phase-e-closeout.md)
+* [`../operations/phase-e-evidence.md`](../operations/phase-e-evidence.md)
+* [`../operations/wave-a-closeout.md`](../operations/wave-a-closeout.md)
+* [`../operations/wave-a-evidence.md`](../operations/wave-a-evidence.md)
+* [`../operations/wave-b-compatibility-matrix.md`](../operations/wave-b-compatibility-matrix.md)
+* [`../operations/wave-b-evidence.md`](../operations/wave-b-evidence.md)
+* [`../operations/wave-c-plan.md`](../operations/wave-c-plan.md)
+* [`../operations/wave-c-closeout.md`](../operations/wave-c-closeout.md)
+* [`../operations/wave-c-evidence.md`](../operations/wave-c-evidence.md)
+* [`../operations/wave-d-closeout.md`](../operations/wave-d-closeout.md)
+* [`../operations/wave-d-evidence.md`](../operations/wave-d-evidence.md)
+* [`../operations/wave-d-ownership-inventory.md`](../operations/wave-d-ownership-inventory.md)
+* [`../operations/wave-d-readiness-checklist.md`](../operations/wave-d-readiness-checklist.md)
+* [`../operations/wave-e-closeout.md`](../operations/wave-e-closeout.md)
+* [`../operations/wave-e-evidence.md`](../operations/wave-e-evidence.md)
+* [`../operations/wave-e-inventory.md`](../operations/wave-e-inventory.md)
+* [`../operations/wave-e-scope.md`](../operations/wave-e-scope.md)
+* [`../operations/gate-6-kokoro-plan.md`](../operations/gate-6-kokoro-plan.md)
+* [`../operations/gate-6b-arqonhpo-homeostasis-plan.md`](../operations/gate-6b-arqonhpo-homeostasis-plan.md)
+* [`../operations/kokoro-installation.md`](../operations/kokoro-installation.md)
+
+### Guides docs (cross-directory, operator and user enablement)
+
+* [`../guides/getting-started.md`](../guides/getting-started.md)
+* [`../guides/building.md`](../guides/building.md)
+* [`../guides/how-commands-work.md`](../guides/how-commands-work.md)
+* [`../guides/common-commands.md`](../guides/common-commands.md)
+* [`../guides/command-modes.md`](../guides/command-modes.md)
+* [`../guides/navigation-and-selection.md`](../guides/navigation-and-selection.md)
+* [`../guides/editing-and-refactoring.md`](../guides/editing-and-refactoring.md)
+* [`../guides/adding-and-inserting-code.md`](../guides/adding-and-inserting-code.md)
+* [`../guides/dictation-and-raw-text.md`](../guides/dictation-and-raw-text.md)
+* [`../guides/alternatives-and-corrections.md`](../guides/alternatives-and-corrections.md)
+* [`../guides/application-control.md`](../guides/application-control.md)
+* [`../guides/browser-and-system-control.md`](../guides/browser-and-system-control.md)
+* [`../guides/editor-integrations.md`](../guides/editor-integrations.md)
+* [`../guides/revision-box-and-text-input.md`](../guides/revision-box-and-text-input.md)
+* [`../guides/in-app-tutorials.md`](../guides/in-app-tutorials.md)
+
+### Development docs (cross-directory, implementation mechanics)
+
+* [`../development/protocol-overview.md`](../development/protocol-overview.md)
+* [`../development/protocol-messages.md`](../development/protocol-messages.md)
+* [`../development/api-reference.md`](../development/api-reference.md)
+* [`../development/plugin-lifecycle.md`](../development/plugin-lifecycle.md)
+* [`../development/extending-maestro.md`](../development/extending-maestro.md)
+* [`../development/custom-commands.md`](../development/custom-commands.md)
+* [`../development/snippets.md`](../development/snippets.md)
+* [`../development/codex-ui-ux-workflow.md`](../development/codex-ui-ux-workflow.md)
+
+### Model docs (cross-directory, training/data architecture)
+
+* [`../models/model-architecture.md`](../models/model-architecture.md)
+* [`../models/training-models.md`](../models/training-models.md)
+* [`../models/generating-data.md`](../models/generating-data.md)
+
+### Reference docs (cross-directory, command expression utilities)
+
+* [`../reference/selectors.md`](../reference/selectors.md)
+* [`../reference/formatting-and-symbols.md`](../reference/formatting-and-symbols.md)
+
 ### Language and command system
 
 * [`maestro-language-constitution.md`](./maestro-language-constitution.md)
-* [`maestro_spoken_command_grammar.md`](./maestro_spoken_command_grammar.md)
+* [`maestro_spoken_command_grammar.md`](./maestro-spoken-command-grammar.md)
 * [`maestro-syntax-specification.md`](./maestro-syntax-specification.md)
 * [`maestro-command-families.md`](./maestro-command-families.md)
 * [`maestro-lexicon.md`](./maestro-lexicon.md)
@@ -143,8 +251,8 @@ The following documents are the canonical design authorities for Maestro’s maj
 * [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
 * [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
 * [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
-* [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md)
-* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`maestro-focus-precision-v0.1.md`](./focus/maestro-focus-precision-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md)
 
 ### Phonetic safety and speech survivability
 
@@ -186,12 +294,27 @@ The following documents are the canonical design authorities for Maestro’s maj
 
 ### Focus plane program, validation, and evidence docs
 
-* [`focus-plan.md`](./focus-plan.md)
-* [`focus-project-charter.md`](./focus-project-charter.md)
-* [`focus-project-validation-note-fp1-fp2.md`](./focus-project-validation-note-fp1-fp2.md)
-* [`maestro-focus-test-plan.md`](./maestro-focus-test-plan.md)
-* [`focus-recovery-technical-documentation.md`](./focus-recovery-technical-documentation.md)
-* [`recovery-truthfulness-test-sheet.md`](./recovery-truthfulness-test-sheet.md)
+* [`focus-plan.md`](./focus/focus-plan.md)
+* [`focus-project-charter.md`](./focus/focus-project-charter.md)
+* [`focus-project-validation-note-fp1-fp2.md`](./focus/focus-project-validation-note-fp1-fp2.md)
+* [`maestro-focus-test-plan.md`](./focus/maestro-focus-test-plan.md)
+* [`focus-recovery-technical-documentation.md`](./focus/focus-recovery-technical-documentation.md)
+* [`recovery-truthfulness-test-sheet.md`](./focus/recovery-truthfulness-test-sheet.md)
+* [`focus/focus-plan.md`](./focus/focus-plan.md)
+* [`focus/focus-project-charter.md`](./focus/focus-project-charter.md)
+* [`focus/focus-project-validation-note-fp1-fp2.md`](./focus/focus-project-validation-note-fp1-fp2.md)
+* [`focus/focus-recovery-technical-documentation.md`](./focus/focus-recovery-technical-documentation.md)
+* [`focus/focus-technote.md`](./focus/focus-technote.md)
+* [`focus/maestro-focus-phase-handoff.md`](./focus/maestro-focus-phase-handoff.md)
+* [`focus/maestro-focus-precision-v0.1.md`](./focus/maestro-focus-precision-v0.1.md)
+* [`focus/maestro-focus-recovery-plan.md`](./focus/maestro-focus-recovery-plan.md)
+* [`focus/maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md)
+* [`focus/maestro-focus-test-plan.md`](./focus/maestro-focus-test-plan.md)
+* [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/recovery-truthfulness-test-sheet.md`](./focus/recovery-truthfulness-test-sheet.md)
 
 ### Continuity and control artifacts
 
@@ -207,8 +330,8 @@ The following documents are the canonical design authorities for Maestro’s maj
 * [`maestro-focus-architecture-current.md`](./maestro-focus-architecture-current.md)
 * [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
 * [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md)
-* [`maestro-focus-phase-handoff.md`](./maestro-focus-phase-handoff.md)
-* [`focus-technote.md`](./focus-technote.md)
+* [`maestro-focus-phase-handoff.md`](./focus/maestro-focus-phase-handoff.md)
+* [`focus-technote.md`](./focus/focus-technote.md)
 
 ## 6. Current System Capabilities
 
@@ -293,6 +416,19 @@ Primary governing specs:
 * [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
 * [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
 
+### Computational fabric and lifecycle architecture foundations
+
+* control is modeled as distributed local-state evolution across runtime, context, and governance nodes
+* request handling is treated as a bounded lifecycle with explicit handoff boundaries
+* service ownership boundaries are treated as runtime correctness constraints, not only repository organization
+
+Primary governing specs:
+
+* [`../architecture/maestro-computational-fabric.md`](../architecture/maestro-computational-fabric.md)
+* [`../architecture/request-lifecycle.md`](../architecture/request-lifecycle.md)
+* [`../architecture/codebase-layout.md`](../architecture/codebase-layout.md)
+* [`../architecture/maestro-actuation-and-control-stack.md`](../architecture/maestro-actuation-and-control-stack.md)
+
 ### Focus and operating-context foundations
 
 * accepted focus-plane foundations now exist across verification, precision, recovery, referential intent, modal awareness, surface expansion, and language/system integration
@@ -302,8 +438,8 @@ Primary governing specs:
 Primary governing specs:
 
 * [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
-* [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md)
-* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`maestro-focus-precision-v0.1.md`](./focus/maestro-focus-precision-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md)
 * [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
 * [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
 * [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
@@ -393,13 +529,14 @@ Primary governing specs:
 * [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md)
 * [`maestro-talon-integration-strategy.md`](./maestro-talon-integration-strategy.md)
 * [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
-* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md)
 
 ### Evidence and operational discipline gaps
 
 * benchmark operationalization (corpora runs, standing reports, regression loop)
 * reconnect and recovery hardening
 * degraded-mode characterization beyond foundational bounded slices
+* computational-fabric regime observability remains incomplete (coherent, degraded, over-rigid, under-constrained)
 * provider/route evidence tied more directly to capability and trust declarations
 * phonetic hazard benchmarking and command survivability evaluation must become part of the standing evidence loop
 * ambiguity, chooser, and safe-abort behavior need operational measurement, not only bounded implementation
@@ -412,6 +549,7 @@ Primary governing specs:
 * [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
 * [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
 * [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+* [`../architecture/maestro-computational-fabric.md`](../architecture/maestro-computational-fabric.md)
 
 ### Personalization and preference gaps
 
@@ -473,9 +611,11 @@ Primary governing specs:
 * [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md)
 * [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
 * [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
-* [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md)
-* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`maestro-focus-precision-v0.1.md`](./focus/maestro-focus-precision-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md)
 * [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
+* [`../architecture/request-lifecycle.md`](../architecture/request-lifecycle.md)
+* [`../architecture/codebase-layout.md`](../architecture/codebase-layout.md)
 
 Deliverables:
 
@@ -516,6 +656,7 @@ Primary governing specs:
 * [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
 * [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
 * [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
+* [`../architecture/maestro-actuation-and-control-stack.md`](../architecture/maestro-actuation-and-control-stack.md)
 
 Deliverables:
 
@@ -546,6 +687,7 @@ Primary governing specs:
 * [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
 * [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
 * [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+* [`../architecture/maestro-computational-fabric.md`](../architecture/maestro-computational-fabric.md)
 
 Deliverables:
 
@@ -607,7 +749,7 @@ Primary governing specs:
 * [`maestro-preference-model.md`](./maestro-preference-model.md)
 * [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
 * [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
-* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md)
 
 Deliverables:
 
@@ -686,6 +828,8 @@ Doctrine:
 * benchmark outputs should eventually align with the trust, latency, reliability, and observability metadata described in the capability registry contract
 * benchmarking is a standing operational discipline, not a one-time phase artifact
 * phonetic survivability, ambiguity behavior, recovery quality, and preference-induced routing behavior are benchmark-governed concerns, not informal UX impressions
+* benchmark categories are measurement operators over fabric-level behavior (`Ω`), not only component microbenchmarks
+* operational evidence should explicitly track regime drift (coherent, degraded, over-rigid, under-constrained)
 
 The benchmark program should explicitly cover:
 
@@ -782,6 +926,20 @@ Examples:
 * `maestro-focus-architecture-current.md`
 * hard-close handoff docs
 * technical notes and historical focus phase handoffs
+
+### Cross-domain supporting docs
+
+These live outside `/docs/vos` and should be treated as supporting authorities for operations, enablement, and implementation mechanics.
+
+Examples:
+
+* `../overview/*` for ecosystem framing
+* `../operations/*` for closeout/evidence/runbook/governance operations artifacts
+* `../parsing/grammars.md` for parser grammar structure reference
+* `../guides/*` for operator/user behavior guidance
+* `../development/*` for protocol and extension mechanics
+* `../models/*` for model/training/data architecture
+* `../reference/*` for selectors and formatting symbol reference
 
 ## 15. Resume Protocol
 

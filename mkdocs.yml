@@ -104,7 +104,10 @@ nav:
   - Parsing:
       - Grammars: parsing/grammars.md
   - Testing:
-      - Focus Test Plan: vos/maestro-focus-test-plan.md
+      - Maestro POC Testing Plan: vos/maestro-poc-testing-plan.md
+      - Maestro Test Inventory: vos/maestro-test-inventory.md
+      - Comprehensive Test Strategy: vos/maestro-comprehensive-test-strategy.md
+      - Focus Test Plan: vos/focus/maestro-focus-test-plan.md
   - Runtime Services (FP-2A/2B):
       - Identity Gateway: vos/maestro-identity-gateway-service.md
       - Authorization Service: vos/maestro-authorization-service.md
