@@ -24,6 +24,9 @@ These define the actual implementation, architecture, and contracts:
 | [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md) | STT strategy by lane |
 | [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md) | TTS persona & voice |
 | [`maestro-workflow-contract.md`](./maestro-workflow-contract.md) | Workflow contract |
+| [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md) | Workflow contract service |
+| [`maestro-authorization-service.md`](./maestro-authorization-service.md) | Authorization service |
+| [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md) | Identity gateway service |
 | [`maestro-core-command-set.md`](./maestro-core-command-set.md) | Core command set |
 
 ### Language & Grammar (Core)
@@ -48,6 +51,7 @@ These define the actual implementation, architecture, and contracts:
 | [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md) | Ambiguity policy |
 | [`maestro-chooser-ux.md`](./maestro-chooser-ux.md) | Chooser UX |
 | [`maestro-interpretation-engine.md`](./maestro-interpretation-engine.md) | Interpretation engine |
+| [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md) | Intent routing v0.1 |
 | [`maestro-modes-state-machine.md`](./maestro-modes-state-machine.md) | Modes state machine |
 | [`maestro-preference-model.md`](./maestro-preference-model.md) | Preference model |
 | [`maestro-macro-system.md`](./maestro-macro-system.md) | Macro system |
@@ -63,8 +67,11 @@ These track progress, governance, and future plans:
 
 | Document | Purpose |
 |----------|---------|
-| [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) | **Master roadmap** - defines phases and execution order |
+| [`maestro-master-plan.md`](./maestro-master-plan.md) | **Master strategic plan** - live control document |
+| [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) | **High-level roadmap** - historical execution tracking |
 | [`maestro-implementation-progress.md`](./maestro-implementation-progress.md) | Live execution snapshot, current status |
+| [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md) | Focus gap analysis |
+| [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md) | Component migration matrix |
 | [`maestro-decision-log.md`](./maestro-decision-log.md) | VOS-local architectural decisions |
 | [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md) | Sticky traps and verification caveats |
 
@@ -72,8 +79,13 @@ These track progress, governance, and future plans:
 
 | Document | Purpose |
 |----------|---------|
+| [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md) | Reference architecture |
 | [`maestro-overview.md`](./maestro-overview.md) | Background synthesis |
 | [`maestro-vos-plan.md`](./maestro-vos-plan.md) | Background VOS plan |
+| [`maestro-focus-architecture-current.md`](./maestro-focus-architecture-current.md) | Current Focus arch reference |
+| [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md) | Proposed Focus arch reference |
+| [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md) | Phase 1B handoff summary |
+| [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md) | Phase 1C handoff summary |
 
 ---
 
@@ -84,11 +96,20 @@ The `focus/` subdirectory contains Focus-specific documentation:
 | Document | Purpose |
 |----------|---------|
 | [`focus/focus-project-charter.md`](./focus/focus-project-charter.md) | Focus governance & acceptance criteria |
+| [`focus/focus-plan.md`](./focus/focus-plan.md) | Focus execution plan |
 | [`focus/focus-technote.md`](./focus/focus-technote.md) | Core focus implementation files |
 | [`focus/focus-recovery-technical-documentation.md`](./focus/focus-recovery-technical-documentation.md) | Recovery architecture |
 | [`focus/maestro-focus-recovery-plan.md`](./focus/maestro-focus-recovery-plan.md) | Recovery implementation |
+| [`focus/maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md) | Recovery v0.1 spec |
+| [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md) | Phase 4A: Referential Intent |
+| [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md) | Phase 4B: Modal Awareness |
+| [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md) | Phase 4C: Surface Expansion |
+| [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md) | Phase 4D: Language Integration |
 | [`focus/maestro-focus-precision-v0.1.md`](./focus/maestro-focus-precision-v0.1.md) | Precision focus spec |
+| [`focus/maestro-focus-test-plan.md`](./focus/maestro-focus-test-plan.md) | Focus testing plan |
 | [`focus/recovery-truthfulness-test-sheet.md`](./focus/recovery-truthfulness-test-sheet.md) | Test evidence |
+| [`focus/focus-project-validation-note-fp1-fp2.md`](./focus/focus-project-validation-note-fp1-fp2.md) | Validation evidence |
+| [`focus/maestro-focus-phase-handoff.md`](./focus/maestro-focus-phase-handoff.md) | Focus handoff summary |
 
 ---
 

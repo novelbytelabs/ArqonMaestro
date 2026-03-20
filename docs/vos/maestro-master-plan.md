@@ -34,8 +34,53 @@ Core laws:
 * Maestro interprets, gates, routes, and executes
 * Nexus proposes, remembers, and guides
 * runtime decisions must be deterministic, policy-aware, and auditable
+* the language remains sovereign; adapters and executors only declare realization power
+* workflows are first-class runtime objects, not just command lists
+* shell concerns and runtime concerns must remain explicitly separated
+* voice output is brokered by persona and policy, not raw provider voice IDs
+* STT quality is lane-relative, not absolute
+* ambiguity must resolve deterministically; Maestro does not guess when multiple plausible interpretations remain
+* recovery from speech/runtime error is a first-class operating concern, not a fallback afterthought
+* personalization may bias lawful interpretation, but it may not redefine canonical meaning
+* phonetic survivability is part of the safety model, not just a benchmark concern
 
-## 3. Accepted Foundational Baseline
+## 3. Ecosystem Position and Runtime Role
+
+Maestro is the Voice Operating System substrate within the Arqon ecosystem.
+
+It should be treated as:
+
+* the spoken operating substrate
+* the voice-native ingress plane into governed execution
+* the owner of the hot voice-operating path
+* the owner of interruption-safe command handling
+* the owner of spoken operating grammar and deterministic execution handoff
+
+Maestro is not the whole assistant layer.
+
+The clean ecosystem relationship is:
+
+* `Maestro = the Voice Operating System`
+* `Nexus = the intelligent personal assistant`
+* `ArqonMCP = the centralized command fabric and governance core`
+
+Architectural rules:
+
+* Nexus must not swallow Maestro
+* Maestro must not try to absorb the whole assistant role
+* ArqonMCP should be treated as the command fabric, routing authority, and policy/governance boundary
+* shell concerns and runtime concerns must remain explicitly separated
+* shell migration must not rewrite runtime contracts
+* internal Arqon contracts should trend protobuf-first even when edge compatibility requires JSON-RPC
+
+Primary governing specs:
+
+* [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
+* [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
+* [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md)
+* [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+
+## 4. Accepted Foundational Baseline
 
 Accepted bounded slices and anchors:
 
@@ -53,28 +98,36 @@ Accepted bounded slices and anchors:
 * Phase 4C: accepted (`b61b74d`)
 * Phase 4D: accepted (`d616749be8a7fe5a5f3ad34314af7f974ecad2b2`)
 
-## 4. Canonical Spec Map
+These accepted slices establish the foundational bounded build sequence.
+
+They do **not** mean the system is fully hardened, fully live-wired, or fully productionized.
+
+## 5. Canonical Spec Map
 
 The following documents are the canonical design authorities for Maestro’s major subsystems.
+
+### Ecosystem and reference architecture
+
+* [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
 
 ### Language and command system
 
 * [`maestro-language-constitution.md`](./maestro-language-constitution.md)
-* [`maestro-spoken-command-grammar.md`](./maestro-spoken-command-grammar.md)
+* [`maestro_spoken_command_grammar.md`](./maestro_spoken_command_grammar.md)
 * [`maestro-syntax-specification.md`](./maestro-syntax-specification.md)
+* [`maestro-command-families.md`](./maestro-command-families.md)
+* [`maestro-lexicon.md`](./maestro-lexicon.md)
+* [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md)
 * [`maestro-core-command-set.md`](./maestro-core-command-set.md)
-* [`maestro-verb-system.md`](./maestro-verb-system.md)
-* [`maestro-object-system.md`](./maestro-object-system.md)
-* [`maestro-macro-system.md`](./maestro-macro-system.md)
 
 ### Interpretation, reference, and bounded language integration
 
 * [`maestro-interpretation-engine.md`](./maestro-interpretation-engine.md)
 * [`maestro-reference-system.md`](./maestro-reference-system.md)
-* [`maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
-* [`maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
-* [`maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
-* [`maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
 
 ### Modes, surfaces, and operating context
 
@@ -83,30 +136,83 @@ The following documents are the canonical design authorities for Maestro’s maj
 * [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
 * [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
 
-### Execution, workflow, and policy
+### Routing, ambiguity, recovery, and runtime control
+
+* [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md)
+* [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+* [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
+* [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
+* [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
+* [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+
+### Phonetic safety and speech survivability
+
+* [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
+* [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
+
+### Preference and personalization
+
+* [`maestro-preference-model.md`](./maestro-preference-model.md)
+
+### Execution, workflow, routing, and capability declaration
 
 * [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
 * [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
 * [`maestro-actuation-policy-engine.md`](./maestro-actuation-policy-engine.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`maestro-talon-integration-strategy.md`](./maestro-talon-integration-strategy.md)
 
-### Identity, security, and delegation
+### Authorization and identity runtime services
 
+* [`maestro-authorization-service.md`](./maestro-authorization-service.md)
+* [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
 * [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md)
+
+### Workflow runtime services
+
+* [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
 * [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
 
 ### Voice input and output strategy
 
 * [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md)
 * [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md)
+* [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
 
 ### Runtime decomposition and system architecture
 
 * [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md)
-* [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
 
-## 5. Current System Capabilities
+### Focus plane program, validation, and evidence docs
 
-Maestro now has accepted foundational capability in the following areas:
+* [`focus-plan.md`](./focus-plan.md)
+* [`focus-project-charter.md`](./focus-project-charter.md)
+* [`focus-project-validation-note-fp1-fp2.md`](./focus-project-validation-note-fp1-fp2.md)
+* [`maestro-focus-test-plan.md`](./maestro-focus-test-plan.md)
+* [`focus-recovery-technical-documentation.md`](./focus-recovery-technical-documentation.md)
+* [`recovery-truthfulness-test-sheet.md`](./recovery-truthfulness-test-sheet.md)
+
+### Continuity and control artifacts
+
+* [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
+* [`maestro-decision-log.md`](./maestro-decision-log.md)
+* [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
+* [`maestro-project-roadmap.md`](./maestro-project-roadmap.md)
+
+### Historical / background synthesis (non-canonical)
+
+* [`maestro-overview.md`](./maestro-overview.md)
+* [`maestro-vos-plan.md`](./maestro-vos-plan.md)
+* [`maestro-focus-architecture-current.md`](./maestro-focus-architecture-current.md)
+* [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md)
+* [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md)
+* [`maestro-focus-phase-handoff.md`](./maestro-focus-phase-handoff.md)
+* [`focus-technote.md`](./focus-technote.md)
+
+## 6. Current System Capabilities
+
+Maestro now has accepted foundational capability in the following areas.
 
 ### Voice ingress and hot path
 
@@ -114,6 +220,17 @@ Maestro now has accepted foundational capability in the following areas:
 * bounded turn detection and interruption-safe control flow
 * command-fast and dictation-accurate STT lane separation
 * local deterministic routing into the runtime
+* bounded intent-routing foundations are implemented and accepted
+* the voice migration sequence is explicitly documented and partially landed through accepted bounded slices
+* lane-relative STT behavior is aligned to the speech survivability model, though not yet fully operationalized against standing corpora
+
+Primary governing specs:
+
+* [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+* [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md)
+* [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md)
+* [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
+* [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
 
 ### Identity, safety, and policy
 
@@ -121,6 +238,15 @@ Maestro now has accepted foundational capability in the following areas:
 * bounded identity and safety gating
 * contamination-aware and degraded-evidence-aware authorization behavior
 * interaction-mode-aware policy decisions
+* authorization and identity-gateway service boundaries now exist as explicit runtime control surfaces
+
+Primary governing specs:
+
+* [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md)
+* [`maestro-actuation-policy-engine.md`](./maestro-actuation-policy-engine.md)
+* [`maestro-modes-state-machine.md`](./maestro-modes-state-machine.md)
+* [`maestro-authorization-service.md`](./maestro-authorization-service.md)
+* [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
 
 ### Workflow and authority boundaries
 
@@ -128,6 +254,14 @@ Maestro now has accepted foundational capability in the following areas:
 * explicit Maestro ↔ Nexus proposal and delegation boundary
 * policy-aware workflow and execution control
 * bounded replay/audit evidence capture for lawful decisions
+* workflow contract service boundaries now exist as explicit runtime scaffolding for lawful workflow execution
+
+Primary governing specs:
+
+* [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
+* [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
+* [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
+* [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
 
 ### Output and response behavior
 
@@ -136,11 +270,44 @@ Maestro now has accepted foundational capability in the following areas:
 * interruption-safe playback
 * bounded persona routing
 
+Primary governing specs:
+
+* [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md)
+* [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+* [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
+
 ### Runtime hardening and control-plane foundations
 
 * benchmark instrumentation for lane, stage, and reliability signals
 * replay/audit evidence capture for reconstruction of bounded execution decisions
 * shell/runtime decomposition hardening
+* runtime-side dispatch seams
+* capability-registry and adapter-contract foundations now exist for evidence-based route realization
+* runtime command contracts and routing/control seams are explicitly specified
+* focus/runtime control has accepted bounded slices, with remaining gaps now clearly isolated
+
+Primary governing specs:
+
+* [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
+* [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
+
+### Focus and operating-context foundations
+
+* accepted focus-plane foundations now exist across verification, precision, recovery, referential intent, modal awareness, surface expansion, and language/system integration
+* Maestro can now model bounded operating context across focus, modal state, surface, and referential anchors in a deterministic and inspectable way
+* focus/runtime law is stronger than current live host signal wiring, which remains a hardening gap
+
+Primary governing specs:
+
+* [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
+* [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
 
 ### Language/runtime foundations
 
@@ -148,8 +315,21 @@ Maestro now has accepted foundational capability in the following areas:
 * bounded modal awareness foundations
 * bounded surface-expansion foundations
 * bounded language/system integration foundations
+* bounded ambiguity handling foundations exist through safe abort and deterministic non-guessing behavior
+* bounded recovery-oriented language/runtime foundations exist, but full recovery completion is still a hardening concern
 
-## 6. Remaining Gaps / Shortcomings
+Primary governing specs:
+
+* [`maestro-command-families.md`](./maestro-command-families.md)
+* [`maestro-lexicon.md`](./maestro-lexicon.md)
+* [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md)
+* [`maestro-interpretation-engine.md`](./maestro-interpretation-engine.md)
+* [`maestro-reference-system.md`](./maestro-reference-system.md)
+* [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+* [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
+* [`maestro-preference-model.md`](./maestro-preference-model.md)
+
+## 7. Remaining Gaps / Shortcomings
 
 The accepted foundations are real, but several important gaps remain before Maestro can be treated as fully hardened or production-like.
 
@@ -158,6 +338,21 @@ The accepted foundations are real, but several important gaps remain before Maes
 * deeper platform-bridge/live-signal coverage for modal, surface, focus, and referential context
 * fuller host signal ingestion for lawful cross-surface and modal-aware behavior
 * stronger active-surface and active-binding fidelity
+* richer capability-registry population from real adapters and live environment status
+* focus architecture completion remains limited by real host/platform signal fidelity
+* current bounded modal, surface, and referential layers still depend on stronger live focus and active-context inputs
+* focus architecture completion remains uneven across current accepted focus/runtime slices and real host/platform signal wiring
+* current focus/runtime laws are stronger than current live platform integration fidelity
+
+Primary governing specs:
+
+* [`maestro-surface-model.md`](./maestro-surface-model.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`maestro-reference-system.md`](./maestro-reference-system.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
+* [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
 
 ### Durability and governance gaps
 
@@ -165,6 +360,15 @@ The accepted foundations are real, but several important gaps remain before Maes
 * delegation grant persistence and governance hardening
 * durable replay/audit persistence, retention, and governance model
 * stronger recovery/reconnect state handling
+* authorization and identity gateway service hardening still need stronger durable operational backing
+
+Primary governing specs:
+
+* [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md)
+* [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
+* [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
+* [`maestro-authorization-service.md`](./maestro-authorization-service.md)
+* [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
 
 ### Execution and workflow completion gaps
 
@@ -172,19 +376,83 @@ The accepted foundations are real, but several important gaps remain before Maes
 * richer cross-surface workflow completion
 * Wave D completion beyond D1
 * stronger output/runtime/provider hardening under contention and failure
+* fuller capability-based lawful routing against live adapter declarations
+* workflow contract service is real but not yet fully operationalized across all execution paths
+* capability registry / adapter declarations exist as contract foundations but still need broader live realization coverage
+* Talon-backed route realization remains strategy-defined but not yet fully exploited as a governed provider layer
+* full restore behavior across modal and cross-surface transitions remains incomplete
+* lawful cross-surface workflows exist as bounded foundations but not yet as fully operationalized end-state behavior
+* fuller recovery handling across STT error, ambiguity, object binding failure, and execution failure
+
+Primary governing specs:
+
+* [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
+* [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
+* [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md)
+* [`maestro-talon-integration-strategy.md`](./maestro-talon-integration-strategy.md)
+* [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
+* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
 
 ### Evidence and operational discipline gaps
 
 * benchmark operationalization (corpora runs, standing reports, regression loop)
 * reconnect and recovery hardening
 * degraded-mode characterization beyond foundational bounded slices
+* provider/route evidence tied more directly to capability and trust declarations
+* phonetic hazard benchmarking and command survivability evaluation must become part of the standing evidence loop
+* ambiguity, chooser, and safe-abort behavior need operational measurement, not only bounded implementation
+
+Primary governing specs:
+
+* [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md)
+* [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
+* [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
+* [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+
+### Personalization and preference gaps
+
+* preference behavior remains only partially operationalized
+* lawful personalization, alias enablement, scope defaults, and executor preference need stronger implementation discipline
+* personalization must remain reversible, inspectable, and subordinate to canonical meaning
+
+Primary governing specs:
+
+* [`maestro-preference-model.md`](./maestro-preference-model.md)
+* [`maestro-lexicon.md`](./maestro-lexicon.md)
+* [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md)
 
 ### Advanced interaction completion gaps
 
 * disambiguation and restore follow-on work beyond bounded foundations
 * richer referential, modal, and cross-surface completion behavior
+* fuller alignment between language family, lexicon, and runtime interpretation under more complex operating conditions
+* disambiguation follow-on work beyond deterministic safe abort
+* lawful preference application beyond bounded foundations
+* focus restore completion remains pending beyond bounded modal-awareness foundations
+* cross-surface referential completion remains pending beyond bounded surface-expansion foundations
+* language/system integration is accepted as a bounded foundation but not yet a fully mature end-state operating control plane
+* focus architecture completion still requires closing the remaining proposed-vs-operational gap
 
-## 7. Strategic Programs
+Primary governing specs:
+
+* [`maestro-command-families.md`](./maestro-command-families.md)
+* [`maestro-lexicon.md`](./maestro-lexicon.md)
+* [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md)
+* [`maestro-reference-system.md`](./maestro-reference-system.md)
+* [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+* [`maestro-preference-model.md`](./maestro-preference-model.md)
+* [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
+* [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
+
+## 8. Strategic Programs
 
 ### Program A - Platform Bridge and Live Signal Wiring
 
@@ -198,9 +466,16 @@ Primary governing specs:
 * [`maestro-surface-model.md`](./maestro-surface-model.md)
 * [`maestro-modes-state-machine.md`](./maestro-modes-state-machine.md)
 * [`maestro-reference-system.md`](./maestro-reference-system.md)
-* [`maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
-* [`maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
-* [`maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md)
+* [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
+* [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
+* [`maestro-focus-precision-v0.1.md`](./maestro-focus-precision-v0.1.md)
+* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
+* [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
 
 Deliverables:
 
@@ -208,6 +483,13 @@ Deliverables:
 * live surface/focus signal ingestion
 * higher-fidelity referential anchors
 * lawful routing based on real host/platform signals
+* capability-registry-backed surface and environment binding fidelity
+* focus/runtime signal fidelity aligned with the proposed focus architecture
+* live platform population of surface, focus, and modal context
+* live focus and focus-stack signal ingestion
+* stronger restore-state inputs
+* higher-fidelity modal and surface context population
+* higher-fidelity referential anchor population from live host state
 
 Status:
 
@@ -226,6 +508,14 @@ Primary governing specs:
 * [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
 * [`maestro-actuation-policy-engine.md`](./maestro-actuation-policy-engine.md)
 * [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md)
+* [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md)
+* [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
+* [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
+* [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
+* [`maestro-authorization-service.md`](./maestro-authorization-service.md)
+* [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
+* [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
+* [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
 
 Deliverables:
 
@@ -233,6 +523,10 @@ Deliverables:
 * stronger failure and contention handling
 * reconnect/retry/recovery hardening
 * safer degraded behavior under real operational load
+* stronger recovery behavior across STT, ambiguity, object binding, and execution failure layers
+* phonetic survivability hardening for command forms under realistic noise and recognition variance
+* service-level hardening for authorization, identity gateway, and workflow contract control surfaces
+* remaining Wave D voice-plane hardening beyond the bounded broker slice
 
 ### Program C - Operational Benchmarking and Regression Discipline
 
@@ -245,7 +539,13 @@ Primary governing specs:
 
 * [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md)
 * [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
 * [`maestro-project-roadmap.md`](./maestro-project-roadmap.md)
+* [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
+* [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
+* [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
+* [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
+* [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
 
 Deliverables:
 
@@ -254,6 +554,10 @@ Deliverables:
 * regression thresholds
 * degraded-mode benchmark suites
 * route/reliability benchmark discipline
+* capability-aware route and provider evidence
+* phonetic hazard measurement and survivability reporting
+* ambiguity, disambiguation, and safe-abort frequency reporting
+* recovery quality measurement across the defined failure layers
 
 ### Program D - Persistence, Recovery, and Governance
 
@@ -268,6 +572,11 @@ Primary governing specs:
 * [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
 * [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
 * [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
+* [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+* [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
+* [`maestro-authorization-service.md`](./maestro-authorization-service.md)
+* [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
+* [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
 
 Deliverables:
 
@@ -286,11 +595,19 @@ Objective:
 
 Primary governing specs:
 
+* [`maestro-command-families.md`](./maestro-command-families.md)
+* [`maestro-lexicon.md`](./maestro-lexicon.md)
+* [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md)
 * [`maestro-reference-system.md`](./maestro-reference-system.md)
-* [`maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
-* [`maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
-* [`maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
-* [`maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md)
+* [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md)
+* [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md)
+* [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md)
+* [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+* [`maestro-preference-model.md`](./maestro-preference-model.md)
+* [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
+* [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
+* [`maestro-focus-recovery-v0.1.md`](./maestro-focus-recovery-v0.1.md)
 
 Deliverables:
 
@@ -298,8 +615,13 @@ Deliverables:
 * restore behavior completion
 * richer cross-surface interaction completion
 * higher-fidelity lawful interaction under ambiguity
+* lawful disambiguation follow-on work
+* preference-aware but canonical-safe interaction compression
+* reversible personalization aligned with command legality and policy
+* richer modal-aware and cross-surface recovery
+* higher-order lawful interaction completion across focus, referential, modal, and surface layers
 
-## 8. Execution Order
+## 9. Execution Order
 
 Recommended order:
 
@@ -317,7 +639,7 @@ Rationale:
 * add durable governance state fourth
 * complete advanced interaction behavior last
 
-## 9. Program Execution Rules
+## 10. Program Execution Rules
 
 Each strategic program should be executed through bounded implementation slices.
 
@@ -330,7 +652,23 @@ Rules:
 * accepted slices should be anchored to commit hashes
 * strategic programs are not implemented as one giant task; they are completed through bounded accepted slices
 
-## 10. Benchmark Doctrine
+## 11. Focus Program Role
+
+The Focus Program is the main bounded implementation thread that produced Maestro’s accepted focus, referential, modal, surface, and language/system foundations.
+
+It should be understood as:
+
+* the primary operating-context implementation program within Maestro
+* the implementation thread that connects focus law, recovery, precision, referential intent, modal awareness, surface expansion, and bounded language/system integration
+* a major continuity and validation source for post-foundation hardening work
+
+Role of Focus documents:
+
+* proposed focus architecture and bounded focus specs remain important subsystem authorities
+* focus validation and test documents remain evidence and continuity artifacts
+* historical focus notes remain useful background, but should not compete with live canonical specs
+
+## 12. Benchmark Doctrine
 
 These remain standing project artifacts:
 
@@ -343,10 +681,21 @@ These remain standing project artifacts:
 
 Doctrine:
 
-* benchmarks must support routing, policy, and governance decisions
+* benchmarks must support routing, policy, governance, and capability decisions
 * lane-relative and stage-relative evidence is preferred over single aggregate numbers
+* benchmark outputs should eventually align with the trust, latency, reliability, and observability metadata described in the capability registry contract
+* benchmarking is a standing operational discipline, not a one-time phase artifact
+* phonetic survivability, ambiguity behavior, recovery quality, and preference-induced routing behavior are benchmark-governed concerns, not informal UX impressions
 
-## 11. Governance and Control Rules
+The benchmark program should explicitly cover:
+
+* speech survivability under phonetic hazard
+* ambiguity frequency and chooser behavior
+* safe-abort frequency for unresolved or weak interpretations
+* recovery quality across STT, parsing, object binding, and execution failure layers
+* the effect of lawful personalization on routing precision without semantic drift
+
+## 13. Governance and Control Rules
 
 * keep one canonical master plan (`maestro-master-plan.md`)
 * keep `maestro-project-roadmap.md` as historical foundational sequence and continuity reference
@@ -354,8 +703,87 @@ Doctrine:
 * record phase-shaping decisions in `maestro-decision-log.md`
 * keep resume-critical traps in `maestro-gotcha-registry.md`
 * keep live implementation snapshot in `maestro-implementation-progress.md`
+* keep detailed subsystem definitions in their canonical spec docs rather than duplicating them in the Master Plan
+* ambiguity, preference, routing, recovery, and phonetic safety must remain governed by their canonical specs and may not be redefined ad hoc in implementation slices
+* the Ultimate VOS Reference Architecture governs Maestro’s ecosystem position and target-state runtime role, but subsystem behavior remains governed by the canonical subsystem specs
+* focus-plane documents remain canonical where they define bounded runtime law, but validation, handoff, and technical-note artifacts should be treated as evidence or continuity documents rather than competing control planes
 
-## 12. Resume Protocol
+## 14. Document Roles
+
+The Maestro document set is intentionally layered.
+
+### Canonical subsystem specs
+
+These define system behavior and architecture within a bounded topic.
+They are the primary design authorities.
+
+Examples:
+
+* `maestro-actuation-policy-engine.md`
+* `maestro-workflow-contract.md`
+* `maestro-shell-runtime-decomposition.md`
+* `maestro-capability-registry-adapter-contract.md`
+
+### Service/interface specs
+
+These describe runtime control surfaces and implementation-facing boundaries.
+
+Examples:
+
+* `maestro-authorization-service.md`
+* `maestro-identity-gateway-service.md`
+* `maestro-workflow-contract-service.md`
+
+### Strategic control documents
+
+These govern current planning, execution order, and continuity.
+
+Examples:
+
+* `maestro-master-plan.md`
+* `maestro-project-roadmap.md`
+* `maestro-implementation-progress.md`
+* `maestro-decision-log.md`
+* `maestro-gotcha-registry.md`
+
+### Focus plane law and bounded runtime specs
+
+These define the operating-context law of the focus plane and its accepted bounded runtime slices.
+
+Examples:
+
+* `maestro-focus-architecture-proposed.md`
+* `maestro-focus-precision-v0.1.md`
+* `maestro-focus-recovery-v0.1.md`
+* `focus/maestro-referential-intent-v0.1.md`
+* `focus/maestro-modal-awareness-v0.1.md`
+* `focus/maestro-surface-expansion-v0.1.md`
+* `focus/maestro-language-system-integration-v0.1.md`
+
+### Validation and evidence docs
+
+These provide proof, test framing, or bounded validation artifacts for implementation work.
+
+Examples:
+
+* `maestro-focus-test-plan.md`
+* `focus-project-validation-note-fp1-fp2.md`
+* `focus-recovery-technical-documentation.md`
+* `recovery-truthfulness-test-sheet.md`
+
+### Background and historical synthesis docs
+
+These remain useful for context, but should not be treated as the live canonical source of truth.
+
+Examples:
+
+* `maestro-overview.md`
+* `maestro-vos-plan.md`
+* `maestro-focus-architecture-current.md`
+* hard-close handoff docs
+* technical notes and historical focus phase handoffs
+
+## 15. Resume Protocol
 
 When resuming work:
 
@@ -364,15 +792,18 @@ When resuming work:
 3. `maestro-decision-log.md`
 4. `maestro-gotcha-registry.md`
 5. `maestro-project-roadmap.md`
+6. the canonical subsystem specs for the next active program
+7. the relevant focus-plane validation and evidence docs when working on focus-derived runtime behavior
 
 Resume rule:
 
-* use the Master Plan for current strategic direction
+* use the Master Plan for strategic direction
 * use the implementation progress file for the current execution state
 * use the decision log and gotcha registry to avoid rediscovering settled choices and traps
-* use the historical roadmap to understand the foundational sequence and accepted baseline
+* use the historical roadmap for the foundational sequence
+* use subsystem specs to govern the actual implementation slice
 
-## 13. Deferred Work
+## 16. Deferred Work
 
 Deferred items remain:
 
@@ -385,7 +816,7 @@ Deferred items remain:
 * rich voice-pack marketplace or heavy persona expansion
 * large-scale preference mining beyond explicit safe signals
 
-## 14. Definition of Readiness for Production-Like Operation
+## 17. Definition of Readiness for Production-Like Operation
 
 Maestro is ready for production-like operation when:
 
@@ -395,8 +826,13 @@ Maestro is ready for production-like operation when:
 * degraded and reconnect behavior is characterized and tested
 * safety and authority boundaries remain explicit under failure and multi-speaker conditions
 * Maestro/Nexus ownership boundaries remain enforceable in runtime behavior
+* adapter and executor claims are explicit enough that routing decisions can be justified through live capability evidence rather than implicit assumptions
+* ambiguity behavior is lawful, measurable, and non-guessing under real operating conditions
+* recovery quality is demonstrated across STT, parsing, object binding, and execution failure layers
+* phonetic survivability is characterized for core command families and high-risk commands
+* personalization remains reversible, inspectable, and subordinate to canonical command meaning
 
-## 15. Immediate Next Step
+## 18. Immediate Next Step
 
 The next active work should begin with Program A - Platform Bridge and Live Signal Wiring.
 
@@ -409,6 +845,8 @@ Reason:
 Immediate priority areas:
 
 * active surface and focus signal fidelity
-* modal/overlay signal fidelity
+* modal and overlay signal fidelity
 * referential anchor population from live host state
 * lawful binding of runtime decisions to real host/platform context
+* capability-registry-backed surface and environment truth
+* restore-state fidelity and focus-stack fidelity for later advanced interaction completion
