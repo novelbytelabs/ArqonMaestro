@@ -376,3 +376,18 @@ Use with care:
 
 * always call cleanup functions returned by `shell.on(...)` in `useEffect` teardown paths
 * avoid adding long-lived IPC listeners in render paths
+
+### G-023: Modal-Boundary Context Jumps Are Heuristic-Driven In Current Program A Slice
+
+Symptom:
+
+Unexpected `context_jump` invalidation can occur when modal heuristics change classification for the same app context.
+
+Why:
+
+Program A1 now invalidates on modal-boundary transitions (overlay/type/classification/trap flags), but modal signals are still bounded by heuristic inputs (`active.app`, `active.filename` patterns).
+
+Use with care:
+
+* treat modal-boundary context jumps as safety hardening, not perfect modal truth
+* prioritize explicit verification for medium/high-risk paths where modal stability is uncertain

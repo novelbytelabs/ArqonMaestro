@@ -120,6 +120,7 @@ export default class Executor {
   private workflowExecutionService: WorkflowExecutionService;
   private executionTrace?: ExecutionTrace;
   private lastSecurityContextApp = "";
+  private lastSecurityModalBoundaryKey = "";
   private lastAuthorizationDecision: string = "";
   private lastAuthorizationReason: string = "";
   private lastBlockedCommand: string = "";
@@ -2028,18 +2029,31 @@ export default class Executor {
     }
   }
 
-  private syncSecurityContextJumpBoundary(): void {
+  private syncSecurityContextJumpBoundary(): boolean {
     const snapshot = this.focusHistoryService.snapshot();
     const currentApp = (snapshot.current || this.active.app || "").trim().toLowerCase();
     if (!currentApp) {
-      return;
+      return false;
     }
-    if (this.lastSecurityContextApp && this.lastSecurityContextApp !== currentApp) {
-      this.securitySessionPolicyService.onContextJump();
-      this.recordSecuritySessionEvent("context_jump");
-      this.publishSecuritySessionBridgeState();
-    }
+    const changed = !!this.lastSecurityContextApp && this.lastSecurityContextApp !== currentApp;
     this.lastSecurityContextApp = currentApp;
+    return changed;
+  }
+
+  private syncSecurityModalBoundary(): boolean {
+    const modalContext = this.buildRuntimeModalContext();
+    const currentKey = [
+      modalContext.overlayState,
+      modalContext.modalType || "none",
+      modalContext.classification || "none",
+      modalContext.blocksNonReflex ? "1" : "0",
+      modalContext.focusTrapped ? "1" : "0",
+    ].join(":");
+    const changed =
+      this.lastSecurityModalBoundaryKey &&
+      this.lastSecurityModalBoundaryKey !== currentKey;
+    this.lastSecurityModalBoundaryKey = currentKey;
+    return !!changed;
   }
 
   onTranscriptHeard(): void {
@@ -2135,7 +2149,13 @@ export default class Executor {
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
       const commandVerb = command.text || commandType;
-      this.syncSecurityContextJumpBoundary();
+      const appBoundaryJump = this.syncSecurityContextJumpBoundary();
+      const modalBoundaryJump = this.syncSecurityModalBoundary();
+      if (appBoundaryJump || modalBoundaryJump) {
+        this.securitySessionPolicyService.onContextJump();
+        this.recordSecuritySessionEvent("context_jump");
+        this.publishSecuritySessionBridgeState();
+      }
       const interactionId = ++this.interactionSequence;
       const trustState = this.deriveTrustState();
       this.syncSecuritySessionTrustState(trustState);

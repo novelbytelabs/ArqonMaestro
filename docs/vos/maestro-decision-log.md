@@ -655,3 +655,28 @@ Consequences:
 
 * settings users can trigger replay refresh/reset directly during verification workflows
 * renderer listener lifecycle is explicit (`shell.on` returns unsubscribe), reducing duplicate event handling risk
+
+---
+
+## VOS-027: Context-Jump Invalidation Includes Modal-Boundary Transitions
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 context-jump invalidation now considers both:
+
+* app-boundary changes (from focus-history app snapshot)
+* modal-boundary changes (from `modalContext` key: overlay state, modal type, classification, trap/block flags)
+
+The runtime coalesces these signals into a single `context_jump` invalidation/event per interaction cycle.
+
+Why:
+
+Program A requires live-signal wiring beyond app-only context shifts. Modal transitions can materially change safe routing/authorization behavior even when app identity is unchanged.
+
+Consequences:
+
+* grace invalidation and re-auth continuity now respond to modal-context transitions
+* duplicate invalidations are avoided when app and modal boundaries both shift in the same interaction

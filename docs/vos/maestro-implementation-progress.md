@@ -133,6 +133,10 @@ What landed:
 * Wired context/surface-jump invalidation from live app focus boundary:
   * runtime detects app context jump and invokes `onContextJump()`
   * grace invalidation + lifecycle/replay evidence now reflect context-jump events
+* Extended context-jump invalidation to modal-boundary transitions:
+  * runtime now computes modal boundary key from live `modalContext` classification
+  * shifts in overlay/classification/focus-trap state now invalidate grace via `context_jump`
+  * app-boundary + modal-boundary jumps are coalesced into one invalidation/event per interaction
 * Added replay-audit IPC bridge for downstream verification tooling:
   * `securityRequestReplaySnapshot` -> `securityReplaySnapshot`
   * `securityResetReplaySnapshot` for bounded audit test/reset flows
