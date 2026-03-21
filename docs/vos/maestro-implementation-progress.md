@@ -29,9 +29,9 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 ## Current snapshot
 
 * Date: 2026-03-21
-* Program state: Program A is active; Program A1 first bounded slice implemented and under verification
+* Program state: Program A is active; Program A1 bounded desktop bridge slices implemented with ongoing hardening
 * Active program: **Program A / A1** - Platform bridge and browser security-session runtime hardening
-* A1 slice status: **implemented (bounded)** - new desktop runtime `security-session-policy-service` wired into authorization path
+* A1 slice status: **implemented (expanded bounded)** - desktop security-session policy bridge, replay observability, persistence, and context-boundary invalidation are wired and evidence-backed
 * Implemented A1 behaviors in this slice:
   * `heard`/`activated`/`executed` lifecycle tracking in runtime bridge
   * activation-driven grace invalidation and `requires_reauth_next` boundary signaling
@@ -40,16 +40,22 @@ The Focus Project implements a layered focus management system for Arqon Maestro
   * unknown-activation rate guard (`3/10s`, `5/60s`) with LOCKED transitions
   * fail-closed contaminated/provider-degraded authorization decisions
   * pause -> listening boundary invalidation hook
-  * additive state exposure: policy mode, grace, reauth-next, reason code
+  * additive state exposure: policy mode, grace, reauth-next, reason/lifecycle/interaction metadata
+  * replay summary observability and explicit replay snapshot/reset IPC
+  * context-jump invalidation from app and modal boundary transitions
+  * local runtime persistence (`security-runtime-state.json`) for bounded restart continuity
 * Verification evidence for this slice:
   * `cd maestro/client && npm run build:main`
   * `cd maestro/client && npm run build:renderer`
   * `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts`
   * `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts`
+  * `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-service-security-session.test.ts`
+  * `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-summary.test.ts`
+  * `cd maestro/client && npx ts-node src/main/runtime/security-context-boundary.test.ts`
 * Remaining A1 work:
-  * extension/runtime end-to-end event wiring and UI parity
-  * broader integration tests for real browser activation paths
-  * persistence/governance hardening for policy session evidence
+  * browser-extension-side consumer wiring and parity validation (desktop channels are now additive and available)
+  * broader real-browser activation integration/adversarial runs in a live extension harness
+  * governance promotion from bounded local persistence to durable policy evidence backend (Program D)
 
 ## Program A Settings IA Slice (Profiles Migration)
 
