@@ -117,6 +117,11 @@ What landed:
 * Surface context bridge now includes bounded `previousSurface` continuity when active app surface changes between dispatch cycles.
 * Authorization replay-audit records now carry session-policy metadata (`interactionId`, `reasonCode`, policy mode, grace/reauth fields) for stronger Program A reconstructability.
 * Added explicit security-session replay events (`heard`, `activated`, `executed`, `pause_to_listening`, `trust_state_change`) for deterministic lifecycle auditability.
+* Added bounded persistence hardening for Program A1 runtime state:
+  * enrollment/profile state export + restore support
+  * security-session state export + restore support
+  * desktop runtime persistence file (`security-runtime-state.json`) with startup restore + periodic and mutation-triggered checkpoints
+* Added adversarial restore tests for invalid persistence payload handling.
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 
@@ -129,11 +134,14 @@ Evidence:
 * `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/chunk-evaluation-service.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-service-security-session.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts` (includes restore/adversarial cases)
+* `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts` (includes export/restore/adversarial cases)
 
 Bounded constraints:
 
 * `surfaceContext` is currently derived from active app alias only (single active root surface snapshot), pending richer live host/platform signal ingestion in later Program A slices.
 * `modalContext` is currently heuristic-derived from active app/filename signals (`system dialog`, `modal`, `dialog`, `quick-open`/`command-palette` patterns), pending deeper host/platform modal signal binding in later Program A slices.
+* persistence format is versioned and additive, but still local-file based; no durable multi-node governance backend exists in this slice.
 
 ## Wave A Implementation Status (Audio Front-End Modernization)
 

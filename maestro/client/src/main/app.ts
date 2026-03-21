@@ -1,5 +1,7 @@
 import { globalShortcut, nativeTheme } from "electron";
 import fetch from "electron-fetch";
+import * as fs from "fs-extra";
+import * as path from "path";
 import Active from "./active";
 import API from "./api";
 import BusPluginServer from "./ipc/bus-plugin-server";
@@ -46,8 +48,20 @@ import {
   EnrollmentStatus,
   SpeakerRole,
 } from "./runtime/identity-gateway-service";
+import { EnrollmentPersistenceState } from "./runtime/speaker-enrollment-service";
+import { SecuritySessionPersistenceState } from "./runtime/security-session-policy-service";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
+
+interface SecurityRuntimePersistencePayload {
+  version: number;
+  activeProfileId: string;
+  profilesLastAction: string;
+  profilesLastError: string;
+  enrollmentState: EnrollmentPersistenceState;
+  securitySessionState?: SecuritySessionPersistenceState;
+  savedAt: string;
+}
 
 export default class App {
   private busPluginServer?: BusPluginServer;
@@ -68,6 +82,8 @@ export default class App {
   private securityActiveProfileId: string = "";
   private securityProfilesLastAction: string = "";
   private securityProfilesLastError: string = "";
+  private securityPersistInterval?: NodeJS.Timeout;
+  private lastPersistedSecurityStateJson = "";
 
   private previousShouldUseDarkColors?: boolean;
 
@@ -224,6 +240,7 @@ export default class App {
       system,
       () => commandHandler
     ));
+    instance.loadSecurityRuntimeState();
     const runtimeCommandDispatcher = new RuntimeCommandDispatcher(
       custom as RuntimeShellCallbackPort,
       runtimeCommandEmitter,
@@ -339,6 +356,7 @@ export default class App {
       mainWindow,
       miniModeWindow,
     ]);
+    instance.startSecurityPersistenceLoop();
 
     let endpoint = settings.getStreamingEndpoint();
     console.log("[ArqonMaestro] Streaming endpoint:", endpoint?.id, "-", endpoint?.address);
@@ -487,6 +505,11 @@ export default class App {
   }
 
   quit() {
+    this.persistSecurityRuntimeState("app_quit");
+    if (this.securityPersistInterval) {
+      clearInterval(this.securityPersistInterval);
+      this.securityPersistInterval = undefined;
+    }
     this.local?.stop();
     this.custom?.stop();
     this.microphone?.stop();
@@ -671,6 +694,93 @@ export default class App {
 
   onPauseToListeningBoundary(): void {
     this.executor?.onPauseToListeningBoundary();
+    this.persistSecurityRuntimeState("pause_to_listen_boundary");
+  }
+
+  private securityRuntimeStateFile(): string {
+    return path.join(this.settings?.path() || "", "security-runtime-state.json");
+  }
+
+  private loadSecurityRuntimeState(): void {
+    if (!this.settings || !this.executor) {
+      return;
+    }
+    const file = this.securityRuntimeStateFile();
+    try {
+      if (!fs.existsSync(file)) {
+        return;
+      }
+      const raw = fs.readFileSync(file, "utf8");
+      const parsed = JSON.parse(raw) as Partial<SecurityRuntimePersistencePayload>;
+      const gateway = this.executor.getIdentityGateway();
+      gateway.restoreEnrollmentState(parsed.enrollmentState);
+      if (typeof parsed.activeProfileId === "string" && parsed.activeProfileId.trim()) {
+        this.securityActiveProfileId = parsed.activeProfileId.trim();
+      }
+      if (typeof parsed.profilesLastAction === "string") {
+        this.securityProfilesLastAction = parsed.profilesLastAction;
+      }
+      if (typeof parsed.profilesLastError === "string") {
+        this.securityProfilesLastError = parsed.profilesLastError;
+      }
+      this.executor.restoreSecuritySessionState(parsed.securitySessionState);
+      this.lastPersistedSecurityStateJson = JSON.stringify(parsed);
+      this.log?.logVerbose(
+        `[SecurityRuntimeState] Restored state from ${file} (version=${parsed.version || "unknown"})`
+      );
+    } catch (error) {
+      this.securityProfilesLastError = "security_runtime_state_restore_failed";
+      this.log?.logError(`[SecurityRuntimeState] Failed to restore state from ${file}: ${error}`);
+    }
+  }
+
+  private buildSecurityRuntimePersistencePayload(): SecurityRuntimePersistencePayload | undefined {
+    if (!this.executor) {
+      return undefined;
+    }
+    const gateway = this.executor.getIdentityGateway();
+    return {
+      version: 1,
+      activeProfileId: this.securityActiveProfileId || "",
+      profilesLastAction: this.securityProfilesLastAction || "",
+      profilesLastError: this.securityProfilesLastError || "",
+      enrollmentState: gateway.exportEnrollmentState(),
+      securitySessionState: this.executor.exportSecuritySessionState(),
+      savedAt: new Date().toISOString(),
+    };
+  }
+
+  private persistSecurityRuntimeState(reason: string): void {
+    if (!this.settings) {
+      return;
+    }
+    const payload = this.buildSecurityRuntimePersistencePayload();
+    if (!payload) {
+      return;
+    }
+    try {
+      const file = this.securityRuntimeStateFile();
+      const next = JSON.stringify(payload, null, 2);
+      if (next === this.lastPersistedSecurityStateJson) {
+        return;
+      }
+      fs.mkdirpSync(path.dirname(file));
+      fs.writeFileSync(file, next, "utf8");
+      this.lastPersistedSecurityStateJson = next;
+      this.log?.logVerbose(`[SecurityRuntimeState] Persisted (${reason}) -> ${file}`);
+    } catch (error) {
+      this.securityProfilesLastError = "security_runtime_state_persist_failed";
+      this.log?.logError(`[SecurityRuntimeState] Failed to persist (${reason}): ${error}`);
+    }
+  }
+
+  private startSecurityPersistenceLoop(): void {
+    if (this.securityPersistInterval) {
+      return;
+    }
+    this.securityPersistInterval = setInterval(() => {
+      this.persistSecurityRuntimeState("interval");
+    }, 10_000);
   }
 
   private resolveSecurityActiveProfileId(gateway: NonNullable<ReturnType<Executor["getIdentityGateway"]>>): string {
@@ -704,6 +814,7 @@ export default class App {
     }
     this.securityProfilesLastAction = `created:${identityId}`;
     this.securityProfilesLastError = "";
+    this.persistSecurityRuntimeState("create_profile");
   }
 
   async updateSecurityProfile(
@@ -720,6 +831,7 @@ export default class App {
     });
     this.securityProfilesLastAction = `updated:${profileId}`;
     this.securityProfilesLastError = "";
+    this.persistSecurityRuntimeState("update_profile");
   }
 
   async switchSecurityProfile(profileId: string): Promise<void> {
@@ -736,6 +848,7 @@ export default class App {
     this.securityActiveProfileId = profileId;
     this.securityProfilesLastAction = `switched:${profileId}`;
     this.securityProfilesLastError = "";
+    this.persistSecurityRuntimeState("switch_profile");
   }
 
   async deleteSecurityProfile(profileId: string): Promise<void> {
@@ -752,6 +865,7 @@ export default class App {
     await gateway.deleteEnrollment(profileId);
     this.securityProfilesLastAction = `deleted:${profileId}`;
     this.securityProfilesLastError = "";
+    this.persistSecurityRuntimeState("delete_profile");
   }
 
   async reEnrollSecurityProfile(profileId: string): Promise<void> {
@@ -769,6 +883,7 @@ export default class App {
     this.securityActiveProfileId = profileId;
     this.securityProfilesLastAction = `reenrolled:${profileId}`;
     this.securityProfilesLastError = "";
+    this.persistSecurityRuntimeState("reenroll_profile");
   }
 
   async listSecurityProfiles(): Promise<void> {
@@ -799,6 +914,7 @@ export default class App {
           : "pilot";
       this.executor.setSecurityPolicyMode(policyMode);
     }
+    this.persistSecurityRuntimeState("set_security_mode");
   }
 
   syncSecurityInteractionModeFromRuntime(dictateMode: boolean): void {
@@ -835,6 +951,7 @@ export default class App {
         createdBy: "settings_security_tab",
       },
     });
+    this.persistSecurityRuntimeState("upsert_enrollment_create");
   }
 
   async resetSecurityEnrollment(): Promise<void> {
@@ -847,6 +964,7 @@ export default class App {
       await gateway.revokeEnrollment(activeProfileId);
     }
     await gateway.resetVerification();
+    this.persistSecurityRuntimeState("reset_enrollment");
   }
 
   async runSecurityAuthorizationProbe(): Promise<void> {
@@ -882,6 +1000,7 @@ export default class App {
       riskLevel: CommandRiskLevel.HIGH,
       target: "settings_probe",
     });
+    this.persistSecurityRuntimeState("security_authorization_probe");
   }
 
   async enrollAndVerifySecurityProfile(displayName: string): Promise<void> {

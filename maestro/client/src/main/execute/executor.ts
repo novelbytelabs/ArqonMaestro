@@ -59,6 +59,7 @@ import IdentityGatewayService from "../runtime/identity-gateway-service";
 import { CommandRiskLevel, AuthorizationDecision, InteractionMode } from "../runtime/authorization-service";
 import { SecurityMode } from "../runtime/security-mode-service";
 import SecuritySessionPolicyService, {
+  SecuritySessionPersistenceState,
   SecurityTrustState,
 } from "../runtime/security-session-policy-service";
 import { phase3BReplayAuditService } from "../runtime/phase3b-replay-audit-service";
@@ -2042,6 +2043,15 @@ export default class Executor {
 
   getSecuritySessionSnapshot() {
     return this.securitySessionPolicyService.getSnapshot();
+  }
+
+  exportSecuritySessionState(): SecuritySessionPersistenceState {
+    return this.securitySessionPolicyService.exportState();
+  }
+
+  restoreSecuritySessionState(state?: Partial<SecuritySessionPersistenceState> | null): void {
+    this.securitySessionPolicyService.restoreState(state);
+    this.publishSecuritySessionBridgeState();
   }
 
   setSecurityPolicyMode(mode: "pilot" | "assist" | "observe" | "locked"): void {

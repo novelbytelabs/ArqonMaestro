@@ -280,3 +280,18 @@ Use with care:
 
 * update category parsing/aggregation to include `security_session_event`
 * keep category handling tolerant to additive schema evolution
+
+### G-017: Program A1 Security Runtime Snapshot Is Local-File And Best-Effort
+
+Symptom:
+
+Security/session continuity after restart can still diverge if local snapshot file is corrupted or manually edited.
+
+Why:
+
+Program A1 persistence hardening uses a local JSON snapshot (`security-runtime-state.json`) with defensive restore validation. Invalid fields are ignored instead of hard-failing startup.
+
+Use with care:
+
+* treat snapshot restore as bounded continuity support, not cryptographic truth
+* monitor `security_runtime_state_restore_failed` / `security_runtime_state_persist_failed` diagnostics

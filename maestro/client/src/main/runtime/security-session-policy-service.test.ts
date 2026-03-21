@@ -99,6 +99,47 @@ function run(): void {
     assert(snapshot.lockedUntilVerified === true, "expected locked-until-verified flag");
   });
 
+  test("export + restore preserves session state fields", () => {
+    const source = new SecuritySessionPolicyService();
+    withNow(1_000, () => source.onActivated({ interactionId: 1, trustState: "unknown" }));
+    withNow(2_000, () => source.onVerificationEvent({ trustState: "verified" }));
+    const exported = source.exportState(2_001);
+
+    const restored = new SecuritySessionPolicyService();
+    restored.restoreState(exported);
+    const snapshot = withNow(2_001, () => restored.getSnapshot());
+
+    assert(snapshot.mode === source.getSnapshot(2_001).mode, "expected restored mode to match");
+    assert(
+      snapshot.requiresReauthAfterInteractionId ===
+        source.getSnapshot(2_001).requiresReauthAfterInteractionId,
+      "expected restored reauth interaction id to match"
+    );
+    assert(snapshot.lastReasonCode === exported.lastReasonCode, "expected reason code restored");
+  });
+
+  test("restore ignores invalid state payload values", () => {
+    const service = new SecuritySessionPolicyService();
+    service.restoreState({
+      mode: "invalid" as any,
+      previousVerifiedMode: "invalid" as any,
+      requiresReauthAfterInteractionId: -99,
+      graceExpiresAt: "not-a-date",
+      lockUntil: "not-a-date",
+      lockedUntilVerified: true,
+      lastReasonCode: "custom_code",
+      lastTrustState: "invalid" as any,
+    });
+    const snapshot = service.getSnapshot(10_000);
+    assert(snapshot.mode === "pilot", `expected pilot mode, got ${snapshot.mode}`);
+    assert(
+      snapshot.requiresReauthAfterInteractionId === 0,
+      `expected non-negative reauth id, got ${snapshot.requiresReauthAfterInteractionId}`
+    );
+    assert(snapshot.graceValid === false, "expected no valid grace");
+    assert(snapshot.lastReasonCode === "custom_code", "expected valid custom reason code");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

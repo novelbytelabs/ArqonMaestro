@@ -21,6 +21,7 @@ import SpeakerEnrollmentService, {
   UpdateEnrollmentRequest,
   AuthorityScope,
   VerificationThreshold,
+  EnrollmentPersistenceState,
 } from "./speaker-enrollment-service";
 import SpeakerVerificationService, {
   SpeakerState,
@@ -222,6 +223,14 @@ export default class IdentityGatewayService {
    */
   getActiveEnrollments(): SpeakerEnrollment[] {
     return this.enrollmentService.getActiveEnrollments();
+  }
+
+  exportEnrollmentState(): EnrollmentPersistenceState {
+    return this.enrollmentService.exportState();
+  }
+
+  restoreEnrollmentState(state?: Partial<EnrollmentPersistenceState> | null): void {
+    this.enrollmentService.restoreState(state);
   }
 
   // ============ VERIFICATION METHODS ============

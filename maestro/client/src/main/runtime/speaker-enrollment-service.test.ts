@@ -79,6 +79,43 @@ async function run(): Promise<void> {
     assert(!service.getEnrollment("profile_delta"), "expected profile to be removed");
   });
 
+  await test("export + restore round-trips enrollment profiles", async () => {
+    const source = new SpeakerEnrollmentService();
+    await source.createEnrollment({
+      identityId: "profile_eps",
+      displayName: "Profile Eps",
+      role: SpeakerRole.SOVEREIGN_OWNER,
+    });
+    await source.updateEnrollment("profile_eps", { status: EnrollmentStatus.SUSPENDED });
+    const exported = source.exportState();
+
+    const restored = new SpeakerEnrollmentService();
+    restored.restoreState(exported);
+    const profile = restored.getEnrollment("profile_eps");
+    assert(!!profile, "expected restored profile");
+    assert(profile!.status === EnrollmentStatus.SUSPENDED, "expected restored status");
+    assert(profile!.role === SpeakerRole.SOVEREIGN_OWNER, "expected restored role");
+  });
+
+  await test("restore filters invalid enrollment records", async () => {
+    const service = new SpeakerEnrollmentService();
+    service.restoreState({
+      enrollments: [
+        {
+          identityId: "",
+          displayName: "Invalid",
+          role: "bad_role" as any,
+          status: "bad_status" as any,
+          authorityScope: { allowedRiskLevels: [] },
+          verificationThreshold: { minConfidence: 2, highSecurityConfidence: -1 },
+          enrolledAt: "",
+          updatedAt: "",
+        } as any,
+      ],
+    });
+    assert(service.getEnrollmentCount() === 0, "expected invalid rows to be ignored");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

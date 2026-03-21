@@ -36,6 +36,17 @@ interface VerificationEvent {
   trustState: SecurityTrustState;
 }
 
+export interface SecuritySessionPersistenceState {
+  mode: SecurityPolicyMode;
+  previousVerifiedMode: SecurityPolicyMode;
+  requiresReauthAfterInteractionId: number;
+  graceExpiresAt: string;
+  lockUntil: string;
+  lockedUntilVerified: boolean;
+  lastReasonCode: string;
+  lastTrustState: SecurityTrustState;
+}
+
 const MEDIUM_RISK_GRACE_MS = 9000;
 const UNKNOWN_RATE_WINDOW_SHORT_MS = 10_000;
 const UNKNOWN_RATE_WINDOW_LONG_MS = 60_000;
@@ -67,6 +78,52 @@ export default class SecuritySessionPolicyService {
       lastReasonCode: this.lastReasonCode,
       lastTrustState: this.lastTrustState,
     };
+  }
+
+  exportState(nowMs = Date.now()): SecuritySessionPersistenceState {
+    const snapshot = this.getSnapshot(nowMs);
+    return {
+      mode: snapshot.mode,
+      previousVerifiedMode: snapshot.previousVerifiedMode,
+      requiresReauthAfterInteractionId: snapshot.requiresReauthAfterInteractionId,
+      graceExpiresAt: snapshot.graceExpiresAt,
+      lockUntil: snapshot.lockUntil,
+      lockedUntilVerified: snapshot.lockedUntilVerified,
+      lastReasonCode: snapshot.lastReasonCode,
+      lastTrustState: snapshot.lastTrustState,
+    };
+  }
+
+  restoreState(state?: Partial<SecuritySessionPersistenceState> | null): void {
+    if (!state) {
+      return;
+    }
+    const validMode = this.asMode(state.mode);
+    const validPrevious = this.asMode(state.previousVerifiedMode);
+    const validTrust = this.asTrustState(state.lastTrustState);
+    if (validMode) {
+      this.mode = validMode;
+    }
+    if (validPrevious) {
+      this.previousVerifiedMode = validPrevious;
+    }
+    if (typeof state.requiresReauthAfterInteractionId === "number") {
+      this.requiresReauthAfterInteractionId = Math.max(
+        0,
+        Math.floor(state.requiresReauthAfterInteractionId)
+      );
+    }
+    this.graceExpiresAtMs = this.parseIsoMs(state.graceExpiresAt);
+    this.lockUntilMs = this.parseIsoMs(state.lockUntil);
+    if (typeof state.lockedUntilVerified === "boolean") {
+      this.lockedUntilVerified = state.lockedUntilVerified;
+    }
+    if (typeof state.lastReasonCode === "string" && state.lastReasonCode.trim()) {
+      this.lastReasonCode = state.lastReasonCode.trim();
+    }
+    if (validTrust) {
+      this.lastTrustState = validTrust;
+    }
   }
 
   setMode(mode: SecurityPolicyMode): void {
@@ -271,5 +328,32 @@ export default class SecuritySessionPolicyService {
     this.lockUntilMs = 0;
     this.mode = "assist";
     return this.mode;
+  }
+
+  private asMode(mode: unknown): SecurityPolicyMode | undefined {
+    if (mode === "pilot" || mode === "assist" || mode === "observe" || mode === "locked") {
+      return mode;
+    }
+    return undefined;
+  }
+
+  private asTrustState(trustState: unknown): SecurityTrustState | undefined {
+    if (
+      trustState === "verified" ||
+      trustState === "unknown" ||
+      trustState === "contaminated" ||
+      trustState === "provider_degraded"
+    ) {
+      return trustState;
+    }
+    return undefined;
+  }
+
+  private parseIsoMs(value: unknown): number {
+    if (typeof value !== "string" || !value.trim()) {
+      return 0;
+    }
+    const ms = Date.parse(value);
+    return Number.isFinite(ms) ? ms : 0;
   }
 }

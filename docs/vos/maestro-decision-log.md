@@ -466,3 +466,30 @@ Consequences:
 
 * executor now emits explicit security-session replay records at lifecycle boundaries
 * replay tooling can reason over lifecycle transitions without reconstructing them from side effects
+
+---
+
+## VOS-019: Program A1 Persists Security Runtime State To Local Versioned Snapshot
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 now persists bounded security runtime state into a versioned local snapshot file:
+
+* active profile id and profile UI operation metadata
+* enrollment state (export/restore)
+* security-session policy state (export/restore)
+
+Persistence is restored on startup and checkpointed periodically and on profile/security mutations.
+
+Why:
+
+Program A1 completion criteria explicitly call out persistence hardening. Without restart continuity, mode/grace/profile context can drift across sessions and degrade deterministic policy behavior.
+
+Consequences:
+
+* `security-runtime-state.json` under app settings path becomes the bounded continuity artifact for Program A1
+* enrollment and session policy services now support export/restore with validation and adversarial payload tolerance
+* state schema is additive/versioned but intentionally local-file based in this slice

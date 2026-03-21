@@ -144,6 +144,10 @@ export interface EnrollmentServiceConfig {
   seedDefaultEnrollment?: boolean;
 }
 
+export interface EnrollmentPersistenceState {
+  enrollments: SpeakerEnrollment[];
+}
+
 /**
  * Default configuration
  */
@@ -467,5 +471,87 @@ export default class SpeakerEnrollmentService {
       enrollment.updatedAt = new Date().toISOString();
       this.enrollments.set(identityId, enrollment);
     }
+  }
+
+  exportState(): EnrollmentPersistenceState {
+    return {
+      enrollments: Array.from(this.enrollments.values()).map((entry) => ({
+        ...entry,
+        authorityScope: { ...entry.authorityScope },
+        verificationThreshold: { ...entry.verificationThreshold },
+        metadata: entry.metadata ? { ...entry.metadata } : undefined,
+      })),
+    };
+  }
+
+  restoreState(state?: Partial<EnrollmentPersistenceState> | null): void {
+    if (!state || !Array.isArray(state.enrollments)) {
+      return;
+    }
+    const restored = new Map<string, SpeakerEnrollment>();
+    for (const entry of state.enrollments) {
+      if (!entry || typeof entry.identityId !== "string" || !entry.identityId.trim()) {
+        continue;
+      }
+      if (restored.has(entry.identityId)) {
+        continue;
+      }
+      if (!this.isValidRole(entry.role) || !this.isValidStatus(entry.status)) {
+        continue;
+      }
+      const authorityScope = this.normalizeAuthorityScope(entry.authorityScope);
+      const verificationThreshold = this.normalizeVerificationThreshold(entry.verificationThreshold);
+      restored.set(entry.identityId, {
+        identityId: entry.identityId,
+        displayName: (entry.displayName || entry.identityId).trim(),
+        role: entry.role,
+        voiceProfileData: entry.voiceProfileData,
+        status: entry.status,
+        authorityScope,
+        verificationThreshold,
+        enrolledAt: entry.enrolledAt || new Date().toISOString(),
+        lastVerifiedAt: entry.lastVerifiedAt,
+        updatedAt: entry.updatedAt || new Date().toISOString(),
+        metadata: entry.metadata ? { ...entry.metadata } : undefined,
+      });
+    }
+    this.enrollments = restored;
+  }
+
+  private isValidRole(role: unknown): role is SpeakerRole {
+    return Object.values(SpeakerRole).includes(role as SpeakerRole);
+  }
+
+  private isValidStatus(status: unknown): status is EnrollmentStatus {
+    return Object.values(EnrollmentStatus).includes(status as EnrollmentStatus);
+  }
+
+  private normalizeAuthorityScope(scope: Partial<AuthorityScope> | undefined): AuthorityScope {
+    return {
+      ...this.config.defaultAuthorityScope,
+      ...(scope || {}),
+      allowedRiskLevels:
+        Array.isArray(scope?.allowedRiskLevels) && scope!.allowedRiskLevels.length > 0
+          ? scope!.allowedRiskLevels.filter((level) =>
+              ["low", "medium", "high", "privileged"].includes(level)
+            ) as ("low" | "medium" | "high" | "privileged")[]
+          : [...this.config.defaultAuthorityScope.allowedRiskLevels],
+    };
+  }
+
+  private normalizeVerificationThreshold(
+    threshold: Partial<VerificationThreshold> | undefined
+  ): VerificationThreshold {
+    const fallback = this.config.defaultVerificationThreshold;
+    const minConfidence =
+      typeof threshold?.minConfidence === "number" ? threshold.minConfidence : fallback.minConfidence;
+    const highSecurityConfidence =
+      typeof threshold?.highSecurityConfidence === "number"
+        ? threshold.highSecurityConfidence
+        : fallback.highSecurityConfidence;
+    return {
+      minConfidence: Math.max(0, Math.min(1, minConfidence)),
+      highSecurityConfidence: Math.max(0, Math.min(1, highSecurityConfidence)),
+    };
   }
 }
