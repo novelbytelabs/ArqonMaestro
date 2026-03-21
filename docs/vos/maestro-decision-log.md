@@ -366,3 +366,48 @@ Consequences:
 
 * chunk and text ingress now pull from the same synthesized runtime context
 * surface-awareness for dispatch is now additive and bounded, with a clear future upgrade path to richer live platform signals
+
+---
+
+## VOS-015: Program A Modal Context Is Heuristic-Bound Until Deeper Host Signals Land
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A dispatch now carries `modalContext`, synthesized in a bounded way from active app and filename heuristics:
+
+* `system dialog` -> blocking dialog context
+* filenames containing `modal` / `dialog` -> blocking dialog context
+* filenames containing `quick-open` / `command-palette` -> quick-open navigation context
+* otherwise -> `noModalContext()`
+
+Why:
+
+Program A requires explicit modal signal wiring in dispatch flow now, but full host-level modal telemetry ingestion is a larger follow-on slice. This bounded heuristic bridge improves policy fidelity without pretending complete platform coverage.
+
+Consequences:
+
+* chunk and text dispatch paths now carry modal context consistently
+* modal context remains inspectable and deterministic, with clear bounded limitations
+
+---
+
+## VOS-016: Program A Surface Bridge Must Preserve One-Step Previous Surface Continuity
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A surface-context bridge in `Executor` now preserves a bounded one-step `previousSurface` when active surface changes between dispatch cycles.
+
+Why:
+
+Without previous-surface continuity, downstream routing/recovery logic cannot distinguish stable focus from immediate cross-surface transitions, reducing explainability and limiting lawful restore behavior.
+
+Consequences:
+
+* `surfaceContext.previousSurface` is now populated when active app surface changes
+* continuity remains intentionally bounded to one prior surface in this slice (not a deep history stack)

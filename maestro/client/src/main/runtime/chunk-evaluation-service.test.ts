@@ -62,6 +62,15 @@ async function run(): Promise<void> {
           reason: "test",
           timestamp: Date.now(),
         },
+        modalContext: {
+          overlayState: "active",
+          modalType: "dialog",
+          classification: "blocking",
+          blocksNonReflex: true,
+          focusTrapped: true,
+          reason: "test-modal",
+          timestamp: Date.now(),
+        },
       }),
       log: {
         logVerbose: () => undefined,
@@ -99,6 +108,7 @@ async function run(): Promise<void> {
     assert(calls[0].currentApp === "chrome", "expected current app to be forwarded");
     assert(calls[0].targetSurface === "browser", "expected target surface to be forwarded");
     assert(calls[0].surfaceContext?.reason === "test", "expected surface context to be forwarded");
+    assert(calls[0].modalContext?.reason === "test-modal", "expected modal context to be forwarded");
   });
 
   console.log(`\n${passed} passed, ${failed} failed`);

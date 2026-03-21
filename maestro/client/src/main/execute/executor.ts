@@ -74,6 +74,7 @@ import NexusProtocolBoundaryService, {
   ProposalExecutionContext,
 } from "../runtime/nexus-protocol-boundary-service";
 import WorkflowExecutionService from "../runtime/workflow-nexus-integration";
+import { ModalContext, modalAwarenessService } from "../runtime/modal-awareness-service";
 import { SurfaceContext, surfaceModelService } from "../runtime/surface-model-service";
 
 export default class Executor {
@@ -116,6 +117,8 @@ export default class Executor {
   private nexusBoundary: NexusProtocolBoundaryService;
   private workflowExecutionService: WorkflowExecutionService;
   private executionTrace?: ExecutionTrace;
+  private lastRuntimeSurfaceKey: string = "";
+  private lastRuntimeSurfaceRecord: SurfaceContext["activeSurface"] = null;
   private lastAuthorizationDecision: string = "";
   private lastAuthorizationReason: string = "";
   private lastBlockedCommand: string = "";
@@ -2238,19 +2241,60 @@ export default class Executor {
     if (surfaceType === "unknown") {
       return undefined;
     }
+    const surfaceKey = `${surfaceType}:${app.toLowerCase()}`;
     const activeSurface = surfaceModelService.buildSurfaceRecord({
       surfaceType,
       surfaceClass: "root",
-      surfaceId: `active:${surfaceType}`,
+      surfaceId: `active:${surfaceKey}`,
       label: app,
       appId: app,
       visibility: "focused",
     });
-    return surfaceModelService.buildContext({
+    const previousSurface =
+      this.lastRuntimeSurfaceRecord !== null && this.lastRuntimeSurfaceKey !== surfaceKey
+        ? this.lastRuntimeSurfaceRecord
+        : null;
+    const context = surfaceModelService.buildContext({
       activeSurface,
-      previousSurface: null,
+      previousSurface,
       activeOverlay: null,
     });
+    this.lastRuntimeSurfaceRecord = activeSurface;
+    this.lastRuntimeSurfaceKey = surfaceKey;
+    return context;
+  }
+
+  private buildRuntimeModalContext(): ModalContext | undefined {
+    const app = (this.active.app || "").trim().toLowerCase();
+    const filename = (this.active.filename || "").trim().toLowerCase();
+    if (!app && !filename) {
+      return undefined;
+    }
+    if (
+      app === "system dialog" ||
+      filename.includes("modal") ||
+      filename.includes("dialog")
+    ) {
+      return modalAwarenessService.classifyContext({
+        modalContainerDetected: true,
+        containerHint: "dialog",
+        focusTrapDetected: true,
+        backdropDetected: true,
+        notificationDetected: false,
+        quickOpenDetected: false,
+      });
+    }
+    if (filename.includes("quick-open") || filename.includes("command-palette")) {
+      return modalAwarenessService.classifyContext({
+        modalContainerDetected: true,
+        containerHint: "quick_open",
+        focusTrapDetected: true,
+        backdropDetected: false,
+        notificationDetected: false,
+        quickOpenDetected: true,
+      });
+    }
+    return modalAwarenessService.noModalContext();
   }
 
   getRuntimeDispatchPolicyContext(): {
@@ -2260,6 +2304,7 @@ export default class Executor {
     currentApp?: string;
     targetSurface?: string;
     surfaceContext?: SurfaceContext;
+    modalContext?: ModalContext;
   } {
     const context = this.identityGateway.getIdentityContext();
     const currentApp = this.active.app || undefined;
@@ -2279,6 +2324,7 @@ export default class Executor {
       currentApp,
       targetSurface: surfaceType !== "unknown" ? surfaceType : undefined,
       surfaceContext: this.buildRuntimeSurfaceContext(),
+      modalContext: this.buildRuntimeModalContext(),
     };
   }
 

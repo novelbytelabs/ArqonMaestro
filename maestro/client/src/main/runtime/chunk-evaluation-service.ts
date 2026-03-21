@@ -8,6 +8,7 @@ import MiniModeWindow from "../windows/mini-mode";
 import { core } from "../../gen/core";
 import ExecutionTrace from "./execution-trace";
 import RuntimeCommandDispatcher from "./runtime-command-dispatcher";
+import { ModalContext } from "./modal-awareness-service";
 import { SurfaceContext } from "./surface-model-service";
 
 interface ChunkEvaluationServiceDeps {
@@ -20,6 +21,7 @@ interface ChunkEvaluationServiceDeps {
     currentApp?: string;
     targetSurface?: string;
     surfaceContext?: SurfaceContext;
+    modalContext?: ModalContext;
   };
   log: Log;
   mainWindow: MainWindow;
@@ -169,6 +171,7 @@ export default class ChunkEvaluationService {
       currentApp: dispatchContext.currentApp,
       targetSurface: dispatchContext.targetSurface,
       surfaceContext: dispatchContext.surfaceContext,
+      modalContext: dispatchContext.modalContext,
     });
     await stopBufferingAndFlush();
   }

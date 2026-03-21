@@ -273,6 +273,7 @@ export default class Stream {
       currentApp: policyContext.currentApp,
       targetSurface: policyContext.targetSurface,
       surfaceContext: policyContext.surfaceContext,
+      modalContext: policyContext.modalContext,
     });
     this.runtimeCommandDispatcher.sendTextCallback(response);
   }

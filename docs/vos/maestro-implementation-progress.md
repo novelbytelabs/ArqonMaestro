@@ -113,6 +113,8 @@ What landed:
 * `ChunkManager` now binds dispatch context from live runtime state (`executor` policy context).
 * `Executor` now produces a normalized dispatch context that includes canonical `targetSurface` and best-effort `surfaceContext` derived from active app alias normalization.
 * Text-command dispatch path now uses the same expanded context contract as chunk dispatch.
+* Added bounded modal-context synthesis in `Executor` and now forward `modalContext` through both text and chunk dispatch paths.
+* Surface context bridge now includes bounded `previousSurface` continuity when active app surface changes between dispatch cycles.
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 
@@ -127,9 +129,8 @@ Evidence:
 
 Bounded constraints:
 
-* This slice does not yet attach explicit `modalContext` / `surfaceContext` objects for chunk dispatch.
 * `surfaceContext` is currently derived from active app alias only (single active root surface snapshot), pending richer live host/platform signal ingestion in later Program A slices.
-* This slice does not yet attach explicit `modalContext` for dispatch.
+* `modalContext` is currently heuristic-derived from active app/filename signals (`system dialog`, `modal`, `dialog`, `quick-open`/`command-palette` patterns), pending deeper host/platform modal signal binding in later Program A slices.
 
 ## Wave A Implementation Status (Audio Front-End Modernization)
 

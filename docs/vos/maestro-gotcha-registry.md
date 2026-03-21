@@ -220,3 +220,33 @@ Use with care:
 
 * treat current surface context as best-effort for policy/routing improvements
 * do not over-interpret alias-derived context as full FP-9 live surface binding
+
+### G-013: Current Modal Context Bridge Uses App/Filename Heuristics
+
+Symptom:
+
+Modal-aware behavior may be over- or under-sensitive in edge apps/windows where filename conventions do not reflect true overlay state.
+
+Why:
+
+Program A currently synthesizes modal context from bounded heuristics (`system dialog`, filename tokens like `modal`, `dialog`, `quick-open`, `command-palette`) rather than deep host modal signals.
+
+Use with care:
+
+* treat modal context as bounded bridge telemetry, not full modal truth
+* prioritize host-signal modal ingestion in later Program A slices for high-stakes routing paths
+
+### G-014: `previousSurface` Continuity Is One-Step And Alias-Gated
+
+Symptom:
+
+`surfaceContext.previousSurface` may remain null in sequences that include unknown/unmapped app aliases, or may only reflect the immediately prior known surface.
+
+Why:
+
+Program A currently tracks bounded one-step continuity from alias-normalized active app surfaces. It is intentionally not a deep focus-history model.
+
+Use with care:
+
+* treat `previousSurface` as a bounded hint, not authoritative long-span history
+* rely on focus history services for deeper restoration logic
