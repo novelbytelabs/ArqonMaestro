@@ -57,6 +57,8 @@ const SecurityComponent: React.FC<{
   securityGraceValid: boolean;
   securityGraceExpiresAt: string;
   securityLastReasonCode: string;
+  securityLastLifecyclePhase: string;
+  securityLastInteractionId: number;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -84,6 +86,8 @@ const SecurityComponent: React.FC<{
   securityGraceValid,
   securityGraceExpiresAt,
   securityLastReasonCode,
+  securityLastLifecyclePhase,
+  securityLastInteractionId,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
 
@@ -267,6 +271,10 @@ const SecurityComponent: React.FC<{
         <div className="text-white/70">Grace valid: {securityGraceValid ? "Yes" : "No"}</div>
         <div className="text-white/70">Grace expires: {securityGraceExpiresAt || "n/a"}</div>
         <div className="text-white/70">Last session reason code: {securityLastReasonCode || "n/a"}</div>
+        <div className="text-white/70">Last lifecycle phase: {securityLastLifecyclePhase || "n/a"}</div>
+        <div className="text-white/70">
+          Last interaction id: {securityLastInteractionId > 0 ? securityLastInteractionId : "n/a"}
+        </div>
       </div>
 
       <div className="text-[11px] text-white/50 mt-2">
@@ -308,4 +316,6 @@ export const Security = connect((state: any) => ({
   securityGraceValid: state.securityGraceValid,
   securityGraceExpiresAt: state.securityGraceExpiresAt,
   securityLastReasonCode: state.securityLastReasonCode,
+  securityLastLifecyclePhase: state.securityLastLifecyclePhase,
+  securityLastInteractionId: state.securityLastInteractionId,
 }))(SecurityComponent);

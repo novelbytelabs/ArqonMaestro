@@ -3,6 +3,10 @@ export type SecurityPolicyMode = "pilot" | "assist" | "observe" | "locked";
 export type SecurityTrustState = "verified" | "unknown" | "contaminated" | "provider_degraded";
 
 export type SecurityInteractionPhase = "heard" | "activated" | "executed";
+export type SecurityLifecyclePhase =
+  | SecurityInteractionPhase
+  | "pause_to_listening"
+  | "trust_state_change";
 
 export interface SecuritySessionSnapshot {
   mode: SecurityPolicyMode;
@@ -15,6 +19,8 @@ export interface SecuritySessionSnapshot {
   lockedUntilVerified: boolean;
   lastReasonCode: string;
   lastTrustState: SecurityTrustState;
+  lastLifecyclePhase: SecurityLifecyclePhase;
+  lastInteractionId: number;
 }
 
 export interface SecuritySessionAuthContext {
@@ -45,6 +51,8 @@ export interface SecuritySessionPersistenceState {
   lockedUntilVerified: boolean;
   lastReasonCode: string;
   lastTrustState: SecurityTrustState;
+  lastLifecyclePhase: SecurityLifecyclePhase;
+  lastInteractionId: number;
 }
 
 const MEDIUM_RISK_GRACE_MS = 9000;
@@ -61,6 +69,8 @@ export default class SecuritySessionPolicyService {
   private graceExpiresAtMs = 0;
   private lastReasonCode = "ingress_heard_no_transition";
   private lastTrustState: SecurityTrustState = "unknown";
+  private lastLifecyclePhase: SecurityLifecyclePhase = "heard";
+  private lastInteractionId = 0;
   private unknownActivationMs: number[] = [];
   private lockUntilMs = 0;
   private lockedUntilVerified = false;
@@ -77,6 +87,8 @@ export default class SecuritySessionPolicyService {
       lockedUntilVerified: this.lockedUntilVerified,
       lastReasonCode: this.lastReasonCode,
       lastTrustState: this.lastTrustState,
+      lastLifecyclePhase: this.lastLifecyclePhase,
+      lastInteractionId: this.lastInteractionId,
     };
   }
 
@@ -91,6 +103,8 @@ export default class SecuritySessionPolicyService {
       lockedUntilVerified: snapshot.lockedUntilVerified,
       lastReasonCode: snapshot.lastReasonCode,
       lastTrustState: snapshot.lastTrustState,
+      lastLifecyclePhase: snapshot.lastLifecyclePhase,
+      lastInteractionId: snapshot.lastInteractionId,
     };
   }
 
@@ -123,6 +137,12 @@ export default class SecuritySessionPolicyService {
     }
     if (validTrust) {
       this.lastTrustState = validTrust;
+    }
+    if (this.asLifecyclePhase(state.lastLifecyclePhase)) {
+      this.lastLifecyclePhase = state.lastLifecyclePhase;
+    }
+    if (typeof state.lastInteractionId === "number") {
+      this.lastInteractionId = Math.max(0, Math.floor(state.lastInteractionId));
     }
   }
 
@@ -161,11 +181,14 @@ export default class SecuritySessionPolicyService {
 
   onHeard(): void {
     this.lastReasonCode = "ingress_heard_no_transition";
+    this.lastLifecyclePhase = "heard";
   }
 
   onActivated(event: ActivationEvent): void {
     const nowMs = Date.now();
     this.lastTrustState = event.trustState;
+    this.lastLifecyclePhase = "activated";
+    this.lastInteractionId = event.interactionId;
 
     this.invalidateGrace("grace_invalidated_activation");
     this.requiresReauthAfterInteractionId = Math.max(
@@ -202,11 +225,13 @@ export default class SecuritySessionPolicyService {
 
   onExecuted(): void {
     this.lastReasonCode = "execute_succeeded";
+    this.lastLifecyclePhase = "executed";
   }
 
   onPauseToListeningBoundary(): void {
     this.invalidateGrace("grace_invalidated_pause_to_listen");
     this.requiresReauthAfterInteractionId = Number.MAX_SAFE_INTEGER;
+    this.lastLifecyclePhase = "pause_to_listening";
   }
 
   onContextJump(): void {
@@ -245,6 +270,7 @@ export default class SecuritySessionPolicyService {
     }
     this.lastTrustState = current;
     this.invalidateGrace("grace_invalidated_speaker_change");
+    this.lastLifecyclePhase = "trust_state_change";
   }
 
   onContaminationDetected(): void {
@@ -347,6 +373,16 @@ export default class SecuritySessionPolicyService {
       return trustState;
     }
     return undefined;
+  }
+
+  private asLifecyclePhase(phase: unknown): phase is SecurityLifecyclePhase {
+    return (
+      phase === "heard" ||
+      phase === "activated" ||
+      phase === "executed" ||
+      phase === "pause_to_listening" ||
+      phase === "trust_state_change"
+    );
   }
 
   private parseIsoMs(value: unknown): number {

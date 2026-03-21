@@ -87,6 +87,8 @@ const initialState = {
   securityGraceValid: false,
   securityGraceExpiresAt: "",
   securityLastReasonCode: "",
+  securityLastLifecyclePhase: "heard",
+  securityLastInteractionId: 0,
   securityMode: "normal",
   securityVerificationProviderError: "",
   securityVerificationProviderReady: false,

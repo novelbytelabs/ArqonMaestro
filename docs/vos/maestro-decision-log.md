@@ -493,3 +493,28 @@ Consequences:
 * `security-runtime-state.json` under app settings path becomes the bounded continuity artifact for Program A1
 * enrollment and session policy services now support export/restore with validation and adversarial payload tolerance
 * state schema is additive/versioned but intentionally local-file based in this slice
+
+---
+
+## VOS-020: Session Lifecycle Phase And Interaction ID Are First-Class Bridge Fields
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 bridge state now exposes explicit lifecycle status fields:
+
+* `securityLastLifecyclePhase`
+* `securityLastInteractionId`
+
+and treats `securityLastReasonCode` as session-policy reason continuity (with authorization reason code retained separately).
+
+Why:
+
+Downstream UI/extension consumers need deterministic lifecycle position without parsing audit records or inferring from text. This also prevents ambiguity between authorization reason-code semantics and session-policy transition reason semantics.
+
+Consequences:
+
+* lifecycle phase/id now survive persistence restore paths
+* security status UI can render exact session lifecycle position directly

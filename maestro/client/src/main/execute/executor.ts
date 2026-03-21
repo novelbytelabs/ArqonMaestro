@@ -2068,6 +2068,8 @@ export default class Executor {
         securityGraceValid: snapshot.graceValid,
         securityGraceExpiresAt: snapshot.graceExpiresAt,
         securityLastReasonCode: snapshot.lastReasonCode,
+        securityLastLifecyclePhase: snapshot.lastLifecyclePhase,
+        securityLastInteractionId: snapshot.lastInteractionId,
       },
       [this.mainWindow, this.miniModeWindow]
     );
@@ -2242,24 +2244,30 @@ export default class Executor {
     decision: string;
     reason: string;
     reasonCode: string;
+    securitySessionReasonCode: string;
     blockedCommand: string;
     blockedAt: string;
     securityPolicyMode: string;
     securityRequiresReauthNext: boolean;
     securityGraceValid: boolean;
     securityGraceExpiresAt: string;
+    securityLastLifecyclePhase: string;
+    securityLastInteractionId: number;
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
     return {
       decision: this.lastAuthorizationDecision,
       reason: this.lastAuthorizationReason,
       reasonCode: this.lastAuthorizationReasonCode,
+      securitySessionReasonCode: snapshot.lastReasonCode,
       blockedCommand: this.lastBlockedCommand,
       blockedAt: this.lastBlockedAt,
       securityPolicyMode: snapshot.mode,
       securityRequiresReauthNext: snapshot.requiresReauthNext,
       securityGraceValid: snapshot.graceValid,
       securityGraceExpiresAt: snapshot.graceExpiresAt,
+      securityLastLifecyclePhase: snapshot.lastLifecyclePhase,
+      securityLastInteractionId: snapshot.lastInteractionId,
     };
   }
 

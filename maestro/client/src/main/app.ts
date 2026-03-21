@@ -629,6 +629,8 @@ export default class App {
         securityGraceValid: false,
         securityGraceExpiresAt: "",
         securityLastReasonCode: "",
+        securityLastLifecyclePhase: "heard",
+        securityLastInteractionId: 0,
       };
     }
 
@@ -684,7 +686,9 @@ export default class App {
       securityRequiresReauthNext: !!status?.securityRequiresReauthNext,
       securityGraceValid: !!status?.securityGraceValid,
       securityGraceExpiresAt: status?.securityGraceExpiresAt || "",
-      securityLastReasonCode: status?.reasonCode || "",
+      securityLastReasonCode: status?.securitySessionReasonCode || status?.reasonCode || "",
+      securityLastLifecyclePhase: status?.securityLastLifecyclePhase || "heard",
+      securityLastInteractionId: status?.securityLastInteractionId || 0,
     };
   }
 

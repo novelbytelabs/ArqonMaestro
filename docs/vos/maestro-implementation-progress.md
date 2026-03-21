@@ -122,6 +122,10 @@ What landed:
   * security-session state export + restore support
   * desktop runtime persistence file (`security-runtime-state.json`) with startup restore + periodic and mutation-triggered checkpoints
 * Added adversarial restore tests for invalid persistence payload handling.
+* Added explicit lifecycle bridge exposure for downstream consumers:
+  * `securityLastLifecyclePhase`
+  * `securityLastInteractionId`
+  * corrected `securityLastReasonCode` to track session-policy reason code (not only authorization reason code)
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 

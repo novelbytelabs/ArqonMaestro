@@ -295,3 +295,21 @@ Use with care:
 
 * treat snapshot restore as bounded continuity support, not cryptographic truth
 * monitor `security_runtime_state_restore_failed` / `security_runtime_state_persist_failed` diagnostics
+
+### G-018: `securityLastReasonCode` Is Session-Policy Reason, Not Pure Authorization Reason
+
+Symptom:
+
+Users may compare `securityLastAuthorizationReasonCode` and `securityLastReasonCode` and think one is wrong when they differ.
+
+Why:
+
+Program A1 now separates concerns:
+
+* `securityLastAuthorizationReasonCode` = latest authorization outcome reason
+* `securityLastReasonCode` = latest session-policy lifecycle reason
+
+Use with care:
+
+* use authorization reason code for allow/deny/confirm analysis
+* use session reason code for grace/mode/lifecycle transition analysis
