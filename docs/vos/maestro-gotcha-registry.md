@@ -265,3 +265,18 @@ Use with care:
 
 * treat missing session-policy fields as `unknown` for older records
 * avoid schema assumptions that require these fields unconditionally
+
+### G-016: Replay Category Set Now Includes `security_session_event`
+
+Symptom:
+
+Downstream tools that hardcode the old Phase 3B category set may fail or undercount records.
+
+Why:
+
+Program A introduced a new replay category for explicit session lifecycle audit records.
+
+Use with care:
+
+* update category parsing/aggregation to include `security_session_event`
+* keep category handling tolerant to additive schema evolution

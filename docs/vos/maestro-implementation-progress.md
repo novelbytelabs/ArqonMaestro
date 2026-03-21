@@ -116,6 +116,7 @@ What landed:
 * Added bounded modal-context synthesis in `Executor` and now forward `modalContext` through both text and chunk dispatch paths.
 * Surface context bridge now includes bounded `previousSurface` continuity when active app surface changes between dispatch cycles.
 * Authorization replay-audit records now carry session-policy metadata (`interactionId`, `reasonCode`, policy mode, grace/reauth fields) for stronger Program A reconstructability.
+* Added explicit security-session replay events (`heard`, `activated`, `executed`, `pause_to_listening`, `trust_state_change`) for deterministic lifecycle auditability.
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 
@@ -127,6 +128,7 @@ Evidence:
 * `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/chunk-evaluation-service.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-service-security-session.test.ts`
 
 Bounded constraints:
 

@@ -1,6 +1,7 @@
 export type Phase3BAuditCategory =
   | "dispatch_decision"
   | "authorization_decision"
+  | "security_session_event"
   | "workflow_transition"
   | "workflow_step"
   | "nexus_boundary"
@@ -61,6 +62,23 @@ export interface AuthorizationDecisionAuditRecord extends Phase3BAuditRecordBase
   speakerVerified: boolean;
   contaminated: boolean;
   identityEvidenceReady: boolean;
+}
+
+export interface SecuritySessionEventAuditRecord extends Phase3BAuditRecordBase {
+  category: "security_session_event";
+  phase:
+    | "heard"
+    | "activated"
+    | "executed"
+    | "pause_to_listening"
+    | "trust_state_change";
+  interactionId?: number;
+  trustState?: string;
+  mode: string;
+  requiresReauthNext: boolean;
+  graceValid: boolean;
+  graceExpiresAt?: string;
+  reasonCode: string;
 }
 
 export interface WorkflowTransitionAuditRecord extends Phase3BAuditRecordBase {
@@ -148,6 +166,7 @@ export interface ExecutionOutcomeAuditRecord extends Phase3BAuditRecordBase {
 export type Phase3BAuditRecord =
   | DispatchDecisionAuditRecord
   | AuthorizationDecisionAuditRecord
+  | SecuritySessionEventAuditRecord
   | WorkflowTransitionAuditRecord
   | WorkflowStepAuditRecord
   | NexusBoundaryAuditRecord
@@ -164,6 +183,7 @@ export interface Phase3BReplayAuditSnapshot {
 const createCategoryCounts = (): Record<Phase3BAuditCategory, number> => ({
   dispatch_decision: 0,
   authorization_decision: 0,
+  security_session_event: 0,
   workflow_transition: 0,
   workflow_step: 0,
   nexus_boundary: 0,
@@ -205,6 +225,12 @@ export default class Phase3BReplayAuditService {
     input: Omit<AuthorizationDecisionAuditRecord, "category" | "sequence" | "recordedAt">
   ): void {
     this.push({ ...input, category: "authorization_decision" });
+  }
+
+  recordSecuritySessionEvent(
+    input: Omit<SecuritySessionEventAuditRecord, "category" | "sequence" | "recordedAt">
+  ): void {
+    this.push({ ...input, category: "security_session_event" });
   }
 
   recordWorkflowTransition(

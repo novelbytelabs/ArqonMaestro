@@ -438,3 +438,31 @@ Consequences:
 
 * identity-gateway audit emission now carries security-session metadata when available
 * replay artifacts become more actionable for Program A policy verification and regression triage
+
+---
+
+## VOS-018: Security-Session Lifecycle Events Must Be First-Class Replay Records
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Phase 3B replay audit schema now includes `security_session_event` category with explicit lifecycle events:
+
+* `heard`
+* `activated`
+* `executed`
+* `pause_to_listening`
+* `trust_state_change`
+
+Each event carries mode/grace/reauth and reason-code state snapshot fields.
+
+Why:
+
+Inferring session-policy transitions indirectly from authorization/dispatch logs is fragile and incomplete. Program A requires direct replay evidence for session lifecycle behavior.
+
+Consequences:
+
+* executor now emits explicit security-session replay records at lifecycle boundaries
+* replay tooling can reason over lifecycle transitions without reconstructing them from side effects

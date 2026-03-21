@@ -61,6 +61,7 @@ import { SecurityMode } from "../runtime/security-mode-service";
 import SecuritySessionPolicyService, {
   SecurityTrustState,
 } from "../runtime/security-session-policy-service";
+import { phase3BReplayAuditService } from "../runtime/phase3b-replay-audit-service";
 
 // Workflow and Nexus imports (FP-2B)
 import WorkflowContractService, {
@@ -2022,17 +2023,20 @@ export default class Executor {
       } else if (trustState === "verified") {
         this.securitySessionPolicyService.onVerificationEvent({ trustState });
       }
+      this.recordSecuritySessionEvent("trust_state_change", undefined, trustState);
       this.previousTrustState = trustState;
     }
   }
 
   onTranscriptHeard(): void {
     this.securitySessionPolicyService.onHeard();
+    this.recordSecuritySessionEvent("heard");
     this.publishSecuritySessionBridgeState();
   }
 
   onPauseToListeningBoundary(): void {
     this.securitySessionPolicyService.onPauseToListeningBoundary();
+    this.recordSecuritySessionEvent("pause_to_listening");
     this.publishSecuritySessionBridgeState();
   }
 
@@ -2057,6 +2061,24 @@ export default class Executor {
       },
       [this.mainWindow, this.miniModeWindow]
     );
+  }
+
+  private recordSecuritySessionEvent(
+    phase: "heard" | "activated" | "executed" | "pause_to_listening" | "trust_state_change",
+    interactionId?: number,
+    trustState?: SecurityTrustState
+  ): void {
+    const snapshot = this.securitySessionPolicyService.getSnapshot();
+    phase3BReplayAuditService.recordSecuritySessionEvent({
+      phase,
+      interactionId,
+      trustState,
+      mode: snapshot.mode,
+      requiresReauthNext: snapshot.requiresReauthNext,
+      graceValid: snapshot.graceValid,
+      graceExpiresAt: snapshot.graceExpiresAt || undefined,
+      reasonCode: snapshot.lastReasonCode,
+    });
   }
 
   /**
@@ -2084,6 +2106,7 @@ export default class Executor {
         interactionId,
         trustState,
       });
+      this.recordSecuritySessionEvent("activated", interactionId, trustState);
       const securitySession = this.securitySessionPolicyService.getAuthContext(interactionId);
 
       console.log(`[FP-2A] Authorizing: ${commandFamily}/${commandType} risk=${riskLevel}`);
@@ -2111,6 +2134,7 @@ export default class Executor {
           this.identityGateway.setInteractionMode(InteractionMode.COMMAND);
         }
         this.securitySessionPolicyService.onExecuted();
+        this.recordSecuritySessionEvent("executed", interactionId, trustState);
         return { authorized: true };
       }
 
