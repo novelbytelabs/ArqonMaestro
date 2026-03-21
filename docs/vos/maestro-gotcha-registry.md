@@ -236,7 +236,7 @@ Use with care:
 * treat modal context as bounded bridge telemetry, not full modal truth
 * prioritize host-signal modal ingestion in later Program A slices for high-stakes routing paths
 
-### G-014: `previousSurface` Continuity Is One-Step And Alias-Gated
+### G-014: `previousSurface` Continuity Is One-Step And Focus-History/ Alias-Bounded
 
 Symptom:
 
@@ -244,7 +244,7 @@ Symptom:
 
 Why:
 
-Program A currently tracks bounded one-step continuity from alias-normalized active app surfaces. It is intentionally not a deep focus-history model.
+Program A currently tracks bounded one-step continuity from focus-history `current/previous` app snapshots plus alias normalization. It is intentionally not a deep focus-history model.
 
 Use with care:
 

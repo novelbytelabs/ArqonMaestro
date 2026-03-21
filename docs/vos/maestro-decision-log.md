@@ -518,3 +518,23 @@ Consequences:
 
 * lifecycle phase/id now survive persistence restore paths
 * security status UI can render exact session lifecycle position directly
+
+---
+
+## VOS-021: Surface Context Now Uses Focus-History Live Snapshot As Primary App Signal
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A surface-context synthesis now consults `FocusHistoryService.snapshot()` (`current`, `previous`) before canonical surface mapping, rather than relying only on direct active-app alias and local ad hoc previous-surface bookkeeping.
+
+Why:
+
+Program A requires stronger live signal fidelity for cross-surface continuity. Focus-history snapshots are already a runtime source-of-truth candidate for app focus transitions and provide a cleaner bounded signal for `previousSurface`.
+
+Consequences:
+
+* `surfaceContext.activeSurface` and `surfaceContext.previousSurface` now derive from live focus-history app observations
+* prior ad hoc previous-surface tracking in executor is removed in favor of focus-history-derived continuity

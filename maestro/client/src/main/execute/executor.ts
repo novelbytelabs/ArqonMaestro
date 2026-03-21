@@ -119,8 +119,6 @@ export default class Executor {
   private nexusBoundary: NexusProtocolBoundaryService;
   private workflowExecutionService: WorkflowExecutionService;
   private executionTrace?: ExecutionTrace;
-  private lastRuntimeSurfaceKey: string = "";
-  private lastRuntimeSurfaceRecord: SurfaceContext["activeSurface"] = null;
   private lastAuthorizationDecision: string = "";
   private lastAuthorizationReason: string = "";
   private lastBlockedCommand: string = "";
@@ -2274,35 +2272,45 @@ export default class Executor {
   /**
    * Get identity-derived policy context for runtime dispatcher decisions.
    */
+  private buildSurfaceRecordFromApp(
+    app: string,
+    visibility: "focused" | "visible"
+  ): SurfaceContext["activeSurface"] {
+    const normalizedApp = app.trim();
+    if (!normalizedApp) {
+      return null;
+    }
+    const surfaceType = surfaceModelService.normalizeAlias(normalizedApp);
+    if (surfaceType === "unknown") {
+      return null;
+    }
+    return surfaceModelService.buildSurfaceRecord({
+      surfaceType,
+      surfaceClass: "root",
+      surfaceId: `active:${surfaceType}:${normalizedApp.toLowerCase()}`,
+      label: normalizedApp,
+      appId: normalizedApp,
+      visibility,
+    });
+  }
+
   private buildRuntimeSurfaceContext(): SurfaceContext | undefined {
     const app = (this.active.app || "").trim();
     if (!app) {
       return undefined;
     }
-    const surfaceType = surfaceModelService.normalizeAlias(app);
-    if (surfaceType === "unknown") {
+    this.focusHistoryService.observe(app);
+    const focusSnapshot = this.focusHistoryService.snapshot();
+    const activeSurface = this.buildSurfaceRecordFromApp(focusSnapshot.current || app, "focused");
+    if (!activeSurface) {
       return undefined;
     }
-    const surfaceKey = `${surfaceType}:${app.toLowerCase()}`;
-    const activeSurface = surfaceModelService.buildSurfaceRecord({
-      surfaceType,
-      surfaceClass: "root",
-      surfaceId: `active:${surfaceKey}`,
-      label: app,
-      appId: app,
-      visibility: "focused",
-    });
-    const previousSurface =
-      this.lastRuntimeSurfaceRecord !== null && this.lastRuntimeSurfaceKey !== surfaceKey
-        ? this.lastRuntimeSurfaceRecord
-        : null;
+    const previousSurface = this.buildSurfaceRecordFromApp(focusSnapshot.previous || "", "visible");
     const context = surfaceModelService.buildContext({
       activeSurface,
       previousSurface,
       activeOverlay: null,
     });
-    this.lastRuntimeSurfaceRecord = activeSurface;
-    this.lastRuntimeSurfaceKey = surfaceKey;
     return context;
   }
 

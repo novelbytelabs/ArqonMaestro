@@ -126,6 +126,7 @@ What landed:
   * `securityLastLifecyclePhase`
   * `securityLastInteractionId`
   * corrected `securityLastReasonCode` to track session-policy reason code (not only authorization reason code)
+* Upgraded surface-context synthesis to use `FocusHistoryService` live app snapshots (`current` + bounded `previous`) before canonical surface mapping.
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 
@@ -143,7 +144,7 @@ Evidence:
 
 Bounded constraints:
 
-* `surfaceContext` is currently derived from active app alias only (single active root surface snapshot), pending richer live host/platform signal ingestion in later Program A slices.
+* `surfaceContext` now uses focus-history current/previous app snapshots plus alias mapping, but still remains app-level (not deep control/item-layer host telemetry).
 * `modalContext` is currently heuristic-derived from active app/filename signals (`system dialog`, `modal`, `dialog`, `quick-open`/`command-palette` patterns), pending deeper host/platform modal signal binding in later Program A slices.
 * persistence format is versioned and additive, but still local-file based; no durable multi-node governance backend exists in this slice.
 
