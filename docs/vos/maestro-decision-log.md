@@ -680,3 +680,28 @@ Consequences:
 
 * grace invalidation and re-auth continuity now respond to modal-context transitions
 * duplicate invalidations are avoided when app and modal boundaries both shift in the same interaction
+
+---
+
+## VOS-028: Security Context-Boundary Diff Logic Is Centralized In A Runtime Utility
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 boundary-change logic now uses a dedicated runtime utility:
+
+* `buildModalBoundaryKey(modalContext)`
+* `hasBoundaryJump(previous, current)`
+
+Executor app/modal jump checks now consume this utility instead of ad hoc per-call string diff logic.
+
+Why:
+
+Program A context-jump behavior is security-critical and should remain deterministic and testable. Centralizing boundary-key construction/diff logic reduces drift and makes adversarial verification straightforward.
+
+Consequences:
+
+* modal-boundary and app-boundary jump behavior is easier to reason about and test
+* future boundary-signal expansion can be added in one utility surface

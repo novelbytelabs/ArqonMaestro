@@ -137,6 +137,11 @@ What landed:
   * runtime now computes modal boundary key from live `modalContext` classification
   * shifts in overlay/classification/focus-trap state now invalidate grace via `context_jump`
   * app-boundary + modal-boundary jumps are coalesced into one invalidation/event per interaction
+* Extracted security context-boundary utility for deterministic boundary-key evaluation:
+  * `buildModalBoundaryKey(modalContext)`
+  * `hasBoundaryJump(previous, current)`
+* Added boundary utility verification test:
+  * `security-context-boundary.test.ts` validates deterministic modal-boundary jump detection
 * Added replay-audit IPC bridge for downstream verification tooling:
   * `securityRequestReplaySnapshot` -> `securityReplaySnapshot`
   * `securityResetReplaySnapshot` for bounded audit test/reset flows
@@ -164,6 +169,7 @@ Evidence:
 * `cd maestro/client && npm run build:main`
 * `cd maestro/client && npm run build:renderer`
 * `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/security-context-boundary.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/chunk-evaluation-service.test.ts`

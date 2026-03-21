@@ -78,6 +78,7 @@ import NexusProtocolBoundaryService, {
 import WorkflowExecutionService from "../runtime/workflow-nexus-integration";
 import { ModalContext, modalAwarenessService } from "../runtime/modal-awareness-service";
 import { SurfaceContext, surfaceModelService } from "../runtime/surface-model-service";
+import { buildModalBoundaryKey, hasBoundaryJump } from "../runtime/security-context-boundary";
 
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
@@ -2035,25 +2036,17 @@ export default class Executor {
     if (!currentApp) {
       return false;
     }
-    const changed = !!this.lastSecurityContextApp && this.lastSecurityContextApp !== currentApp;
+    const changed = hasBoundaryJump(this.lastSecurityContextApp, currentApp);
     this.lastSecurityContextApp = currentApp;
     return changed;
   }
 
   private syncSecurityModalBoundary(): boolean {
     const modalContext = this.buildRuntimeModalContext();
-    const currentKey = [
-      modalContext.overlayState,
-      modalContext.modalType || "none",
-      modalContext.classification || "none",
-      modalContext.blocksNonReflex ? "1" : "0",
-      modalContext.focusTrapped ? "1" : "0",
-    ].join(":");
-    const changed =
-      this.lastSecurityModalBoundaryKey &&
-      this.lastSecurityModalBoundaryKey !== currentKey;
+    const currentKey = buildModalBoundaryKey(modalContext);
+    const changed = hasBoundaryJump(this.lastSecurityModalBoundaryKey, currentKey);
     this.lastSecurityModalBoundaryKey = currentKey;
-    return !!changed;
+    return changed;
   }
 
   onTranscriptHeard(): void {

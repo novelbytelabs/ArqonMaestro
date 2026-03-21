@@ -391,3 +391,18 @@ Use with care:
 
 * treat modal-boundary context jumps as safety hardening, not perfect modal truth
 * prioritize explicit verification for medium/high-risk paths where modal stability is uncertain
+
+### G-024: Boundary-Jump Utility Is Key-Based And Intentionally Ignores Timestamp Noise
+
+Symptom:
+
+Developers may expect every modal context refresh to trigger jump invalidation.
+
+Why:
+
+Program A1 boundary logic compares stable boundary keys (overlay/type/classification/trap/block semantics), not transient timestamps or free-text reason strings.
+
+Use with care:
+
+* use key-shape fields for security boundary decisions
+* keep diagnostic timestamp changes out of boundary keys to avoid false invalidation churn
