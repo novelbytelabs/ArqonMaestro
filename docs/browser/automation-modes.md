@@ -24,13 +24,25 @@ Maestro provides clear visual signals of your current interaction posture in bot
 ### 1. Panel Header (Top)
 The header at the top of the interface prominently displays the active mode next to the system label (`ARQON MAESTRO // CHROME`). This indicator changes color and text based on the effective mode.
 
-![Automation Modes Comparison](../assets/browser/automation-modes-header.png)
+=== "Pilot"
+    ![Pilot Mode](../assets/browser/automation-mode-pilot.png)
+
+=== "Assist"
+    ![Assist Mode](../assets/browser/automation-mode-assist.png)
+
+=== "Observe"
+    ![Observe Mode](../assets/browser/automation-mode-observe.png)
+
+=== "Locked"
+    ![Locked Mode](../assets/browser/automation-mode-locked.png)
+
 *Visual comparison of Pilot, Assist, Observe, and Locked indicators in the header.*
 
 ### 2. Policy Preview (Bottom)
 In the **Operator Surface** (Sidebar), the **Policy Preview** panel at the very bottom provides a detailed breakdown of the effective domain posture.
 
 ![Policy Preview Locked](../assets/browser/policy-preview-locked.png)
+
 *Detailed policy view in the Operator Surface showing Automation Mode: Locked.*
 
 ---
