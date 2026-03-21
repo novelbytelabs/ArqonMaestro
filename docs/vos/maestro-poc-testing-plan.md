@@ -101,9 +101,9 @@ npm test -- --testPathPattern="whisper"
 
 | Test | Steps | Expected |
 |------|-------|----------|
-| Microphone Capture | 1. Press PTT 2. Speak "hello" 3. Release | Audio waveform appears |
+| Microphone Capture | 1. Press Alt+Space 2. Speak "hello" 3. Release | Audio waveform appears |
 | VAD Detection | 1. Speak continuously 2. Stop 3. Wait 1s | VAD shows active→inactive |
-| STT Fast Path | 1. Press PTT 2. Say "focus terminal" 3. Release | Transcript appears in < 2s |
+| STT Fast Path | 1. Press Alt+Space 2. Say "focus terminal" 3. Release | Transcript appears in < 2s |
 | Dictation Path | 1. Enter dictation mode 2. Speak paragraph 3. Exit | Accurate transcript |
 
 ### 3.2 Command Routing
@@ -165,7 +165,7 @@ npm test -- --testPathPattern="whisper"
 |------|-------|----------|
 | TTS Output | Wait for voice response | Audio plays |
 | Persona Switch | Trigger different response types | Different voices |
-| Interruption | 1. Start speaking 2. Press PTT | Current audio stops |
+| Interruption | 1. Start speaking 2. Press Alt+Space | Current audio stops |
 
 **Existing Tests:**
 
@@ -354,3 +354,4 @@ For each test, record:
 ---
 
 *This testing plan is specific to the current Arqon Maestro POC implementation. For planned features, see the comprehensive test strategy document.*
+low 

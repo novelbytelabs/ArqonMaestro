@@ -19,7 +19,11 @@ This document contains the working commands to run Arqon Maestro locally.
 1. **Build the server first** (from project root):
    ```bash
    cd ~/Projects/arqon/ArqonMaestro/maestro
-   ARQON_MAESTRO_SOURCE_ROOT=~/Projects/arqon/ArqonMaestro/maestro ./gradlew :core:installDist -x downloadModels
+   export ARQON_MAESTRO_SOURCE_ROOT="$PWD"
+   export ARQON_MAESTRO_LIBRARY_ROOT="$HOME/libserenade"
+   export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"
+   export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"
+   ./gradlew :core:installDist -x downloadModels
    ```
 
    For a full local voice stack, this repository also needs the native dependencies described in `maestro/docs/building.md` (`scripts/setup/build-dependencies.sh`). Without those, `speech-engine` / `code-engine` packaging can still be incomplete.
@@ -48,10 +52,26 @@ PY
 
 ## Running the Application
 
+### Which command should I use?
+
+Use this matrix:
+
+| Goal | Command |
+| --- | --- |
+| Fastest relaunch with existing build artifacts | `./scripts/run_client.sh` |
+| Frontend code iteration with hot reload | `cd client && npm run dev` |
+| Clean production-style client bundle | `cd client && npm run build && cd .. && ./scripts/run_client.sh` |
+
+`npm run dev` is not the only valid startup mode.
+
 ### Terminal 1 - Build the Local Server Bundle
 
 ```bash
 cd ~/Projects/arqon/ArqonMaestro/maestro
+export ARQON_MAESTRO_SOURCE_ROOT="$PWD"
+export ARQON_MAESTRO_LIBRARY_ROOT="$HOME/libserenade"
+export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"
+export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"
 ./gradlew client:installServer -x downloadModels
 ```
 
@@ -116,7 +136,7 @@ Legacy compatibility note:
 |----------|-------|---------|
 | CORE_PORT | 17200 | Server port |
 | ARQON_MAESTRO_SOURCE_ROOT | ~/Projects/arqon/ArqonMaestro/maestro | Engine source tree |
-| ARQON_MAESTRO_LIBRARY_ROOT | ~/libarqon | Models and native dependencies |
+| ARQON_MAESTRO_LIBRARY_ROOT | ~/libserenade (recommended default) | Models and native dependencies |
 
 Legacy compatibility:
 

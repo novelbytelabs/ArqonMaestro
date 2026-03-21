@@ -143,9 +143,16 @@ For more information, check out the ArqonMaestro API documentation: https://nove
       this.resolveStart = resolveOnce;
       this.stop();
       const stream = fs.createWriteStream(path.join(this.settings.path(), "arqon.log"));
-      const fallbackNodeModules = path.join(__dirname, "..", "..", "node_modules");
       const existingNodePath = process.env.NODE_PATH || "";
-      const nodePath = [fallbackNodeModules, existingNodePath].filter((e) => e).join(path.delimiter);
+      const nodeModuleCandidates = [
+        path.join(process.cwd(), "node_modules"),
+        path.join(__dirname, "..", "..", "node_modules"),
+        path.join(__dirname, "..", "..", "..", "node_modules"),
+        path.join(__dirname, "..", "..", "..", "..", "node_modules"),
+      ].filter((candidate, index, list) => list.indexOf(candidate) === index && fs.existsSync(candidate));
+      const nodePath = [...nodeModuleCandidates, existingNodePath]
+        .filter((e) => e)
+        .join(path.delimiter);
       this.process = child_process.fork(this.primaryServerFilename, [], {
         cwd: path.join(this.settings.path(), "ipc"),
         stdio: "pipe",

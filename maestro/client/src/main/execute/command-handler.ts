@@ -1,5 +1,6 @@
 import { clipboard } from "electron";
 import { shell } from "electron";
+import * as os from "os";
 import Active from "../active";
 import App from "../app";
 import ChunkManager from "../stream/chunk-manager";
@@ -150,6 +151,14 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_REDO(_data: core.ICommand): Promise<any> {
+    if (this.active.isFirstPartyBrowser()) {
+      await this.system.pressKey(
+        "z",
+        os.platform() == "darwin" ? ["command", "shift"] : ["control", "shift"]
+      );
+      return;
+    }
+
     const state = await this.active.getEditorState();
     if (this.nativeCommands.needsUndoStack(state)) {
       await this.nativeCommands.redo(state);
@@ -196,6 +205,11 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_UNDO(_data: core.ICommand): Promise<any> {
+    if (this.active.isFirstPartyBrowser()) {
+      await this.system.pressKey("z", os.platform() == "darwin" ? ["command"] : ["control"]);
+      return;
+    }
+
     if (!this.settings.getNuxCompleted()) {
       await this.nux.showCurrentStep();
       return;
@@ -204,6 +218,56 @@ export default class CommandHandler {
     const state = await this.active.getEditorState();
     if (this.nativeCommands.needsUndoStack(state)) {
       await this.nativeCommands.undo(state);
+    }
+  }
+
+  async COMMAND_TYPE_SCROLL(data: core.ICommand): Promise<any> {
+    const direction = (data.direction || "").toLowerCase();
+    const target = (data.path || "").toLowerCase().trim();
+
+    if (target == "top") {
+      await this.system.pressKey("home");
+      return;
+    }
+
+    if (target == "bottom") {
+      await this.system.pressKey("end");
+      return;
+    }
+
+    if (direction == "up") {
+      await this.system.pressKey("pageup");
+      return;
+    }
+
+    if (direction == "down") {
+      await this.system.pressKey("pagedown");
+      return;
+    }
+  }
+
+  async COMMAND_TYPE_NEXT_TAB(_data: core.ICommand): Promise<any> {
+    if (os.platform() == "darwin") {
+      await this.system.pressKey("]", ["command", "shift"]);
+    } else {
+      await this.system.pressKey("tab", ["control"]);
+    }
+  }
+
+  async COMMAND_TYPE_PREVIOUS_TAB(_data: core.ICommand): Promise<any> {
+    if (os.platform() == "darwin") {
+      await this.system.pressKey("[", ["command", "shift"]);
+    } else {
+      await this.system.pressKey("tab", ["control", "shift"]);
+    }
+  }
+
+  async COMMAND_TYPE_SWITCH_TAB(data: core.ICommand): Promise<any> {
+    const index = Math.max(1, Math.min(9, data.index || 1));
+    if (os.platform() == "darwin") {
+      await this.system.pressKey(index.toString(), ["command"]);
+    } else {
+      await this.system.pressKey(index.toString(), ["control"]);
     }
   }
 

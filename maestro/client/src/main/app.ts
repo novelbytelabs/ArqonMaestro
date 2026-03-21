@@ -357,11 +357,12 @@ export default class App {
     const tokenPresent = !!settings.getToken();
     let initialLoggedIn = tokenPresent;
     if (endpoint && endpoint.id == "local") {
-      const [speechHealthy, codeHealthy] = await Promise.all([
+      const [coreHealthy, speechHealthy, codeHealthy] = await Promise.all([
+        localServiceHealthy("http://localhost:17200/api/status"),
         localServiceHealthy("http://localhost:17202/api/status"),
         localServiceHealthy("http://localhost:17203/api/status"),
       ]);
-      initialLoggedIn = initialLoggedIn && speechHealthy && codeHealthy;
+      initialLoggedIn = initialLoggedIn && coreHealthy && speechHealthy && codeHealthy;
       if (!initialLoggedIn) {
         console.warn(
           "[ArqonMaestro] Local endpoint selected but local backend is not fully healthy yet."
@@ -390,12 +391,13 @@ export default class App {
       let attempts = 0;
       const interval = setInterval(async () => {
         attempts += 1;
-        const [speechHealthy, codeHealthy] = await Promise.all([
+        const [coreHealthy, speechHealthy, codeHealthy] = await Promise.all([
+          localServiceHealthy("http://localhost:17200/api/status"),
           localServiceHealthy("http://localhost:17202/api/status"),
           localServiceHealthy("http://localhost:17203/api/status"),
         ]);
 
-        if (speechHealthy && codeHealthy) {
+        if (coreHealthy && speechHealthy && codeHealthy) {
           console.log("[ArqonMaestro] Local backend healthy; enabling loggedIn state.");
           bridge.setState({ loggedIn: true, listening: false }, [mainWindow, miniModeWindow]);
           clearInterval(interval);

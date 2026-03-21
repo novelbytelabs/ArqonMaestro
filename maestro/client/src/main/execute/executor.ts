@@ -996,6 +996,10 @@ export default class Executor {
       "space",
       "enter",
       "tab",
+      "backspace",
+      "delete",
+      "home",
+      "end",
       "pagedown",
       "pageup",
     ];

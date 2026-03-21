@@ -44,6 +44,7 @@ Core laws:
 * personalization may bias lawful interpretation, but it may not redefine canonical meaning
 * phonetic survivability is part of the safety model, not just a benchmark concern
 * Maestro is treated as a Network Automaton instantiated as a Computational Fabric; topology, local rules, and distributed state are computational constituents, not passive metadata
+* canonical runtime naming is Arqon/Maestro-only (`ARQON_MAESTRO_*`, `~/.arqon`, `~/libarqonmaestro`); legacy `SERENADE_*` and `libserenade` references are temporary compatibility bridges to be removed
 
 ## 3. Ecosystem Position and Runtime Role
 
@@ -497,6 +498,9 @@ Primary governing specs:
 * durable replay/audit persistence, retention, and governance model
 * stronger recovery/reconnect state handling
 * authorization and identity gateway service hardening still need stronger durable operational backing
+* environment namespace conflict remains active (`ARQON_MAESTRO_*` vs `SERENADE_*`)
+* canonical dependency-root migration remains incomplete (`~/libarqonmaestro` vs `~/libserenade` / `~/libarqon`)
+* runbooks and startup scripts still carry mixed legacy naming behavior
 
 Primary governing specs:
 
@@ -505,6 +509,7 @@ Primary governing specs:
 * [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
 * [`maestro-authorization-service.md`](./maestro-authorization-service.md)
 * [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
+* [`../operations/rebrand-program.md`](../operations/rebrand-program.md)
 
 ### Execution and workflow completion gaps
 
@@ -641,6 +646,7 @@ Objective:
 
 * harden runtime, output, and provider behavior beyond bounded slices
 * reduce fragility in degraded and failure conditions
+* normalize build/runtime naming and dependency-root contracts so operation is Arqon/Maestro-native
 
 Primary governing specs:
 
@@ -657,6 +663,7 @@ Primary governing specs:
 * [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md)
 * [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
 * [`../architecture/maestro-actuation-and-control-stack.md`](../architecture/maestro-actuation-and-control-stack.md)
+* [`../operations/rebrand-program.md`](../operations/rebrand-program.md)
 
 Deliverables:
 
@@ -668,6 +675,13 @@ Deliverables:
 * phonetic survivability hardening for command forms under realistic noise and recognition variance
 * service-level hardening for authorization, identity gateway, and workflow contract control surfaces
 * remaining Wave D voice-plane hardening beyond the bounded broker slice
+* canonical environment contract for all scripts/runbooks:
+  * `ARQON_MAESTRO_SOURCE_ROOT`
+  * `ARQON_MAESTRO_LIBRARY_ROOT`
+  * `~/.arqon/arqon.json`
+  * `~/libarqonmaestro` as default local dependency root
+* de-legacy migration path for `SERENADE_*` compatibility with explicit sunset/removal gates
+* startup and verification paths no longer depend on mixed Arqon/Serenade naming
 
 ### Program C - Operational Benchmarking and Regression Discipline
 
@@ -851,6 +865,11 @@ The benchmark program should explicitly cover:
 * ambiguity, preference, routing, recovery, and phonetic safety must remain governed by their canonical specs and may not be redefined ad hoc in implementation slices
 * the Ultimate VOS Reference Architecture governs Maestro’s ecosystem position and target-state runtime role, but subsystem behavior remains governed by the canonical subsystem specs
 * focus-plane documents remain canonical where they define bounded runtime law, but validation, handoff, and technical-note artifacts should be treated as evidence or continuity documents rather than competing control planes
+* naming and environment governance:
+  * Arqon/Maestro naming is canonical for all new docs/scripts/config
+  * canonical local dependency root is `~/libarqonmaestro`
+  * `SERENADE_*` variables and `libserenade` references are temporary compatibility bridges only
+  * every compatibility bridge must include explicit removal criteria and a sunset checkpoint
 
 ## 14. Document Roles
 
@@ -1008,3 +1027,7 @@ Immediate priority areas:
 * lawful binding of runtime decisions to real host/platform context
 * capability-registry-backed surface and environment truth
 * restore-state fidelity and focus-stack fidelity for later advanced interaction completion
+* begin namespace/dependency-root normalization:
+  * set `~/libarqonmaestro` as canonical local root
+  * migrate runbooks/scripts to `ARQON_MAESTRO_*` as the canonical contract
+  * retain `SERENADE_*` only as temporary fallback until documented sunset criteria are met

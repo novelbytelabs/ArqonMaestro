@@ -83,15 +83,19 @@ export default class Stream {
     }
 
     const checks = await Promise.all([
+      this.localServiceHealthy("http://localhost:17200/api/status"),
       this.localServiceHealthy("http://localhost:17202/api/status"),
       this.localServiceHealthy("http://localhost:17203/api/status"),
     ]);
 
     const missing = [];
     if (!checks[0]) {
-      missing.push("speech-engine (:17202)");
+      missing.push("core (:17200)");
     }
     if (!checks[1]) {
+      missing.push("speech-engine (:17202)");
+    }
+    if (!checks[2]) {
       missing.push("code-engine (:17203)");
     }
 

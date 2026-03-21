@@ -68,6 +68,8 @@ nav:
       - Building: guides/building.md
   - Browser:
       - Getting Started: browser/getting-started.md
+      - Operator Deck: browser/operator-deck.md
+      - Operator Surface: browser/operator-surface.md
       - Navigation: browser/navigation.md
       - Links and Inputs: browser/links-and-inputs.md
       - Editing Text and Code: browser/editing-text-and-code.md
@@ -83,6 +85,7 @@ nav:
       - Model Architecture: models/model-architecture.md
       - Training Models: models/training-models.md
   - Operations:
+      - Maestro Local Runbook: operations/maestro-local-runbook.md
       - Port Reference: operations/port-reference.md
       - Gate 6 Kokoro Plan: operations/gate-6-kokoro-plan.md
       - Configuration: operations/configuration.md

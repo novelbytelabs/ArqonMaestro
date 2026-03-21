@@ -1221,6 +1221,14 @@ public class CommandsVisitor
     ParseTree node,
     CommandsVisitorContext context
   ) {
+    // Browser/plugin contexts frequently lack reliable source state; degrade to key press.
+    if (isBrowser(context) && context.state.getPluginInstalled() && !canGetState(context)) {
+      return wrap(
+        context,
+        Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("backspace").build()
+      );
+    }
+
     if (!canGetState(context)) {
       return requiresSource(context);
     }
@@ -1650,6 +1658,14 @@ public class CommandsVisitor
     ParseTree node,
     CommandsVisitorContext context
   ) {
+    // Browser text fields should always map newline to an Enter keypress.
+    if (isBrowser(context)) {
+      return wrap(
+        context,
+        Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("enter").build()
+      );
+    }
+
     if (!context.state.getPluginInstalled()) {
       return wrap(
         context,
@@ -2390,7 +2406,7 @@ public class CommandsVisitor
           Command
             .newBuilder()
             .setType(CommandType.COMMAND_TYPE_PRESS)
-            .addAllModifiers(Arrays.asList("control"))
+            .addAllModifiers(Arrays.asList("control", "shift"))
             .setText("tab")
             .build()
         );
@@ -2418,6 +2434,35 @@ public class CommandsVisitor
             .newBuilder()
             .setType(CommandType.COMMAND_TYPE_PRESS)
             .addAllModifiers(Arrays.asList("control", "shift"))
+            .setText("tab")
+            .build()
+        );
+      }
+    }
+
+    if (node.getTerminal("last").isPresent()) {
+      if (supported) {
+        return wrap(
+          context,
+          Command.newBuilder().setType(CommandType.COMMAND_TYPE_PREVIOUS_TAB).build()
+        );
+      } else if (isMac(context)) {
+        return wrap(
+          context,
+          Command
+            .newBuilder()
+            .setType(CommandType.COMMAND_TYPE_PRESS)
+            .addAllModifiers(Arrays.asList("command", "shift"))
+            .setText("[")
+            .build()
+        );
+      } else {
+        return wrap(
+          context,
+          Command
+            .newBuilder()
+            .setType(CommandType.COMMAND_TYPE_PRESS)
+            .addAllModifiers(Arrays.asList("control"))
             .setText("tab")
             .build()
         );
