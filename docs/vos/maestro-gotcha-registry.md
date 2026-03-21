@@ -313,3 +313,18 @@ Use with care:
 
 * use authorization reason code for allow/deny/confirm analysis
 * use session reason code for grace/mode/lifecycle transition analysis
+
+### G-019: `securitySnapshot` Is Additive IPC And Not A Streaming Feed
+
+Symptom:
+
+Consumers may assume `securitySnapshot` is automatically streamed after a single request.
+
+Why:
+
+Current Program A1 channel is explicit request/response (`securityRequestSnapshot` -> `securitySnapshot`) for on-demand retrieval. Live UI updates still come from bridge state propagation.
+
+Use with care:
+
+* subscribe to normal bridge state updates for live UX
+* use `securityRequestSnapshot` for explicit sync points

@@ -497,6 +497,10 @@ export default class RendererProcessEventHandlers {
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
 
+    ipcMain.on("securityRequestSnapshot", (event: any) => {
+      event.sender.send("securitySnapshot", this.app.getSecurityPanelState());
+    });
+
     ipcMain.on("securitySetMode", async (_event: any, mode: SecurityMode) => {
       await this.app.setSecurityMode(mode);
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);

@@ -2069,7 +2069,7 @@ export default class Executor {
         securityLastLifecyclePhase: snapshot.lastLifecyclePhase,
         securityLastInteractionId: snapshot.lastInteractionId,
       },
-      [this.mainWindow, this.miniModeWindow]
+      [this.mainWindow, this.miniModeWindow, this.settingsWindow()]
     );
   }
 

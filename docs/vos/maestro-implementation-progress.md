@@ -127,6 +127,9 @@ What landed:
   * `securityLastInteractionId`
   * corrected `securityLastReasonCode` to track session-policy reason code (not only authorization reason code)
 * Upgraded surface-context synthesis to use `FocusHistoryService` live app snapshots (`current` + bounded `previous`) before canonical surface mapping.
+* Added end-to-end bridge wiring hardening:
+  * live security-session bridge state now pushes into Settings window (not only main/mini)
+  * additive IPC channel `securityRequestSnapshot` -> `securitySnapshot` for explicit downstream security snapshot retrieval
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 

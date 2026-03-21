@@ -538,3 +538,28 @@ Consequences:
 
 * `surfaceContext.activeSurface` and `surfaceContext.previousSurface` now derive from live focus-history app observations
 * prior ad hoc previous-surface tracking in executor is removed in favor of focus-history-derived continuity
+
+---
+
+## VOS-022: Security Bridge State Must Push Live To Settings And Support Explicit Snapshot IPC
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 security bridge now:
+
+* pushes live session-bridge updates to settings window (in addition to main/mini windows)
+* exposes additive IPC retrieval channel:
+  * request: `securityRequestSnapshot`
+  * response: `securitySnapshot`
+
+Why:
+
+Program A1 completion calls for stronger extension/runtime end-to-end wiring. Poll-only or mount-only refresh patterns risk stale security observability in settings and downstream consumers.
+
+Consequences:
+
+* settings security UI receives bridge transitions in real time during runtime lifecycle changes
+* downstream consumers can request full security snapshot on demand without scraping incremental state assumptions
