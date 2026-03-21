@@ -140,6 +140,24 @@ function run(): void {
     assert(snapshot.lastReasonCode === "custom_code", "expected valid custom reason code");
   });
 
+  test("context jump invalidates grace and updates lifecycle phase", () => {
+    const service = new SecuritySessionPolicyService();
+    service.setMode("assist");
+    withNow(1_000, () => service.onVerificationEvent({ trustState: "verified" }));
+    assert(withNow(1_500, () => service.getSnapshot()).graceValid === true, "expected grace before jump");
+    service.onContextJump();
+    const snapshot = withNow(1_600, () => service.getSnapshot());
+    assert(snapshot.graceValid === false, "expected grace invalidated on context jump");
+    assert(
+      snapshot.lastReasonCode === "grace_invalidated_context_jump",
+      `unexpected reason code: ${snapshot.lastReasonCode}`
+    );
+    assert(
+      snapshot.lastLifecyclePhase === "context_jump",
+      `unexpected lifecycle phase: ${snapshot.lastLifecyclePhase}`
+    );
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

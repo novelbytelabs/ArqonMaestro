@@ -328,3 +328,18 @@ Use with care:
 
 * subscribe to normal bridge state updates for live UX
 * use `securityRequestSnapshot` for explicit sync points
+
+### G-020: Context-Jump Detection Is App-Boundary-Based (Not Fine-Grained Surface Telemetry)
+
+Symptom:
+
+Grace invalidation may not trigger for fine-grained in-app context shifts that do not change observed app boundary.
+
+Why:
+
+Current Program A1 context-jump trigger is based on focus-history app boundary transitions. It does not yet consume deep per-control/per-region host telemetry.
+
+Use with care:
+
+* treat current context-jump invalidation as app-boundary hardening
+* preserve stricter explicit re-auth gating for high-risk paths regardless of jump detection granularity

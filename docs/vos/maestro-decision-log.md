@@ -563,3 +563,24 @@ Consequences:
 
 * settings security UI receives bridge transitions in real time during runtime lifecycle changes
 * downstream consumers can request full security snapshot on demand without scraping incremental state assumptions
+
+---
+
+## VOS-023: Context Jump Invalidation Must Be Triggered From Live App Boundary Changes
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 now triggers security-session context-jump invalidation from live app focus boundary changes (derived from focus-history current app snapshot), not only from manual or synthetic hooks.
+
+Why:
+
+Program A1 policy requires grace invalidation on context/surface jumps. Having an API hook without a real runtime trigger leaves a silent policy gap.
+
+Consequences:
+
+* runtime now calls `securitySessionPolicyService.onContextJump()` when observed app context changes across interactions
+* lifecycle phase taxonomy now includes `context_jump`
+* replay security-session events can encode context-jump transitions explicitly

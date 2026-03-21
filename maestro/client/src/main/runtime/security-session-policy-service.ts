@@ -6,7 +6,8 @@ export type SecurityInteractionPhase = "heard" | "activated" | "executed";
 export type SecurityLifecyclePhase =
   | SecurityInteractionPhase
   | "pause_to_listening"
-  | "trust_state_change";
+  | "trust_state_change"
+  | "context_jump";
 
 export interface SecuritySessionSnapshot {
   mode: SecurityPolicyMode;
@@ -236,6 +237,7 @@ export default class SecuritySessionPolicyService {
 
   onContextJump(): void {
     this.invalidateGrace("grace_invalidated_context_jump");
+    this.lastLifecyclePhase = "context_jump";
   }
 
   onVerificationEvent(event: VerificationEvent): void {
@@ -381,7 +383,8 @@ export default class SecuritySessionPolicyService {
       phase === "activated" ||
       phase === "executed" ||
       phase === "pause_to_listening" ||
-      phase === "trust_state_change"
+      phase === "trust_state_change" ||
+      phase === "context_jump"
     );
   }
 

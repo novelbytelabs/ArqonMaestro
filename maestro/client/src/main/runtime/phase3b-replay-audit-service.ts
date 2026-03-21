@@ -71,7 +71,8 @@ export interface SecuritySessionEventAuditRecord extends Phase3BAuditRecordBase 
     | "activated"
     | "executed"
     | "pause_to_listening"
-    | "trust_state_change";
+    | "trust_state_change"
+    | "context_jump";
   interactionId?: number;
   trustState?: string;
   mode: string;

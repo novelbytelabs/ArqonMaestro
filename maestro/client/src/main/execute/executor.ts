@@ -119,6 +119,7 @@ export default class Executor {
   private nexusBoundary: NexusProtocolBoundaryService;
   private workflowExecutionService: WorkflowExecutionService;
   private executionTrace?: ExecutionTrace;
+  private lastSecurityContextApp = "";
   private lastAuthorizationDecision: string = "";
   private lastAuthorizationReason: string = "";
   private lastBlockedCommand: string = "";
@@ -2027,6 +2028,20 @@ export default class Executor {
     }
   }
 
+  private syncSecurityContextJumpBoundary(): void {
+    const snapshot = this.focusHistoryService.snapshot();
+    const currentApp = (snapshot.current || this.active.app || "").trim().toLowerCase();
+    if (!currentApp) {
+      return;
+    }
+    if (this.lastSecurityContextApp && this.lastSecurityContextApp !== currentApp) {
+      this.securitySessionPolicyService.onContextJump();
+      this.recordSecuritySessionEvent("context_jump");
+      this.publishSecuritySessionBridgeState();
+    }
+    this.lastSecurityContextApp = currentApp;
+  }
+
   onTranscriptHeard(): void {
     this.securitySessionPolicyService.onHeard();
     this.recordSecuritySessionEvent("heard");
@@ -2074,7 +2089,13 @@ export default class Executor {
   }
 
   private recordSecuritySessionEvent(
-    phase: "heard" | "activated" | "executed" | "pause_to_listening" | "trust_state_change",
+    phase:
+      | "heard"
+      | "activated"
+      | "executed"
+      | "pause_to_listening"
+      | "trust_state_change"
+      | "context_jump",
     interactionId?: number,
     trustState?: SecurityTrustState
   ): void {
@@ -2109,6 +2130,7 @@ export default class Executor {
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
       const commandVerb = command.text || commandType;
+      this.syncSecurityContextJumpBoundary();
       const interactionId = ++this.interactionSequence;
       const trustState = this.deriveTrustState();
       this.syncSecuritySessionTrustState(trustState);
