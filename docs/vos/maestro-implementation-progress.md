@@ -144,6 +144,12 @@ What landed:
     * `securityReplaySessionEventCount`
     * `securityReplayLastSequence`
   * summary path avoids cloning full replay record arrays on each live bridge publish
+* Added bounded Security-tab replay tooling UI:
+  * replay summary/snapshot refresh controls
+  * explicit replay reset control
+  * visible replay bridge metrics for live program verification
+* Added renderer IPC listener cleanup support:
+  * `shell.on(...)` now returns an unsubscribe function and removes listeners on cleanup
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 

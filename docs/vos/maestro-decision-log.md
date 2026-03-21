@@ -635,3 +635,23 @@ Consequences:
 * security UI and downstream consumers can monitor replay evidence continuity in real time
 * full replay snapshots remain available on explicit request only
 * live bridge state avoids unnecessary record-array copy overhead
+
+---
+
+## VOS-026: Security Replay Controls Use Explicit Request/Reset IPC With Listener Cleanup
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 Security settings now include bounded replay tooling controls (`Refresh Replay`, `Reset Replay`) driven by explicit IPC request/response channels, and renderer shell listeners now support unsubscribe cleanup.
+
+Why:
+
+Program A1 verification and adversarial workflows need direct replay-control entry points in settings without relying on implicit streaming. Listener cleanup prevents stale handler accumulation across settings remount cycles.
+
+Consequences:
+
+* settings users can trigger replay refresh/reset directly during verification workflows
+* renderer listener lifecycle is explicit (`shell.on` returns unsubscribe), reducing duplicate event handling risk

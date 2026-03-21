@@ -30,6 +30,19 @@ const INTERACTION_MODE_DETAILS: Record<string, string> = {
     "Runtime dictation mode. Operating commands are intentionally gated harder while text dictation is active.",
 };
 
+interface ReplaySnapshotPayload {
+  generatedAt: string;
+  totalRecords: number;
+  recordsByCategory: Record<string, number>;
+}
+
+interface ReplaySummaryPayload {
+  generatedAt: string;
+  totalRecords: number;
+  recordsByCategory: Record<string, number>;
+  lastSequence: number;
+}
+
 const SecurityComponent: React.FC<{
   securityMode: string;
   securityInteractionMode: string;
@@ -98,9 +111,26 @@ const SecurityComponent: React.FC<{
   securityReplayLastSequence,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
+  const [replaySnapshot, setReplaySnapshot] = useState<ReplaySnapshotPayload | null>(null);
+  const [replaySummary, setReplaySummary] = useState<ReplaySummaryPayload | null>(null);
 
   useEffect(() => {
     shell.send("securityRefreshStatus");
+  }, []);
+
+  useEffect(() => {
+    const offSnapshot = shell.on<ReplaySnapshotPayload>("securityReplaySnapshot", (payload) => {
+      setReplaySnapshot(payload || null);
+    });
+    const offSummary = shell.on<ReplaySummaryPayload>("securityReplaySummary", (payload) => {
+      setReplaySummary(payload || null);
+    });
+    shell.send("securityRequestReplaySummary");
+    shell.send("securityRequestReplaySnapshot");
+    return () => {
+      offSnapshot?.();
+      offSummary?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -294,6 +324,48 @@ const SecurityComponent: React.FC<{
         </div>
         <div className="text-white/70">
           Replay generated: {securityReplayGeneratedAt || "n/a"}
+        </div>
+      </div>
+
+      <div className="py-3 text-sm border-t border-white/5">
+        <h3 className="font-bold text-white/90 mb-1">Replay audit bridge</h3>
+        <div className="text-white/70">Summary generated: {replaySummary?.generatedAt || "n/a"}</div>
+        <div className="text-white/70">
+          Summary records: {typeof replaySummary?.totalRecords === "number" ? replaySummary.totalRecords : "n/a"}
+        </div>
+        <div className="text-white/70">
+          Summary sequence: {typeof replaySummary?.lastSequence === "number" ? replaySummary.lastSequence : "n/a"}
+        </div>
+        <div className="text-white/70">Snapshot generated: {replaySnapshot?.generatedAt || "n/a"}</div>
+        <div className="text-white/70">
+          Snapshot records: {typeof replaySnapshot?.totalRecords === "number" ? replaySnapshot.totalRecords : "n/a"}
+        </div>
+        <div className="text-white/70">
+          Snapshot session events:{" "}
+          {typeof replaySnapshot?.recordsByCategory?.security_session_event === "number"
+            ? replaySnapshot.recordsByCategory.security_session_event
+            : "n/a"}
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button
+            className="px-3 py-1 rounded bg-white/5 border border-white/20 text-white/80 text-xs uppercase tracking-widest"
+            onClick={() => {
+              shell.send("securityRequestReplaySummary");
+              shell.send("securityRequestReplaySnapshot");
+            }}
+          >
+            Refresh Replay
+          </button>
+          <button
+            className="px-3 py-1 rounded bg-red-500/10 border border-red-400/40 text-red-200 text-xs uppercase tracking-widest"
+            onClick={() => {
+              shell.send("securityResetReplaySnapshot");
+              shell.send("securityRequestReplaySummary");
+              shell.send("securityRequestReplaySnapshot");
+            }}
+          >
+            Reset Replay
+          </button>
         </div>
       </div>
 

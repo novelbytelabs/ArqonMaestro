@@ -361,3 +361,18 @@ Use with care:
 
 * use summary fields/channels for live dashboarding and status indicators
 * use full snapshot retrieval for debug drill-down, export, or offline analysis
+
+### G-022: Renderer Shell Listeners Must Be Unsubscribed On Component Cleanup
+
+Symptom:
+
+Repeated settings tab mounts can duplicate IPC handlers and cause repeated UI updates for the same event.
+
+Why:
+
+Program A1 added request/response replay channels in settings and updated `shell.on` to return unsubscribe callbacks.
+
+Use with care:
+
+* always call cleanup functions returned by `shell.on(...)` in `useEffect` teardown paths
+* avoid adding long-lived IPC listeners in render paths
