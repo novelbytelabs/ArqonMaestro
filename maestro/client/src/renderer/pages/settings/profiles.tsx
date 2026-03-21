@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { connect } from "react-redux";
 import { shell } from "../../shell";
 
@@ -16,7 +16,9 @@ interface SecurityProfile {
 const ProfilesComponent: React.FC<{
   securityProfiles: SecurityProfile[];
   securityActiveProfileId: string;
-}> = ({ securityProfiles, securityActiveProfileId }) => {
+  securityProfilesLastAction: string;
+  securityProfilesLastError: string;
+}> = ({ securityProfiles, securityActiveProfileId, securityProfilesLastAction, securityProfilesLastError }) => {
   const [newDisplayName, setNewDisplayName] = useState("");
   const [editingProfileId, setEditingProfileId] = useState("");
   const [editingDisplayName, setEditingDisplayName] = useState("");
@@ -26,8 +28,23 @@ const ProfilesComponent: React.FC<{
     [securityProfiles]
   );
 
+  useEffect(() => {
+    shell.send("securityListProfiles");
+  }, []);
+
   return (
     <div className="px-4">
+      {securityProfilesLastError ? (
+        <div className="rounded-lg border border-red-400/40 bg-red-500/10 p-3 mb-3 text-xs text-red-200">
+          Profile operation failed: {securityProfilesLastError}
+        </div>
+      ) : null}
+      {securityProfilesLastAction ? (
+        <div className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 p-3 mb-3 text-xs text-cyan-100">
+          Last profile action: {securityProfilesLastAction}
+        </div>
+      ) : null}
+
       <div className="rounded-lg border border-white/10 bg-white/5 p-3 mb-3">
         <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80 mb-2">Profiles</h2>
         <div className="text-xs text-white/70">Profiles loaded: {profiles.length}</div>
@@ -85,6 +102,41 @@ const ProfilesComponent: React.FC<{
                   >
                     Switch
                   </button>
+                  {profile.status !== "suspended" ? (
+                    <button
+                      className="px-2 py-1 rounded border border-yellow-400/40 text-yellow-200 text-[10px] uppercase tracking-widest"
+                      onClick={() =>
+                        shell.send("securityUpdateProfile", profile.id, {
+                          status: "suspended",
+                        })
+                      }
+                    >
+                      Suspend
+                    </button>
+                  ) : (
+                    <button
+                      className="px-2 py-1 rounded border border-emerald-400/40 text-emerald-200 text-[10px] uppercase tracking-widest"
+                      onClick={() =>
+                        shell.send("securityUpdateProfile", profile.id, {
+                          status: "active",
+                        })
+                      }
+                    >
+                      Activate
+                    </button>
+                  )}
+                  {profile.status !== "revoked" ? (
+                    <button
+                      className="px-2 py-1 rounded border border-red-400/40 text-red-200 text-[10px] uppercase tracking-widest"
+                      onClick={() =>
+                        shell.send("securityUpdateProfile", profile.id, {
+                          status: "revoked",
+                        })
+                      }
+                    >
+                      Revoke
+                    </button>
+                  ) : null}
                   <button
                     className="px-2 py-1 rounded border border-cyan-400/40 text-cyan-200 text-[10px] uppercase tracking-widest"
                     onClick={() => shell.send("securityReEnrollProfile", profile.id)}
@@ -152,4 +204,6 @@ const ProfilesComponent: React.FC<{
 export const Profiles = connect((state: any) => ({
   securityProfiles: state.securityProfiles,
   securityActiveProfileId: state.securityActiveProfileId,
+  securityProfilesLastAction: state.securityProfilesLastAction,
+  securityProfilesLastError: state.securityProfilesLastError,
 }))(ProfilesComponent);

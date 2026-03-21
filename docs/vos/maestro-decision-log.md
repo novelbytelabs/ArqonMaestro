@@ -291,3 +291,27 @@ Consequences:
 
 * mode changes from Settings now update session-policy behavior immediately
 * session-policy state is published live to renderer state during runtime interactions (not only during explicit settings refresh)
+
+---
+
+## VOS-012: Profile Operations Must Surface Explicit Outcome Signals In UI
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Profile-management operations (create/update/switch/delete/re-enroll/list) must always surface explicit outcome context into renderer state:
+
+* `securityProfilesLastAction`
+* `securityProfilesLastError`
+
+Why:
+
+Without explicit operation outcomes, profile-management failures (especially guarded deletes and missing-profile operations) appear silent and are hard to diagnose during security/session work.
+
+Consequences:
+
+* profile IPC handlers are wrapped with fail-safe error capture
+* errors are propagated into settings state rather than remaining console-only
+* Profiles tab now presents actionable status/error feedback after each operation

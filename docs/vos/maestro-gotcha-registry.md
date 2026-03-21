@@ -168,3 +168,18 @@ cd maestro/client
 npx ts-node src/main/runtime/security-session-policy-service.test.ts
 npx ts-node src/main/runtime/authorization-service-security-session.test.ts
 ```
+
+### G-010: Active Profile Delete Is Intentionally Blocked
+
+Symptom:
+
+Deleting a profile can fail with `security_profile_delete_active_blocked`.
+
+Why:
+
+Program A profile-management slice explicitly blocks deletion of the current active profile to avoid leaving security context without a selected profile anchor.
+
+Use with care:
+
+* switch to another profile first, then delete
+* check renderer state fields `securityProfilesLastAction` and `securityProfilesLastError` for operation outcome diagnostics

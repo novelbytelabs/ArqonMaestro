@@ -66,6 +66,8 @@ export default class App {
   private textInputWindow?: Promise<TextInputWindow>;
   private hpoTuner?: HPOTuner;
   private securityActiveProfileId: string = "";
+  private securityProfilesLastAction: string = "";
+  private securityProfilesLastError: string = "";
 
   private previousShouldUseDarkColors?: boolean;
 
@@ -592,6 +594,8 @@ export default class App {
         securityEnrollmentName: "",
         securityProfiles: [],
         securityActiveProfileId: "",
+        securityProfilesLastAction: "",
+        securityProfilesLastError: "",
         securityLastAuthorizationDecision: "",
         securityLastAuthorizationReason: "",
         securityLastAuthorizationReasonCode: "",
@@ -646,6 +650,8 @@ export default class App {
       securityEnrollmentName: enrollment?.displayName || "",
       securityProfiles,
       securityActiveProfileId: activeProfileId,
+      securityProfilesLastAction: this.securityProfilesLastAction,
+      securityProfilesLastError: this.securityProfilesLastError,
       securityLastAuthorizationDecision: status?.decision || "",
       securityLastAuthorizationReason: status?.reason || "",
       securityLastAuthorizationReasonCode: status?.reasonCode || "",
@@ -696,6 +702,8 @@ export default class App {
     if (!this.securityActiveProfileId) {
       this.securityActiveProfileId = identityId;
     }
+    this.securityProfilesLastAction = `created:${identityId}`;
+    this.securityProfilesLastError = "";
   }
 
   async updateSecurityProfile(
@@ -710,6 +718,8 @@ export default class App {
       displayName: updates.displayName,
       status: updates.status,
     });
+    this.securityProfilesLastAction = `updated:${profileId}`;
+    this.securityProfilesLastError = "";
   }
 
   async switchSecurityProfile(profileId: string): Promise<void> {
@@ -719,9 +729,13 @@ export default class App {
     }
     const enrollment = gateway.getEnrollment(profileId);
     if (!enrollment) {
-      throw new Error(`security_profile_not_found:${profileId}`);
+      const message = `security_profile_not_found:${profileId}`;
+      this.securityProfilesLastError = message;
+      throw new Error(message);
     }
     this.securityActiveProfileId = profileId;
+    this.securityProfilesLastAction = `switched:${profileId}`;
+    this.securityProfilesLastError = "";
   }
 
   async deleteSecurityProfile(profileId: string): Promise<void> {
@@ -731,9 +745,13 @@ export default class App {
     }
     const activeId = this.resolveSecurityActiveProfileId(gateway);
     if (profileId === activeId) {
-      throw new Error("security_profile_delete_active_blocked");
+      const message = "security_profile_delete_active_blocked";
+      this.securityProfilesLastError = message;
+      throw new Error(message);
     }
     await gateway.deleteEnrollment(profileId);
+    this.securityProfilesLastAction = `deleted:${profileId}`;
+    this.securityProfilesLastError = "";
   }
 
   async reEnrollSecurityProfile(profileId: string): Promise<void> {
@@ -743,10 +761,27 @@ export default class App {
     }
     const enrollment = gateway.getEnrollment(profileId);
     if (!enrollment) {
-      throw new Error(`security_profile_not_found:${profileId}`);
+      const message = `security_profile_not_found:${profileId}`;
+      this.securityProfilesLastError = message;
+      throw new Error(message);
     }
     await gateway.reactivateEnrollment(profileId);
     this.securityActiveProfileId = profileId;
+    this.securityProfilesLastAction = `reenrolled:${profileId}`;
+    this.securityProfilesLastError = "";
+  }
+
+  async listSecurityProfiles(): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+    // No-op read for now; state is exposed via getSecurityPanelState().
+    gateway.getAllEnrollments();
+  }
+
+  setSecurityProfilesError(message: string): void {
+    this.securityProfilesLastError = message || "";
   }
 
   async setSecurityMode(mode: SecurityMode): Promise<void> {

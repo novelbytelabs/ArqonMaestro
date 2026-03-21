@@ -80,6 +80,13 @@ What landed:
   * `securityGraceValid`
   * `securityGraceExpiresAt`
   * `securityLastReasonCode`
+* Profile-management runtime/UX hardening:
+  * profile operation error/status feedback surfaced in renderer state
+  * profile CRUD IPC handlers now fail safely with explicit surfaced reason text
+  * profile status controls expanded in Profiles tab (`suspend`, `activate`, `revoke`, `re-enroll`)
+  * explicit profile-list refresh IPC path added (`securityListProfiles`)
+* Added profile lifecycle unit evidence:
+  * `speaker-enrollment-service.test.ts` verifies create/update/revoke-reactivate/delete lifecycle
 
 Bounded constraints for this slice:
 

@@ -433,6 +433,8 @@ export default class RendererProcessEventHandlers {
       );
       if (settingsPage === "security") {
         this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+      } else if (settingsPage === "profiles") {
+        this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
       }
     });
 
@@ -521,30 +523,59 @@ export default class RendererProcessEventHandlers {
     });
 
     ipcMain.on("securityCreateProfile", async (_event: any, displayName: string) => {
-      await this.app.createSecurityProfile(displayName);
+      try {
+        await this.app.createSecurityProfile(displayName);
+      } catch (error: any) {
+        this.app.setSecurityProfilesError(error?.message || "security_profile_create_failed");
+      }
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
 
     ipcMain.on(
       "securityUpdateProfile",
       async (_event: any, profileId: string, updates: { displayName?: string; status?: string }) => {
-        await this.app.updateSecurityProfile(profileId, updates as any);
+        try {
+          await this.app.updateSecurityProfile(profileId, updates as any);
+        } catch (error: any) {
+          this.app.setSecurityProfilesError(error?.message || "security_profile_update_failed");
+        }
         this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
       }
     );
 
     ipcMain.on("securitySwitchProfile", async (_event: any, profileId: string) => {
-      await this.app.switchSecurityProfile(profileId);
+      try {
+        await this.app.switchSecurityProfile(profileId);
+      } catch (error: any) {
+        this.app.setSecurityProfilesError(error?.message || "security_profile_switch_failed");
+      }
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
 
     ipcMain.on("securityDeleteProfile", async (_event: any, profileId: string) => {
-      await this.app.deleteSecurityProfile(profileId);
+      try {
+        await this.app.deleteSecurityProfile(profileId);
+      } catch (error: any) {
+        this.app.setSecurityProfilesError(error?.message || "security_profile_delete_failed");
+      }
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
 
     ipcMain.on("securityReEnrollProfile", async (_event: any, profileId: string) => {
-      await this.app.reEnrollSecurityProfile(profileId);
+      try {
+        await this.app.reEnrollSecurityProfile(profileId);
+      } catch (error: any) {
+        this.app.setSecurityProfilesError(error?.message || "security_profile_reenroll_failed");
+      }
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityListProfiles", async () => {
+      try {
+        await this.app.listSecurityProfiles();
+      } catch (error: any) {
+        this.app.setSecurityProfilesError(error?.message || "security_profile_list_failed");
+      }
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
 

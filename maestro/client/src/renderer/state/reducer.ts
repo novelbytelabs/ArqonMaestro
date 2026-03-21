@@ -69,6 +69,8 @@ const initialState = {
   securityEnrollmentStatus: "pending",
   securityProfiles: [],
   securityActiveProfileId: "",
+  securityProfilesLastAction: "",
+  securityProfilesLastError: "",
   securityEvidenceReady: false,
   securityIdentityDisplayName: "",
   securityIdentityId: "",
