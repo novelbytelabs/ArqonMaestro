@@ -58,6 +58,9 @@ import FocusRecoveryService from "../runtime/focus-recovery-service";
 import IdentityGatewayService from "../runtime/identity-gateway-service";
 import { CommandRiskLevel, AuthorizationDecision, InteractionMode } from "../runtime/authorization-service";
 import { SecurityMode } from "../runtime/security-mode-service";
+import SecuritySessionPolicyService, {
+  SecurityTrustState,
+} from "../runtime/security-session-policy-service";
 
 // Workflow and Nexus imports (FP-2B)
 import WorkflowContractService, {
@@ -116,6 +119,10 @@ export default class Executor {
   private lastAuthorizationReason: string = "";
   private lastBlockedCommand: string = "";
   private lastBlockedAt: string = "";
+  private lastAuthorizationReasonCode: string = "";
+  private securitySessionPolicyService: SecuritySessionPolicyService;
+  private interactionSequence = 0;
+  private previousTrustState: SecurityTrustState = "unknown";
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -617,6 +624,7 @@ export default class Executor {
         defaultMode: SecurityMode.NORMAL,
       },
     });
+    this.securitySessionPolicyService = new SecuritySessionPolicyService();
 
     // Initialize Workflow and Nexus services (FP-2B)
     this.workflowService = new WorkflowContractService();
@@ -1984,6 +1992,48 @@ export default class Executor {
 
   // ==================== FP-2A: IDENTITY AND SECURITY ====================
 
+  private deriveTrustState(): SecurityTrustState {
+    const context = this.identityGateway.getIdentityContext();
+    const evidence = this.identityGateway.getIdentityEvidenceStatus();
+    if (context.contaminated) {
+      return "contaminated";
+    }
+    if (!evidence.ready) {
+      return "provider_degraded";
+    }
+    if (context.isVerified) {
+      return "verified";
+    }
+    return "unknown";
+  }
+
+  private syncSecuritySessionTrustState(trustState: SecurityTrustState): void {
+    const previous = this.previousTrustState;
+    if (previous !== trustState) {
+      this.securitySessionPolicyService.onTrustStateChange(previous, trustState);
+      if (trustState === "contaminated") {
+        this.securitySessionPolicyService.onContaminationDetected();
+      } else if (trustState === "provider_degraded") {
+        this.securitySessionPolicyService.onProviderDegraded();
+      } else if (trustState === "verified") {
+        this.securitySessionPolicyService.onVerificationEvent({ trustState });
+      }
+      this.previousTrustState = trustState;
+    }
+  }
+
+  onTranscriptHeard(): void {
+    this.securitySessionPolicyService.onHeard();
+  }
+
+  onPauseToListeningBoundary(): void {
+    this.securitySessionPolicyService.onPauseToListeningBoundary();
+  }
+
+  getSecuritySessionSnapshot() {
+    return this.securitySessionPolicyService.getSnapshot();
+  }
+
   /**
    * Check authorization before executing commands (FP-2A)
    */
@@ -2002,6 +2052,14 @@ export default class Executor {
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
       const commandVerb = command.text || commandType;
+      const interactionId = ++this.interactionSequence;
+      const trustState = this.deriveTrustState();
+      this.syncSecuritySessionTrustState(trustState);
+      this.securitySessionPolicyService.onActivated({
+        interactionId,
+        trustState,
+      });
+      const securitySession = this.securitySessionPolicyService.getAuthContext(interactionId);
 
       console.log(`[FP-2A] Authorizing: ${commandFamily}/${commandType} risk=${riskLevel}`);
       console.log(`[FP-2A] Identity state: ${JSON.stringify(this.identityGateway.getIdentityContext())}`);
@@ -2011,11 +2069,13 @@ export default class Executor {
         commandFamily,
         commandVerb,
         riskLevel,
+        securitySession,
       });
 
       console.log(`[FP-2A] Auth result: ${result.decision} - ${result.reason}`);
       this.lastAuthorizationDecision = result.decision;
       this.lastAuthorizationReason = result.reason || "";
+      this.lastAuthorizationReasonCode = String(result.metadata?.reasonCode || securitySession.reasonCode || "");
 
       if (result.decision === AuthorizationDecision.ALLOW) {
         // Maintain interaction-mode state as part of the runtime state vector.
@@ -2024,6 +2084,7 @@ export default class Executor {
         } else if (command.type === core.CommandType.COMMAND_TYPE_STOP_DICTATE) {
           this.identityGateway.setInteractionMode(InteractionMode.COMMAND);
         }
+        this.securitySessionPolicyService.onExecuted();
         return { authorized: true };
       }
 
@@ -2052,6 +2113,7 @@ export default class Executor {
       console.log(`[FP-2A] Authorization check error: ${error}, blocking command (fail-safe)`);
       this.lastAuthorizationDecision = AuthorizationDecision.DENY;
       this.lastAuthorizationReason = "Authorization subsystem error (fail-safe block)";
+      this.lastAuthorizationReasonCode = "execute_suppressed_not_authorized";
       this.lastBlockedCommand =
         response.execute?.commands?.[0]?.text || commandTypeToString(commandType || 0);
       this.lastBlockedAt = new Date().toISOString();
@@ -2118,14 +2180,25 @@ export default class Executor {
   getLastAuthorizationStatus(): {
     decision: string;
     reason: string;
+    reasonCode: string;
     blockedCommand: string;
     blockedAt: string;
+    securityPolicyMode: string;
+    securityRequiresReauthNext: boolean;
+    securityGraceValid: boolean;
+    securityGraceExpiresAt: string;
   } {
+    const snapshot = this.securitySessionPolicyService.getSnapshot();
     return {
       decision: this.lastAuthorizationDecision,
       reason: this.lastAuthorizationReason,
+      reasonCode: this.lastAuthorizationReasonCode,
       blockedCommand: this.lastBlockedCommand,
       blockedAt: this.lastBlockedAt,
+      securityPolicyMode: snapshot.mode,
+      securityRequiresReauthNext: snapshot.requiresReauthNext,
+      securityGraceValid: snapshot.graceValid,
+      securityGraceExpiresAt: snapshot.graceExpiresAt,
     };
   }
 

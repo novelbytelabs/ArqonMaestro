@@ -28,12 +28,54 @@ The Focus Project implements a layered focus management system for Arqon Maestro
 
 ## Current snapshot
 
-* Date: 2026-03-18
-* Program state: Phase 1 complete; Voice Plane Modernization is the active implementation wave
-* Active wave: **Wave A** - Audio Front-End Modernization
-* Wave A Status: **Patch 3 implemented (shadow mode)** - real ONNX Silero shadow VAD + turn-event enrichment added; primary VAD remains authoritative
-* Phase 2A/2B: Scaffolding integrated, implementations stubbed - cannot complete until Waves A-D complete
-* Reasoning posture: `high` is appropriate while voice plane modernization begins
+* Date: 2026-03-21
+* Program state: Program A is active; Program A1 first bounded slice implemented and under verification
+* Active program: **Program A / A1** - Platform bridge and browser security-session runtime hardening
+* A1 slice status: **implemented (bounded)** - new desktop runtime `security-session-policy-service` wired into authorization path
+* Implemented A1 behaviors in this slice:
+  * `heard`/`activated`/`executed` lifecycle tracking in runtime bridge
+  * activation-driven grace invalidation and `requires_reauth_next` boundary signaling
+  * Assist medium-risk grace window set to `9s` in policy service
+  * Pilot unknown activation degrade-to-Assist transition
+  * unknown-activation rate guard (`3/10s`, `5/60s`) with LOCKED transitions
+  * fail-closed contaminated/provider-degraded authorization decisions
+  * pause -> listening boundary invalidation hook
+  * additive state exposure: policy mode, grace, reauth-next, reason code
+* Verification evidence for this slice:
+  * `cd maestro/client && npm run build:main`
+  * `cd maestro/client && npm run build:renderer`
+  * `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts`
+  * `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts`
+* Remaining A1 work:
+  * extension/runtime end-to-end event wiring and UI parity
+  * broader integration tests for real browser activation paths
+  * persistence/governance hardening for policy session evidence
+
+## Program A Settings IA Slice (Profiles Migration)
+
+Date: 2026-03-21
+
+Status: Implemented (bounded)
+
+What landed:
+
+* Settings IA migrated from `Server` tab to `Profiles` tab
+* Former Server controls moved into `Advanced` under a dedicated Network/Telemetry section
+* Endpoint indicator now opens `Advanced` (network controls) instead of removed Server page
+* Added bounded profile operations in desktop runtime:
+  * create profile (auto-generated internal id, editable display name)
+  * rename profile display name
+  * switch active profile context
+  * re-enroll/reactivate profile
+  * delete non-active profile (active-profile delete is blocked)
+* Added additive security state exposure for profile list and active profile id
+* Security panel identity now resolves to active profile display name before fallback identity state labels
+
+Bounded constraints for this slice:
+
+* profile management is in-memory only (no durable persistence backend yet)
+* active profile remains a runtime setting context, while verification still depends on live speaker evidence
+* no change to existing external bus contracts in this slice
 
 ## Wave A Implementation Status (Audio Front-End Modernization)
 

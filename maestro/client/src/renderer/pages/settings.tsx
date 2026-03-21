@@ -1,24 +1,24 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import classNames from "classnames";
 import { Link } from "react-router-dom";
 import { connect } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBookOpen,
-  faCloud,
   faCog,
   faMagic,
   faPlug,
   faShieldAlt,
   faTools,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { General } from "./settings/general";
 import { Docs } from "./settings/docs";
 import { Plugins } from "./settings/plugins";
-import { Server } from "./settings/server";
 import { Advanced } from "./settings/advanced";
 import { Security } from "./settings/security";
 import { EnrollmentWizard } from "./settings/enrollment-wizard";
+import { Profiles } from "./settings/profiles";
 import { Endpoint as EndpointType } from "../../shared/endpoint";
 import { shell } from "../shell";
 
@@ -94,6 +94,13 @@ const SettingsPageComponent: React.FC<{
     return null;
   }
 
+  const contentRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (settingsPage === "security" && contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [settingsPage]);
+
   const microphone = microphones.filter((e) => e.selected)[0];
   return (
     <div className="pt-[48px] h-screen flex flex-col operator-surface">
@@ -101,12 +108,12 @@ const SettingsPageComponent: React.FC<{
         <Section current={settingsPage} icon={faCog} page="general" title="General" />
         <Section current={settingsPage} icon={faBookOpen} page="docs" title="Docs" />
         <Section current={settingsPage} icon={faPlug} page="plugins" title="Plugins" />
-        <Section current={settingsPage} icon={faCloud} page="server" title="Server" />
+        <Section current={settingsPage} icon={faUser} page="profiles" title="Profiles" />
         <Section current={settingsPage} icon={faMagic} page="wizard" title="Wizard" />
         <Section current={settingsPage} icon={faShieldAlt} page="security" title="Security" />
         <Section current={settingsPage} icon={faTools} page="advanced" title="Advanced" />
       </div>
-      <div className="flex-1 overflow-y-scroll">
+      <div className="flex-1 overflow-y-scroll" ref={contentRef}>
         <div
           className={classNames("settings-content", {
             hidden: settingsPage != "general",
@@ -130,10 +137,10 @@ const SettingsPageComponent: React.FC<{
         </div>
         <div
           className={classNames("settings-content", {
-            hidden: settingsPage != "server",
+            hidden: settingsPage != "profiles",
           })}
         >
-          <Server />
+          <Profiles />
         </div>
         <div
           className={classNames("settings-content", {

@@ -2,10 +2,19 @@ import React from "react";
 import { connect } from "react-redux";
 import { Row, setValue } from "../settings";
 import { Select } from "../../components/select";
+import { Spinner } from "../../components/spinner";
 import { Toggle } from "../../components/toggle";
+import { Endpoint as EndpointType } from "../../../shared/endpoint";
 import { shell } from "../../shell";
 
 const AdvancedComponent: React.FC<{
+  endpoints: EndpointType[];
+  backendIssue: string;
+  localLoading: boolean;
+  logAudio: boolean;
+  logSource: boolean;
+  requiresNewerMac: boolean;
+  requiresWsl: boolean;
   animations: boolean;
   clipboardInsert: boolean;
   editorAutocomplete: boolean;
@@ -20,6 +29,13 @@ const AdvancedComponent: React.FC<{
   textInputKeybinding: string;
   useVerboseLogging: boolean;
 }> = ({
+  endpoints,
+  backendIssue,
+  localLoading,
+  logAudio,
+  logSource,
+  requiresNewerMac,
+  requiresWsl,
   animations,
   clipboardInsert,
   editorAutocomplete,
@@ -44,6 +60,91 @@ const AdvancedComponent: React.FC<{
 
   return (
     <div className="px-4">
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80 mb-2">
+        Network and Telemetry
+      </h2>
+      {!requiresWsl ? null : (
+        <div className="bg-orange-500/10 border-l-2 border-orange-500 text-orange-200 p-2 my-1 text-sm rounded-r-md">
+          <p>
+            To use local endpoint mode, you'll need to install{" "}
+            <a
+              className="underline text-orange-400"
+              href="https://github.com/novelbytelabs/ArqonMaestro/blob/main/RUN_COMMANDS.md"
+              target="_blank"
+            >
+              WSL
+            </a>
+            .
+          </p>
+        </div>
+      )}
+      {!requiresNewerMac ? null : (
+        <div className="bg-orange-500/10 border-l-2 border-orange-500 text-orange-200 p-2 my-1 text-sm rounded-r-md">
+          <p>To use local endpoint mode, you'll need to upgrade to macOS 11.0+.</p>
+        </div>
+      )}
+      {!backendIssue ? null : (
+        <div className="bg-red-500/10 border-l-2 border-red-500 text-red-200 p-2 my-1 text-sm rounded-r-md">
+          <p>{backendIssue}</p>
+        </div>
+      )}
+      {endpoints && endpoints.length > 0 ? (
+        <Row
+          title="Server endpoint"
+          subtitle={
+            <>
+              <div>Which server to connect to</div>
+              <div>
+                {localLoading ? (
+                  <span className="font-bold ml-2 text-cyan-400">
+                    <Spinner hidden={false} />
+                    <span className="ml-1 uppercase text-[10px] tracking-widest">Starting Local</span>
+                  </span>
+                ) : null}
+              </div>
+            </>
+          }
+          action={
+            <div className="w-32 ml-auto">
+              <div className="glass-card !bg-white/5 border-white/10 text-white/40 py-1.5 px-3 text-center text-sm font-mono cursor-not-allowed">
+                LOCAL
+              </div>
+            </div>
+          }
+        />
+      ) : null}
+      <Row
+        title="Share audio data"
+        subtitle="You can help improve by sharing audio data used to train speech models."
+        action={
+          <Toggle
+            value={logAudio}
+            onChange={(e) =>
+              shell.send("setSettings", {
+                logAudio: e,
+              })
+            }
+          />
+        }
+      />
+      <Row
+        title="Share code data"
+        subtitle="You can help improve by sharing source and command data used to train code models."
+        action={
+          <Toggle
+            value={logSource}
+            onChange={(e) =>
+              shell.send("setSettings", {
+                logSource: e,
+              })
+            }
+          />
+        }
+      />
+
+      <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80 mb-2 mt-4">
+        Advanced
+      </h2>
       <Row
         title="Continue running in tray"
         subtitle="When closed, continue running in the tray rather than quitting"
@@ -266,6 +367,13 @@ const AdvancedComponent: React.FC<{
 };
 
 export const Advanced = connect((state: any) => ({
+  endpoints: state.endpoints,
+  backendIssue: state.backendIssue,
+  localLoading: state.localLoading,
+  logAudio: state.logAudio,
+  logSource: state.logSource,
+  requiresNewerMac: state.requiresNewerMac,
+  requiresWsl: state.requiresWsl,
   animations: state.animations,
   clipboardInsert: state.clipboardInsert,
   editorAutocomplete: state.editorAutocomplete,

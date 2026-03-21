@@ -49,8 +49,13 @@ const SecurityComponent: React.FC<{
   securityEnrollmentCount: number;
   securityLastAuthorizationDecision: string;
   securityLastAuthorizationReason: string;
+  securityLastAuthorizationReasonCode: string;
   securityLastBlockedCommand: string;
   securityLastBlockedAt: string;
+  securityPolicyMode: string;
+  securityRequiresReauthNext: boolean;
+  securityGraceValid: boolean;
+  securityGraceExpiresAt: string;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -70,16 +75,18 @@ const SecurityComponent: React.FC<{
   securityEnrollmentCount,
   securityLastAuthorizationDecision,
   securityLastAuthorizationReason,
+  securityLastAuthorizationReasonCode,
   securityLastBlockedCommand,
   securityLastBlockedAt,
+  securityPolicyMode,
+  securityRequiresReauthNext,
+  securityGraceValid,
+  securityGraceExpiresAt,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
 
   useEffect(() => {
     shell.send("securityRefreshStatus");
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: "auto" });
-    });
   }, []);
 
   useEffect(() => {
@@ -135,7 +142,7 @@ const SecurityComponent: React.FC<{
             Provider readiness: <span className="text-white">{providersReady ? "Ready" : "Degraded"}</span>
           </div>
           <div>
-            Identity: <span className="text-white">{securityIdentityState || "unknown"}</span>
+            Identity: <span className="text-white">{securityIdentityDisplayName || "unknown"}</span>
           </div>
           <div>
             Confidence: <span className="text-white">{Math.round((securityConfidenceValue || 0) * 100)}%</span>
@@ -246,8 +253,17 @@ const SecurityComponent: React.FC<{
         <h3 className="font-bold text-white/90 mb-1">Last authorization outcome</h3>
         <div className="text-white/70">Decision: {securityLastAuthorizationDecision || "n/a"}</div>
         <div className="text-white/70">Reason: {securityLastAuthorizationReason || "n/a"}</div>
+        <div className="text-white/70">Reason code: {securityLastAuthorizationReasonCode || "n/a"}</div>
         <div className="text-white/70">Blocked command: {securityLastBlockedCommand || "n/a"}</div>
         <div className="text-white/70">Timestamp: {securityLastBlockedAt || "n/a"}</div>
+      </div>
+
+      <div className="py-3 text-sm border-t border-white/5">
+        <h3 className="font-bold text-white/90 mb-1">Session policy bridge</h3>
+        <div className="text-white/70">Policy mode: {securityPolicyMode || "assist"}</div>
+        <div className="text-white/70">Requires re-auth next: {securityRequiresReauthNext ? "Yes" : "No"}</div>
+        <div className="text-white/70">Grace valid: {securityGraceValid ? "Yes" : "No"}</div>
+        <div className="text-white/70">Grace expires: {securityGraceExpiresAt || "n/a"}</div>
       </div>
 
       <div className="text-[11px] text-white/50 mt-2">
@@ -281,6 +297,11 @@ export const Security = connect((state: any) => ({
   securityEnrollmentCount: state.securityEnrollmentCount,
   securityLastAuthorizationDecision: state.securityLastAuthorizationDecision,
   securityLastAuthorizationReason: state.securityLastAuthorizationReason,
+  securityLastAuthorizationReasonCode: state.securityLastAuthorizationReasonCode,
   securityLastBlockedCommand: state.securityLastBlockedCommand,
   securityLastBlockedAt: state.securityLastBlockedAt,
+  securityPolicyMode: state.securityPolicyMode,
+  securityRequiresReauthNext: state.securityRequiresReauthNext,
+  securityGraceValid: state.securityGraceValid,
+  securityGraceExpiresAt: state.securityGraceExpiresAt,
 }))(SecurityComponent);

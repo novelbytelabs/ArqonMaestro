@@ -65,6 +65,7 @@ export default class App {
   private stream?: Stream;
   private textInputWindow?: Promise<TextInputWindow>;
   private hpoTuner?: HPOTuner;
+  private securityActiveProfileId: string = "";
 
   private previousShouldUseDarkColors?: boolean;
 
@@ -589,24 +590,46 @@ export default class App {
         securityEnrollmentActive: false,
         securityEnrollmentStatus: "pending",
         securityEnrollmentName: "",
+        securityProfiles: [],
+        securityActiveProfileId: "",
         securityLastAuthorizationDecision: "",
         securityLastAuthorizationReason: "",
+        securityLastAuthorizationReasonCode: "",
         securityLastBlockedCommand: "",
         securityLastBlockedAt: "",
+        securityPolicyMode: "assist",
+        securityRequiresReauthNext: false,
+        securityGraceValid: false,
+        securityGraceExpiresAt: "",
       };
     }
 
     const context = gateway.getIdentityContext();
     const evidence = gateway.getIdentityEvidenceStatus();
     const status = this.executor?.getLastAuthorizationStatus();
-    const enrollment =
-      gateway.getEnrollment(context.identityId || "") || gateway.getEnrollment("default_owner");
+    const activeProfileId =
+      this.resolveSecurityActiveProfileId(gateway) || context.identityId || "default_owner";
+    const enrollment = gateway.getEnrollment(activeProfileId);
+    const resolvedIdentityDisplayName =
+      enrollment?.displayName || context.displayName || context.identityId || "";
+    const securityProfiles = gateway
+      .getAllEnrollments()
+      .map((profile) => ({
+        id: profile.identityId,
+        displayName: profile.displayName,
+        status: profile.status,
+        role: profile.role,
+        isActive: profile.identityId === activeProfileId,
+        enrolledAt: profile.enrolledAt,
+        updatedAt: profile.updatedAt,
+        lastVerifiedAt: profile.lastVerifiedAt || "",
+      }));
 
     return {
       securityMode: context.securityMode,
       securityInteractionMode: context.interactionMode,
       securityIdentityState: context.identityState,
-      securityIdentityDisplayName: context.displayName || "",
+      securityIdentityDisplayName: resolvedIdentityDisplayName,
       securityIdentityId: context.identityId || "",
       securityContaminated: context.contaminated,
       securityIsVerified: context.isVerified,
@@ -620,11 +643,108 @@ export default class App {
       securityEnrollmentActive: !!enrollment,
       securityEnrollmentStatus: enrollment?.status || "pending",
       securityEnrollmentName: enrollment?.displayName || "",
+      securityProfiles,
+      securityActiveProfileId: activeProfileId,
       securityLastAuthorizationDecision: status?.decision || "",
       securityLastAuthorizationReason: status?.reason || "",
+      securityLastAuthorizationReasonCode: status?.reasonCode || "",
       securityLastBlockedCommand: status?.blockedCommand || "",
       securityLastBlockedAt: status?.blockedAt || "",
+      securityPolicyMode: status?.securityPolicyMode || "assist",
+      securityRequiresReauthNext: !!status?.securityRequiresReauthNext,
+      securityGraceValid: !!status?.securityGraceValid,
+      securityGraceExpiresAt: status?.securityGraceExpiresAt || "",
     };
+  }
+
+  onTranscriptHeard(): void {
+    this.executor?.onTranscriptHeard();
+  }
+
+  onPauseToListeningBoundary(): void {
+    this.executor?.onPauseToListeningBoundary();
+  }
+
+  private resolveSecurityActiveProfileId(gateway: NonNullable<ReturnType<Executor["getIdentityGateway"]>>): string {
+    if (this.securityActiveProfileId && gateway.getEnrollment(this.securityActiveProfileId)) {
+      return this.securityActiveProfileId;
+    }
+
+    const active = gateway.getActiveEnrollments()[0] || gateway.getAllEnrollments()[0];
+    this.securityActiveProfileId = active?.identityId || "";
+    return this.securityActiveProfileId;
+  }
+
+  async createSecurityProfile(displayName: string): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+    const allProfiles = gateway.getAllEnrollments();
+    const identityId = `profile_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const normalizedDisplayName = (displayName || "").trim() || "New Profile";
+    await gateway.createEnrollment({
+      identityId,
+      displayName: normalizedDisplayName,
+      role: allProfiles.length === 0 ? SpeakerRole.SOVEREIGN_OWNER : SpeakerRole.APPROVED_USER,
+      metadata: {
+        createdBy: "settings_profiles_tab",
+      },
+    });
+    if (!this.securityActiveProfileId) {
+      this.securityActiveProfileId = identityId;
+    }
+  }
+
+  async updateSecurityProfile(
+    profileId: string,
+    updates: { displayName?: string; status?: EnrollmentStatus }
+  ): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway || !profileId) {
+      return;
+    }
+    await gateway.updateEnrollment(profileId, {
+      displayName: updates.displayName,
+      status: updates.status,
+    });
+  }
+
+  async switchSecurityProfile(profileId: string): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway || !profileId) {
+      return;
+    }
+    const enrollment = gateway.getEnrollment(profileId);
+    if (!enrollment) {
+      throw new Error(`security_profile_not_found:${profileId}`);
+    }
+    this.securityActiveProfileId = profileId;
+  }
+
+  async deleteSecurityProfile(profileId: string): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway || !profileId) {
+      return;
+    }
+    const activeId = this.resolveSecurityActiveProfileId(gateway);
+    if (profileId === activeId) {
+      throw new Error("security_profile_delete_active_blocked");
+    }
+    await gateway.deleteEnrollment(profileId);
+  }
+
+  async reEnrollSecurityProfile(profileId: string): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway || !profileId) {
+      return;
+    }
+    const enrollment = gateway.getEnrollment(profileId);
+    if (!enrollment) {
+      throw new Error(`security_profile_not_found:${profileId}`);
+    }
+    await gateway.reactivateEnrollment(profileId);
+    this.securityActiveProfileId = profileId;
   }
 
   async setSecurityMode(mode: SecurityMode): Promise<void> {
@@ -649,7 +769,7 @@ export default class App {
       return;
     }
 
-    const identityId = "default_owner";
+    const identityId = this.resolveSecurityActiveProfileId(gateway) || "default_owner";
     const existing = gateway.getEnrollment(identityId);
     if (existing) {
       await gateway.updateEnrollment(identityId, {
@@ -676,8 +796,9 @@ export default class App {
     if (!gateway) {
       return;
     }
-    if (gateway.getEnrollment("default_owner")) {
-      await gateway.revokeEnrollment("default_owner");
+    const activeProfileId = this.resolveSecurityActiveProfileId(gateway) || "default_owner";
+    if (gateway.getEnrollment(activeProfileId)) {
+      await gateway.revokeEnrollment(activeProfileId);
     }
     await gateway.resetVerification();
   }
@@ -692,8 +813,9 @@ export default class App {
     // in this slice we synthesize a deterministic verification result for the
     // active enrolled identity so security status can transition to verified
     // before policy probe evaluation.
+    const activeProfileId = this.resolveSecurityActiveProfileId(gateway) || "default_owner";
     const enrolledIdentity =
-      gateway.getEnrollment("default_owner") || gateway.getActiveEnrollments()[0];
+      gateway.getEnrollment(activeProfileId) || gateway.getActiveEnrollments()[0];
     if (enrolledIdentity && enrolledIdentity.status === EnrollmentStatus.ACTIVE) {
       const threshold = enrolledIdentity.verificationThreshold?.minConfidence ?? 0.8;
       const confidence = Math.min(0.99, Math.max(threshold + 0.08, 0.9));

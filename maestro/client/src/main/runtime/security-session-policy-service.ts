@@ -1,0 +1,275 @@
+export type SecurityPolicyMode = "pilot" | "assist" | "observe" | "locked";
+
+export type SecurityTrustState = "verified" | "unknown" | "contaminated" | "provider_degraded";
+
+export type SecurityInteractionPhase = "heard" | "activated" | "executed";
+
+export interface SecuritySessionSnapshot {
+  mode: SecurityPolicyMode;
+  previousVerifiedMode: SecurityPolicyMode;
+  requiresReauthNext: boolean;
+  requiresReauthAfterInteractionId: number;
+  graceValid: boolean;
+  graceExpiresAt: string;
+  lockUntil: string;
+  lockedUntilVerified: boolean;
+  lastReasonCode: string;
+  lastTrustState: SecurityTrustState;
+}
+
+export interface SecuritySessionAuthContext {
+  interactionId: number;
+  trustState: SecurityTrustState;
+  mode: SecurityPolicyMode;
+  requiresReauth: boolean;
+  graceValid: boolean;
+  graceExpiresAt: string;
+  reasonCode: string;
+}
+
+interface ActivationEvent {
+  interactionId: number;
+  trustState: SecurityTrustState;
+}
+
+interface VerificationEvent {
+  trustState: SecurityTrustState;
+}
+
+const MEDIUM_RISK_GRACE_MS = 9000;
+const UNKNOWN_RATE_WINDOW_SHORT_MS = 10_000;
+const UNKNOWN_RATE_WINDOW_LONG_MS = 60_000;
+const UNKNOWN_RATE_SHORT_THRESHOLD = 3;
+const UNKNOWN_RATE_LONG_THRESHOLD = 5;
+const UNKNOWN_RATE_LOCK_MS = 30_000;
+
+export default class SecuritySessionPolicyService {
+  private mode: SecurityPolicyMode = "pilot";
+  private previousVerifiedMode: SecurityPolicyMode = "pilot";
+  private requiresReauthAfterInteractionId = 0;
+  private graceExpiresAtMs = 0;
+  private lastReasonCode = "ingress_heard_no_transition";
+  private lastTrustState: SecurityTrustState = "unknown";
+  private unknownActivationMs: number[] = [];
+  private lockUntilMs = 0;
+  private lockedUntilVerified = false;
+
+  getSnapshot(nowMs = Date.now()): SecuritySessionSnapshot {
+    return {
+      mode: this.getEffectiveMode(nowMs),
+      previousVerifiedMode: this.previousVerifiedMode,
+      requiresReauthNext: this.requiresReauthAfterInteractionId > 0,
+      requiresReauthAfterInteractionId: this.requiresReauthAfterInteractionId,
+      graceValid: this.isGraceValid(nowMs),
+      graceExpiresAt: this.graceExpiresAtMs > 0 ? new Date(this.graceExpiresAtMs).toISOString() : "",
+      lockUntil: this.lockUntilMs > 0 ? new Date(this.lockUntilMs).toISOString() : "",
+      lockedUntilVerified: this.lockedUntilVerified,
+      lastReasonCode: this.lastReasonCode,
+      lastTrustState: this.lastTrustState,
+    };
+  }
+
+  setMode(mode: SecurityPolicyMode): void {
+    const effective = this.getEffectiveMode();
+    if (effective === mode) {
+      this.lastReasonCode = "mode_transition_noop_already_in_mode";
+      return;
+    }
+    if (mode === "locked") {
+      this.mode = "locked";
+      this.lockedUntilVerified = false;
+      this.lockUntilMs = 0;
+      this.lastReasonCode = "mode_transition_manual_locked";
+      return;
+    }
+    this.mode = mode;
+    this.lockUntilMs = 0;
+    this.lockedUntilVerified = false;
+    if (mode === "pilot" || mode === "assist") {
+      this.previousVerifiedMode = mode;
+    }
+  }
+
+  getAuthContext(interactionId: number, nowMs = Date.now()): SecuritySessionAuthContext {
+    return {
+      interactionId,
+      trustState: this.lastTrustState,
+      mode: this.getEffectiveMode(nowMs),
+      requiresReauth: interactionId > this.requiresReauthAfterInteractionId,
+      graceValid: this.isGraceValid(nowMs),
+      graceExpiresAt: this.graceExpiresAtMs > 0 ? new Date(this.graceExpiresAtMs).toISOString() : "",
+      reasonCode: this.lastReasonCode,
+    };
+  }
+
+  onHeard(): void {
+    this.lastReasonCode = "ingress_heard_no_transition";
+  }
+
+  onActivated(event: ActivationEvent): void {
+    const nowMs = Date.now();
+    this.lastTrustState = event.trustState;
+
+    this.invalidateGrace("grace_invalidated_activation");
+    this.requiresReauthAfterInteractionId = Math.max(
+      this.requiresReauthAfterInteractionId,
+      event.interactionId
+    );
+
+    if (event.trustState === "unknown") {
+      this.recordUnknownActivation(nowMs);
+      if (this.getEffectiveMode(nowMs) === "pilot") {
+        this.previousVerifiedMode = "pilot";
+        this.mode = "assist";
+        this.lastReasonCode = "mode_transition_pilot_to_assist_unknown_activation";
+      }
+      this.applyUnknownRateGuard(nowMs);
+      if (this.lastReasonCode === "grace_invalidated_activation") {
+        this.lastReasonCode = "activation_detected_unknown";
+      }
+      return;
+    }
+
+    if (event.trustState === "contaminated") {
+      this.lastReasonCode = "activation_detected_contaminated";
+      return;
+    }
+
+    if (event.trustState === "provider_degraded") {
+      this.lastReasonCode = "activation_detected_provider_degraded";
+      return;
+    }
+
+    this.lastReasonCode = "activation_detected_verified";
+  }
+
+  onExecuted(): void {
+    this.lastReasonCode = "execute_succeeded";
+  }
+
+  onPauseToListeningBoundary(): void {
+    this.invalidateGrace("grace_invalidated_pause_to_listen");
+    this.requiresReauthAfterInteractionId = Number.MAX_SAFE_INTEGER;
+  }
+
+  onContextJump(): void {
+    this.invalidateGrace("grace_invalidated_context_jump");
+  }
+
+  onVerificationEvent(event: VerificationEvent): void {
+    this.lastTrustState = event.trustState;
+    if (event.trustState !== "verified") {
+      return;
+    }
+
+    this.lockedUntilVerified = false;
+    this.lockUntilMs = 0;
+
+    if (this.mode === "assist" && this.previousVerifiedMode === "pilot") {
+      this.mode = "pilot";
+      this.lastReasonCode = "mode_transition_restore_verified_event";
+    } else {
+      this.lastReasonCode = "auth_success_verified_primary";
+    }
+
+    // Verified evidence refreshes medium-risk assist grace.
+    if (this.getEffectiveMode() === "assist") {
+      this.graceExpiresAtMs = Date.now() + MEDIUM_RISK_GRACE_MS;
+      this.lastReasonCode = "grace_created_medium_assist";
+    }
+
+    this.requiresReauthAfterInteractionId = 0;
+    this.unknownActivationMs = [];
+  }
+
+  onTrustStateChange(previous: SecurityTrustState, current: SecurityTrustState): void {
+    if (previous === current) {
+      return;
+    }
+    this.lastTrustState = current;
+    this.invalidateGrace("grace_invalidated_speaker_change");
+  }
+
+  onContaminationDetected(): void {
+    this.lastTrustState = "contaminated";
+    this.invalidateGrace("grace_invalidated_contamination");
+  }
+
+  onProviderDegraded(): void {
+    this.lastTrustState = "provider_degraded";
+    this.invalidateGrace("grace_invalidated_provider_degraded");
+  }
+
+  clearBoundaryReauthRequirement(): void {
+    if (this.requiresReauthAfterInteractionId === Number.MAX_SAFE_INTEGER) {
+      this.requiresReauthAfterInteractionId = 0;
+    }
+  }
+
+  private isGraceValid(nowMs: number): boolean {
+    if (this.graceExpiresAtMs <= 0) {
+      return false;
+    }
+    if (nowMs <= this.graceExpiresAtMs) {
+      return true;
+    }
+    this.graceExpiresAtMs = 0;
+    this.lastReasonCode = "grace_expired_timeout";
+    return false;
+  }
+
+  private invalidateGrace(reasonCode: string): void {
+    this.graceExpiresAtMs = 0;
+    this.lastReasonCode = reasonCode;
+  }
+
+  private recordUnknownActivation(nowMs: number): void {
+    this.unknownActivationMs.push(nowMs);
+    const maxWindow = Math.max(UNKNOWN_RATE_WINDOW_SHORT_MS, UNKNOWN_RATE_WINDOW_LONG_MS);
+    this.unknownActivationMs = this.unknownActivationMs.filter((eventMs) => nowMs - eventMs <= maxWindow);
+  }
+
+  private applyUnknownRateGuard(nowMs: number): void {
+    const shortCount = this.unknownActivationMs.filter(
+      (eventMs) => nowMs - eventMs <= UNKNOWN_RATE_WINDOW_SHORT_MS
+    ).length;
+    const longCount = this.unknownActivationMs.filter(
+      (eventMs) => nowMs - eventMs <= UNKNOWN_RATE_WINDOW_LONG_MS
+    ).length;
+
+    if (longCount >= UNKNOWN_RATE_LONG_THRESHOLD) {
+      this.previousVerifiedMode = this.mode === "locked" ? this.previousVerifiedMode : this.mode;
+      this.mode = "locked";
+      this.lockedUntilVerified = true;
+      this.lockUntilMs = 0;
+      this.lastReasonCode = "mode_transition_assist_to_locked_unknown_rate_limit";
+      return;
+    }
+
+    if (shortCount >= UNKNOWN_RATE_SHORT_THRESHOLD) {
+      this.previousVerifiedMode = this.mode === "locked" ? this.previousVerifiedMode : this.mode;
+      this.mode = "locked";
+      this.lockedUntilVerified = false;
+      this.lockUntilMs = nowMs + UNKNOWN_RATE_LOCK_MS;
+      this.lastReasonCode = "mode_transition_assist_to_locked_unknown_rate_limit";
+    }
+  }
+
+  private getEffectiveMode(nowMs = Date.now()): SecurityPolicyMode {
+    if (this.mode !== "locked") {
+      return this.mode;
+    }
+
+    if (this.lockedUntilVerified) {
+      return "locked";
+    }
+
+    if (this.lockUntilMs > nowMs) {
+      return "locked";
+    }
+
+    this.lockUntilMs = 0;
+    this.mode = "assist";
+    return this.mode;
+  }
+}

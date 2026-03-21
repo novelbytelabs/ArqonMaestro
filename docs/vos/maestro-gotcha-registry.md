@@ -145,3 +145,26 @@ In [`maestro/client/main.webpack.ts`](../../maestro/client/main.webpack.ts), kee
 Why this matters:
 
 `SileroVadProvider` imports the package and its binding subpath at runtime; bundling those native binaries causes webpack parse failures.
+
+### G-009: Program A1 Security Session Policy Defaults To `pilot` Unless Explicitly Set
+
+Symptom:
+
+Assist-specific grace behavior (`9s`) appears inactive in manual tests even when security/session wiring exists.
+
+Why:
+
+The Program A1 bridge initializes in `pilot` mode by default to preserve explicit degrade/restore semantics. Assist grace is only active while effective mode is `assist`.
+
+Use with care:
+
+* if validating grace behavior, explicitly set mode to `assist` in test/setup paths
+* if validating Pilot downgrade behavior, begin in `pilot` and trigger unknown activation
+
+Verification commands:
+
+```bash
+cd maestro/client
+npx ts-node src/main/runtime/security-session-policy-service.test.ts
+npx ts-node src/main/runtime/authorization-service-security-session.test.ts
+```

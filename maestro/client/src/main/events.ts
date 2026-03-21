@@ -422,6 +422,9 @@ export default class RendererProcessEventHandlers {
     });
 
     ipcMain.on("setSettingsPage", (_event: any, settingsPage: string) => {
+      if (settingsPage === "server") {
+        settingsPage = "advanced";
+      }
       this.bridge.setState(
         {
           settingsPage,
@@ -514,6 +517,34 @@ export default class RendererProcessEventHandlers {
 
     ipcMain.on("securityEnrollAndVerify", async (_event: any, displayName: string) => {
       await this.app.enrollAndVerifySecurityProfile(displayName);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityCreateProfile", async (_event: any, displayName: string) => {
+      await this.app.createSecurityProfile(displayName);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on(
+      "securityUpdateProfile",
+      async (_event: any, profileId: string, updates: { displayName?: string; status?: string }) => {
+        await this.app.updateSecurityProfile(profileId, updates as any);
+        this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+      }
+    );
+
+    ipcMain.on("securitySwitchProfile", async (_event: any, profileId: string) => {
+      await this.app.switchSecurityProfile(profileId);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityDeleteProfile", async (_event: any, profileId: string) => {
+      await this.app.deleteSecurityProfile(profileId);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityReEnrollProfile", async (_event: any, profileId: string) => {
+      await this.app.reEnrollSecurityProfile(profileId);
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
 

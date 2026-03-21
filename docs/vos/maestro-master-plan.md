@@ -689,7 +689,8 @@ Deliverables:
 
 Status:
 
-* immediate first bounded slice under Program A
+* in progress - first bounded slice implemented (2026-03-21)
+* remaining slices needed for full Program A1 completion (extension/runtime end-to-end wiring, adversarial verification, persistence hardening)
 
 ### Program B - Production Hardening
 

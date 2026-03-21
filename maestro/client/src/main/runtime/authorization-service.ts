@@ -22,6 +22,10 @@ import SpeakerEnrollmentService, {
   AuthorityScope 
 } from "./speaker-enrollment-service";
 import { SecurityMode } from "./security-mode-service";
+import {
+  SecurityPolicyMode,
+  SecurityTrustState,
+} from "./security-session-policy-service";
 
 /**
  * Command risk levels
@@ -95,6 +99,16 @@ export interface AuthorizationRequest {
   interactionMode: InteractionMode;
   /** Optional identity evidence readiness signal */
   identityEvidenceReady?: boolean;
+  /** Optional security-session bridge context (Program A1) */
+  securitySession?: {
+    interactionId: number;
+    mode: SecurityPolicyMode;
+    trustState: SecurityTrustState;
+    requiresReauth: boolean;
+    graceValid: boolean;
+    graceExpiresAt?: string;
+    reasonCode?: string;
+  };
 }
 
 /**
@@ -233,6 +247,11 @@ export default class AuthorizationService {
         riskLevel,
         isFallback: false,
       };
+    }
+
+    const sessionPolicyResult = this.applySecuritySessionPolicy(request);
+    if (sessionPolicyResult) {
+      return sessionPolicyResult;
     }
 
     // Interaction mode is an execution-gating axis.
@@ -393,6 +412,210 @@ export default class AuthorizationService {
       riskLevel,
       isFallback: false,
     };
+  }
+
+  private applySecuritySessionPolicy(request: AuthorizationRequest): AuthorizationResult | null {
+    const session = request.securitySession;
+    if (!session) {
+      return null;
+    }
+
+    if (session.trustState === "contaminated") {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Fail-closed: contamination detected",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "authorize_block_fail_closed_contaminated",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.trustState === "provider_degraded") {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Fail-closed: provider degraded",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "authorize_block_fail_closed_provider_degraded",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.mode === "locked") {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Locked mode: reflex-only",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "authorize_block_locked_mode",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.mode === "observe") {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Observe mode: command actuation disabled",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "authorize_block_observe_no_actuation",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.mode === "assist" && session.trustState === "unknown") {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Assist mode: unknown speaker blocked until verification",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "authorize_block_unknown_assist_policy",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.mode === "pilot" && session.trustState === "unknown") {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Pilot mode: unknown activation degraded to assist and blocked pending verification",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "authorize_block_unknown_assist_policy",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.trustState !== "verified") {
+      return null;
+    }
+
+    if (session.mode === "pilot") {
+      if (request.riskLevel === CommandRiskLevel.LOW) {
+        return {
+          decision: AuthorizationDecision.ALLOW,
+          reason: "Pilot mode: verified low-risk command allowed",
+          riskLevel: request.riskLevel,
+          isFallback: false,
+          metadata: {
+            reasonCode: "authorize_allow_verified_policy_match",
+            policyMode: session.mode,
+            trustState: session.trustState,
+          },
+        };
+      }
+      return {
+        decision: AuthorizationDecision.CONFIRM,
+        reason:
+          request.riskLevel === CommandRiskLevel.MEDIUM
+            ? "Pilot mode: medium-risk command requires re-authentication"
+            : "Pilot mode: high-risk command requires per-command re-authentication",
+        confirmationLevel: "high",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode:
+            request.riskLevel === CommandRiskLevel.MEDIUM
+              ? "auth_required_medium_risk"
+              : "auth_required_high_risk",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    if (session.mode === "assist") {
+      if (session.requiresReauth) {
+        return {
+          decision: AuthorizationDecision.CONFIRM,
+          reason: "Assist mode: fresh verification required at interaction boundary",
+          confirmationLevel: "high",
+          riskLevel: request.riskLevel,
+          isFallback: false,
+          metadata: {
+            reasonCode: "auth_required_reauth_next",
+            policyMode: session.mode,
+            trustState: session.trustState,
+          },
+        };
+      }
+
+      if (request.riskLevel === CommandRiskLevel.LOW) {
+        return {
+          decision: AuthorizationDecision.ALLOW,
+          reason: "Assist mode: verified low-risk command allowed",
+          riskLevel: request.riskLevel,
+          isFallback: false,
+          metadata: {
+            reasonCode: "authorize_allow_verified_policy_match",
+            policyMode: session.mode,
+            trustState: session.trustState,
+          },
+        };
+      }
+
+      if (request.riskLevel === CommandRiskLevel.MEDIUM) {
+        if (session.graceValid) {
+          return {
+            decision: AuthorizationDecision.ALLOW,
+            reason: "Assist mode: medium-risk command allowed within grace window",
+            riskLevel: request.riskLevel,
+            isFallback: false,
+            metadata: {
+              reasonCode: "authorize_allow_verified_policy_match",
+              policyMode: session.mode,
+              trustState: session.trustState,
+              graceExpiresAt: session.graceExpiresAt || "",
+            },
+          };
+        }
+        return {
+          decision: AuthorizationDecision.CONFIRM,
+          reason: "Assist mode: medium-risk command requires re-authentication",
+          confirmationLevel: "high",
+          riskLevel: request.riskLevel,
+          isFallback: false,
+          metadata: {
+            reasonCode: "auth_required_medium_risk",
+            policyMode: session.mode,
+            trustState: session.trustState,
+          },
+        };
+      }
+
+      return {
+        decision: AuthorizationDecision.CONFIRM,
+        reason: "Assist mode: high-risk command requires per-command re-authentication",
+        confirmationLevel: "high",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "auth_required_high_risk",
+          policyMode: session.mode,
+          trustState: session.trustState,
+        },
+      };
+    }
+
+    return null;
   }
 
   /**

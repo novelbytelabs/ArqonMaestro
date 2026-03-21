@@ -93,6 +93,8 @@ export interface IdentityAuthorizationRequest {
   destructive?: boolean;
   /** Privileged flag */
   privileged?: boolean;
+  /** Optional Program A1 security-session context */
+  securitySession?: AuthorizationRequest["securitySession"];
 }
 
 /**
@@ -192,6 +194,13 @@ export default class IdentityGatewayService {
    */
   async reactivateEnrollment(identityId: string): Promise<SpeakerEnrollment> {
     return this.enrollmentService.reactivateEnrollment(identityId);
+  }
+
+  /**
+   * Delete an enrollment
+   */
+  async deleteEnrollment(identityId: string): Promise<boolean> {
+    return this.enrollmentService.deleteEnrollment(identityId);
   }
 
   /**
@@ -349,6 +358,7 @@ export default class IdentityGatewayService {
       sharedRoomMode: this.securityModeService.isSharedRoom(),
       interactionMode: this.interactionMode,
       identityEvidenceReady: evidence.ready,
+      securitySession: request.securitySession,
     };
 
     const result = await this.authorizationService.authorize(fullRequest);

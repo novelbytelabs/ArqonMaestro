@@ -668,7 +668,9 @@ export default class ChunkManager {
       onFinalLatency: (chunkLatencyMs) => {
         this.sttRoutingService.setWebsocketResponseLatency(chunkLatencyMs);
       },
-      onPredictiveTranscript: () => {},
+      onPredictiveTranscript: () => {
+        this.app.onTranscriptHeard();
+      },
       onPublishTranscript: (kind, alternatives, chunkLatencyMs, silenceThreshold, modelId) => {
         this.sttShadowPublisher.onTranscriptObserved(
           (response.alternatives || [])
@@ -952,6 +954,7 @@ export default class ChunkManager {
       listening = !this.listening;
     }
 
+    const wasListening = this.listening;
     const generation = ++this.toggleGeneration;
     const requestedListening = listening;
     this.lastToggleTime = this.listeningStateService.recordToggleRequest(
@@ -960,6 +963,10 @@ export default class ChunkManager {
       this.lastToggleTime
     );
     this.listening = listening;
+
+    if (!wasListening && listening) {
+      this.app.onPauseToListeningBoundary();
+    }
 
     if (listening) {
       this.sessionStartTime = this.listeningStateService.startSession((sessionId) => {

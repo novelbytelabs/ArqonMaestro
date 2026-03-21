@@ -206,3 +206,63 @@ Consequences:
 * verification bridge behavior is intentional and visible, not implicit doctrine
 * hot-path expectations remain local/fast/interruptible without redesigning language interpretation
 * Phase 2A policy completion remains a separate follow-on scope after Wave C completion
+
+---
+
+## VOS-009: Program A1 Uses A Dedicated Desktop Security-Session Policy Bridge
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 runtime behavior is implemented through a dedicated desktop service:
+
+* [`maestro/client/src/main/runtime/security-session-policy-service.ts`](../../maestro/client/src/main/runtime/security-session-policy-service.ts)
+
+This service is now the bounded authority for:
+
+* lifecycle phase signals (`heard` / `activated` / `executed`)
+* Assist medium-risk grace (`9s`)
+* activation-driven grace invalidation
+* pause -> listening re-auth boundary invalidation
+* Pilot unknown activation downgrade semantics
+* unknown-activation rate guard and LOCKED transitions
+* security reason-code continuity for downstream UI/audit surfaces
+
+Why:
+
+Without a dedicated bridge, policy semantics remained fragmented across UI assumptions and legacy authorization checks, making behavior hard to audit and easy to drift from the canonical browser policy docs.
+
+Consequences:
+
+* authorization path now accepts additive session-policy context and reasons over it before legacy fallback logic
+* desktop security state now exposes policy bridge signals (`securityPolicyMode`, `securityRequiresReauthNext`, `securityGraceValid`, `securityGraceExpiresAt`, `securityLastAuthorizationReasonCode`)
+* Security tab identity display is resolved through enrollment/profile label first, then fallback identity metadata
+
+---
+
+## VOS-010: Settings IA Migrates `Server` To `Profiles`; Network Controls Move To `Advanced`
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Settings information architecture now uses:
+
+* `Profiles` tab for identity profile CRUD/switch/re-enroll operations
+* `Advanced` tab for network/endpoint + telemetry controls (former Server content)
+
+`Server` as a top-level settings tab is removed.
+
+Why:
+
+Profiles and identity control are now first-class runtime concerns for Program A security/session behavior. Keeping identity profile operations behind a server/network label made user mental model and operational flow inconsistent.
+
+Consequences:
+
+* endpoint indicator now routes to `Advanced` instead of a removed `Server` page
+* profile operations are additive and bounded to in-memory state for this slice
+* deleting currently active profile is explicitly blocked
+* active profile identity label is surfaced in security status as user-facing display name

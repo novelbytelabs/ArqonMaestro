@@ -24,7 +24,7 @@ const EndpointIndicatorComponent: React.FC<{ endpoint: Endpoint }> = ({ endpoint
       )}
       onClick={(e: React.MouseEvent) => {
         e.preventDefault();
-        shell.send("setSettingsPage", "server");
+        shell.send("setSettingsPage", "advanced");
         shell.send("showSettingsWindow");
       }}
     >
