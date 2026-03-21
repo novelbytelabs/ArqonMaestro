@@ -22,6 +22,24 @@ export default class System {
 
   constructor(private settings: Settings) {}
 
+  private normalizePressKey(key: string): string {
+    const normalized = (key || "").toLowerCase().trim();
+    switch (normalized) {
+      case "return":
+        return "enter";
+      case "del":
+        return "delete";
+      case "pgup":
+      case "page up":
+        return "pageup";
+      case "pgdn":
+      case "page down":
+        return "pagedown";
+      default:
+        return normalized;
+    }
+  }
+
   applicationMatches(application: string, possible: string[]): string[] {
     console.log(`[DEBUG applicationMatches] app='${application}', possible=${JSON.stringify(possible)}`);
     
@@ -204,7 +222,7 @@ export default class System {
   }
 
   async pressKey(key: string, modifiers: string[] = [], count: number = 1) {
-    await driver.pressKey(key, modifiers, count);
+    await driver.pressKey(this.normalizePressKey(key), modifiers, count);
     await this.delay(50);
   }
 

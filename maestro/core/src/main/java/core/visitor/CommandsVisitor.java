@@ -1221,8 +1221,8 @@ public class CommandsVisitor
     ParseTree node,
     CommandsVisitorContext context
   ) {
-    // Browser/plugin contexts frequently lack reliable source state; degrade to key press.
-    if (isBrowser(context) && context.state.getPluginInstalled() && !canGetState(context)) {
+    // In browser contexts, prefer deterministic backspace behavior over diff-based deletion.
+    if (isBrowser(context) && context.state.getPluginInstalled()) {
       return wrap(
         context,
         Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("backspace").build()
@@ -1815,6 +1815,27 @@ public class CommandsVisitor
               context.state.getCursor(),
               ArrowKeyDirection.RIGHT
             )
+        );
+      }
+    }
+
+    // In browser contexts, treat "page up/down" as scroll aliases.
+    if (
+      isBrowser(context) &&
+      context.state.getPluginInstalled() &&
+      keys.size() == 1 &&
+      modifiers.size() == 0
+    ) {
+      String normalized = keys.get(0).toLowerCase();
+      if (normalized.equals("pagedown") || normalized.equals("page down")) {
+        return wrap(
+          context,
+          Command.newBuilder().setType(CommandType.COMMAND_TYPE_SCROLL).setDirection("down").build()
+        );
+      } else if (normalized.equals("pageup") || normalized.equals("page up")) {
+        return wrap(
+          context,
+          Command.newBuilder().setType(CommandType.COMMAND_TYPE_SCROLL).setDirection("up").build()
         );
       }
     }

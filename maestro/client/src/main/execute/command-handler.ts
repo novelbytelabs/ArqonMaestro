@@ -226,12 +226,26 @@ export default class CommandHandler {
     const target = (data.path || "").toLowerCase().trim();
 
     if (target == "top") {
-      await this.system.pressKey("home");
+      if (this.active.isFirstPartyBrowser()) {
+        await this.system.pressKey(
+          os.platform() == "darwin" ? "up" : "home",
+          os.platform() == "darwin" ? ["command"] : ["control"]
+        );
+      } else {
+        await this.system.pressKey("home");
+      }
       return;
     }
 
     if (target == "bottom") {
-      await this.system.pressKey("end");
+      if (this.active.isFirstPartyBrowser()) {
+        await this.system.pressKey(
+          os.platform() == "darwin" ? "down" : "end",
+          os.platform() == "darwin" ? ["command"] : ["control"]
+        );
+      } else {
+        await this.system.pressKey("end");
+      }
       return;
     }
 
