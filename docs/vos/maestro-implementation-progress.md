@@ -152,6 +152,8 @@ What landed:
   * `shell.on(...)` now returns an unsubscribe function and removes listeners on cleanup
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
+* Added replay summary consistency test:
+  * `phase3b-replay-audit-summary.test.ts` verifies summary counts/sequence remain consistent with snapshot and reset behavior.
 
 Evidence:
 
@@ -162,6 +164,7 @@ Evidence:
 * `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/chunk-evaluation-service.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-service-security-session.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-summary.test.ts`
 * `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts` (includes restore/adversarial cases)
 * `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts` (includes export/restore/adversarial cases)
 
