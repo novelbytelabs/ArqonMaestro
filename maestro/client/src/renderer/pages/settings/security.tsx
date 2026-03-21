@@ -56,6 +56,7 @@ const SecurityComponent: React.FC<{
   securityRequiresReauthNext: boolean;
   securityGraceValid: boolean;
   securityGraceExpiresAt: string;
+  securityLastReasonCode: string;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -82,6 +83,7 @@ const SecurityComponent: React.FC<{
   securityRequiresReauthNext,
   securityGraceValid,
   securityGraceExpiresAt,
+  securityLastReasonCode,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
 
@@ -264,6 +266,7 @@ const SecurityComponent: React.FC<{
         <div className="text-white/70">Requires re-auth next: {securityRequiresReauthNext ? "Yes" : "No"}</div>
         <div className="text-white/70">Grace valid: {securityGraceValid ? "Yes" : "No"}</div>
         <div className="text-white/70">Grace expires: {securityGraceExpiresAt || "n/a"}</div>
+        <div className="text-white/70">Last session reason code: {securityLastReasonCode || "n/a"}</div>
       </div>
 
       <div className="text-[11px] text-white/50 mt-2">
@@ -304,4 +307,5 @@ export const Security = connect((state: any) => ({
   securityRequiresReauthNext: state.securityRequiresReauthNext,
   securityGraceValid: state.securityGraceValid,
   securityGraceExpiresAt: state.securityGraceExpiresAt,
+  securityLastReasonCode: state.securityLastReasonCode,
 }))(SecurityComponent);

@@ -70,6 +70,16 @@ What landed:
   * delete non-active profile (active-profile delete is blocked)
 * Added additive security state exposure for profile list and active profile id
 * Security panel identity now resolves to active profile display name before fallback identity state labels
+* Security mode changes now map deterministically into session-policy mode:
+  * `normal -> pilot`
+  * `shared_room/secure -> assist`
+  * `restricted -> locked`
+* Session-policy bridge state now publishes live runtime updates (not settings-refresh-only) for:
+  * `securityPolicyMode`
+  * `securityRequiresReauthNext`
+  * `securityGraceValid`
+  * `securityGraceExpiresAt`
+  * `securityLastReasonCode`
 
 Bounded constraints for this slice:
 

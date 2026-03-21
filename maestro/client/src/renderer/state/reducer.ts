@@ -84,6 +84,7 @@ const initialState = {
   securityRequiresReauthNext: false,
   securityGraceValid: false,
   securityGraceExpiresAt: "",
+  securityLastReasonCode: "",
   securityMode: "normal",
   securityVerificationProviderError: "",
   securityVerificationProviderReady: false,

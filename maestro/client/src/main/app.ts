@@ -601,6 +601,7 @@ export default class App {
         securityRequiresReauthNext: false,
         securityGraceValid: false,
         securityGraceExpiresAt: "",
+        securityLastReasonCode: "",
       };
     }
 
@@ -654,6 +655,7 @@ export default class App {
       securityRequiresReauthNext: !!status?.securityRequiresReauthNext,
       securityGraceValid: !!status?.securityGraceValid,
       securityGraceExpiresAt: status?.securityGraceExpiresAt || "",
+      securityLastReasonCode: status?.reasonCode || "",
     };
   }
 
@@ -753,6 +755,15 @@ export default class App {
       return;
     }
     await gateway.setSecurityMode(mode, "settings_security_tab");
+    if (this.executor) {
+      const policyMode =
+        mode === SecurityMode.RESTRICTED
+          ? "locked"
+          : mode === SecurityMode.SHARED_ROOM || mode === SecurityMode.SECURE
+          ? "assist"
+          : "pilot";
+      this.executor.setSecurityPolicyMode(policyMode);
+    }
   }
 
   syncSecurityInteractionModeFromRuntime(dictateMode: boolean): void {

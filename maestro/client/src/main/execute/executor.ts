@@ -2024,14 +2024,35 @@ export default class Executor {
 
   onTranscriptHeard(): void {
     this.securitySessionPolicyService.onHeard();
+    this.publishSecuritySessionBridgeState();
   }
 
   onPauseToListeningBoundary(): void {
     this.securitySessionPolicyService.onPauseToListeningBoundary();
+    this.publishSecuritySessionBridgeState();
   }
 
   getSecuritySessionSnapshot() {
     return this.securitySessionPolicyService.getSnapshot();
+  }
+
+  setSecurityPolicyMode(mode: "pilot" | "assist" | "observe" | "locked"): void {
+    this.securitySessionPolicyService.setMode(mode);
+    this.publishSecuritySessionBridgeState();
+  }
+
+  private publishSecuritySessionBridgeState(): void {
+    const snapshot = this.securitySessionPolicyService.getSnapshot();
+    this.bridge.setState(
+      {
+        securityPolicyMode: snapshot.mode,
+        securityRequiresReauthNext: snapshot.requiresReauthNext,
+        securityGraceValid: snapshot.graceValid,
+        securityGraceExpiresAt: snapshot.graceExpiresAt,
+        securityLastReasonCode: snapshot.lastReasonCode,
+      },
+      [this.mainWindow, this.miniModeWindow]
+    );
   }
 
   /**
@@ -2076,6 +2097,7 @@ export default class Executor {
       this.lastAuthorizationDecision = result.decision;
       this.lastAuthorizationReason = result.reason || "";
       this.lastAuthorizationReasonCode = String(result.metadata?.reasonCode || securitySession.reasonCode || "");
+      this.publishSecuritySessionBridgeState();
 
       if (result.decision === AuthorizationDecision.ALLOW) {
         // Maintain interaction-mode state as part of the runtime state vector.
@@ -2117,6 +2139,7 @@ export default class Executor {
       this.lastBlockedCommand =
         response.execute?.commands?.[0]?.text || commandTypeToString(commandType || 0);
       this.lastBlockedAt = new Date().toISOString();
+      this.publishSecuritySessionBridgeState();
       return {
         authorized: false,
         reason: "Authorization subsystem error (fail-safe block)",

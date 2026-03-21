@@ -266,3 +266,28 @@ Consequences:
 * profile operations are additive and bounded to in-memory state for this slice
 * deleting currently active profile is explicitly blocked
 * active profile identity label is surfaced in security status as user-facing display name
+
+---
+
+## VOS-011: Runtime Security Mode Must Map To Session-Policy Mode Immediately
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Security mode changes now synchronously map into session-policy mode:
+
+* `normal -> pilot`
+* `shared_room -> assist`
+* `secure -> assist`
+* `restricted -> locked`
+
+Why:
+
+Program A1 policy behavior cannot remain deterministic if mode transitions only update legacy identity/security state while the session-policy bridge remains stale.
+
+Consequences:
+
+* mode changes from Settings now update session-policy behavior immediately
+* session-policy state is published live to renderer state during runtime interactions (not only during explicit settings refresh)
