@@ -246,6 +246,16 @@ export interface STTSpeechRequestPayload {
   transcript: string;
   /** Duration of the audio in milliseconds */
   duration_ms?: number;
+  /** Optional persona hint for broker routing */
+  persona?: "default_system" | "assistant_continuity" | "architect_agent" | "research_agent" | "warning_sentinel";
+  /** Optional priority hint for broker arbitration */
+  priority_class?: "p1_reflex" | "p2_warning" | "p3_direct" | "p4_guidance" | "p5_background";
+  /** Whether this playback can be interrupted by subsequent lower-priority output */
+  interruptible?: boolean;
+  /** Optional message class for persona inference */
+  message_class?: "ack" | "guidance" | "warning" | "cognitive";
+  /** Explicitly interrupt any active playback before playing this request */
+  interrupt_current_playback?: boolean;
 }
 
 export interface STTSpeechRequestEnvelope extends STTCommonFields {

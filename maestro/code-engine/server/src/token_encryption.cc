@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
@@ -32,6 +33,8 @@ std::string ResolveSentencePieceBinary() {
   const char* home = std::getenv("HOME");
   if (home != nullptr && std::string(home).size() > 0) {
     candidates.push_back(std::string(home) +
+                         "/libarqonmaestro/sentencepiece/bin/spm_encode");
+    candidates.push_back(std::string(home) +
                          "/libarqon/sentencepiece/bin/spm_encode");
     candidates.push_back(std::string(home) +
                          "/libserenade/sentencepiece/bin/spm_encode");
@@ -54,6 +57,97 @@ std::string TrimCopy(const std::string& input) {
   }
   const size_t end = input.find_last_not_of(whitespace);
   return input.substr(start, end - start + 1);
+}
+
+bool DirectoryReadable(const std::string& path) {
+  return !path.empty() && access(path.c_str(), R_OK) == 0;
+}
+
+std::string JoinPath(const std::string& base, const std::string& suffix) {
+  if (base.empty()) {
+    return suffix;
+  }
+  if (base.back() == '/') {
+    return base + suffix;
+  }
+  return base + "/" + suffix;
+}
+
+void AppendUniqueIfReadable(std::vector<std::string>& paths,
+                            std::unordered_set<std::string>& seen,
+                            const std::string& candidate) {
+  if (!DirectoryReadable(candidate)) {
+    return;
+  }
+
+  if (seen.insert(candidate).second) {
+    paths.push_back(candidate);
+  }
+}
+
+std::string ParentDir(const std::string& path) {
+  const size_t pos = path.find_last_of('/');
+  if (pos == std::string::npos) {
+    return "";
+  }
+  if (pos == 0) {
+    return "/";
+  }
+  return path.substr(0, pos);
+}
+
+void EnsureSentencePieceLibraryPath(const std::string& spm_binary) {
+  std::vector<std::string> candidates;
+  std::unordered_set<std::string> seen;
+
+  const char* roots[] = {
+      std::getenv("ARQON_MAESTRO_LIBRARY_ROOT"),
+      std::getenv("SERENADE_LIBRARY_ROOT"),
+  };
+
+  for (const char* root : roots) {
+    if (root == nullptr) {
+      continue;
+    }
+    AppendUniqueIfReadable(candidates, seen, JoinPath(std::string(root), "sentencepiece/lib"));
+  }
+
+  if (!spm_binary.empty() && spm_binary.find('/') != std::string::npos) {
+    const std::string bin_dir = ParentDir(spm_binary);
+    const std::string sentencepiece_root = ParentDir(bin_dir);
+    AppendUniqueIfReadable(candidates, seen, JoinPath(sentencepiece_root, "lib"));
+  }
+
+  const char* home = std::getenv("HOME");
+  if (home != nullptr && std::string(home).size() > 0) {
+    const std::string home_root(home);
+    AppendUniqueIfReadable(candidates, seen,
+                           JoinPath(home_root, "libarqonmaestro/sentencepiece/lib"));
+    AppendUniqueIfReadable(candidates, seen,
+                           JoinPath(home_root, "libarqon/sentencepiece/lib"));
+    AppendUniqueIfReadable(candidates, seen,
+                           JoinPath(home_root, "libserenade/sentencepiece/lib"));
+  }
+
+  if (candidates.empty()) {
+    return;
+  }
+
+  std::string merged;
+  for (size_t i = 0; i < candidates.size(); ++i) {
+    if (i > 0) {
+      merged += ":";
+    }
+    merged += candidates[i];
+  }
+
+  const char* existing = std::getenv("LD_LIBRARY_PATH");
+  if (existing != nullptr && std::string(existing).size() > 0) {
+    merged += ":";
+    merged += existing;
+  }
+
+  setenv("LD_LIBRARY_PATH", merged.c_str(), 1);
 }
 
 }  // namespace
@@ -81,6 +175,7 @@ TokenIdConverter::TokenIdConverter(const std::string& vocab_filename,
   LoadTokenMaps(vocab_filename);
   spm_filename_ = spm_filename;
   spm_encode_binary_ = ResolveSentencePieceBinary();
+  EnsureSentencePieceLibraryPath(spm_encode_binary_);
 }
 
 std::string TokenIdConverter::Encode(std::string input) {

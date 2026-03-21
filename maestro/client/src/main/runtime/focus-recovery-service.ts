@@ -177,6 +177,13 @@ import {
   ControlRecoveryLevel,
 } from "./focus-recovery-policy";
 
+export { RecoveryReason, DriftDetectionInput } from "./focus-recovery-analyzer";
+export {
+  RecoveryAction,
+  RecoveryPolicy,
+  RecoveryResultStatus,
+} from "./focus-recovery-policy";
+
 /**
  * Recovery action request
  */

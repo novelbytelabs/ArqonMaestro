@@ -751,6 +751,38 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-051: [Historical] Maestro Denoise Default Moves To WebRTC APM (16 kHz-Native)
+
+- **Date**: 2026-03-18
+- **Status**: Superseded by ADM-052
+- **Decision**: For Voice Plane modernization, Maestro's denoise default is now WebRTC Audio Processing (APM) noise suppression on a 16 kHz-native speech path. RNNoise is retained as a benchmark candidate, not the default production direction.
+- **Why**: Maestro's current speech path and Silero VAD lane align naturally with 16 kHz operation. A 48 kHz-oriented denoise-first architecture introduces avoidable 16↔48↔16 resampling complexity and weakens hot-path determinism unless benchmark evidence proves a clear advantage.
+- **Consequences**:
+  - (Historical) At the time, Wave A / Patch 4 planning targeted WebRTC APM first
+  - audio contracts should preserve a coherent 16 kHz end-to-end runtime path
+  - if denoise internals need 10 ms subframes, they should stay behind the denoise boundary while preserving recorder/turn contract behavior
+  - RNNoise remains available for controlled benchmark comparison, not default cutover
+
+---
+
+## ADM-052: Patch 4 Denoise Direction = ONNX Denoiser Integration (16 kHz-Native)
+
+- **Date**: 2026-03-19
+- **Status**: Accepted
+- **Decision**: For Wave A Patch 4, Maestro’s primary denoise direction is ONNX denoiser integration on the existing 16 kHz speech path. DTLN-class ONNX is the primary candidate. WebRTC APM and RNNoise remain benchmark/alternate candidates only.
+- **Why**:
+  - ONNX Runtime path is already proven in Maestro through real Silero ONNX integration.
+  - Silero VAD supports the 16 kHz path already used in Maestro.
+  - Cross-platform runtime consistency favors reusing the same inference/runtime strategy where possible.
+  - Patch 4 scope should remain denoise + interruption plumbing without forcing host migration.
+- **Consequences**:
+  - roadmap and migration docs must use ONNX-denoiser-first wording for Patch 4
+  - WebRTC APM is no longer default production denoise direction
+  - RNNoise remains benchmark-only unless evidence changes the default
+  - Tauri migration remains a later, gated track and is not part of Patch 4
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

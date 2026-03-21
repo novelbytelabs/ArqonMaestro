@@ -46,6 +46,9 @@ const config: Configuration = {
   externals: {
     "electron-updater": "commonjs electron-updater",
     "electron-log": "commonjs electron-log",
+    // Native addon package; bundling attempts to parse platform .node binaries.
+    "onnxruntime-node": "commonjs onnxruntime-node",
+    "onnxruntime-node/dist/binding.js": "commonjs onnxruntime-node/dist/binding.js",
     // Keep ws optional native deps external so require() can throw and ws can
     // fall back to its pure-JS path.
     bufferutil: "commonjs bufferutil",

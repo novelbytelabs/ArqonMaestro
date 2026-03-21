@@ -98,22 +98,43 @@ export default class Local {
 
   private async servicesHealthy(): Promise<boolean> {
     try {
-      const [speechResponse, codeResponse] = await Promise.all([
+      const [coreResponse, speechResponse, codeResponse] = await Promise.all([
+        fetch("http://localhost:17200/api/status", { method: "GET", timeout: 1500 }),
         fetch("http://localhost:17202/api/status", { method: "GET", timeout: 1500 }),
         fetch("http://localhost:17203/api/status", { method: "GET", timeout: 1500 }),
       ]);
-      if (!speechResponse.ok || !codeResponse.ok) {
+      if (!coreResponse.ok || !speechResponse.ok || !codeResponse.ok) {
         return false;
       }
 
-      const [speechHealthy, codeHealthy] = await Promise.all([
+      const [coreHealthy, speechHealthy, codeHealthy] = await Promise.all([
+        coreResponse.json(),
         speechResponse.json(),
         codeResponse.json(),
       ]);
-      return !!speechHealthy && !!codeHealthy;
+      return !!coreHealthy && !!speechHealthy && !!codeHealthy;
     } catch (_e) {
       return false;
     }
+  }
+
+  private async waitForServiceHealthy(url: string, timeoutMs: number = 10000): Promise<boolean> {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      try {
+        const response = await fetch(url, { method: "GET", timeout: 1500 });
+        if (response.ok) {
+          const healthy = await response.json();
+          if (!!healthy) {
+            return true;
+          }
+        }
+      } catch (_e) {}
+
+      await new Promise((resolve) => global.setTimeout(resolve, 250));
+    }
+
+    return false;
   }
 
   private setLocalState(localLoading: boolean, backendIssue: string = "") {
@@ -215,7 +236,7 @@ export default class Local {
   }
 
   private ensurePortsAvailable(): string | undefined {
-    const ports = [17202, 17203];
+    const ports = [17200, 17202, 17203];
     for (const port of ports) {
       const initialPids = this.listeningPids(port);
       for (const pid of initialPids) {
@@ -322,31 +343,29 @@ export default class Local {
       }
 
       // Some run-pro launchers can exit 0 after handing off to the actual service binary.
-      // In that case, verify service health before treating it as a startup failure.
+      // In that case, poll service health for a bounded warm-up window before failing startup.
       if ((service == "speech-engine" || service == "code-engine") && code === 0) {
         global.setTimeout(async () => {
           if (!this.started || !this.pollingInterval) {
             return;
           }
 
-          try {
-            const url =
-              service == "speech-engine"
-                ? "http://localhost:17202/api/status"
-                : "http://localhost:17203/api/status";
-            const response = await fetch(url, { method: "GET", timeout: 1500 });
-            if (response.ok && (await response.json())) {
-              this.log.logVerbose(
-                `${service} launcher exited with code 0 after successful startup handoff.`
-              );
-              return;
-            }
-          } catch (_e) {}
+          const url =
+            service == "speech-engine"
+              ? "http://localhost:17202/api/status"
+              : "http://localhost:17203/api/status";
+          const healthy = await this.waitForServiceHealthy(url, 12000);
+          if (healthy) {
+            this.log.logVerbose(
+              `${service} launcher exited with code 0 after successful startup handoff.`
+            );
+            return;
+          }
 
           this.failStartup(
             `${service} exited before local startup completed (exit code 0) and health check failed.`
           );
-        }, 1500);
+        }, 500);
         return;
       }
 
@@ -364,7 +383,7 @@ export default class Local {
     this.setLocalState(true, "");
     this.localStartTimeout = global.setTimeout(() => {
       this.failStartup(
-        "Local backend did not become healthy on :17202/:17203 within 30 seconds. Check `~/.arqon/speech-engine.log` and `~/.arqon/code-engine.log`, then rebuild the local bundle if needed."
+        "Local backend did not become healthy on :17200/:17202/:17203 within 30 seconds. Check `~/.arqon/core.log`, `~/.arqon/speech-engine.log`, and `~/.arqon/code-engine.log`, then rebuild the local bundle if needed."
       );
     }, 30000);
 

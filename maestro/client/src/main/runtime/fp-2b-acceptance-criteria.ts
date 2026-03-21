@@ -229,7 +229,7 @@ export async function runFP2BTests(): Promise<TestResult[]> {
     results.push({
       name: "2.2 Validate grant (valid)",
       passed: validation.valid,
-      details: validation.valid ? "Valid" : validation.reason,
+      details: validation.valid ? "Valid" : (validation.reason ?? "Invalid"),
     });
     console.log(`✓ Grant validation (valid): ${validation.valid}`);
   } catch (error) {

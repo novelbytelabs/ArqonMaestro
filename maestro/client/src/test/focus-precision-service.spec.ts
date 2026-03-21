@@ -15,13 +15,12 @@ import FocusPrecisionService, {
   SelectionAuthority,
   InsertionCommandType,
   ControlType,
-  RegionKind,
   PrecisionSurface,
   TextInsertionReason,
   TerminalCaretDetectionMethod,
   APPROVED_SURFACES,
-  SupportedApplication,
 } from "../main/runtime/focus-precision-service";
+import { RegionKind, SupportedApplication } from "../main/runtime/focus-region-service";
 
 describe("FocusPrecisionService", () => {
   let service: FocusPrecisionService;
@@ -61,7 +60,7 @@ describe("FocusPrecisionService", () => {
   // TEST MATRIX: Insertion Class Command Detection (FP-4B)
   // =============================================================================
   describe("Insertion Class Command Detection (FP-4B)", () => {
-    const insertionCommands = [
+    const insertionCommands: Array<[string, boolean]> = [
       ["insert", true],
       ["Insert", true],
       ["INSERT", true],
@@ -75,7 +74,7 @@ describe("FocusPrecisionService", () => {
       ["auto-complete", true],
     ];
 
-    const nonInsertionCommands = [
+    const nonInsertionCommands: Array<[string, boolean]> = [
       ["click", false],
       ["press", false],
       ["scroll", false],
@@ -375,7 +374,7 @@ describe("FocusPrecisionService", () => {
   // =============================================================================
   describe("Approved Surfaces Configuration", () => {
     it("should have correct configuration for VS Code text editor", () => {
-      const config = APPROVED_SURFACES[SupportedApplication.VSCODE][ControlType.TEXT_EDITOR];
+      const config = APPROVED_SURFACES[SupportedApplication.VSCODE][ControlType.TEXT_EDITOR]!;
       expect(config.acceptsInput).toBe(true);
       expect(config.hasSelection).toBe(true);
       expect(config.hasCaret).toBe(true);
@@ -383,7 +382,7 @@ describe("FocusPrecisionService", () => {
     });
 
     it("should have correct configuration for VS Code terminal", () => {
-      const config = APPROVED_SURFACES[SupportedApplication.VSCODE][ControlType.TERMINAL];
+      const config = APPROVED_SURFACES[SupportedApplication.VSCODE][ControlType.TERMINAL]!;
       expect(config.acceptsInput).toBe(true);
       expect(config.hasSelection).toBe(true);
       expect(config.hasCaret).toBe(true);
@@ -391,7 +390,7 @@ describe("FocusPrecisionService", () => {
     });
 
     it("should have correct configuration for Chrome address bar", () => {
-      const config = APPROVED_SURFACES[SupportedApplication.CHROME][ControlType.ADDRESS_BAR];
+      const config = APPROVED_SURFACES[SupportedApplication.CHROME][ControlType.ADDRESS_BAR]!;
       expect(config.acceptsInput).toBe(true);
       expect(config.hasSelection).toBe(true);
       expect(config.hasCaret).toBe(true);
@@ -399,7 +398,7 @@ describe("FocusPrecisionService", () => {
     });
 
     it("should not accept input for SCM view", () => {
-      const config = APPROVED_SURFACES[SupportedApplication.VSCODE][ControlType.SCM_VIEW];
+      const config = APPROVED_SURFACES[SupportedApplication.VSCODE][ControlType.SCM_VIEW]!;
       expect(config.acceptsInput).toBe(false);
     });
   });

@@ -13,6 +13,7 @@ import RevisionBoxWindow from "../windows/revision-box";
 import Settings from "../settings";
 import Stream from "../stream/stream";
 import System from "./system";
+import SettingsWindow from "../windows/settings";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
 
@@ -25,6 +26,7 @@ import FocusVerificationService, {
 } from "../runtime/focus-verification-service";
 import { FocusAuthority } from "../runtime/focus-authority-service";
 import FocusHistoryService from "../runtime/focus-history-service";
+import ExecutionTrace from "../runtime/execution-trace";
 
 // Focus pre-validation imports (FP-2.1)
 import FocusPreValidator from "../runtime/focus-pre-validator";
@@ -54,12 +56,21 @@ import FocusRecoveryService from "../runtime/focus-recovery-service";
 
 // Identity and Security imports (FP-2A)
 import IdentityGatewayService from "../runtime/identity-gateway-service";
-import { CommandRiskLevel, AuthorizationDecision } from "../runtime/authorization-service";
+import { CommandRiskLevel, AuthorizationDecision, InteractionMode } from "../runtime/authorization-service";
 import { SecurityMode } from "../runtime/security-mode-service";
 
 // Workflow and Nexus imports (FP-2B)
-import WorkflowContractService, { WorkflowClass, StepRole, StepFailurePolicy } from "../runtime/workflow-contract-service";
-import NexusProtocolBoundaryService, { AuthorityPhase } from "../runtime/nexus-protocol-boundary-service";
+import WorkflowContractService, {
+  WorkflowClass,
+  StepRole,
+  StepFailurePolicy,
+  StepStatus,
+} from "../runtime/workflow-contract-service";
+import NexusProtocolBoundaryService, {
+  NexusProposal,
+  ProposalExecutionContext,
+} from "../runtime/nexus-protocol-boundary-service";
+import WorkflowExecutionService from "../runtime/workflow-nexus-integration";
 
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
@@ -99,6 +110,12 @@ export default class Executor {
   // Workflow and Nexus services (FP-2B)
   private workflowService: WorkflowContractService;
   private nexusBoundary: NexusProtocolBoundaryService;
+  private workflowExecutionService: WorkflowExecutionService;
+  private executionTrace?: ExecutionTrace;
+  private lastAuthorizationDecision: string = "";
+  private lastAuthorizationReason: string = "";
+  private lastBlockedCommand: string = "";
+  private lastBlockedAt: string = "";
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -557,6 +574,7 @@ export default class Executor {
     private nux: NUX,
     private pluginManager: PluginManager,
     private revisionBoxWindow: RevisionBoxWindow,
+    private settingsWindow: () => Promise<SettingsWindow> | undefined,
     private settings: Settings,
     private stream: Stream,
     private system: System,
@@ -603,6 +621,10 @@ export default class Executor {
     // Initialize Workflow and Nexus services (FP-2B)
     this.workflowService = new WorkflowContractService();
     this.nexusBoundary = new NexusProtocolBoundaryService();
+    this.workflowExecutionService = new WorkflowExecutionService(
+      this.workflowService,
+      this.nexusBoundary
+    );
 
     // Wire up delegates for recovery orchestrator (ADM-048)
 
@@ -980,6 +1002,10 @@ export default class Executor {
       "space",
       "enter",
       "tab",
+      "backspace",
+      "delete",
+      "home",
+      "end",
       "pagedown",
       "pageup",
     ];
@@ -1021,6 +1047,24 @@ export default class Executor {
 
   clearPending() {
     this.pending = undefined;
+  }
+
+  setExecutionTrace(trace: ExecutionTrace): void {
+    this.executionTrace = trace;
+  }
+
+  async executeLocalRoute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true
+  ): Promise<void> {
+    await this.execute(response, updateRenderer);
+  }
+
+  async executePluginAssistedRoute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true
+  ): Promise<void> {
+    await this.execute(response, updateRenderer);
   }
 
   async execute(response: core.ICommandsResponse, updateRenderer: boolean = true) {
@@ -1201,39 +1245,22 @@ export default class Executor {
     }
 
     if (response.alternatives && response.alternatives.length > 0) {
-      for (const alt of response.alternatives || []) {
-        console.log(
-          "[EXECUTOR] Alternative:",
-          alt.transcript,
-          "commands:",
-          JSON.stringify(
-            (alt.commands || []).map((cmd: any) => ({
-              type: core.CommandType[cmd.type],
-              typeNum: cmd.type,
-              text: cmd.text,
-            }))
-          )
-        );
-      }
-
       this.log.logVerbose(
         `Showing alternatives [${response.alternatives.map((e: any) => e.transcript).join(", ")}]`
       );
 
-      this.bridge.setState(
+      this.setAlternativesState(
         {
           alternatives: response.alternatives,
-        },
-        [this.mainWindow, this.miniModeWindow]
+        }
       );
 
       if (response.final) {
         this.savePendingResponseIfNeeded(response);
-        this.bridge.setState(
+        this.setAlternativesState(
           {
             highlighted: this.hasExecute(response) ? [0] : [],
-          },
-          [this.mainWindow, this.miniModeWindow]
+          }
         );
       }
     }
@@ -1247,11 +1274,10 @@ export default class Executor {
       }
 
       this.miniModeHideTimeout = global.setTimeout(() => {
-        this.bridge.setState(
+        this.setAlternativesState(
           {
             alternatives: [],
-          },
-          [this.mainWindow, this.miniModeWindow]
+          }
         );
       }, Math.max(1, 1000 * this.settings.getMiniModeHideTimeout()));
     }
@@ -1259,6 +1285,23 @@ export default class Executor {
     setTimeout(() => {
       this.bridge.send("updateMiniModeWindowHeight", {}, [this.miniModeWindow]);
     }, 50);
+  }
+
+  private setAlternativesState(data: any) {
+    this.bridge.setState(data, [this.mainWindow, this.miniModeWindow]);
+
+    const settingsWindow = this.settingsWindow();
+    if (!settingsWindow) {
+      return;
+    }
+
+    Promise.resolve(settingsWindow)
+      .then((window) => {
+        if (window && window.shown()) {
+          this.bridge.setState(data, [window]);
+        }
+      })
+      .catch(() => {});
   }
 
   truncateAlternativesIfNeeded(response: core.ICommandsResponse): core.ICommandsResponse {
@@ -1958,6 +2001,7 @@ export default class Executor {
       // Map command type to family and risk level
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
+      const commandVerb = command.text || commandType;
 
       console.log(`[FP-2A] Authorizing: ${commandFamily}/${commandType} risk=${riskLevel}`);
       console.log(`[FP-2A] Identity state: ${JSON.stringify(this.identityGateway.getIdentityContext())}`);
@@ -1965,13 +2009,21 @@ export default class Executor {
       // Authorize through identity gateway
       const result = await this.identityGateway.authorize({
         commandFamily,
-        commandVerb: command.text || commandType,
+        commandVerb,
         riskLevel,
       });
 
       console.log(`[FP-2A] Auth result: ${result.decision} - ${result.reason}`);
+      this.lastAuthorizationDecision = result.decision;
+      this.lastAuthorizationReason = result.reason || "";
 
       if (result.decision === AuthorizationDecision.ALLOW) {
+        // Maintain interaction-mode state as part of the runtime state vector.
+        if (command.type === core.CommandType.COMMAND_TYPE_START_DICTATE) {
+          this.identityGateway.setInteractionMode(InteractionMode.DICTATION);
+        } else if (command.type === core.CommandType.COMMAND_TYPE_STOP_DICTATE) {
+          this.identityGateway.setInteractionMode(InteractionMode.COMMAND);
+        }
         return { authorized: true };
       }
 
@@ -1980,12 +2032,33 @@ export default class Executor {
       if (result.decision === AuthorizationDecision.CONFIRM) {
         reason = "Confirmation required";
       }
+      this.lastBlockedCommand = commandVerb || commandType;
+      this.lastBlockedAt = new Date().toISOString();
 
       return { authorized: false, reason };
     } catch (error) {
-      // On error, fail open for now (can be made fail-closed later)
-      console.log(`[FP-2A] Authorization check error: ${error}, allowing command`);
-      return { authorized: true };
+      const commandType = response.execute?.commands?.[0]?.type;
+      const reflexLike =
+        commandType === core.CommandType.COMMAND_TYPE_CANCEL ||
+        commandType === core.CommandType.COMMAND_TYPE_PAUSE ||
+        commandType === core.CommandType.COMMAND_TYPE_UNDO ||
+        commandType === core.CommandType.COMMAND_TYPE_REDO ||
+        commandType === core.CommandType.COMMAND_TYPE_START_DICTATE ||
+        commandType === core.CommandType.COMMAND_TYPE_STOP_DICTATE;
+      if (reflexLike) {
+        console.log(`[FP-2A] Authorization check error: ${error}, allowing reflex command`);
+        return { authorized: true };
+      }
+      console.log(`[FP-2A] Authorization check error: ${error}, blocking command (fail-safe)`);
+      this.lastAuthorizationDecision = AuthorizationDecision.DENY;
+      this.lastAuthorizationReason = "Authorization subsystem error (fail-safe block)";
+      this.lastBlockedCommand =
+        response.execute?.commands?.[0]?.text || commandTypeToString(commandType || 0);
+      this.lastBlockedAt = new Date().toISOString();
+      return {
+        authorized: false,
+        reason: "Authorization subsystem error (fail-safe block)",
+      };
     }
   }
 
@@ -2042,6 +2115,42 @@ export default class Executor {
     return this.identityGateway;
   }
 
+  getLastAuthorizationStatus(): {
+    decision: string;
+    reason: string;
+    blockedCommand: string;
+    blockedAt: string;
+  } {
+    return {
+      decision: this.lastAuthorizationDecision,
+      reason: this.lastAuthorizationReason,
+      blockedCommand: this.lastBlockedCommand,
+      blockedAt: this.lastBlockedAt,
+    };
+  }
+
+  /**
+   * Get identity-derived policy context for runtime dispatcher decisions.
+   */
+  getRuntimeDispatchPolicyContext(): {
+    securityMode: "standard" | "secure" | "shared_room";
+    speakerVerified: boolean;
+    interactionMode: InteractionMode;
+  } {
+    const context = this.identityGateway.getIdentityContext();
+    const securityMode =
+      context.securityMode === SecurityMode.SHARED_ROOM
+        ? "shared_room"
+        : context.securityMode === SecurityMode.NORMAL
+          ? "standard"
+          : "secure";
+    return {
+      securityMode,
+      speakerVerified: context.isVerified,
+      interactionMode: context.interactionMode,
+    };
+  }
+
   /**
    * Get workflow service for testing (FP-2B)
    * Use: window.executor.getWorkflowService()
@@ -2056,5 +2165,115 @@ export default class Executor {
    */
   getNexusBoundary(): NexusProtocolBoundaryService {
     return this.nexusBoundary;
+  }
+
+  /**
+   * Process a Nexus proposal through Maestro's boundary and create a workflow candidate when valid.
+   * Execution remains Maestro-owned and policy-gated.
+   */
+  processNexusProposal(
+    proposal: NexusProposal
+  ): {
+    accepted: boolean;
+    workflowId?: string;
+    reason?: string;
+    requiresConfirmation: boolean;
+  } {
+    const context = this.getNexusProposalExecutionContext();
+    return this.workflowExecutionService.processNexusProposal(proposal, context);
+  }
+
+  /**
+   * Execute a previously created workflow through bounded, policy-aware step checks.
+   * This is intentionally sequential and inspectable for Phase 2B.
+   */
+  async executeWorkflowById(workflowId: string): Promise<void> {
+    await this.workflowExecutionService.executeWorkflow(
+      workflowId,
+      async (step, context) => {
+        const start = Date.now();
+        const riskLevel = this.mapWorkflowFamilyToRisk(step.commandFamily);
+        const authResult = await this.identityGateway.authorize({
+          commandFamily: step.commandFamily,
+          commandVerb: step.commandVerb,
+          target: step.commandTarget,
+          riskLevel,
+        });
+
+        if (authResult.decision !== AuthorizationDecision.ALLOW) {
+          return {
+            stepId: step.stepId,
+            status: StepStatus.HARD_FAILED,
+            commandVerb: step.commandVerb,
+            success: false,
+            outputBindings: new Map(),
+            warnings: [],
+            errorCode: "authorization_blocked",
+            errorMessage: `${authResult.decision}:${authResult.reason}`,
+            elapsedMs: Date.now() - start,
+          };
+        }
+
+        console.log(
+          `[FP-2B] Workflow step allowed: ${JSON.stringify({
+            workflowId: context.workflowId,
+            stepId: step.stepId,
+            commandFamily: step.commandFamily,
+            origin: context.origin,
+            delegationGrantId: context.delegationGrantId || "none",
+            proposalId: context.proposalId || "none",
+          })}`
+        );
+
+        return {
+          stepId: step.stepId,
+          status: StepStatus.SUCCEEDED,
+          commandVerb: step.commandVerb,
+          success: true,
+          outputBindings: new Map(),
+          warnings: [],
+          elapsedMs: Date.now() - start,
+        };
+      }
+    );
+  }
+
+  private getNexusProposalExecutionContext(): ProposalExecutionContext {
+    const context = this.identityGateway.getIdentityContext();
+    const securityMode =
+      context.securityMode === SecurityMode.SHARED_ROOM
+        ? "shared_room"
+        : context.securityMode === SecurityMode.RESTRICTED
+          ? "restricted"
+          : context.securityMode === SecurityMode.SECURE
+            ? "secure"
+            : "normal";
+
+    return {
+      securityMode,
+      interactionMode: context.interactionMode,
+      identityState: context.identityState,
+      speakerVerified: context.isVerified,
+      contaminated: context.contaminated,
+      identityEvidenceReady: context.identityEvidenceReady,
+    };
+  }
+
+  private mapWorkflowFamilyToRisk(commandFamily: string): CommandRiskLevel {
+    const family = (commandFamily || "").toLowerCase();
+    if (["security", "admin", "privileged"].includes(family)) {
+      return CommandRiskLevel.PRIVILEGED;
+    }
+    if (
+      ["filesystem", "file_delete", "file_rename", "system", "settings", "process"].includes(
+        family
+      )
+    ) {
+      return CommandRiskLevel.HIGH;
+    }
+    if (["terminal", "execution", "build", "edit", "browser"].includes(family)) {
+      return CommandRiskLevel.MEDIUM;
+    }
+    return CommandRiskLevel.LOW;
   }
 }

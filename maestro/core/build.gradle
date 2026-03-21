@@ -1,20 +1,18 @@
 import ai.arqon.maestro.AntlrGenerateTask
 
-def antlrJar = (
-    (
-        System.env.ARQON_MAESTRO_LIBRARY_ROOT != null ?
-            System.env.ARQON_MAESTRO_LIBRARY_ROOT :
-            (
-                System.env.SERENADE_LIBRARY_ROOT != null ?
-                    System.env.SERENADE_LIBRARY_ROOT :
-                    (
-                        new File(System.properties["user.home"] + "/libarqon").exists() ?
-                            System.properties["user.home"] + "/libarqon" :
-                            System.properties["user.home"] + "/libserenade"
-                    )
-            )
-    ) + "/antlr/antlr-4.7.2-complete.jar"
-)
+def antlrJarCandidates = [
+    System.env.ARQON_MAESTRO_LIBRARY_ROOT != null ?
+        "${System.env.ARQON_MAESTRO_LIBRARY_ROOT}/antlr/antlr-4.7.2-complete.jar" :
+        null,
+    System.env.SERENADE_LIBRARY_ROOT != null ?
+        "${System.env.SERENADE_LIBRARY_ROOT}/antlr/antlr-4.7.2-complete.jar" :
+        null,
+    "${System.properties['user.home']}/libarqon/antlr/antlr-4.7.2-complete.jar",
+    "${System.properties['user.home']}/libserenade/antlr/antlr-4.7.2-complete.jar",
+    "${rootProject.projectDir.absolutePath}/antlr/antlr-4.7.2-complete.jar"
+].findAll { it != null }
+
+def antlrJar = antlrJarCandidates.find { new File(it).exists() } ?: antlrJarCandidates.last()
 
 apply plugin: "application"
 

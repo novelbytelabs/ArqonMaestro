@@ -187,6 +187,7 @@ export type RegionNavigationHint =
   | "command_palette"
   | "context_menu"
   | "focus_navigation"
+  | "address_bar"
   | "explicit";
 
 /**
@@ -831,5 +832,3 @@ export default class FocusRegionService {
     return undefined;
   }
 }
-
-export default FocusRegionService;

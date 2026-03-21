@@ -14,8 +14,8 @@
 // Use console.log - can be replaced with proper logger in production
 const log = (message: string): void => console.log(message);
 
-import { SpeakerRole } from "./speaker-enrollment-service";
 import { WorkflowRiskLevel } from "./workflow-contract-service";
+import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 
 /**
  * Authority phases
@@ -96,8 +96,18 @@ export interface NexusProposal {
       commandVerb: string;
       commandFamily: string;
       target?: string;
+      riskLevel?: WorkflowRiskLevel;
     }>;
   };
+}
+
+export interface ProposalExecutionContext {
+  securityMode: "normal" | "secure" | "restricted" | "shared_room";
+  interactionMode: "command" | "dictation" | "conversation";
+  identityState: string;
+  speakerVerified: boolean;
+  contaminated: boolean;
+  identityEvidenceReady: boolean;
 }
 
 /**
@@ -220,6 +230,11 @@ export default class NexusProtocolBoundaryService {
     };
 
     this.delegationGrants.set(grantId, grant);
+    phase3BReplayAuditService.recordDelegationGrant({
+      action: "created",
+      grantId,
+      authorityPhase,
+    });
     log(`Delegation grant created: ${grantId} (${authorityPhase})`);
 
     return grant;
@@ -241,22 +256,33 @@ export default class NexusProtocolBoundaryService {
     riskLevel: WorkflowRiskLevel
   ): { valid: boolean; reason?: string } {
     const grant = this.delegationGrants.get(grantId);
+    const recordValidation = (valid: boolean, reason?: string): { valid: boolean; reason?: string } => {
+      phase3BReplayAuditService.recordDelegationGrant({
+        action: "validated",
+        grantId,
+        valid,
+        reason,
+        commandFamily,
+        riskLevel,
+      });
+      return { valid, reason };
+    };
 
     if (!grant) {
-      return { valid: false, reason: "Delegation grant not found" };
+      return recordValidation(false, "Delegation grant not found");
     }
 
     if (grant.revoked) {
-      return { valid: false, reason: "Delegation grant has been revoked" };
+      return recordValidation(false, "Delegation grant has been revoked");
     }
 
     if (grant.expiresAt && new Date() > grant.expiresAt) {
-      return { valid: false, reason: "Delegation grant has expired" };
+      return recordValidation(false, "Delegation grant has expired");
     }
 
     // Check authority phase
     if (grant.authorityPhase === AuthorityPhase.ADVISORY) {
-      return { valid: false, reason: "Advisory phase does not allow autonomous execution" };
+      return recordValidation(false, "Advisory phase does not allow autonomous execution");
     }
 
     // Check command family scope
@@ -264,7 +290,7 @@ export default class NexusProtocolBoundaryService {
       grant.scope.allowedCommandFamilies.length > 0 &&
       !grant.scope.allowedCommandFamilies.includes(commandFamily)
     ) {
-      return { valid: false, reason: `Command family '${commandFamily}' not in delegation scope` };
+      return recordValidation(false, `Command family '${commandFamily}' not in delegation scope`);
     }
 
     // Check blocked commands
@@ -281,13 +307,13 @@ export default class NexusProtocolBoundaryService {
     const requestLevelIndex = riskLevelOrder.indexOf(riskLevel);
 
     if (requestLevelIndex > grantLevelIndex) {
-      return {
-        valid: false,
-        reason: `Risk level '${riskLevel}' exceeds grant level '${grant.allowedRiskLevel}'`,
-      };
+      return recordValidation(
+        false,
+        `Risk level '${riskLevel}' exceeds grant level '${grant.allowedRiskLevel}'`
+      );
     }
 
-    return { valid: true };
+    return recordValidation(true);
   }
 
   /**
@@ -299,6 +325,12 @@ export default class NexusProtocolBoundaryService {
 
     grant.revoked = true;
     grant.revocationReason = reason;
+    phase3BReplayAuditService.recordDelegationGrant({
+      action: "revoked",
+      grantId,
+      reason,
+      authorityPhase: grant.authorityPhase,
+    });
 
     log(`Delegation grant revoked: ${grantId}`);
     return true;
@@ -320,62 +352,212 @@ export default class NexusProtocolBoundaryService {
   /**
    * Process Nexus proposal
    */
-  processNexusProposal(proposal: NexusProposal): {
+  processNexusProposal(
+    proposal: NexusProposal,
+    context?: ProposalExecutionContext
+  ): {
     accepted: boolean;
     reason?: string;
     convertedWorkflowId?: string;
     requiresConfirmation: boolean;
   } {
+    const finalizeDecision = (
+      accepted: boolean,
+      requiresConfirmation: boolean,
+      reason?: string,
+      highestRequestedRisk?: WorkflowRiskLevel
+    ) => {
+      phase3BReplayAuditService.recordNexusBoundaryDecision({
+        proposalId: proposal.proposalId,
+        proposalType: proposal.proposalType,
+        accepted,
+        requiresConfirmation,
+        reason,
+        delegationGrantId: proposal.delegationGrantId,
+        highestRequestedRisk,
+        context,
+      });
+      return {
+        accepted,
+        reason,
+        requiresConfirmation,
+      };
+    };
+
     // Store proposal in history
     this.proposalHistory.set(proposal.proposalId, proposal);
 
     // Validate novelty level
     if (proposal.noveltyLevel === "novel" && proposal.confidence < 0.9) {
-      return {
-        accepted: false,
-        reason: "Novel proposals with low confidence require human review",
-        requiresConfirmation: true,
-      };
+      return finalizeDecision(
+        false,
+        true,
+        "Novel proposals with low confidence require human review"
+      );
     }
 
-    // Check if delegation grant is required and valid
-    if (proposal.delegationGrantId) {
-      const validation = this.validateDelegationGrant(
-        proposal.delegationGrantId,
-        proposal.proposedWorkflow?.steps[0]?.commandFamily || "default",
-        WorkflowRiskLevel.MODERATE
+    // Dictation mode is not a lawful auto-execution mode for Nexus-originated operating actions.
+    if (context?.interactionMode === "dictation") {
+      return finalizeDecision(
+        false,
+        true,
+        "Dictation mode blocks Nexus-originated execution proposals"
       );
+    }
 
-      if (!validation.valid) {
-        return {
-          accepted: false,
-          reason: validation.reason,
-          requiresConfirmation: true,
-        };
+    const workflowSteps = proposal.proposedWorkflow?.steps || [];
+    const highestRequestedRisk = this.computeHighestRequestedRisk(proposal);
+    const requestedFamilies = new Set(workflowSteps.map((step) => step.commandFamily));
+
+    // Contamination and degraded identity should tighten delegated authority, not loosen it.
+    if (context?.contaminated && highestRequestedRisk !== WorkflowRiskLevel.LOW) {
+      return finalizeDecision(
+        false,
+        true,
+        "Contaminated speaker state blocks delegated medium/high-risk proposals",
+        highestRequestedRisk
+      );
+    }
+
+    if (
+      context &&
+      !context.identityEvidenceReady &&
+      (highestRequestedRisk === WorkflowRiskLevel.HIGH ||
+        highestRequestedRisk === WorkflowRiskLevel.PRIVILEGED)
+    ) {
+      return finalizeDecision(
+        false,
+        true,
+        "Identity evidence unavailable for high-risk delegated proposal",
+        highestRequestedRisk
+      );
+    }
+
+    // Check if delegation grant is required and valid.
+    // Nexus remains advisory unless explicit grant exists and passes Maestro policy.
+    if (proposal.delegationGrantId) {
+      for (const family of requestedFamilies.size > 0 ? requestedFamilies : new Set(["default"])) {
+        const validation = this.validateDelegationGrant(
+          proposal.delegationGrantId,
+          family,
+          highestRequestedRisk
+        );
+        if (!validation.valid) {
+          return finalizeDecision(false, true, validation.reason, highestRequestedRisk);
+        }
       }
-    } else if (proposal.confidence > 0.8) {
-      // High confidence but no grant - treat as advisory
-      return {
-        accepted: false,
-        reason: "Nexus proposals without delegation grant require explicit user approval",
-        requiresConfirmation: true,
-      };
+    } else {
+      // No delegation grant means proposal remains advisory and needs explicit human confirmation.
+      // We return a controlled non-accept result to preserve Maestro ownership boundaries.
+      if (
+        proposal.proposalType === ProposalType.PROPOSED_COMMAND ||
+        proposal.proposalType === ProposalType.PROPOSED_WORKFLOW
+      ) {
+        return finalizeDecision(
+          false,
+          true,
+          "Nexus proposal without delegation grant requires explicit user approval",
+          highestRequestedRisk
+        );
+      }
+    }
+
+    if (
+      context?.securityMode === "secure" &&
+      !context.speakerVerified &&
+      highestRequestedRisk !== WorkflowRiskLevel.LOW
+    ) {
+      return finalizeDecision(
+        false,
+        true,
+        "Secure mode requires verified speaker for delegated medium/high-risk proposals",
+        highestRequestedRisk
+      );
+    }
+
+    if (
+      context?.securityMode === "shared_room" &&
+      highestRequestedRisk !== WorkflowRiskLevel.LOW
+    ) {
+      return finalizeDecision(
+        false,
+        true,
+        "Shared-room mode blocks delegated medium/high-risk proposals by default",
+        highestRequestedRisk
+      );
     }
 
     // Check if human confirmation is required by proposal
     if (proposal.requiresHumanConfirmation) {
-      return {
-        accepted: false,
-        reason: "Proposal requires human confirmation",
-        requiresConfirmation: true,
-      };
+      return finalizeDecision(
+        false,
+        true,
+        "Proposal requires human confirmation",
+        highestRequestedRisk
+      );
     }
 
     log(`Nexus proposal accepted: ${proposal.proposalId}`);
-    return {
-      accepted: true,
-      requiresConfirmation: false,
-    };
+    return finalizeDecision(true, false, undefined, highestRequestedRisk);
+  }
+
+  private computeHighestRequestedRisk(proposal: NexusProposal): WorkflowRiskLevel {
+    const explicitLevels =
+      proposal.proposedWorkflow?.steps
+        ?.map((step) => step.riskLevel)
+        .filter((level): level is WorkflowRiskLevel => !!level) || [];
+    if (explicitLevels.length > 0) {
+      return explicitLevels.reduce((highest, next) =>
+        this.compareRisk(next, highest) > 0 ? next : highest
+      );
+    }
+
+    const families = proposal.proposedWorkflow?.steps?.map((step) => step.commandFamily) || [];
+    if (families.length === 0) {
+      return WorkflowRiskLevel.MODERATE;
+    }
+    let highest = WorkflowRiskLevel.LOW;
+    for (const family of families) {
+      const inferred = this.mapCommandFamilyToRisk(family);
+      if (this.compareRisk(inferred, highest) > 0) {
+        highest = inferred;
+      }
+    }
+    return highest;
+  }
+
+  private compareRisk(left: WorkflowRiskLevel, right: WorkflowRiskLevel): number {
+    const riskLevelOrder = [
+      WorkflowRiskLevel.LOW,
+      WorkflowRiskLevel.MODERATE,
+      WorkflowRiskLevel.HIGH,
+      WorkflowRiskLevel.PRIVILEGED,
+    ];
+    return riskLevelOrder.indexOf(left) - riskLevelOrder.indexOf(right);
+  }
+
+  private mapCommandFamilyToRisk(commandFamily: string): WorkflowRiskLevel {
+    const normalized = (commandFamily || "").toLowerCase();
+    if (["security", "admin", "privileged"].includes(normalized)) {
+      return WorkflowRiskLevel.PRIVILEGED;
+    }
+    if (
+      [
+        "filesystem",
+        "file_create",
+        "file_delete",
+        "file_rename",
+        "system",
+        "settings",
+        "process",
+      ].includes(normalized)
+    ) {
+      return WorkflowRiskLevel.HIGH;
+    }
+    if (["terminal", "execution", "build", "edit", "browser"].includes(normalized)) {
+      return WorkflowRiskLevel.MODERATE;
+    }
+    return WorkflowRiskLevel.LOW;
   }
 
   /**
@@ -383,6 +565,18 @@ export default class NexusProtocolBoundaryService {
    */
   emitExecutionOutcome(outcome: MaestroExecutionOutcome): void {
     this.outcomes.set(outcome.executionId, outcome);
+    phase3BReplayAuditService.recordExecutionOutcome({
+      executionId: outcome.executionId,
+      source: outcome.source,
+      status: outcome.status,
+      policyDecision: outcome.policyDecision,
+      confirmationApplied: outcome.confirmationApplied,
+      chooserApplied: outcome.chooserApplied,
+      routeSelected: outcome.routeSelected,
+      refusalReason: outcome.refusalReason,
+      elapsedMs: outcome.elapsedMs,
+      auditRef: outcome.auditRef,
+    });
     log(`Execution outcome emitted: ${outcome.executionId} - ${outcome.status}`);
   }
 

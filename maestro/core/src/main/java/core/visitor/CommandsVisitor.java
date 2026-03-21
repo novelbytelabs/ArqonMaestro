@@ -1221,6 +1221,14 @@ public class CommandsVisitor
     ParseTree node,
     CommandsVisitorContext context
   ) {
+    // In browser contexts, prefer deterministic backspace behavior over diff-based deletion.
+    if (isBrowser(context) && context.state.getPluginInstalled()) {
+      return wrap(
+        context,
+        Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("backspace").build()
+      );
+    }
+
     if (!canGetState(context)) {
       return requiresSource(context);
     }
@@ -1650,6 +1658,14 @@ public class CommandsVisitor
     ParseTree node,
     CommandsVisitorContext context
   ) {
+    // Browser text fields should always map newline to an Enter keypress.
+    if (isBrowser(context)) {
+      return wrap(
+        context,
+        Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("enter").build()
+      );
+    }
+
     if (!context.state.getPluginInstalled()) {
       return wrap(
         context,
@@ -1799,6 +1815,27 @@ public class CommandsVisitor
               context.state.getCursor(),
               ArrowKeyDirection.RIGHT
             )
+        );
+      }
+    }
+
+    // In browser contexts, treat "page up/down" as scroll aliases.
+    if (
+      isBrowser(context) &&
+      context.state.getPluginInstalled() &&
+      keys.size() == 1 &&
+      modifiers.size() == 0
+    ) {
+      String normalized = keys.get(0).toLowerCase();
+      if (normalized.equals("pagedown") || normalized.equals("page down")) {
+        return wrap(
+          context,
+          Command.newBuilder().setType(CommandType.COMMAND_TYPE_SCROLL).setDirection("down").build()
+        );
+      } else if (normalized.equals("pageup") || normalized.equals("page up")) {
+        return wrap(
+          context,
+          Command.newBuilder().setType(CommandType.COMMAND_TYPE_SCROLL).setDirection("up").build()
         );
       }
     }
@@ -2390,7 +2427,7 @@ public class CommandsVisitor
           Command
             .newBuilder()
             .setType(CommandType.COMMAND_TYPE_PRESS)
-            .addAllModifiers(Arrays.asList("control"))
+            .addAllModifiers(Arrays.asList("control", "shift"))
             .setText("tab")
             .build()
         );
@@ -2418,6 +2455,35 @@ public class CommandsVisitor
             .newBuilder()
             .setType(CommandType.COMMAND_TYPE_PRESS)
             .addAllModifiers(Arrays.asList("control", "shift"))
+            .setText("tab")
+            .build()
+        );
+      }
+    }
+
+    if (node.getTerminal("last").isPresent()) {
+      if (supported) {
+        return wrap(
+          context,
+          Command.newBuilder().setType(CommandType.COMMAND_TYPE_PREVIOUS_TAB).build()
+        );
+      } else if (isMac(context)) {
+        return wrap(
+          context,
+          Command
+            .newBuilder()
+            .setType(CommandType.COMMAND_TYPE_PRESS)
+            .addAllModifiers(Arrays.asList("command", "shift"))
+            .setText("[")
+            .build()
+        );
+      } else {
+        return wrap(
+          context,
+          Command
+            .newBuilder()
+            .setType(CommandType.COMMAND_TYPE_PRESS)
+            .addAllModifiers(Arrays.asList("control"))
             .setText("tab")
             .build()
         );

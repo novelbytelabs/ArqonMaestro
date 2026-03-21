@@ -44,6 +44,16 @@ export enum AuthorizationDecision {
 }
 
 /**
+ * Interaction mode axis from modes state vector.
+ * This gates execution posture, not language semantics.
+ */
+export enum InteractionMode {
+  COMMAND = "command",
+  DICTATION = "dictation",
+  CONVERSATION = "conversation",
+}
+
+/**
  * Authorization result
  */
 export interface AuthorizationResult {
@@ -81,6 +91,10 @@ export interface AuthorizationRequest {
   securityMode: SecurityMode;
   /** Whether in shared room mode */
   sharedRoomMode: boolean;
+  /** Current interaction mode */
+  interactionMode: InteractionMode;
+  /** Optional identity evidence readiness signal */
+  identityEvidenceReady?: boolean;
 }
 
 /**
@@ -206,7 +220,9 @@ export default class AuthorizationService {
       commandVerb,
       riskLevel, 
       securityMode, 
-      sharedRoomMode 
+      sharedRoomMode,
+      interactionMode,
+      identityEvidenceReady,
     } = request;
 
     // Check if command is always available (reflex-like)
@@ -219,12 +235,87 @@ export default class AuthorizationService {
       };
     }
 
+    // Interaction mode is an execution-gating axis.
+    // Dictation mode should not silently run operating commands.
+    if (interactionMode === InteractionMode.DICTATION) {
+      if (riskLevel === CommandRiskLevel.LOW) {
+        return {
+          decision: AuthorizationDecision.CONFIRM,
+          reason: "Dictation mode: explicit confirmation required for low-risk operating command",
+          confirmationLevel: "medium",
+          riskLevel,
+          isFallback: false,
+          metadata: {
+            interactionMode,
+          },
+        };
+      }
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Dictation mode: medium/high-impact operating commands are blocked",
+        riskLevel,
+        isFallback: false,
+        metadata: {
+          interactionMode,
+        },
+      };
+    }
+
     // Get current identity state
     const identityState = this.verificationService.getIdentityState();
     const confidence = this.verificationService.getConfidenceValue();
     const isVerified = this.verificationService.isVerified();
     const identityId = this.verificationService.getCurrentIdentityId();
     const role = this.verificationService.getCurrentRole();
+
+    // If identity evidence is degraded/unavailable, fail safely for higher risk.
+    if (identityEvidenceReady === false && !isVerified) {
+      if (riskLevel === CommandRiskLevel.HIGH || riskLevel === CommandRiskLevel.PRIVILEGED) {
+        return {
+          decision: AuthorizationDecision.BLOCK,
+          reason: "Identity evidence unavailable: high-risk command blocked",
+          riskLevel,
+          isFallback: false,
+          metadata: {
+            degradedIdentity: true,
+          },
+        };
+      }
+      if (riskLevel === CommandRiskLevel.MEDIUM) {
+        return {
+          decision: AuthorizationDecision.CONFIRM,
+          reason: "Identity evidence unavailable: confirmation required for medium-risk command",
+          confirmationLevel: "high",
+          riskLevel,
+          isFallback: false,
+          metadata: {
+            degradedIdentity: true,
+          },
+        };
+      }
+    }
+
+    // Diarization contamination is a hard safety signal.
+    if (this.verificationService.isContaminated()) {
+      if (riskLevel === CommandRiskLevel.HIGH || riskLevel === CommandRiskLevel.PRIVILEGED) {
+        return {
+          decision: AuthorizationDecision.BLOCK,
+          reason: "Contaminated speaker state: high-risk command blocked",
+          riskLevel,
+          isFallback: false,
+        };
+      }
+
+      if (riskLevel === CommandRiskLevel.MEDIUM) {
+        return {
+          decision: AuthorizationDecision.CONFIRM,
+          reason: "Contaminated speaker state: confirmation required for medium-risk command",
+          confirmationLevel: "high",
+          riskLevel,
+          isFallback: false,
+        };
+      }
+    }
 
     // Apply security mode restrictions
     if (this.config.enforceSecurityMode && securityMode === SecurityMode.RESTRICTED) {
@@ -308,7 +399,19 @@ export default class AuthorizationService {
    * Check if command is always available
    */
   private isAlwaysAvailable(commandVerb: string): boolean {
-    return ALWAYS_AVAILABLE_COMMANDS.includes(commandVerb.toLowerCase());
+    const normalized = commandVerb.toLowerCase();
+    if (ALWAYS_AVAILABLE_COMMANDS.includes(normalized)) {
+      return true;
+    }
+    if (
+      normalized.includes("start dictate") ||
+      normalized.includes("start dictation") ||
+      normalized.includes("stop dictate") ||
+      normalized.includes("stop dictation")
+    ) {
+      return true;
+    }
+    return false;
   }
 
   /**

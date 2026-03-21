@@ -9,6 +9,7 @@ import RevisionBoxWindow from "./windows/revision-box";
 import Settings from "./settings";
 import System from "./execute/system";
 import RendererBridge from "./bridge";
+import FocusHistoryService from "./runtime/focus-history-service";
 import { isValidAlternative } from "../shared/alternatives";
 import { filenameToLanguageConfig, getConfig, languages } from "../shared/languages";
 import { plugins } from "../shared/plugins";
@@ -42,7 +43,8 @@ export default class Active {
     private miniModeWindow: MiniModeWindow,
     private pluginManager: PluginManager,
     private settings: Settings,
-    private system: System
+    private system: System,
+    private focusHistory: FocusHistoryService
   ) {
     setInterval(async () => {
       // If we only have empty-tabs in chrome, then our service worker times out
@@ -410,6 +412,7 @@ export default class Active {
     this.language = language;
     this.languageName = languageName;
     this.sourceAvailable = sourceAvailable;
+    this.focusHistory.observe(app);
 
     if (filename !== "" && filename !== "terminal.sh") {
       console.log(`[Active] app: ${app}, filename: ${filename}, language: ${language}, name: ${languageName}`);

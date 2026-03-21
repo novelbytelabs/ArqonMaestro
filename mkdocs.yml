@@ -71,6 +71,14 @@ nav:
       - Navigation: browser/navigation.md
       - Links and Inputs: browser/links-and-inputs.md
       - Editing Text and Code: browser/editing-text-and-code.md
+      - Forms: browser/forms.md
+      - Operator Deck: browser/operator-deck.md
+      - Operator Surface: browser/operator-surface.md
+      - Automation Modes: browser/automation-modes.md
+      - Voice Enrollment: browser/voice-enrollment.md
+      - Policy: browser/policy.md
+      - Security Policy Matrix (v1): browser/security-policy-matrix.md
+      - Security Decisions (Ground Truth): browser/security-policy-decisions.md
   - Architecture:
       - Codebase Layout: architecture/codebase-layout.md
       - Request Lifecycle: architecture/request-lifecycle.md
@@ -83,6 +91,7 @@ nav:
       - Model Architecture: models/model-architecture.md
       - Training Models: models/training-models.md
   - Operations:
+      - Maestro Local Runbook: operations/maestro-local-runbook.md
       - Port Reference: operations/port-reference.md
       - Gate 6 Kokoro Plan: operations/gate-6-kokoro-plan.md
       - Configuration: operations/configuration.md
@@ -104,7 +113,11 @@ nav:
   - Parsing:
       - Grammars: parsing/grammars.md
   - Testing:
-      - Focus Test Plan: vos/maestro-focus-test-plan.md
+      - Maestro POC Testing Plan: vos/maestro-poc-testing-plan.md
+      - Maestro Test Inventory: vos/maestro-test-inventory.md
+      - Comprehensive Test Strategy: vos/maestro-comprehensive-test-strategy.md
+      - Browser Parity (Talon + Rango): vos/system/maestro-browser-parity.md
+      - Focus Test Plan: vos/focus/maestro-focus-test-plan.md
   - Runtime Services (FP-2A/2B):
       - Identity Gateway: vos/maestro-identity-gateway-service.md
       - Authorization Service: vos/maestro-authorization-service.md

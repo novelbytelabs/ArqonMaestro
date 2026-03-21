@@ -203,6 +203,10 @@ export interface WorkflowContract {
   workflowClass: WorkflowClass;
   sourceType: WorkflowSourceType;
   sourceUtterance: string;
+  origin: "user" | "nexus_proposal" | "macro";
+  proposalId?: string;
+  delegationGrantId?: string;
+  authorityContext?: WorkflowAuthorityContext;
   canonicalWorkflowName?: string;
   steps: WorkflowStepContract[];
   sharedState: Map<string, WorkflowBinding>;
@@ -217,6 +221,15 @@ export interface WorkflowContract {
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
+}
+
+export interface WorkflowAuthorityContext {
+  securityMode: "normal" | "secure" | "restricted" | "shared_room";
+  interactionMode: "command" | "dictation" | "conversation";
+  identityState: string;
+  speakerVerified: boolean;
+  contaminated: boolean;
+  identityEvidenceReady: boolean;
 }
 
 /**
@@ -259,7 +272,13 @@ export function createWorkflowContract(
   workflowId: string,
   sourceUtterance: string,
   workflowClass: WorkflowClass,
-  steps: Omit<WorkflowStepContract, "stepId" | "status">[]
+  steps: Omit<WorkflowStepContract, "stepId" | "status">[],
+  options: {
+    origin?: "user" | "nexus_proposal" | "macro";
+    proposalId?: string;
+    delegationGrantId?: string;
+    authorityContext?: WorkflowAuthorityContext;
+  } = {}
 ): WorkflowContract {
   const now = new Date();
 
@@ -268,6 +287,10 @@ export function createWorkflowContract(
     workflowClass,
     sourceType: WorkflowSourceType.SPOKEN_CHAIN,
     sourceUtterance,
+    origin: options.origin || "user",
+    proposalId: options.proposalId,
+    delegationGrantId: options.delegationGrantId,
+    authorityContext: options.authorityContext,
     steps: steps.map((step, index) => ({
       ...step,
       stepId: `${workflowId}_step_${index + 1}`,
@@ -374,13 +397,8 @@ export function computeWorkflowRiskLevel(steps: WorkflowStepContract[]): Workflo
 
   for (const step of steps) {
     const stepRisk = stepRiskMap[step.commandFamily] || WorkflowRiskLevel.MODERATE;
-    if (stepRisk === WorkflowRiskLevel.PRIVILEGED) {
-      return WorkflowRiskLevel.PRIVILEGED;
-    }
     if (stepRisk === WorkflowRiskLevel.HIGH) {
-      if (highestRisk !== WorkflowRiskLevel.PRIVILEGED) {
-        highestRisk = WorkflowRiskLevel.HIGH;
-      }
+      highestRisk = WorkflowRiskLevel.HIGH;
     }
     if (stepRisk === WorkflowRiskLevel.MODERATE && highestRisk === WorkflowRiskLevel.LOW) {
       highestRisk = WorkflowRiskLevel.MODERATE;
@@ -456,14 +474,21 @@ export default class WorkflowContractService {
   createWorkflow(
     sourceUtterance: string,
     workflowClass: WorkflowClass,
-    steps: Omit<WorkflowStepContract, "stepId" | "status">[]
+    steps: Omit<WorkflowStepContract, "stepId" | "status">[],
+    options: {
+      origin?: "user" | "nexus_proposal" | "macro";
+      proposalId?: string;
+      delegationGrantId?: string;
+      authorityContext?: WorkflowAuthorityContext;
+    } = {}
   ): WorkflowContract {
     const workflowId = `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const contract = createWorkflowContract(
       workflowId,
       sourceUtterance,
       workflowClass,
-      steps
+      steps,
+      options
     );
 
     // Compute risk level

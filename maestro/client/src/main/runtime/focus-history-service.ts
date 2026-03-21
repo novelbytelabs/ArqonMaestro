@@ -21,6 +21,7 @@ import {
 import { FocusAuthority, FocusAuthorityQuery } from "./focus-authority-service";
 import { ContractValidationResult } from "./focus-transfer-contract";
 import { InvariantCheckRecord, SafetyInvariantType } from "./focus-safety-monitor";
+import System from "../execute/system";
 
 // Failure analysis imports (FP-2.4)
 import { FailureAnalysis, FailureType, FailureSeverity } from "./focus-failure-modes";
@@ -98,9 +99,102 @@ export default class FocusHistoryService {
   private invariantHistory: InvariantCheckRecord[] = [];
   private failureAnalysisHistory: FailureAnalysis[] = [];
   private config: FocusHistoryConfig;
+  private currentApp?: string;
+  private previousApp?: string;
+  private logger?: { logVerbose?: (message: string) => void };
 
-  constructor(config: FocusHistoryConfig = { maxEntries: 100 }) {
-    this.config = config;
+  constructor(
+    configOrLogger: FocusHistoryConfig | { logVerbose?: (message: string) => void } = {
+      maxEntries: 100,
+    }
+  ) {
+    if (
+      typeof configOrLogger === "object" &&
+      configOrLogger !== null &&
+      "maxEntries" in configOrLogger &&
+      typeof configOrLogger.maxEntries === "number"
+    ) {
+      this.config = configOrLogger as FocusHistoryConfig;
+    } else {
+      this.config = { maxEntries: 100 };
+      this.logger = configOrLogger as { logVerbose?: (message: string) => void };
+    }
+  }
+
+  private isSelfApp(app: string): boolean {
+    const normalized = app.toLowerCase().replace(/\s+/g, "");
+    return (
+      normalized.length === 0 ||
+      normalized.includes("maestro") ||
+      normalized.includes("arqonmaestro") ||
+      normalized.includes("serenade")
+    );
+  }
+
+  observe(app: string): void {
+    const normalized = app.trim();
+    if (normalized.length === 0 || this.isSelfApp(normalized)) {
+      return;
+    }
+
+    if (normalized === this.currentApp) {
+      return;
+    }
+
+    this.previousApp = this.currentApp;
+    this.currentApp = normalized;
+    this.logger?.logVerbose?.(
+      `[FocusHistoryService] observe current=${this.currentApp} previous=${this.previousApp}`
+    );
+  }
+
+  snapshot(): { current?: string; previous?: string } {
+    return {
+      current: this.currentApp,
+      previous: this.previousApp,
+    };
+  }
+
+  async focusTarget(target: string, system: System, currentApp?: string): Promise<void> {
+    const normalizedTarget = target.toLowerCase().trim();
+
+    if (
+      normalizedTarget === "return focus" ||
+      normalizedTarget === "returnfocus" ||
+      normalizedTarget === "previous app"
+    ) {
+      await this.returnFocus(system, currentApp);
+      return;
+    }
+
+    if (currentApp) {
+      this.observe(currentApp);
+    }
+
+    await system.focus(target);
+
+    const actual = await system.determineActiveApplication();
+    this.observe(actual || target);
+  }
+
+  async returnFocus(system: System, currentApp?: string): Promise<boolean> {
+    if (!this.previousApp) {
+      return false;
+    }
+
+    const target = this.previousApp;
+    const currentBeforeRestore = currentApp ?? this.currentApp;
+
+    await system.focus(target);
+
+    const actual = await system.determineActiveApplication();
+    const restored = actual || target;
+
+    this.currentApp = restored;
+    this.previousApp =
+      currentBeforeRestore && currentBeforeRestore !== restored ? currentBeforeRestore : undefined;
+
+    return true;
   }
 
   /**

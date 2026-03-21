@@ -228,7 +228,7 @@ That correction must persist.
 
 Current approved direction:
 
-- denoise: `RNNoise`
+- denoise: `ONNX denoiser integration` (primary; DTLN-class ONNX candidate), with WebRTC APM and RNNoise retained as benchmark/alternate candidates
 - VAD / turn: `Silero VAD` with optional fast first-pass gating
 - STT command-fast: `whisper.cpp`
 - STT dictation-accurate: `faster-whisper`
@@ -297,7 +297,8 @@ Includes:
 - timing contract
 - denoise boundary
 - VAD boundary
-- later RNNoise integration
+- later ONNX denoiser integration (DTLN-class ONNX candidate first)
+- WebRTC APM and RNNoise as benchmark / alternate lanes only (not default production direction)
 - later Silero shadow/comparison path
 - measurable turn behavior
 - interruption candidate groundwork
@@ -402,7 +403,7 @@ That became the winning pattern.
 ## Patch 3 is NOT
 - not the live cutover to Silero as primary
 - not Patch 4
-- not real RNNoise integration
+- not real denoise cutover integration
 - not Wave B
 - not broad architecture cleanup
 

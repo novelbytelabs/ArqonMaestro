@@ -111,3 +111,98 @@ Consequences:
 * [`maestro/client/src/main/runtime/runtime-spine.ts`](../../maestro/client/src/main/runtime/runtime-spine.ts) now owns the first grouped main-process runtime cluster
 * `App.create()` becomes more orchestration-focused and less responsible for direct hot-path assembly
 * later Phase 1A work can decompose the runtime spine further without reopening the whole app boot path
+
+---
+
+## VOS-005: Wave A Denoise Default = WebRTC APM, RNNoise = Benchmark Candidate
+
+* Date: 2026-03-18
+* Status: Superseded by VOS-006
+
+Decision:
+
+Wave A denoise direction is WebRTC Audio Processing (APM) noise suppression on the 16 kHz-native speech path. RNNoise is retained as a benchmark candidate, not the default production integration target.
+
+Why:
+
+Current Maestro speech path and Silero VAD alignment favor 16 kHz coherence and deterministic low-latency behavior. Forcing a 48 kHz-oriented denoise island adds complexity and conversion risk unless benchmark evidence justifies it.
+
+Consequences:
+
+* (Historical) This decision was later replaced by ONNX-denoiser-first direction in VOS-006 / ADM-052
+
+---
+
+## VOS-006: Wave A Patch 4 Denoise Default = ONNX Denoiser Path
+
+* Date: 2026-03-19
+* Status: Accepted
+
+Decision:
+
+Patch 4 denoise direction is ONNX-denoiser-first on Maestro’s 16 kHz speech path, with DTLN-class ONNX as the primary current candidate. WebRTC APM and RNNoise remain benchmark/alternate candidates only.
+
+Why:
+
+ONNX Runtime integration is already proven in Maestro via Silero shadow mode, and 16 kHz alignment preserves a coherent speech-path contract without forcing host migration into this phase.
+
+Consequences:
+
+* Patch 4 should be described as ONNX denoiser integration + interruption plumbing
+* WebRTC APM is not default production direction
+* RNNoise is not default production direction
+* Tauri remains a later parity-gated track, not current Wave A scope
+* see repo decision: [`ADM-052`](../decision-log.md)
+
+---
+
+## VOS-007: Wave B1 Command-Fast Bridge Uses Local Transcribe -> `sendTextRequest(...)`
+
+* Date: 2026-03-19
+* Status: Accepted
+
+Decision:
+
+Wave B1 is accepted with an explicit bridge architecture note:
+
+* `whisper.cpp` now owns the command-fast STT lane
+* B1 uses a local-transcribe -> `sendTextRequest(...)` bridge for final command resolution
+* this preserves existing downstream command semantics without reopening backend/protocol design
+* response provenance and chunk-final correlation semantics are therefore not identical to the prior endpoint-final STT path
+* this is an accepted bounded compromise for B1, not the final ideal end-state
+
+Why:
+
+This keeps Wave B1 bounded and additive while modernizing command-fast STT now, without forcing a broader backend/protocol redesign inside this slice.
+
+Consequences:
+
+* bridge behavior is intentional and should remain visible in future design and migration decisions
+* future phases may replace this bridge with a more ideal end-state, but B1 should not be retroactively treated as hidden doctrine
+
+---
+
+## VOS-008: Wave C2 WeSpeaker Verification Is CPU-First And Policy-Input Only
+
+* Date: 2026-03-19
+* Status: Accepted
+
+Decision:
+
+Wave C2 is accepted with the following explicit architecture constraints:
+
+* WeSpeaker owns the verification lane for this slice via a bounded Python subprocess bridge
+* execution policy for this slice is CPU-first only; GPU mismatch hardening is explicitly deferred
+* diarization and verification remain distinct functions and must not be merged
+* speaker identity output in this slice feeds authorization/policy inputs, not command-language semantics
+* Wave C2 must align with voice-identity architecture docs without broadening into full Phase 2A policy implementation
+
+Why:
+
+This preserves the intended identity architecture while keeping Wave C2 tightly scoped, auditable, and reversible if needed.
+
+Consequences:
+
+* verification bridge behavior is intentional and visible, not implicit doctrine
+* hot-path expectations remain local/fast/interruptible without redesigning language interpretation
+* Phase 2A policy completion remains a separate follow-on scope after Wave C completion

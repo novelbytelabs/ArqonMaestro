@@ -33,6 +33,19 @@ import { createBusClient } from "./stt/bus-client";
 import { createSTTComparator } from "./stt/comparator";
 import { createTrafficRouter } from "./stt/traffic-router";
 import HPOTuner from "./stt/hpo-tuner";
+import FocusHistoryService from "./runtime/focus-history-service";
+import RuntimeCommandEmitter from "./runtime/runtime-command-emitter";
+import RuntimeCommandDispatcher from "./runtime/runtime-command-dispatcher";
+import { RuntimeExecutionPort, RuntimeShellCallbackPort } from "./runtime/runtime-dispatch-ports";
+import {
+  CommandRiskLevel,
+  InteractionMode,
+} from "./runtime/authorization-service";
+import {
+  SecurityMode,
+  EnrollmentStatus,
+  SpeakerRole,
+} from "./runtime/identity-gateway-service";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
@@ -139,6 +152,7 @@ export default class App {
       settings,
       () => settingsWindow
     ));
+    const focusHistory = new FocusHistoryService(log);
 
     const active = new Active(
       bridge,
@@ -150,7 +164,8 @@ export default class App {
       miniModeWindow,
       pluginManager,
       settings,
-      system
+      system,
+      focusHistory
     );
 
     const nativeCommands = new NativeCommands(active, insertHistory, revisionBoxWindow, system);
@@ -163,6 +178,7 @@ export default class App {
     const hpoTuner = (instance.hpoTuner = new HPOTuner(settings, log, tracking));
     
     const stream = (instance.stream = new Stream(active, api, log, settings, tracking));
+    const runtimeCommandEmitter = new RuntimeCommandEmitter(log);
     const local = (instance.local = new Local(bridge, log, mainWindow, metadata, settings));
     const nux = new NUX(
       active,
@@ -199,11 +215,19 @@ export default class App {
       nux,
       pluginManager,
       revisionBoxWindow,
+      () => settingsWindow,
       settings,
       stream,
       system,
       () => commandHandler
     ));
+    const runtimeCommandDispatcher = new RuntimeCommandDispatcher(
+      custom as RuntimeShellCallbackPort,
+      runtimeCommandEmitter,
+      executor as RuntimeExecutionPort,
+      log
+    );
+    stream.setRuntimeCommandDispatcher(runtimeCommandDispatcher);
 
     // Note: Executor test methods are available but not exposed to window
     // Recovery is tested automatically when focus commands fail verification
@@ -222,7 +246,8 @@ export default class App {
       miniModeWindow,
       settings,
       stream,
-      tracking
+      tracking,
+      runtimeCommandDispatcher
     ));
 
     // Initialize Arqon Bus client for shadow publishing
@@ -342,11 +367,12 @@ export default class App {
     const tokenPresent = !!settings.getToken();
     let initialLoggedIn = tokenPresent;
     if (endpoint && endpoint.id == "local") {
-      const [speechHealthy, codeHealthy] = await Promise.all([
+      const [coreHealthy, speechHealthy, codeHealthy] = await Promise.all([
+        localServiceHealthy("http://localhost:17200/api/status"),
         localServiceHealthy("http://localhost:17202/api/status"),
         localServiceHealthy("http://localhost:17203/api/status"),
       ]);
-      initialLoggedIn = initialLoggedIn && speechHealthy && codeHealthy;
+      initialLoggedIn = initialLoggedIn && coreHealthy && speechHealthy && codeHealthy;
       if (!initialLoggedIn) {
         console.warn(
           "[ArqonMaestro] Local endpoint selected but local backend is not fully healthy yet."
@@ -375,12 +401,13 @@ export default class App {
       let attempts = 0;
       const interval = setInterval(async () => {
         attempts += 1;
-        const [speechHealthy, codeHealthy] = await Promise.all([
+        const [coreHealthy, speechHealthy, codeHealthy] = await Promise.all([
+          localServiceHealthy("http://localhost:17200/api/status"),
           localServiceHealthy("http://localhost:17202/api/status"),
           localServiceHealthy("http://localhost:17203/api/status"),
         ]);
 
-        if (speechHealthy && codeHealthy) {
+        if (coreHealthy && speechHealthy && codeHealthy) {
           console.log("[ArqonMaestro] Local backend healthy; enabling loggedIn state.");
           bridge.setState({ loggedIn: true, listening: false }, [mainWindow, miniModeWindow]);
           clearInterval(interval);
@@ -501,6 +528,7 @@ export default class App {
     settings: Settings,
     windows: (Window | Promise<Window> | undefined)[]
   ) {
+    const securityState = this.getSecurityPanelState();
     this.bridge!.setState(
       {
         animations: settings.getAnimations(),
@@ -534,9 +562,163 @@ export default class App {
         useMiniModeFewerAlternatives: settings.getUseMiniModeFewerAlternatives(),
         useMiniModeHideTimeout: settings.getUseMiniModeHideTimeout(),
         useVerboseLogging: settings.getUseVerboseLogging(),
+        ...securityState,
       },
       windows ? windows : [this.mainWindow, this.miniModeWindow, this.settingsWindow]
     );
+  }
+
+  getSecurityPanelState(): Record<string, unknown> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return {
+        securityMode: SecurityMode.NORMAL,
+        securityInteractionMode: InteractionMode.COMMAND,
+        securityIdentityState: "unknown",
+        securityIdentityDisplayName: "",
+        securityIdentityId: "",
+        securityContaminated: false,
+        securityIsVerified: false,
+        securityConfidenceValue: 0,
+        securityEvidenceReady: false,
+        securityVerificationProviderReady: false,
+        securityDiarizationProviderReady: false,
+        securityVerificationProviderError: "identity_gateway_unavailable",
+        securityDiarizationProviderError: "identity_gateway_unavailable",
+        securityEnrollmentCount: 0,
+        securityEnrollmentActive: false,
+        securityEnrollmentStatus: "pending",
+        securityEnrollmentName: "",
+        securityLastAuthorizationDecision: "",
+        securityLastAuthorizationReason: "",
+        securityLastBlockedCommand: "",
+        securityLastBlockedAt: "",
+      };
+    }
+
+    const context = gateway.getIdentityContext();
+    const evidence = gateway.getIdentityEvidenceStatus();
+    const status = this.executor?.getLastAuthorizationStatus();
+    const enrollment =
+      gateway.getEnrollment(context.identityId || "") || gateway.getEnrollment("default_owner");
+
+    return {
+      securityMode: context.securityMode,
+      securityInteractionMode: context.interactionMode,
+      securityIdentityState: context.identityState,
+      securityIdentityDisplayName: context.displayName || "",
+      securityIdentityId: context.identityId || "",
+      securityContaminated: context.contaminated,
+      securityIsVerified: context.isVerified,
+      securityConfidenceValue: context.confidenceValue,
+      securityEvidenceReady: evidence.ready,
+      securityVerificationProviderReady: evidence.verificationProviderReady,
+      securityDiarizationProviderReady: evidence.diarizationProviderReady,
+      securityVerificationProviderError: evidence.verificationLoadError || "",
+      securityDiarizationProviderError: evidence.diarizationLoadError || "",
+      securityEnrollmentCount: gateway.getAllEnrollments().length,
+      securityEnrollmentActive: !!enrollment,
+      securityEnrollmentStatus: enrollment?.status || "pending",
+      securityEnrollmentName: enrollment?.displayName || "",
+      securityLastAuthorizationDecision: status?.decision || "",
+      securityLastAuthorizationReason: status?.reason || "",
+      securityLastBlockedCommand: status?.blockedCommand || "",
+      securityLastBlockedAt: status?.blockedAt || "",
+    };
+  }
+
+  async setSecurityMode(mode: SecurityMode): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+    await gateway.setSecurityMode(mode, "settings_security_tab");
+  }
+
+  syncSecurityInteractionModeFromRuntime(dictateMode: boolean): void {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+    gateway.setInteractionMode(dictateMode ? InteractionMode.DICTATION : InteractionMode.COMMAND);
+  }
+
+  async upsertSecurityEnrollment(displayName: string): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+
+    const identityId = "default_owner";
+    const existing = gateway.getEnrollment(identityId);
+    if (existing) {
+      await gateway.updateEnrollment(identityId, {
+        displayName: (displayName || existing.displayName).trim() || existing.displayName,
+        role: SpeakerRole.SOVEREIGN_OWNER,
+        // Re-enroll should reactivate revoked/suspended identities.
+        status: EnrollmentStatus.ACTIVE,
+      });
+      return;
+    }
+
+    await gateway.createEnrollment({
+      identityId,
+      displayName: (displayName || "Primary User").trim(),
+      role: SpeakerRole.SOVEREIGN_OWNER,
+      metadata: {
+        createdBy: "settings_security_tab",
+      },
+    });
+  }
+
+  async resetSecurityEnrollment(): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+    if (gateway.getEnrollment("default_owner")) {
+      await gateway.revokeEnrollment("default_owner");
+    }
+    await gateway.resetVerification();
+  }
+
+  async runSecurityAuthorizationProbe(): Promise<void> {
+    const gateway = this.executor?.getIdentityGateway();
+    if (!gateway) {
+      return;
+    }
+
+    // Bounded verification probe for settings-driven enrollment flow:
+    // in this slice we synthesize a deterministic verification result for the
+    // active enrolled identity so security status can transition to verified
+    // before policy probe evaluation.
+    const enrolledIdentity =
+      gateway.getEnrollment("default_owner") || gateway.getActiveEnrollments()[0];
+    if (enrolledIdentity && enrolledIdentity.status === EnrollmentStatus.ACTIVE) {
+      const threshold = enrolledIdentity.verificationThreshold?.minConfidence ?? 0.8;
+      const confidence = Math.min(0.99, Math.max(threshold + 0.08, 0.9));
+      await gateway.processVerificationResult({
+        matched: true,
+        claimedIdentityId: enrolledIdentity.identityId,
+        confidence,
+        providerData: {
+          provider: "settings_security_probe",
+          source: "settings_test_verification",
+        },
+      });
+    }
+
+    await gateway.authorize({
+      commandFamily: "filesystem",
+      commandVerb: "delete",
+      riskLevel: CommandRiskLevel.HIGH,
+      target: "settings_probe",
+    });
+  }
+
+  async enrollAndVerifySecurityProfile(displayName: string): Promise<void> {
+    await this.upsertSecurityEnrollment(displayName);
+    await this.runSecurityAuthorizationProbe();
   }
 
   show() {

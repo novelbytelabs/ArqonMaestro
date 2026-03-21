@@ -106,7 +106,7 @@ These anchors must be preserved while the system evolves.
 The following stack elements are explicitly selected as near-term defaults for Maestro:
 
 - **Wake word:** deferred / optional; explicit listening remains the default
-- **Denoise:** `RNNoise`
+- **Denoise:** `DTLN-class ONNX denoiser` (primary, via onnxruntime-node), with `RNNoise` and WebRTC APM retained as benchmark/alternate candidates
 - **VAD / turn detection:** `Silero VAD` with optional fast first-pass gating
 - **STT (`command-fast`):** `whisper.cpp`
 - **STT (`dictation-accurate`):** `faster-whisper`
@@ -922,7 +922,7 @@ The target system should preserve the following:
 
 ### Wave 1: Modernize Input Front End
 
-- Integrate `RNNoise` for denoising
+- Integrate `DTLN-class ONNX denoiser` via `onnxruntime-node` for denoising on a 16 kHz-native path
 - Implement `Silero VAD` with optional fast first-pass gating
 - Verify turn-taking accuracy improvements
 

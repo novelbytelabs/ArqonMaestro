@@ -27,17 +27,23 @@ import SpeakerVerificationService, {
   SpeakerIdentityState,
   VerificationConfidence,
   VerificationResult,
+  DiarizationResult,
+  WeSpeakerVerificationRequest,
+  WeSpeakerVerificationResult,
 } from "./speaker-verification-service";
+import { DiarizationInput } from "./pyannote-diarization-provider";
 import AuthorizationService, {
   AuthorizationRequest,
   AuthorizationResult,
   AuthorizationDecision,
   CommandRiskLevel,
+  InteractionMode,
 } from "./authorization-service";
 import SecurityModeService, {
   SecurityMode,
   ModeSettings,
 } from "./security-mode-service";
+import { phase3BReplayAuditService } from "./phase3b-replay-audit-service";
 
 /**
  * Identity context for command execution
@@ -65,6 +71,10 @@ export interface IdentityContext {
   isVerified: boolean;
   /** Whether speaker is primary owner */
   isPrimaryOwner: boolean;
+  /** Current interaction mode */
+  interactionMode: InteractionMode;
+  /** Whether identity evidence providers are ready */
+  identityEvidenceReady: boolean;
 }
 
 /**
@@ -122,6 +132,7 @@ export default class IdentityGatewayService {
   private verificationService: SpeakerVerificationService;
   private authorizationService: AuthorizationService;
   private securityModeService: SecurityModeService;
+  private interactionMode: InteractionMode = InteractionMode.COMMAND;
 
   constructor(config?: IdentityGatewayConfig) {
     // Initialize enrollment service
@@ -213,6 +224,32 @@ export default class IdentityGatewayService {
     return this.verificationService.processVerificationResult(result);
   }
 
+  async processDiarizationAudio(input: DiarizationInput): Promise<DiarizationResult> {
+    return this.verificationService.processDiarizationAudio(input);
+  }
+
+  getDiarizationProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    return this.verificationService.getDiarizationProviderStatus();
+  }
+
+  async processWeSpeakerVerification(
+    request: WeSpeakerVerificationRequest
+  ): Promise<WeSpeakerVerificationResult> {
+    return this.verificationService.processWeSpeakerVerification(request);
+  }
+
+  getWeSpeakerProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    return this.verificationService.getWeSpeakerProviderStatus();
+  }
+
   /**
    * Get current speaker state
    */
@@ -299,6 +336,7 @@ export default class IdentityGatewayService {
    */
   async authorize(request: IdentityAuthorizationRequest): Promise<AuthorizationResult> {
     const riskLevel = request.riskLevel || this.authorizationService.getDefaultRiskLevel(request.commandFamily);
+    const evidence = this.getIdentityEvidenceStatus();
     
     const fullRequest: AuthorizationRequest = {
       commandFamily: request.commandFamily,
@@ -309,9 +347,31 @@ export default class IdentityGatewayService {
       privileged: request.privileged,
       securityMode: this.securityModeService.getCurrentMode(),
       sharedRoomMode: this.securityModeService.isSharedRoom(),
+      interactionMode: this.interactionMode,
+      identityEvidenceReady: evidence.ready,
     };
 
-    return this.authorizationService.authorize(fullRequest);
+    const result = await this.authorizationService.authorize(fullRequest);
+    const identity = this.getIdentityContext();
+    phase3BReplayAuditService.recordAuthorizationDecision({
+      commandFamily: fullRequest.commandFamily,
+      commandVerb: fullRequest.commandVerb,
+      target: fullRequest.target,
+      riskLevel,
+      decision: result.decision,
+      reason: result.reason,
+      confirmationLevel: result.confirmationLevel,
+      isFallback: result.isFallback,
+      securityMode: fullRequest.securityMode,
+      sharedRoomMode: fullRequest.sharedRoomMode,
+      interactionMode: fullRequest.interactionMode,
+      identityState: identity.identityState,
+      identityId: identity.identityId,
+      speakerVerified: identity.isVerified,
+      contaminated: identity.contaminated,
+      identityEvidenceReady: fullRequest.identityEvidenceReady ?? true,
+    });
+    return result;
   }
 
   /**
@@ -335,6 +395,7 @@ export default class IdentityGatewayService {
   getIdentityContext(): IdentityContext {
     const state = this.verificationService.getCurrentState();
     const securityMode = this.securityModeService.getCurrentMode();
+    const evidence = this.getIdentityEvidenceStatus();
 
     return {
       identityState: state.identityState,
@@ -348,6 +409,40 @@ export default class IdentityGatewayService {
       contaminated: state.contaminated,
       isVerified: this.verificationService.isVerified(),
       isPrimaryOwner: this.verificationService.isPrimaryOwner(),
+      interactionMode: this.interactionMode,
+      identityEvidenceReady: evidence.ready,
+    };
+  }
+
+  // ============ INTERACTION MODE METHODS ============
+
+  getInteractionMode(): InteractionMode {
+    return this.interactionMode;
+  }
+
+  setInteractionMode(mode: InteractionMode): void {
+    this.interactionMode = mode;
+  }
+
+  // ============ IDENTITY EVIDENCE METHODS ============
+
+  getIdentityEvidenceStatus(): {
+    ready: boolean;
+    verificationProviderReady: boolean;
+    diarizationProviderReady: boolean;
+    verificationLoadError?: string;
+    diarizationLoadError?: string;
+  } {
+    const verification = this.getWeSpeakerProviderStatus();
+    const diarization = this.getDiarizationProviderStatus();
+    const verificationReady = !verification.enabled || verification.ready;
+    const diarizationReady = !diarization.enabled || diarization.ready;
+    return {
+      ready: verificationReady && diarizationReady,
+      verificationProviderReady: verificationReady,
+      diarizationProviderReady: diarizationReady,
+      verificationLoadError: verification.loadError,
+      diarizationLoadError: diarization.loadError,
     };
   }
 
@@ -390,11 +485,15 @@ export default class IdentityGatewayService {
       },
       security: {
         mode,
+        interactionMode: context.interactionMode,
         settings: {
           requireVerificationForHighRisk: settings.requireVerificationForHighRisk,
           requireVerificationForPrivileged: settings.requireVerificationForPrivileged,
           blockUnknownHighRisk: settings.blockUnknownHighRisk,
         },
+      },
+      evidence: {
+        ready: context.identityEvidenceReady,
       },
     }, null, 2);
   }
@@ -416,5 +515,6 @@ export {
   VerificationConfidence, 
   AuthorizationDecision, 
   CommandRiskLevel, 
+  InteractionMode,
   SecurityMode 
 };

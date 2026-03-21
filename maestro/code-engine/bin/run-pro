@@ -2,4 +2,20 @@
 
 trap 'kill $(jobs -p) > /dev/null 2>&1' EXIT
 MODELS_PATH="${1:-../code-engine-models}"
+
+# Resolve sentencepiece shared-library path for spm_encode runtime.
+LIB_ROOT="${ARQON_MAESTRO_LIBRARY_ROOT:-${SERENADE_LIBRARY_ROOT:-}}"
+if [[ -z "${LIB_ROOT}" ]]; then
+  for candidate in "$HOME/libarqonmaestro" "$HOME/libarqon" "$HOME/libserenade"; do
+    if [[ -d "${candidate}/sentencepiece/lib" ]]; then
+      LIB_ROOT="${candidate}"
+      break
+    fi
+  done
+fi
+
+if [[ -n "${LIB_ROOT}" && -d "${LIB_ROOT}/sentencepiece/lib" ]]; then
+  export LD_LIBRARY_PATH="${LIB_ROOT}/sentencepiece/lib:${LD_LIBRARY_PATH:-}"
+fi
+
 ENV="local" CODE_ENGINE_MODELS="$MODELS_PATH" ./arqon-maestro-code-engine

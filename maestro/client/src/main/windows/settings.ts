@@ -43,7 +43,7 @@ export default class SettingsWindow extends Window {
   }
 
   height(): number {
-    return 400;
+    return 460;
   }
 
   hide() {
@@ -75,6 +75,6 @@ export default class SettingsWindow extends Window {
   }
 
   width(): number {
-    return 450;
+    return 760;
   }
 }

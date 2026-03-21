@@ -94,3 +94,7 @@ maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.so.*
 !maestro/client/build/*
 !maestro/core/src/main/java/core/gen/antlr/antlr4/LexerAdaptor.java
 !maestro/core/src/dist/bin/run-pro
+
+# Local audit bundles generated during PM freeze/report workflows
+maestro_integrity_layer_*/
+maestro_pm_reset_bundle_*/

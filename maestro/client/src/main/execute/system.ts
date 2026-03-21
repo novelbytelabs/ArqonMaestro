@@ -7,25 +7,75 @@ export default class System {
   // some applications don't have what they're commonly referred to in their application bundle,
   // so create a set of aliases to allow people to refer to apps more naturally
   private aliases: { [key: string]: string } = {
-    terminal: "term",
+    terminal: "terminal",
+    term: "terminal",
+    shell: "terminal",
+    console: "terminal",
     vscode: "code",
+    "vs code": "code",
     "visual studio code": "code",
+    chrome: "chrome",
+    google: "chrome",
+    browser: "chrome",
+    firefox: "firefox",
   };
 
   constructor(private settings: Settings) {}
 
+  private normalizePressKey(key: string): string {
+    const normalized = (key || "").toLowerCase().trim();
+    switch (normalized) {
+      case "return":
+        return "enter";
+      case "del":
+        return "delete";
+      case "pgup":
+      case "page up":
+        return "pageup";
+      case "pgdn":
+      case "page down":
+        return "pagedown";
+      default:
+        return normalized;
+    }
+  }
+
   applicationMatches(application: string, possible: string[]): string[] {
+    console.log(`[DEBUG applicationMatches] app='${application}', possible=${JSON.stringify(possible)}`);
+    
     let alias = application.toLowerCase();
     if (this.aliases[alias]) {
       alias = this.aliases[alias];
     }
 
-    return possible.filter(
-      (e: string) =>
-        e.toLowerCase().includes(application.toLowerCase()) ||
-        e.toLowerCase().includes(application.toLowerCase().replace(/\s/g, "")) ||
-        e.toLowerCase().includes(alias)
+    // Special handling for focus targets - map to known window titles/classes
+    const focusTargetMappings: { [key: string]: string[] } = {
+      'terminal': ['terminal', 'gnome-terminal', 'term', 'shell', 'console', '@'],  // @ matches user@host shell prompts
+      'code': ['code', 'vscode', 'vs code', 'visual studio code', 'visualstudiocode'],
+      'chrome': ['chrome', 'google-chrome', 'google chrome', 'chromium', 'brave'],
+      'browser': ['chrome', 'google-chrome', 'google chrome', 'chromium', 'brave', 'firefox'],
+      'firefox': ['firefox'],
+      'editor': ['code', 'vscode', 'vs code', 'visual studio code', 'visualstudiocode'],
+    };
+
+    const mappings = focusTargetMappings[alias] || [alias];
+    console.log(`[DEBUG applicationMatches] alias='${alias}', mappings=${JSON.stringify(mappings)}`);
+
+    const result = possible.filter(
+      (e: string) => {
+        const lowerE = e.toLowerCase();
+        // Check direct matches
+        if (mappings.some(m => lowerE.includes(m))) {
+          return true;
+        }
+        // Check if the app name contains the application text
+        return lowerE.includes(application.toLowerCase()) ||
+               lowerE.includes(application.toLowerCase().replace(/\s/g, "")) ||
+               lowerE.includes(alias);
+      }
     );
+    console.log(`[DEBUG applicationMatches] result=${JSON.stringify(result)}`);
+    return result;
   }
 
   click(button: string = "left", count: number = 1) {
@@ -172,7 +222,7 @@ export default class System {
   }
 
   async pressKey(key: string, modifiers: string[] = [], count: number = 1) {
-    await driver.pressKey(key, modifiers, count);
+    await driver.pressKey(this.normalizePressKey(key), modifiers, count);
     await this.delay(50);
   }
 

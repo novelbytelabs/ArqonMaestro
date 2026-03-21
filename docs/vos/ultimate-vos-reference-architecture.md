@@ -106,7 +106,7 @@ These anchors must be preserved while the system evolves.
 The following stack elements are explicitly selected as near-term defaults for Maestro:
 
 - **Wake word:** deferred / optional; explicit listening remains the default
-- **Denoise:** `RNNoise`
+- **Denoise:** `DTLN-class ONNX denoiser` (primary, via onnxruntime-node), with `RNNoise` retained as a benchmark candidate. WebRTC APM retained as fallback for environments where ONNX is unavailable.
 - **VAD / turn detection:** `Silero VAD` with optional fast first-pass gating
 - **STT (`command-fast`):** `whisper.cpp`
 - **STT (`dictation-accurate`):** `faster-whisper`
@@ -922,9 +922,10 @@ The target system should preserve the following:
 
 ### Wave 1: Modernize Input Front End
 
-- Integrate `RNNoise` for denoising
-- Implement `Silero VAD` with optional fast first-pass gating
+- Integrate `DTLN-class ONNX denoiser` via `onnxruntime-node` for cross-platform real-time noise suppression on 16 kHz-native path
+- Implement `Silero VAD` (ONNX) with optional fast first-pass gating
 - Verify turn-taking accuracy improvements
+- Ensure unified ONNX runtime strategy across VAD and denoise for minimal native dependency spread
 
 ### Wave 2: Split STT Lanes
 
@@ -938,7 +939,18 @@ The target system should preserve the following:
 - Integrate `WeSpeaker` for speaker verification
 - Establish secure mode with voice-authenticated commands
 
-### Wave 4: Modernize TTS Broker
+### Wave 4: Denoiser Modernization + TTS Broker
+
+**Denoiser Modernization (Patch 4):**
+
+- Integrate DTLN-class ONNX denoiser as primary denoise path via `onnxruntime-node`
+- Ensure 16 kHz native processing with 32ms block length / 8ms block shift for real-time operation
+- Preserve provider seam for swappable denoise engines
+- Add interruption plumbing for denoise-to-turn pipeline
+- Retain RNNoise as benchmark fallback
+- WebRTC APM available as platform-specific fallback only
+
+**TTS Broker:**
 
 - Finalize Kokoro as primary provider
 - Validate Piper fallback chain

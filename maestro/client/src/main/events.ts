@@ -23,6 +23,7 @@ import Stream from "./stream/stream";
 import TextInputWindow from "./windows/text-input";
 import Window from "./windows/window";
 import { core } from "../gen/core";
+import { SecurityMode } from "./runtime/identity-gateway-service";
 
 export default class RendererProcessEventHandlers {
   constructor(
@@ -427,6 +428,9 @@ export default class RendererProcessEventHandlers {
         },
         [this.settingsWindow()]
       );
+      if (settingsPage === "security") {
+        this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+      }
     });
 
     ipcMain.on("setWindowState", async (_event: any, data: { state: string; url: string }) => {
@@ -480,7 +484,67 @@ export default class RendererProcessEventHandlers {
       const settingsWindow = this.settingsWindow();
       if (settingsWindow) {
         (await settingsWindow).show();
+        this.bridge.setState(this.app.getSecurityPanelState(), [settingsWindow]);
       }
+    });
+
+    ipcMain.on("securityRefreshStatus", () => {
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securitySetMode", async (_event: any, mode: SecurityMode) => {
+      await this.app.setSecurityMode(mode);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityUpsertEnrollment", async (_event: any, displayName: string) => {
+      await this.app.upsertSecurityEnrollment(displayName);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityResetEnrollment", async () => {
+      await this.app.resetSecurityEnrollment();
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityRunProbe", async () => {
+      await this.app.runSecurityAuthorizationProbe();
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityEnrollAndVerify", async (_event: any, displayName: string) => {
+      await this.app.enrollAndVerifySecurityProfile(displayName);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+    });
+
+    ipcMain.on("securityWizardPreviewPhrase", (_event: any, phrase: string) => {
+      const normalized = (phrase || "").trim().toLowerCase();
+      if (!normalized) {
+        return;
+      }
+
+      this.bridge.setState(
+        {
+          alternatives: [
+            {
+              alternativeId: "wizard_preview_1",
+              description: normalized,
+              transcript: normalized,
+              commands: [
+                {
+                  index: 1,
+                  text: normalized,
+                  type: core.CommandType.COMMAND_TYPE_PRESS,
+                },
+              ],
+            },
+          ],
+          highlighted: [0],
+          partial: false,
+          suggestion: "",
+        },
+        [this.mainWindow, this.miniModeWindow, this.settingsWindow()]
+      );
     });
 
     ipcMain.on("startLocal", () => {
@@ -503,7 +567,9 @@ export default class RendererProcessEventHandlers {
 
     ipcMain.on("toggleDictateMode", async (_event: any, _data: any) => {
       this.active.dictateMode = !this.active.dictateMode;
+      this.app.syncSecurityInteractionModeFromRuntime(this.active.dictateMode);
       this.active.update(true);
+      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
     });
   }
 

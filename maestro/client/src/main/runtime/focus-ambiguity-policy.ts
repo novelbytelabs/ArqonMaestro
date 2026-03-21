@@ -201,7 +201,7 @@ const DEFAULT_CONFIG: TerminalAmbiguityConfig = {
   promptThreshold: 0.6,
   useRecentHistory: true,
   recentHistoryLimit: 5,
-  fallbackAction: "try_alternate",
+  fallbackAction: "suggest_alternate",
   requireExplicitIntegratedDetection: false,
 };
 
@@ -730,5 +730,3 @@ export default class FocusAmbiguityPolicy {
     return parts.join(", ");
   }
 }
-
-export default FocusAmbiguityPolicy;

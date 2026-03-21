@@ -7,6 +7,7 @@ import ChunkManager from "./chunk-manager";
 import Custom from "../ipc/custom";
 import Executor from "../execute/executor";
 import Log from "../log";
+import RuntimeCommandDispatcher from "../runtime/runtime-command-dispatcher";
 import Settings from "../settings";
 import STTTracking from "../stt/tracking";
 import { core } from "../../gen/core";
@@ -21,6 +22,7 @@ export default class Stream {
   private tracking: STTTracking;
   private reconnectCount: number = 0;
   private lastDisconnectTime: number = 0;
+  private runtimeCommandDispatcher?: RuntimeCommandDispatcher;
 
   constructor(
     private active: Active,
@@ -54,6 +56,10 @@ export default class Stream {
     }, 30000);
   }
 
+  setRuntimeCommandDispatcher(runtimeCommandDispatcher: RuntimeCommandDispatcher) {
+    this.runtimeCommandDispatcher = runtimeCommandDispatcher;
+  }
+
   private send(socket: WebSocket | undefined, data: any) {
     if (!this.connected() || !socket || socket.readyState != WebSocket.OPEN) {
       return;
@@ -77,15 +83,19 @@ export default class Stream {
     }
 
     const checks = await Promise.all([
+      this.localServiceHealthy("http://localhost:17200/api/status"),
       this.localServiceHealthy("http://localhost:17202/api/status"),
       this.localServiceHealthy("http://localhost:17203/api/status"),
     ]);
 
     const missing = [];
     if (!checks[0]) {
-      missing.push("speech-engine (:17202)");
+      missing.push("core (:17200)");
     }
     if (!checks[1]) {
+      missing.push("speech-engine (:17202)");
+    }
+    if (!checks[2]) {
       missing.push("code-engine (:17203)");
     }
 
@@ -244,10 +254,24 @@ export default class Stream {
     response: core.ICommandsResponse
   ) {
     response = await executor.postProcessResponse(response);
-    await executor.execute(response);
-    custom.send("callback", {
-      transcript: response.execute?.transcript,
+    if (!this.runtimeCommandDispatcher) {
+      await executor.execute(response);
+      custom.send("callback", {
+        transcript: response.execute?.transcript,
+      });
+      return;
+    }
+
+    const policyContext = executor.getRuntimeDispatchPolicyContext();
+    await this.runtimeCommandDispatcher.dispatch(response, {
+      emitNormalizedCommands: true,
+      sessionId: this.tracking.getCurrentSessionId() || undefined,
+      updateRenderer: true,
+      securityMode: policyContext.securityMode,
+      speakerVerified: policyContext.speakerVerified,
+      interactionMode: policyContext.interactionMode,
     });
+    this.runtimeCommandDispatcher.sendTextCallback(response);
   }
 
   sendAppendToPreviousRequest() {

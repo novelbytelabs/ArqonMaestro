@@ -18,6 +18,12 @@ import SpeakerEnrollmentService, {
   SpeakerRole,
   EnrollmentStatus 
 } from "./speaker-enrollment-service";
+import PyannoteDiarizationProvider, {
+  DiarizationInput,
+  DiarizationSegment,
+} from "./pyannote-diarization-provider";
+import WeSpeakerVerificationProvider from "./wespeaker-verification-provider";
+import { phase3ABenchmarkService } from "./phase3a-benchmark-service";
 
 /**
  * Speaker identity states
@@ -125,6 +131,10 @@ export interface VerificationServiceConfig {
   verificationTimeoutMs: number;
   /** Maximum verification history events */
   maxHistoryEvents: number;
+  /** Enable pyannote diarization bridge lane */
+  enableDiarizationBridge: boolean;
+  /** Enable WeSpeaker verification bridge lane */
+  enableWeSpeakerBridge: boolean;
 }
 
 /**
@@ -136,7 +146,29 @@ const DEFAULT_CONFIG: VerificationServiceConfig = {
   requireEnrollmentMatch: true,
   verificationTimeoutMs: 5000,
   maxHistoryEvents: 100,
+  enableDiarizationBridge: true,
+  enableWeSpeakerBridge: true,
 };
+
+export interface DiarizationResult {
+  ok: boolean;
+  segments: DiarizationSegment[];
+  speakerCount: number;
+  contaminated: boolean;
+  error?: string;
+}
+
+export interface WeSpeakerVerificationRequest {
+  identityId: string;
+  probeAudioPath: string;
+}
+
+export interface WeSpeakerVerificationResult {
+  ok: boolean;
+  similarity?: number;
+  state?: SpeakerState;
+  error?: string;
+}
 
 /**
  * Get verification confidence level from raw value
@@ -158,14 +190,254 @@ export default class SpeakerVerificationService {
   private config: VerificationServiceConfig;
   private currentState: SpeakerState;
   private verificationHistory: VerificationEvent[];
+  private diarizationProvider?: PyannoteDiarizationProvider;
+  private weSpeakerProvider?: WeSpeakerVerificationProvider;
 
-  constructor(enrollmentService: SpeakerEnrollmentService, config: Partial<VerificationServiceConfig> = {}) {
+  constructor(
+    enrollmentService: SpeakerEnrollmentService,
+    config: Partial<VerificationServiceConfig> = {},
+    diarizationProvider?: PyannoteDiarizationProvider,
+    weSpeakerProvider?: WeSpeakerVerificationProvider
+  ) {
     this.enrollmentService = enrollmentService;
     this.config = { ...DEFAULT_CONFIG, ...config };
     
     // Initialize with unknown state
     this.currentState = this.createUnknownState();
     this.verificationHistory = [];
+    if (this.config.enableDiarizationBridge) {
+      this.diarizationProvider = diarizationProvider || new PyannoteDiarizationProvider();
+    } else if (diarizationProvider) {
+      this.diarizationProvider = diarizationProvider;
+    }
+    if (this.config.enableWeSpeakerBridge) {
+      this.weSpeakerProvider = weSpeakerProvider || new WeSpeakerVerificationProvider();
+    } else if (weSpeakerProvider) {
+      this.weSpeakerProvider = weSpeakerProvider;
+    }
+  }
+
+  getDiarizationProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    const enabled = !!this.diarizationProvider;
+    return {
+      enabled,
+      ready: enabled ? this.diarizationProvider!.isReady() : false,
+      loadError: enabled ? this.diarizationProvider!.getLoadError() : "diarization_disabled",
+    };
+  }
+
+  async processDiarizationAudio(input: DiarizationInput): Promise<DiarizationResult> {
+    const startedAt = Date.now();
+    if (!this.diarizationProvider) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "diarization_disabled",
+      });
+      return {
+        ok: false,
+        segments: [],
+        speakerCount: 0,
+        contaminated: false,
+        error: "diarization_disabled",
+      };
+    }
+
+    if (!this.diarizationProvider.isReady()) {
+      const reason = this.diarizationProvider.getLoadError() || "diarization_unavailable";
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason,
+      });
+      return {
+        ok: false,
+        segments: [],
+        speakerCount: 0,
+        contaminated: false,
+        error: reason,
+      };
+    }
+
+    try {
+      const segments = await this.diarizationProvider.diarize(input);
+      const uniqueSpeakers = new Set(segments.map((segment) => segment.speaker));
+      const speakerCount = uniqueSpeakers.size;
+      const contaminated = speakerCount > 1;
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: true,
+        latencyMs: Date.now() - startedAt,
+        contaminated,
+        degraded: contaminated,
+      });
+
+      if (contaminated) {
+        const previousState = { ...this.currentState };
+        this.currentState = {
+          identityState: SpeakerIdentityState.CONTAMINATED,
+          confidence: VerificationConfidence.NONE,
+          confidenceValue: 0,
+          lastUpdated: new Date().toISOString(),
+          contaminated: true,
+          speakerCount,
+        };
+        this.addHistoryEvent({
+          eventType: "contamination",
+          previousState: previousState.identityState,
+          newState: SpeakerIdentityState.CONTAMINATED,
+          confidenceValue: 0,
+          contaminated: true,
+        });
+      }
+
+      return {
+        ok: true,
+        segments,
+        speakerCount,
+        contaminated,
+      };
+    } catch (error) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "pyannote.audio",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      return {
+        ok: false,
+        segments: [],
+        speakerCount: 0,
+        contaminated: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  getWeSpeakerProviderStatus(): {
+    enabled: boolean;
+    ready: boolean;
+    loadError?: string;
+  } {
+    const enabled = !!this.weSpeakerProvider;
+    return {
+      enabled,
+      ready: enabled ? this.weSpeakerProvider!.isReady() : false,
+      loadError: enabled ? this.weSpeakerProvider!.getLoadError() : "wespeaker_disabled",
+    };
+  }
+
+  async processWeSpeakerVerification(
+    request: WeSpeakerVerificationRequest
+  ): Promise<WeSpeakerVerificationResult> {
+    const startedAt = Date.now();
+    if (!this.weSpeakerProvider) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "wespeaker_disabled",
+      });
+      return { ok: false, error: "wespeaker_disabled" };
+    }
+    if (!this.weSpeakerProvider.isReady()) {
+      const reason = this.weSpeakerProvider.getLoadError() || "wespeaker_unavailable";
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason,
+      });
+      return { ok: false, error: reason };
+    }
+
+    const enrollment = this.enrollmentService.getEnrollment(request.identityId);
+    if (!enrollment || enrollment.status !== EnrollmentStatus.ACTIVE) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "enrollment_not_active",
+      });
+      return { ok: false, error: "enrollment_not_active" };
+    }
+    if (!enrollment.voiceProfileData) {
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason: "missing_enrollment_voice_profile",
+      });
+      return { ok: false, error: "missing_enrollment_voice_profile" };
+    }
+
+    try {
+      const similarity = await this.weSpeakerProvider.verify({
+        enrollmentAudioPath: enrollment.voiceProfileData,
+        probeAudioPath: request.probeAudioPath,
+      });
+
+      const matched = similarity >= enrollment.verificationThreshold.minConfidence;
+      const state = await this.processVerificationResult({
+        matched,
+        claimedIdentityId: matched ? request.identityId : undefined,
+        confidence: similarity,
+        providerData: {
+          provider: "wespeaker",
+          modelTarget: this.weSpeakerProvider.getConfig().modelTarget,
+          device: "cpu",
+          similarity,
+        },
+      });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: true,
+        latencyMs: Date.now() - startedAt,
+        degraded: !matched,
+      });
+
+      return {
+        ok: true,
+        similarity,
+        state,
+      };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "secure_speaker_aware",
+        provider: "wespeaker",
+        success: false,
+        latencyMs: Date.now() - startedAt,
+        degraded: true,
+        reason,
+      });
+      return {
+        ok: false,
+        error: reason,
+      };
+    }
   }
 
   /**

@@ -176,7 +176,7 @@ export default class SecurityModeService {
   private config: SecurityModeServiceConfig;
   private currentMode: SecurityMode;
   private modeHistory: ModeTransitionEvent[];
-  private privilegedConfirmTimeout?: NodeJS.Timeout;
+  private privilegedConfirmTimeout?: ReturnType<typeof setTimeout>;
 
   constructor(config: Partial<SecurityModeServiceConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };

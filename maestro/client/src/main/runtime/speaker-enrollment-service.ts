@@ -140,6 +140,8 @@ export interface EnrollmentServiceConfig {
   maxEnrolledSpeakers?: number;
   /** Whether to allow duplicate identity IDs */
   allowDuplicateIds?: boolean;
+  /** Whether to seed a default test enrollment on startup */
+  seedDefaultEnrollment?: boolean;
 }
 
 /**
@@ -155,6 +157,7 @@ const DEFAULT_CONFIG: EnrollmentServiceConfig = {
   },
   maxEnrolledSpeakers: 10,
   allowDuplicateIds: false,
+  seedDefaultEnrollment: process.env.ARQON_MAESTRO_SEED_DEFAULT_ENROLLMENT === "1",
 };
 
 /**
@@ -170,8 +173,10 @@ export default class SpeakerEnrollmentService {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.enrollments = new Map();
     
-    // Initialize with a default enrollment for testing
-    this.initializeDefaultEnrollment();
+    // Optional test-only bootstrap; disabled by default so first-run UX is truthful.
+    if (this.config.seedDefaultEnrollment) {
+      this.initializeDefaultEnrollment();
+    }
   }
 
   /**
