@@ -70,6 +70,7 @@ nav:
       - Getting Started: browser/getting-started.md
       - Operator Deck: browser/operator-deck.md
       - Operator Surface: browser/operator-surface.md
+      - Automation Modes: browser/automation-modes.md
       - Navigation: browser/navigation.md
       - Links and Inputs: browser/links-and-inputs.md
       - Editing Text and Code: browser/editing-text-and-code.md
