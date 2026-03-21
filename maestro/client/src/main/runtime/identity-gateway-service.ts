@@ -364,17 +364,23 @@ export default class IdentityGatewayService {
     const result = await this.authorizationService.authorize(fullRequest);
     const identity = this.getIdentityContext();
     phase3BReplayAuditService.recordAuthorizationDecision({
+      interactionId: fullRequest.securitySession?.interactionId,
       commandFamily: fullRequest.commandFamily,
       commandVerb: fullRequest.commandVerb,
       target: fullRequest.target,
       riskLevel,
       decision: result.decision,
       reason: result.reason,
+      reasonCode: String(result.metadata?.reasonCode || fullRequest.securitySession?.reasonCode || ""),
       confirmationLevel: result.confirmationLevel,
       isFallback: result.isFallback,
       securityMode: fullRequest.securityMode,
+      securityPolicyMode: fullRequest.securitySession?.mode,
       sharedRoomMode: fullRequest.sharedRoomMode,
       interactionMode: fullRequest.interactionMode,
+      securityRequiresReauthNext: fullRequest.securitySession?.requiresReauth,
+      securityGraceValid: fullRequest.securitySession?.graceValid,
+      securityGraceExpiresAt: fullRequest.securitySession?.graceExpiresAt,
       identityState: identity.identityState,
       identityId: identity.identityId,
       speakerVerified: identity.isVerified,

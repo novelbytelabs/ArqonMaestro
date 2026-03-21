@@ -115,6 +115,7 @@ What landed:
 * Text-command dispatch path now uses the same expanded context contract as chunk dispatch.
 * Added bounded modal-context synthesis in `Executor` and now forward `modalContext` through both text and chunk dispatch paths.
 * Surface context bridge now includes bounded `previousSurface` continuity when active app surface changes between dispatch cycles.
+* Authorization replay-audit records now carry session-policy metadata (`interactionId`, `reasonCode`, policy mode, grace/reauth fields) for stronger Program A reconstructability.
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 

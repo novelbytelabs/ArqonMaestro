@@ -411,3 +411,30 @@ Consequences:
 
 * `surfaceContext.previousSurface` is now populated when active app surface changes
 * continuity remains intentionally bounded to one prior surface in this slice (not a deep history stack)
+
+---
+
+## VOS-017: Authorization Replay Audit Must Include Security-Session Context
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A authorization replay records now include additive security-session context fields:
+
+* `interactionId`
+* `reasonCode`
+* `securityPolicyMode`
+* `securityRequiresReauthNext`
+* `securityGraceValid`
+* `securityGraceExpiresAt`
+
+Why:
+
+Without these fields, downstream replay can show decision outcomes but cannot reconstruct whether a decision was driven by grace expiry, reauth boundaries, or session-policy transitions.
+
+Consequences:
+
+* identity-gateway audit emission now carries security-session metadata when available
+* replay artifacts become more actionable for Program A policy verification and regression triage

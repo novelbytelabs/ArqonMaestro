@@ -250,3 +250,18 @@ Use with care:
 
 * treat `previousSurface` as a bounded hint, not authoritative long-span history
 * rely on focus history services for deeper restoration logic
+
+### G-015: Authorization Replay Session Fields Are Additive And May Be Absent In Older Records
+
+Symptom:
+
+Some replay snapshots contain authorization records without session-policy fields (`interactionId`, `securityPolicyMode`, grace/reauth attributes).
+
+Why:
+
+Program A added these fields as additive metadata; historical records and some fallback paths may legitimately omit them.
+
+Use with care:
+
+* treat missing session-policy fields as `unknown` for older records
+* avoid schema assumptions that require these fields unconditionally

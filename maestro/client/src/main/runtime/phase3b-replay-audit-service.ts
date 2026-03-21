@@ -39,17 +39,23 @@ export interface DispatchDecisionAuditRecord extends Phase3BAuditRecordBase {
 
 export interface AuthorizationDecisionAuditRecord extends Phase3BAuditRecordBase {
   category: "authorization_decision";
+  interactionId?: number;
   commandFamily: string;
   commandVerb: string;
   target?: string;
   riskLevel: string;
   decision: string;
   reason: string;
+  reasonCode?: string;
   confirmationLevel?: "low" | "medium" | "high";
   isFallback: boolean;
   securityMode: string;
+  securityPolicyMode?: string;
   sharedRoomMode: boolean;
   interactionMode: "command" | "dictation" | "conversation";
+  securityRequiresReauthNext?: boolean;
+  securityGraceValid?: boolean;
+  securityGraceExpiresAt?: string;
   identityState: string;
   identityId?: string;
   speakerVerified: boolean;
