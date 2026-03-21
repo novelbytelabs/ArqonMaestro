@@ -343,3 +343,21 @@ Use with care:
 
 * treat current context-jump invalidation as app-boundary hardening
 * preserve stricter explicit re-auth gating for high-risk paths regardless of jump detection granularity
+
+### G-021: Use Replay Summary For Live UI, Replay Snapshot For Drill-Down
+
+Symptom:
+
+Consumers may try to poll full replay snapshots for every UI refresh and see unnecessary overhead as replay records grow.
+
+Why:
+
+Program A1 now has two replay access surfaces by design:
+
+* live lightweight summary fields (`securityReplay*`) in bridge state
+* explicit full snapshot retrieval (`securityRequestReplaySnapshot` -> `securityReplaySnapshot`)
+
+Use with care:
+
+* use summary fields/channels for live dashboarding and status indicators
+* use full snapshot retrieval for debug drill-down, export, or offline analysis

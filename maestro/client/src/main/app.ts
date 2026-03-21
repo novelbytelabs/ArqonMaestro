@@ -631,6 +631,10 @@ export default class App {
         securityLastReasonCode: "",
         securityLastLifecyclePhase: "heard",
         securityLastInteractionId: 0,
+        securityReplayGeneratedAt: "",
+        securityReplayTotalRecords: 0,
+        securityReplaySessionEventCount: 0,
+        securityReplayLastSequence: 0,
       };
     }
 
@@ -689,6 +693,10 @@ export default class App {
       securityLastReasonCode: status?.securitySessionReasonCode || status?.reasonCode || "",
       securityLastLifecyclePhase: status?.securityLastLifecyclePhase || "heard",
       securityLastInteractionId: status?.securityLastInteractionId || 0,
+      securityReplayGeneratedAt: status?.securityReplayGeneratedAt || "",
+      securityReplayTotalRecords: status?.securityReplayTotalRecords || 0,
+      securityReplaySessionEventCount: status?.securityReplaySessionEventCount || 0,
+      securityReplayLastSequence: status?.securityReplayLastSequence || 0,
     };
   }
 

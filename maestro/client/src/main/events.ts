@@ -26,6 +26,7 @@ import { core } from "../gen/core";
 import { SecurityMode } from "./runtime/identity-gateway-service";
 import {
   getPhase3BReplayAuditSnapshot,
+  getPhase3BReplayAuditSummary,
   resetPhase3BReplayAuditSnapshot,
 } from "./runtime/phase3b-replay-audit-harness";
 
@@ -507,6 +508,10 @@ export default class RendererProcessEventHandlers {
 
     ipcMain.on("securityRequestReplaySnapshot", (event: any) => {
       event.sender.send("securityReplaySnapshot", getPhase3BReplayAuditSnapshot());
+    });
+
+    ipcMain.on("securityRequestReplaySummary", (event: any) => {
+      event.sender.send("securityReplaySummary", getPhase3BReplayAuditSummary());
     });
 
     ipcMain.on("securityResetReplaySnapshot", () => {

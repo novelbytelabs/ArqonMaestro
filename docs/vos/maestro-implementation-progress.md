@@ -136,6 +136,14 @@ What landed:
 * Added replay-audit IPC bridge for downstream verification tooling:
   * `securityRequestReplaySnapshot` -> `securityReplaySnapshot`
   * `securityResetReplaySnapshot` for bounded audit test/reset flows
+* Added replay-audit summary bridge and state exposure:
+  * summary channel `securityRequestReplaySummary` -> `securityReplaySummary`
+  * live additive bridge fields:
+    * `securityReplayGeneratedAt`
+    * `securityReplayTotalRecords`
+    * `securityReplaySessionEventCount`
+    * `securityReplayLastSequence`
+  * summary path avoids cloning full replay record arrays on each live bridge publish
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 

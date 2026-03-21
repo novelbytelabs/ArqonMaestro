@@ -181,6 +181,13 @@ export interface Phase3BReplayAuditSnapshot {
   records: Phase3BAuditRecord[];
 }
 
+export interface Phase3BReplayAuditSummary {
+  generatedAt: string;
+  totalRecords: number;
+  recordsByCategory: Record<Phase3BAuditCategory, number>;
+  lastSequence: number;
+}
+
 const createCategoryCounts = (): Record<Phase3BAuditCategory, number> => ({
   dispatch_decision: 0,
   authorization_decision: 0,
@@ -204,16 +211,31 @@ export default class Phase3BReplayAuditService {
   }
 
   getSnapshot(): Phase3BReplayAuditSnapshot {
-    const recordsByCategory = createCategoryCounts();
-    for (const record of this.records) {
-      recordsByCategory[record.category] += 1;
-    }
+    const recordsByCategory = this.countRecordsByCategory();
     return {
       generatedAt: new Date().toISOString(),
       totalRecords: this.records.length,
       recordsByCategory,
       records: [...this.records],
     };
+  }
+
+  getSummary(): Phase3BReplayAuditSummary {
+    const recordsByCategory = this.countRecordsByCategory();
+    return {
+      generatedAt: new Date().toISOString(),
+      totalRecords: this.records.length,
+      recordsByCategory,
+      lastSequence: this.records[this.records.length - 1]?.sequence || 0,
+    };
+  }
+
+  private countRecordsByCategory(): Record<Phase3BAuditCategory, number> {
+    const recordsByCategory = createCategoryCounts();
+    for (const record of this.records) {
+      recordsByCategory[record.category] += 1;
+    }
+    return recordsByCategory;
   }
 
   recordDispatchDecision(

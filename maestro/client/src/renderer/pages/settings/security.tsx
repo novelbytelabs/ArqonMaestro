@@ -59,6 +59,10 @@ const SecurityComponent: React.FC<{
   securityLastReasonCode: string;
   securityLastLifecyclePhase: string;
   securityLastInteractionId: number;
+  securityReplayGeneratedAt: string;
+  securityReplayTotalRecords: number;
+  securityReplaySessionEventCount: number;
+  securityReplayLastSequence: number;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -88,6 +92,10 @@ const SecurityComponent: React.FC<{
   securityLastReasonCode,
   securityLastLifecyclePhase,
   securityLastInteractionId,
+  securityReplayGeneratedAt,
+  securityReplayTotalRecords,
+  securityReplaySessionEventCount,
+  securityReplayLastSequence,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
 
@@ -275,6 +283,18 @@ const SecurityComponent: React.FC<{
         <div className="text-white/70">
           Last interaction id: {securityLastInteractionId > 0 ? securityLastInteractionId : "n/a"}
         </div>
+        <div className="text-white/70">
+          Replay records: {securityReplayTotalRecords > 0 ? securityReplayTotalRecords : "0"}
+        </div>
+        <div className="text-white/70">
+          Session events: {securityReplaySessionEventCount > 0 ? securityReplaySessionEventCount : "0"}
+        </div>
+        <div className="text-white/70">
+          Last replay sequence: {securityReplayLastSequence > 0 ? securityReplayLastSequence : "n/a"}
+        </div>
+        <div className="text-white/70">
+          Replay generated: {securityReplayGeneratedAt || "n/a"}
+        </div>
       </div>
 
       <div className="text-[11px] text-white/50 mt-2">
@@ -318,4 +338,8 @@ export const Security = connect((state: any) => ({
   securityLastReasonCode: state.securityLastReasonCode,
   securityLastLifecyclePhase: state.securityLastLifecyclePhase,
   securityLastInteractionId: state.securityLastInteractionId,
+  securityReplayGeneratedAt: state.securityReplayGeneratedAt,
+  securityReplayTotalRecords: state.securityReplayTotalRecords,
+  securityReplaySessionEventCount: state.securityReplaySessionEventCount,
+  securityReplayLastSequence: state.securityReplayLastSequence,
 }))(SecurityComponent);

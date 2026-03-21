@@ -607,3 +607,31 @@ Consequences:
 
 * downstream consumers can retrieve and inspect replay security/session records on demand
 * replay reset path supports deterministic test harness setup in bounded local workflows
+
+---
+
+## VOS-025: Live Security Bridge Uses Replay Summary (Not Full Snapshot) For Continuous UI State
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 now exposes replay summary metadata as additive live bridge state and avoids full replay snapshot cloning in the hot publish loop:
+
+* additive summary IPC: `securityRequestReplaySummary` -> `securityReplaySummary`
+* additive bridge fields:
+  * `securityReplayGeneratedAt`
+  * `securityReplayTotalRecords`
+  * `securityReplaySessionEventCount`
+  * `securityReplayLastSequence`
+
+Why:
+
+Program A1 observability needs runtime-visible replay evidence for settings/extension parity, but continuous bridge updates must remain lightweight as replay record volume grows.
+
+Consequences:
+
+* security UI and downstream consumers can monitor replay evidence continuity in real time
+* full replay snapshots remain available on explicit request only
+* live bridge state avoids unnecessary record-array copy overhead

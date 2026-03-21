@@ -2074,6 +2074,7 @@ export default class Executor {
 
   private publishSecuritySessionBridgeState(): void {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
+    const replaySummary = phase3BReplayAuditService.getSummary();
     this.bridge.setState(
       {
         securityPolicyMode: snapshot.mode,
@@ -2083,6 +2084,10 @@ export default class Executor {
         securityLastReasonCode: snapshot.lastReasonCode,
         securityLastLifecyclePhase: snapshot.lastLifecyclePhase,
         securityLastInteractionId: snapshot.lastInteractionId,
+        securityReplayGeneratedAt: replaySummary.generatedAt,
+        securityReplayTotalRecords: replaySummary.totalRecords,
+        securityReplaySessionEventCount: replaySummary.recordsByCategory.security_session_event,
+        securityReplayLastSequence: replaySummary.lastSequence,
       },
       [this.mainWindow, this.miniModeWindow, this.settingsWindow()]
     );
@@ -2273,8 +2278,13 @@ export default class Executor {
     securityGraceExpiresAt: string;
     securityLastLifecyclePhase: string;
     securityLastInteractionId: number;
+    securityReplayGeneratedAt: string;
+    securityReplayTotalRecords: number;
+    securityReplaySessionEventCount: number;
+    securityReplayLastSequence: number;
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
+    const replaySummary = phase3BReplayAuditService.getSummary();
     return {
       decision: this.lastAuthorizationDecision,
       reason: this.lastAuthorizationReason,
@@ -2288,6 +2298,10 @@ export default class Executor {
       securityGraceExpiresAt: snapshot.graceExpiresAt,
       securityLastLifecyclePhase: snapshot.lastLifecyclePhase,
       securityLastInteractionId: snapshot.lastInteractionId,
+      securityReplayGeneratedAt: replaySummary.generatedAt,
+      securityReplayTotalRecords: replaySummary.totalRecords,
+      securityReplaySessionEventCount: replaySummary.recordsByCategory.security_session_event,
+      securityReplayLastSequence: replaySummary.lastSequence,
     };
   }
 
