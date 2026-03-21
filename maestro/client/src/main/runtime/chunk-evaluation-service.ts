@@ -8,10 +8,19 @@ import MiniModeWindow from "../windows/mini-mode";
 import { core } from "../../gen/core";
 import ExecutionTrace from "./execution-trace";
 import RuntimeCommandDispatcher from "./runtime-command-dispatcher";
+import { SurfaceContext } from "./surface-model-service";
 
 interface ChunkEvaluationServiceDeps {
   bridge: RendererBridge;
   commandDispatcher: RuntimeCommandDispatcher;
+  getDispatchContext: () => {
+    securityMode: "standard" | "secure" | "shared_room";
+    speakerVerified: boolean;
+    interactionMode: "command" | "dictation" | "conversation";
+    currentApp?: string;
+    targetSurface?: string;
+    surfaceContext?: SurfaceContext;
+  };
   log: Log;
   mainWindow: MainWindow;
   miniModeWindow: MiniModeWindow;
@@ -146,6 +155,7 @@ export default class ChunkEvaluationService {
     onResetInitializeDeadline();
     chunk.executed = Date.now();
     const sessionId = this.deps.tracking.getCurrentSessionId() || undefined;
+    const dispatchContext = this.deps.getDispatchContext();
     executionTrace?.recordExecutorHandoff(chunk.id, sessionId);
     this.deps.tracking.onExecuted(chunk.id);
 
@@ -153,6 +163,12 @@ export default class ChunkEvaluationService {
     await this.deps.commandDispatcher.dispatch(getResponse(chunk)!, {
       sessionId,
       updateRenderer: true,
+      securityMode: dispatchContext.securityMode,
+      speakerVerified: dispatchContext.speakerVerified,
+      interactionMode: dispatchContext.interactionMode,
+      currentApp: dispatchContext.currentApp,
+      targetSurface: dispatchContext.targetSurface,
+      surfaceContext: dispatchContext.surfaceContext,
     });
     await stopBufferingAndFlush();
   }

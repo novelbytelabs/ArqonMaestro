@@ -315,3 +315,54 @@ Consequences:
 * profile IPC handlers are wrapped with fail-safe error capture
 * errors are propagated into settings state rather than remaining console-only
 * Profiles tab now presents actionable status/error feedback after each operation
+
+---
+
+## VOS-013: Chunk Hot-Path Dispatch Must Carry The Same Policy Context As Text Dispatch
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+The chunk execution hot path (`ChunkEvaluationService -> RuntimeCommandDispatcher.dispatch`) must forward the same runtime policy context shape as the text-command path:
+
+* `securityMode`
+* `speakerVerified`
+* `interactionMode`
+* `currentApp`
+* `targetSurface`
+
+Why:
+
+Program A policy behavior cannot remain deterministic if only one ingress path (text-command callback) carries security context while the primary chunk execution path omits it. That mismatch risks route/policy drift between equivalent commands.
+
+Consequences:
+
+* `ChunkEvaluationService` now receives dispatch context via explicit dependency callback
+* `ChunkManager` now supplies live runtime-derived dispatch context for chunk dispatch
+* chunk and text dispatch paths now share policy-context parity for core security/session routing inputs
+
+---
+
+## VOS-014: Executor Owns Canonical Dispatch Context Synthesis For Program A
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+`Executor.getRuntimeDispatchPolicyContext()` is the canonical source for dispatch policy context synthesis and now includes additive platform-bridge fields:
+
+* `currentApp`
+* `targetSurface` (canonicalized from app alias when possible)
+* `surfaceContext` (best-effort active root surface snapshot)
+
+Why:
+
+If each ingress path synthesizes its own context independently, policy and routing drift over time. Program A requires one deterministic context source that both chunk and text dispatch paths consume.
+
+Consequences:
+
+* chunk and text ingress now pull from the same synthesized runtime context
+* surface-awareness for dispatch is now additive and bounded, with a clear future upgrade path to richer live platform signals

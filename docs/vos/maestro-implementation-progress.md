@@ -94,6 +94,43 @@ Bounded constraints for this slice:
 * active profile remains a runtime setting context, while verification still depends on live speaker evidence
 * no change to existing external bus contracts in this slice
 
+## Program A1 Hot-Path Policy Context Parity Slice
+
+Date: 2026-03-21
+
+Status: Implemented (bounded)
+
+What landed:
+
+* Chunk-evaluation dispatch now forwards runtime policy context (not only text-command path):
+  * `securityMode`
+  * `speakerVerified`
+  * `interactionMode`
+  * `currentApp`
+  * `targetSurface`
+  * `surfaceContext`
+* `ChunkEvaluationService` now receives dispatch context through an explicit dependency callback.
+* `ChunkManager` now binds dispatch context from live runtime state (`executor` policy context).
+* `Executor` now produces a normalized dispatch context that includes canonical `targetSurface` and best-effort `surfaceContext` derived from active app alias normalization.
+* Text-command dispatch path now uses the same expanded context contract as chunk dispatch.
+* Added targeted runtime test:
+  * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
+
+Evidence:
+
+* `cd maestro/client && npm run build:main`
+* `cd maestro/client && npm run build:renderer`
+* `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/speaker-enrollment-service.test.ts`
+* `cd maestro/client && npx ts-node src/main/runtime/chunk-evaluation-service.test.ts`
+
+Bounded constraints:
+
+* This slice does not yet attach explicit `modalContext` / `surfaceContext` objects for chunk dispatch.
+* `surfaceContext` is currently derived from active app alias only (single active root surface snapshot), pending richer live host/platform signal ingestion in later Program A slices.
+* This slice does not yet attach explicit `modalContext` for dispatch.
+
 ## Wave A Implementation Status (Audio Front-End Modernization)
 
 ### Patch 1: Frame Contract + Timestamps

@@ -74,6 +74,7 @@ import NexusProtocolBoundaryService, {
   ProposalExecutionContext,
 } from "../runtime/nexus-protocol-boundary-service";
 import WorkflowExecutionService from "../runtime/workflow-nexus-integration";
+import { SurfaceContext, surfaceModelService } from "../runtime/surface-model-service";
 
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
@@ -2228,12 +2229,43 @@ export default class Executor {
   /**
    * Get identity-derived policy context for runtime dispatcher decisions.
    */
+  private buildRuntimeSurfaceContext(): SurfaceContext | undefined {
+    const app = (this.active.app || "").trim();
+    if (!app) {
+      return undefined;
+    }
+    const surfaceType = surfaceModelService.normalizeAlias(app);
+    if (surfaceType === "unknown") {
+      return undefined;
+    }
+    const activeSurface = surfaceModelService.buildSurfaceRecord({
+      surfaceType,
+      surfaceClass: "root",
+      surfaceId: `active:${surfaceType}`,
+      label: app,
+      appId: app,
+      visibility: "focused",
+    });
+    return surfaceModelService.buildContext({
+      activeSurface,
+      previousSurface: null,
+      activeOverlay: null,
+    });
+  }
+
   getRuntimeDispatchPolicyContext(): {
     securityMode: "standard" | "secure" | "shared_room";
     speakerVerified: boolean;
     interactionMode: InteractionMode;
+    currentApp?: string;
+    targetSurface?: string;
+    surfaceContext?: SurfaceContext;
   } {
     const context = this.identityGateway.getIdentityContext();
+    const currentApp = this.active.app || undefined;
+    const surfaceType = currentApp
+      ? surfaceModelService.normalizeAlias(currentApp)
+      : "unknown";
     const securityMode =
       context.securityMode === SecurityMode.SHARED_ROOM
         ? "shared_room"
@@ -2244,6 +2276,9 @@ export default class Executor {
       securityMode,
       speakerVerified: context.isVerified,
       interactionMode: context.interactionMode,
+      currentApp,
+      targetSurface: surfaceType !== "unknown" ? surfaceType : undefined,
+      surfaceContext: this.buildRuntimeSurfaceContext(),
     };
   }
 

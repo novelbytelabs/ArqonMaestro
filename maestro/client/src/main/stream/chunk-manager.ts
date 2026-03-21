@@ -138,6 +138,9 @@ export default class ChunkManager {
     this.chunkEvaluationService = new ChunkEvaluationService({
       bridge,
       commandDispatcher: runtimeCommandDispatcher,
+      getDispatchContext: () => {
+        return this.executor.getRuntimeDispatchPolicyContext();
+      },
       log,
       mainWindow,
       miniModeWindow,

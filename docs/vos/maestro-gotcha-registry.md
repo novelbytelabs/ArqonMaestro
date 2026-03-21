@@ -183,3 +183,40 @@ Use with care:
 
 * switch to another profile first, then delete
 * check renderer state fields `securityProfilesLastAction` and `securityProfilesLastError` for operation outcome diagnostics
+
+### G-011: Policy Context Diverges If Only Text Dispatch Is Wired
+
+Symptom:
+
+Security/session behavior appears inconsistent between typed/text command handling and live chunk-driven speech execution.
+
+Why:
+
+Text dispatch path already forwards runtime policy context, but chunk dispatch historically omitted that context unless explicitly bridged.
+
+Use with care:
+
+* validate both ingress paths whenever changing `RuntimeCommandDispatcher` policy assumptions
+* keep chunk and text dispatch option payloads aligned for security/session fields
+
+Verification command:
+
+```bash
+cd maestro/client
+npx ts-node src/main/runtime/chunk-evaluation-service.test.ts
+```
+
+### G-012: Current Surface Context Is Alias-Derived, Not Yet Host-Signal-Derived
+
+Symptom:
+
+Surface-aware routing appears generic in apps that do not map cleanly to a canonical surface alias.
+
+Why:
+
+Current Program A slice derives `targetSurface` and `surfaceContext` from active app alias normalization (`surfaceModelService.normalizeAlias(...)`) as a bounded bridge step, not from deep host/platform surface telemetry.
+
+Use with care:
+
+* treat current surface context as best-effort for policy/routing improvements
+* do not over-interpret alias-derived context as full FP-9 live surface binding

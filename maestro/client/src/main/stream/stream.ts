@@ -270,6 +270,9 @@ export default class Stream {
       securityMode: policyContext.securityMode,
       speakerVerified: policyContext.speakerVerified,
       interactionMode: policyContext.interactionMode,
+      currentApp: policyContext.currentApp,
+      targetSurface: policyContext.targetSurface,
+      surfaceContext: policyContext.surfaceContext,
     });
     this.runtimeCommandDispatcher.sendTextCallback(response);
   }
