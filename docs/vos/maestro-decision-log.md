@@ -584,3 +584,26 @@ Consequences:
 * runtime now calls `securitySessionPolicyService.onContextJump()` when observed app context changes across interactions
 * lifecycle phase taxonomy now includes `context_jump`
 * replay security-session events can encode context-jump transitions explicitly
+
+---
+
+## VOS-024: Replay Audit Snapshot Access Is Exposed Via Additive Security IPC
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 now exposes bounded replay-audit IPC for security session verification tooling:
+
+* `securityRequestReplaySnapshot` -> `securityReplaySnapshot`
+* `securityResetReplaySnapshot`
+
+Why:
+
+Adversarial and regression verification needs explicit access to replay artifacts without requiring in-process debug hooks. This supports extension/runtime end-to-end evidence workflows.
+
+Consequences:
+
+* downstream consumers can retrieve and inspect replay security/session records on demand
+* replay reset path supports deterministic test harness setup in bounded local workflows

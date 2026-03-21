@@ -24,6 +24,10 @@ import TextInputWindow from "./windows/text-input";
 import Window from "./windows/window";
 import { core } from "../gen/core";
 import { SecurityMode } from "./runtime/identity-gateway-service";
+import {
+  getPhase3BReplayAuditSnapshot,
+  resetPhase3BReplayAuditSnapshot,
+} from "./runtime/phase3b-replay-audit-harness";
 
 export default class RendererProcessEventHandlers {
   constructor(
@@ -499,6 +503,14 @@ export default class RendererProcessEventHandlers {
 
     ipcMain.on("securityRequestSnapshot", (event: any) => {
       event.sender.send("securitySnapshot", this.app.getSecurityPanelState());
+    });
+
+    ipcMain.on("securityRequestReplaySnapshot", (event: any) => {
+      event.sender.send("securityReplaySnapshot", getPhase3BReplayAuditSnapshot());
+    });
+
+    ipcMain.on("securityResetReplaySnapshot", () => {
+      resetPhase3BReplayAuditSnapshot();
     });
 
     ipcMain.on("securitySetMode", async (_event: any, mode: SecurityMode) => {

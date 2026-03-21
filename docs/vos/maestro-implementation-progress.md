@@ -133,6 +133,9 @@ What landed:
 * Wired context/surface-jump invalidation from live app focus boundary:
   * runtime detects app context jump and invokes `onContextJump()`
   * grace invalidation + lifecycle/replay evidence now reflect context-jump events
+* Added replay-audit IPC bridge for downstream verification tooling:
+  * `securityRequestReplaySnapshot` -> `securityReplaySnapshot`
+  * `securityResetReplaySnapshot` for bounded audit test/reset flows
 * Added targeted runtime test:
   * `chunk-evaluation-service.test.ts` verifies policy/surface context forwarding on executed chunk dispatch.
 
