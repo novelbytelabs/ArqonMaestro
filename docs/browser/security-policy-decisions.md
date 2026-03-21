@@ -104,7 +104,7 @@ Implications:
 
 Decision:
 
-- Medium-risk grace is `5s`, Assist-only.
+- Medium-risk grace is `9s`, Assist-only.
 
 Rationale:
 

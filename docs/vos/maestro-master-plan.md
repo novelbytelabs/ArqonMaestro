@@ -197,6 +197,14 @@ The following documents are the canonical design authorities for Maestro’s maj
 * [`../guides/revision-box-and-text-input.md`](../guides/revision-box-and-text-input.md)
 * [`../guides/in-app-tutorials.md`](../guides/in-app-tutorials.md)
 
+### Browser security control-plane docs (cross-directory, policy authority for trust/session behavior)
+
+* [`../browser/automation-modes.md`](../browser/automation-modes.md)
+* [`../browser/policy.md`](../browser/policy.md)
+* [`../browser/security-policy-matrix.md`](../browser/security-policy-matrix.md)
+* [`../browser/security-policy-decisions.md`](../browser/security-policy-decisions.md)
+* [`../browser/voice-enrollment.md`](../browser/voice-enrollment.md)
+
 ### Development docs (cross-directory, implementation mechanics)
 
 * [`../development/protocol-overview.md`](../development/protocol-overview.md)
@@ -480,6 +488,8 @@ The accepted foundations are real, but several important gaps remain before Maes
 * current bounded modal, surface, and referential layers still depend on stronger live focus and active-context inputs
 * focus architecture completion remains uneven across current accepted focus/runtime slices and real host/platform signal wiring
 * current focus/runtime laws are stronger than current live platform integration fidelity
+* browser trust/session lifecycle policy is specified but not yet fully enforced as a runtime state machine in the desktop bridge
+* mode-aware security transitions for browser control (Pilot/Assist/Observe/Locked) remain partially documentation-led and need full runtime operationalization
 
 Primary governing specs:
 
@@ -490,6 +500,8 @@ Primary governing specs:
 * [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
 * [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md)
 * [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
+* [`../browser/security-policy-matrix.md`](../browser/security-policy-matrix.md)
+* [`../browser/security-policy-decisions.md`](../browser/security-policy-decisions.md)
 
 ### Durability and governance gaps
 
@@ -640,6 +652,45 @@ Status:
 
 * next active program
 
+### Program A1 - Browser Security Session Bridge and Mode Hardening
+
+Objective:
+
+* operationalize browser security-session policy in desktop runtime so behavior is deterministic, auditable, and mode-aware
+* align runtime transitions to the documented control model (`heard`/`activated`/`executed`, Pilot degrade/restore, fail-closed contamination/degraded-provider handling)
+
+Primary governing specs:
+
+* [`../browser/security-policy-matrix.md`](../browser/security-policy-matrix.md)
+* [`../browser/security-policy-decisions.md`](../browser/security-policy-decisions.md)
+* [`../browser/automation-modes.md`](../browser/automation-modes.md)
+* [`../browser/policy.md`](../browser/policy.md)
+* [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md)
+* [`maestro-authorization-service.md`](./maestro-authorization-service.md)
+* [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md)
+* [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+
+Deliverables:
+
+* verified medium-risk grace window set to `9s` (Assist-only) with explicit invalidation events
+* runtime lifecycle policy enforcement for `heard`/`activated`/`executed`
+* activation-driven security transitions (no downgrade on heard-only events)
+* Pilot unknown activation flow: degrade to Assist, then evaluate under Assist policy
+* automatic restore to prior verified-speaker mode after successful verification event
+* fail-closed behavior for contaminated/degraded provider states (reflex-only)
+* pause-to-listening boundary that clears grace and forces re-auth context for next executable medium/high interaction
+* machine-readable reason-code emission for transition and decision paths
+* additive desktop state exposure for downstream UI/extension consumers:
+  * `securityRequiresReauthNext`
+  * `securityGraceValid`
+  * `securityGraceExpiresAt`
+  * `securityLastReasonCode`
+  * `securityPolicyMode`
+
+Status:
+
+* immediate first bounded slice under Program A
+
 ### Program B - Production Hardening
 
 Objective:
@@ -782,14 +833,16 @@ Deliverables:
 Recommended order:
 
 1. Program A - Platform Bridge and Live Signal Wiring
-2. Program B - Production Hardening
-3. Program C - Operational Benchmarking and Regression Discipline
-4. Program D - Persistence, Recovery, and Governance
-5. Program E - Advanced Interaction Completion
+2. Program A1 - Browser Security Session Bridge and Mode Hardening
+3. Program B - Production Hardening
+4. Program C - Operational Benchmarking and Regression Discipline
+5. Program D - Persistence, Recovery, and Governance
+6. Program E - Advanced Interaction Completion
 
 Rationale:
 
 * improve live signal quality first
+* operationalize browser trust/session policy immediately after live-signal bridge priming
 * harden behavior second
 * formalize evidence discipline third
 * add durable governance state fourth
@@ -1011,13 +1064,14 @@ Maestro is ready for production-like operation when:
 
 ## 18. Immediate Next Step
 
-The next active work should begin with Program A - Platform Bridge and Live Signal Wiring.
+The next active work should begin with Program A - Platform Bridge and Live Signal Wiring, immediately followed by Program A1 - Browser Security Session Bridge and Mode Hardening.
 
 Reason:
 
 * accepted language/runtime foundations now exist
 * the highest remaining leverage is improving live signal quality and host/runtime binding fidelity
 * stronger platform signals will improve modal awareness, surface awareness, referential grounding, and lawful routing without requiring semantic redesign
+* browser trust/session policy is now explicitly specified and ready for bounded runtime operationalization
 
 Immediate priority areas:
 
@@ -1027,6 +1081,11 @@ Immediate priority areas:
 * lawful binding of runtime decisions to real host/platform context
 * capability-registry-backed surface and environment truth
 * restore-state fidelity and focus-stack fidelity for later advanced interaction completion
+* browser security session bridge implementation:
+  * enforce `heard`/`activated`/`executed` policy transitions
+  * enforce Assist-only verified medium-risk grace duration of `9s`
+  * apply fail-closed contamination/provider-degraded behavior
+  * emit machine-readable reason codes for policy transitions/decisions
 * begin namespace/dependency-root normalization:
   * set `~/libarqonmaestro` as canonical local root
   * migrate runbooks/scripts to `ARQON_MAESTRO_*` as the canonical contract

@@ -20,7 +20,7 @@ Security transitions are driven by `activated` and `executed`, not `heard` alone
 2. `activated` is security-relevant even if not executed.
 3. `Paused -> Listening` always clears grace and requires re-authentication context.
 4. Degraded/contaminated provider behavior is fail-closed (`reflex` only).
-5. Medium-risk grace period is `5s`, Assist mode only.
+5. Medium-risk grace period is `9s`, Assist mode only.
 6. Profiles are managed in UI, but runtime authority is inferred per interaction from live voice evidence.
 
 ## Trust States
@@ -43,7 +43,7 @@ Legend:
 
 - Decision: `allow`, `block`, `degrade_then_eval`, `reflex_only`
 - Re-auth: `required`, `not_required`
-- Grace: `none`, `5s_assist_only`
+- Grace: `none`, `9s_assist_only`
 
 ### LOCKED Mode
 
@@ -76,7 +76,7 @@ Notes:
 
 | Trust State | Low | Medium | High |
 | --- | --- | --- | --- |
-| verified | allow (re-auth required at interaction boundary) | allow with 5s grace when valid; otherwise re-auth required | re-auth required every command |
+| verified | allow (re-auth required at interaction boundary) | allow with 9s grace when valid; otherwise re-auth required | re-auth required every command |
 | unknown | block until verification | block until verification | block until verification |
 | contaminated | reflex_only | reflex_only | reflex_only |
 | provider_degraded | reflex_only | reflex_only | reflex_only |
@@ -122,7 +122,7 @@ Any one of these invalidates Assist medium-risk grace:
 - provider readiness degraded
 - context/surface jump
 - `Paused -> Listening` transition
-- explicit timeout (`5s`)
+- explicit timeout (`9s`)
 
 ## Pause/Listen Boundary Policy
 

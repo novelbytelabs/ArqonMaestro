@@ -106,6 +106,15 @@ It is the operational console for:
 - `Secure`: stricter verification and less permissive fallback
 - `Restricted`: strongest fail-closed behavior for risky actions
 
+## Policy Source of Truth
+
+Current browser security-session policy (including medium-risk verified grace duration) is governed by:
+
+- [Security Policy Matrix (v1)](./security-policy-matrix.md)
+- [Security Decisions (Ground Truth)](./security-policy-decisions.md)
+
+If there is any mismatch between this page and those two documents, treat the matrix and decisions docs as authoritative.
+
 ## Interaction Mode Clarification
 
 Interaction mode is runtime-controlled and read-only in Security.
