@@ -25,11 +25,11 @@ flowchart LR
 
 ## 🛠️ Installation
 
-Until the Arqon Maestro extension is fully approved on the Chrome Web Store, we recommend using the Serenade extension as a temporary bridge, or loading our beta source directly.
+The Arqon Maestro extension is now available on the Chrome Web Store.
 
-=== "Standard (Temporary)"
-    1. Visit the [Serenade Extension Page](https://marketplace.visualstudio.com/items?itemName=serenade.serenade).
-    2. Follow the install links to the web store.
+=== "Official (Recommended)"
+    1. Visit the [Arqon Maestro Chrome Web Store Page](https://chromewebstore.google.com/detail/arqon-maestro/bmmbdafijegjhckimaoinnediipgoakp?authuser=0&hl=en).
+    2. Click **Add to Chrome**.
     3. **Pin the extension**: For easy access, click the puzzles icon (Extensions) in your Chrome toolbar and click the pin icon next to **Arqon Maestro**.
     4. Ensure your Arqon Maestro Desktop app is running.
 

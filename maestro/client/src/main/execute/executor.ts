@@ -13,6 +13,7 @@ import RevisionBoxWindow from "../windows/revision-box";
 import Settings from "../settings";
 import Stream from "../stream/stream";
 import System from "./system";
+import SettingsWindow from "../windows/settings";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
 
@@ -111,6 +112,10 @@ export default class Executor {
   private nexusBoundary: NexusProtocolBoundaryService;
   private workflowExecutionService: WorkflowExecutionService;
   private executionTrace?: ExecutionTrace;
+  private lastAuthorizationDecision: string = "";
+  private lastAuthorizationReason: string = "";
+  private lastBlockedCommand: string = "";
+  private lastBlockedAt: string = "";
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -569,6 +574,7 @@ export default class Executor {
     private nux: NUX,
     private pluginManager: PluginManager,
     private revisionBoxWindow: RevisionBoxWindow,
+    private settingsWindow: () => Promise<SettingsWindow> | undefined,
     private settings: Settings,
     private stream: Stream,
     private system: System,
@@ -1239,39 +1245,22 @@ export default class Executor {
     }
 
     if (response.alternatives && response.alternatives.length > 0) {
-      for (const alt of response.alternatives || []) {
-        console.log(
-          "[EXECUTOR] Alternative:",
-          alt.transcript,
-          "commands:",
-          JSON.stringify(
-            (alt.commands || []).map((cmd: any) => ({
-              type: core.CommandType[cmd.type],
-              typeNum: cmd.type,
-              text: cmd.text,
-            }))
-          )
-        );
-      }
-
       this.log.logVerbose(
         `Showing alternatives [${response.alternatives.map((e: any) => e.transcript).join(", ")}]`
       );
 
-      this.bridge.setState(
+      this.setAlternativesState(
         {
           alternatives: response.alternatives,
-        },
-        [this.mainWindow, this.miniModeWindow]
+        }
       );
 
       if (response.final) {
         this.savePendingResponseIfNeeded(response);
-        this.bridge.setState(
+        this.setAlternativesState(
           {
             highlighted: this.hasExecute(response) ? [0] : [],
-          },
-          [this.mainWindow, this.miniModeWindow]
+          }
         );
       }
     }
@@ -1285,11 +1274,10 @@ export default class Executor {
       }
 
       this.miniModeHideTimeout = global.setTimeout(() => {
-        this.bridge.setState(
+        this.setAlternativesState(
           {
             alternatives: [],
-          },
-          [this.mainWindow, this.miniModeWindow]
+          }
         );
       }, Math.max(1, 1000 * this.settings.getMiniModeHideTimeout()));
     }
@@ -1297,6 +1285,23 @@ export default class Executor {
     setTimeout(() => {
       this.bridge.send("updateMiniModeWindowHeight", {}, [this.miniModeWindow]);
     }, 50);
+  }
+
+  private setAlternativesState(data: any) {
+    this.bridge.setState(data, [this.mainWindow, this.miniModeWindow]);
+
+    const settingsWindow = this.settingsWindow();
+    if (!settingsWindow) {
+      return;
+    }
+
+    Promise.resolve(settingsWindow)
+      .then((window) => {
+        if (window && window.shown()) {
+          this.bridge.setState(data, [window]);
+        }
+      })
+      .catch(() => {});
   }
 
   truncateAlternativesIfNeeded(response: core.ICommandsResponse): core.ICommandsResponse {
@@ -2009,6 +2014,8 @@ export default class Executor {
       });
 
       console.log(`[FP-2A] Auth result: ${result.decision} - ${result.reason}`);
+      this.lastAuthorizationDecision = result.decision;
+      this.lastAuthorizationReason = result.reason || "";
 
       if (result.decision === AuthorizationDecision.ALLOW) {
         // Maintain interaction-mode state as part of the runtime state vector.
@@ -2025,6 +2032,8 @@ export default class Executor {
       if (result.decision === AuthorizationDecision.CONFIRM) {
         reason = "Confirmation required";
       }
+      this.lastBlockedCommand = commandVerb || commandType;
+      this.lastBlockedAt = new Date().toISOString();
 
       return { authorized: false, reason };
     } catch (error) {
@@ -2041,6 +2050,11 @@ export default class Executor {
         return { authorized: true };
       }
       console.log(`[FP-2A] Authorization check error: ${error}, blocking command (fail-safe)`);
+      this.lastAuthorizationDecision = AuthorizationDecision.DENY;
+      this.lastAuthorizationReason = "Authorization subsystem error (fail-safe block)";
+      this.lastBlockedCommand =
+        response.execute?.commands?.[0]?.text || commandTypeToString(commandType || 0);
+      this.lastBlockedAt = new Date().toISOString();
       return {
         authorized: false,
         reason: "Authorization subsystem error (fail-safe block)",
@@ -2099,6 +2113,20 @@ export default class Executor {
    */
   getIdentityGateway(): IdentityGatewayService {
     return this.identityGateway;
+  }
+
+  getLastAuthorizationStatus(): {
+    decision: string;
+    reason: string;
+    blockedCommand: string;
+    blockedAt: string;
+  } {
+    return {
+      decision: this.lastAuthorizationDecision,
+      reason: this.lastAuthorizationReason,
+      blockedCommand: this.lastBlockedCommand,
+      blockedAt: this.lastBlockedAt,
+    };
   }
 
   /**

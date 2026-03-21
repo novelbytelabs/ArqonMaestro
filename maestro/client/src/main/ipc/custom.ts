@@ -104,6 +104,10 @@ For more information, check out the ArqonMaestro API documentation: https://nove
       path.join(server, this.legacyServerFilename)
     );
     await fs.copy(
+      path.join(__dirname, "..", "static", "custom-commands-server", "arqon-maestro-driver.js"),
+      path.join(server, "arqon-maestro-driver.js")
+    );
+    await fs.copy(
       path.join(__dirname, "static", "custom-commands-server-modules"),
       `${server}/node_modules`
     );

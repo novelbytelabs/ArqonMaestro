@@ -1,40 +1,139 @@
-# 🎤 Voice Enrollment
+# Voice Enrollment and Security
 
-Enrollment is the process of teaching Arqon Maestro to recognize your unique voice. This creates a secure, biometric link between your speech and your operational authority within the browser.
+Voice Enrollment decides whether Maestro can trust the current speaker for high-risk commands.
 
----
+Commands like `delete`, `undo`, `redo`, `enter`, and `submit` depend on this trust path.
 
-## 🏗️ Why Enroll?
+## Design Update (Current UX)
 
-Without an enrolled identity, Maestro operates in a "Cautious" state. Enrollment unlocks several critical capabilities:
+Enrollment is now split into two surfaces:
 
-- **Verified Pilot Mode**: Execute mutating commands (like clicks and form submissions) on trusted domains without multiple confirmation prompts.
-- **Access to Sensitive Sites**: Use voice control on internal tools or production dashboards that require high-confidence speaker verification.
-- **Personalized Context**: Maestro can maintain a distinct interaction history and set of preferences for each enrolled user in a shared environment.
+- `WIZARD` tab: primary setup and enrollment flow
+- `SECURITY` tab: runtime status, policy diagnostics, and maintenance actions
 
----
+This fixes the old problem where users had to infer setup from diagnostics-only controls.
 
-## 🔄 The Enrollment Flow
+## Setup Banner Behavior
 
-Enrollment is a one-time security act that should be performed in a quiet environment.
+If enrollment is not fully set up, the Security panel shows this block:
 
-1. **Consent**: You must explicitly grant permission for Maestro to store a local mathematical representation (vector) of your voice.
-2. **Sampling**: You will be asked to speak several short, phonetically rich phrases to capture the unique nuances of your voice.
-3. **Profile Creation**: Maestro generates a secure `IdentityId` and a localized voice profile.
-4. **Calibration**: The system performs a test verification to ensure the recognition threshold matches your environment.
+```text
+VOICE ENROLLMENT SETUP NEEDED
+This machine is not fully enrolled yet. High-risk commands may confirm or block until enrollment is active.
 
----
+Set your enrollment profile name
+Click Start Enrollment
+Click Test Verification and check Last authorization outcome
+```
 
-## 🛡️ Security & Privacy
+Banner visibility rule:
 
-- **On-Device Only**: Your voice samples and biometric profiles never leave your local machine. They are stored in an encrypted vault managed by the Arqon Identity Gateway.
-- **Revocable**: You can delete your voice profile at any time through the **Ecosystem Settings**, which immediately strips all verified authority from that identity.
-- **Policy-Gated**: Even a verified voice is subject to the [Global Interaction Policy](policy.md).
+- show only when enrollment is not active (`not enrolled`, `revoked`, or `suspended`)
+- hide automatically when enrollment becomes active
 
----
+## Where To Configure
 
-## 💡 Best Practices
+Open:
 
-- **Natural Speech**: Speak at your normal volume and pace during enrollment.
-- **Microphone Consistency**: Try to enroll using the same headset or microphone you intend to use for daily operations.
-- **Room Acoustics**: Avoid enrolling in areas with high background noise or significant echo.
+1. Desktop app
+2. `Settings`
+3. `WIZARD` for setup
+4. `SECURITY` for runtime diagnostics
+
+## Enrollment Wizard (Primary Flow)
+
+Use `WIZARD` as the main first-run and reenrollment path.
+
+### Step 1: Consent
+
+Acknowledge that local voice-biometric enrollment data is used for authorization gating.
+
+### Step 2: Preflight
+
+Confirm:
+
+- WeSpeaker provider is ready
+- diarization provider is ready
+- contamination state is clean
+
+If preflight is degraded, fix provider/room issues before capture.
+
+### Step 3: Capture Enrollment
+
+- set enrollment profile name
+- click `Open Voice Wizard` and read the prompted sentences
+- complete the guided modal
+- wait for enrollment status to become active
+
+### Step 4: Verify
+
+- after guided completion, Maestro auto-runs verification
+- confirm `Last authorization outcome` is populated
+- you can still click `Test Verification` manually if needed
+
+### Step 5: Complete
+
+Once enrollment is active, use Security tab for policy/runtime observability.
+
+## Security Tab (Runtime Console)
+
+Security is not the primary first-run enrollment flow.
+
+It is the operational console for:
+
+- live identity state
+- policy strictness (`Normal`, `Shared Room`, `Secure`, `Restricted`)
+- runtime interaction mode (read-only)
+- provider readiness
+- last authorization decision and reason
+
+### Security snapshots
+
+![Security tab overview](../assets/desktop-app/desktop_app_security_01.png)
+![Voice Security Status card](../assets/desktop-app/desktop_app_security_02.png)
+![Security mode selector](../assets/desktop-app/desktop_app_security_03.png)
+![Interaction mode selector](../assets/desktop-app/desktop_app_security_04.png)
+![Enrollment profile field](../assets/desktop-app/desktop_app_security_05.png)
+![Enrollment action buttons](../assets/desktop-app/desktop_app_security_06.png)
+![Security details panel](../assets/desktop-app/desktop_app_security_07.png)
+![Security footer summary](../assets/desktop-app/desktop_app_security_08.png)
+![Expanded security panel](../assets/desktop-app/desktop_app_security_09.png)
+
+## Security Modes (Practical Meaning)
+
+- `Normal`: balanced default for trusted solo use
+- `Shared Room`: tighter policy for multi-speaker contamination risk
+- `Secure`: stricter verification and less permissive fallback
+- `Restricted`: strongest fail-closed behavior for risky actions
+
+## Interaction Mode Clarification
+
+Interaction mode is runtime-controlled and read-only in Security.
+
+Users should not manually toggle security settings to switch between command/dictation behavior.
+
+## Fast Troubleshooting
+
+### Symptom: high-risk commands are blocked or keep confirming
+
+Check in order:
+
+1. Enrollment status is active
+2. Preflight/provider readiness is healthy
+3. contamination is not detected
+4. interaction mode is appropriate for what you are doing
+5. last authorization outcome reason text
+
+Then:
+
+- run `Test Verification`
+- if needed, run `Re-enroll`
+- if state is stale or corrupt, run `Reset Enrollment` then re-enroll
+
+## Related Docs
+
+- [Policy](./policy.md)
+- [Browser and System Control](../guides/browser-and-system-control.md)
+- [Maestro Master Plan](../vos/maestro-master-plan.md)
+- [Voice Identity Security Architecture](../vos/maestro-voice-identity-security-architecture.md)
+- [Actuation Policy Engine](../vos/maestro-actuation-policy-engine.md)

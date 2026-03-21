@@ -81,6 +81,8 @@ export default class ChunkManager {
   private chunkAudioFrames = new Map<string, Buffer[]>();
   private chunkUseWhisperCommandFast = new Map<string, boolean>();
   private chunkUseFasterWhisperDictation = new Map<string, boolean>();
+  private chunkFinalizationRequested = new Set<string>();
+  private chunkTranscriptionInFlight = new Set<string>();
   private loggedWhisperUnavailable = false;
   private loggedFasterWhisperUnavailable = false;
 
@@ -369,7 +371,26 @@ export default class ChunkManager {
     return true;
   }
 
+  private enqueueFinalEndpointOnce(chunkId: string) {
+    if (!chunkId) {
+      return;
+    }
+
+    if (this.chunkFinalizationRequested.has(chunkId)) {
+      this.log.logVerbose(`[Chunk] Finalize deduped for ${chunkId}`);
+      return;
+    }
+
+    this.chunkFinalizationRequested.add(chunkId);
+    this.enqueue({ requestType: "endpoint", chunkId, finalize: true });
+  }
+
   private async handleWhisperFinalize(chunkId: string): Promise<boolean> {
+    if (this.chunkTranscriptionInFlight.has(chunkId)) {
+      this.log.logVerbose(`[Chunk] whisper command-fast deduped while in-flight for ${chunkId}`);
+      return true;
+    }
+
     const frames = this.chunkAudioFrames.get(chunkId) || [];
     const audio = frames.length > 0 ? Buffer.concat(frames) : Buffer.alloc(0);
     if (audio.length === 0) {
@@ -379,6 +400,7 @@ export default class ChunkManager {
       return false;
     }
 
+    this.chunkTranscriptionInFlight.add(chunkId);
     try {
       const result = await this.whisperCommandFastProvider.transcribeCommand({
         chunkId,
@@ -443,6 +465,8 @@ export default class ChunkManager {
     } finally {
       this.chunkAudioFrames.delete(chunkId);
       this.chunkUseWhisperCommandFast.delete(chunkId);
+      this.chunkFinalizationRequested.delete(chunkId);
+      this.chunkTranscriptionInFlight.delete(chunkId);
     }
   }
 
@@ -458,6 +482,11 @@ export default class ChunkManager {
   }
 
   private async handleFasterWhisperDictationFinalize(chunkId: string): Promise<boolean> {
+    if (this.chunkTranscriptionInFlight.has(chunkId)) {
+      this.log.logVerbose(`[Chunk] faster-whisper dictation deduped while in-flight for ${chunkId}`);
+      return true;
+    }
+
     const frames = this.chunkAudioFrames.get(chunkId) || [];
     const audio = frames.length > 0 ? Buffer.concat(frames) : Buffer.alloc(0);
     if (audio.length === 0) {
@@ -467,6 +496,7 @@ export default class ChunkManager {
       return false;
     }
 
+    this.chunkTranscriptionInFlight.add(chunkId);
     try {
       const result = await this.fasterWhisperDictationProvider.transcribeDictation({
         chunkId,
@@ -511,6 +541,7 @@ export default class ChunkManager {
       await this.stream.sendTextRequest(result.text, true);
       this.chunkAudioFrames.delete(chunkId);
       this.chunkUseFasterWhisperDictation.delete(chunkId);
+      this.chunkFinalizationRequested.delete(chunkId);
       return true;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -533,6 +564,8 @@ export default class ChunkManager {
       });
       this.chunkUseFasterWhisperDictation.delete(chunkId);
       return false;
+    } finally {
+      this.chunkTranscriptionInFlight.delete(chunkId);
     }
   }
 
@@ -596,7 +629,7 @@ export default class ChunkManager {
       getNoiseClassificationDelayMs: () => this.timeToWaitBeforeClassifyingAsNoise,
       getResponse: (candidate) => this.getResponse(candidate),
       onAppendToPrevious: (chunkId) => {
-        this.enqueue({ requestType: "endpoint", chunkId, finalize: true });
+        this.enqueueFinalEndpointOnce(chunkId);
       },
       onMarkNoiseDelayDeadline: (deadline) => {
         this.deadlineToMakeNewInitializeRequest = deadline;
@@ -683,6 +716,8 @@ export default class ChunkManager {
       this.chunkAudioFrames.delete(chunk.id);
       this.chunkUseWhisperCommandFast.delete(chunk.id);
       this.chunkUseFasterWhisperDictation.delete(chunk.id);
+      this.chunkFinalizationRequested.delete(chunk.id);
+      this.chunkTranscriptionInFlight.delete(chunk.id);
     }
   }
 
@@ -711,7 +746,7 @@ export default class ChunkManager {
           `[Chunk] Force finalize ${current.id} audioFrames=${current.audioSize}`
         );
         this.enqueue({ requestType: "editor" }, false);
-        this.enqueue({ requestType: "endpoint", chunkId: current.id, finalize: true });
+        this.enqueueFinalEndpointOnce(current.id);
         return;
       }
 
@@ -795,7 +830,7 @@ export default class ChunkManager {
     this.sttShadowPublisher.publishEndpointRequest(true, "force_final");
     
     this.enqueue({ requestType: "editor" }, false);
-    this.enqueue({ requestType: "endpoint", chunkId: current.id, finalize: true });
+    this.enqueueFinalEndpointOnce(current.id);
   }
 
   async onChunkStart(audio: any) {
@@ -877,6 +912,8 @@ export default class ChunkManager {
     this.chunkAudioFrames.clear();
     this.chunkUseWhisperCommandFast.clear();
     this.chunkUseFasterWhisperDictation.clear();
+    this.chunkFinalizationRequested.clear();
+    this.chunkTranscriptionInFlight.clear();
   }
 
   private async startListeningSession(generation: number): Promise<boolean> {
