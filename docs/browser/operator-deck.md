@@ -18,23 +18,44 @@ Use the Operator Deck to:
 
 ### 1. Connection Ledger
 This section provides real-time status of your link to the Arqon Maestro stack.
-- **Status Dot**: Green indicates a healthy connection.
-- **Transport**: Confirms you are "Connected via Arqon Bus".
-- **Heartbeat**: Shows how recently the last signal was received.
 
-### 2. Active Mode
-Displays the **Effective Mode** for the current page.
-- **Pilot**: Normal interaction is allowed.
-- **Assist**: Mutating actions are blocked (common on sensitive pages).
-- **Locked**: No interaction allowed.
+![Connection Ledger](../assets/browser/deck-connection-ledger.png)
+
+- **Status Dot**: Green indicates a healthy connection to the Arqon Bus.
+- **Routing**: Confirms commands are routing through the extension worker.
+- **Heartbeat**: Shows the latency and state of the last signal received.
+
+### 2. Active Page Intelligence
+A real-time snapshot of the page currently being analyzed by Maestro.
+
+![Active Page](../assets/browser/deck-active-page.png)
+
+- **Site & Title**: Confirms the target domain and page name.
+- **Actionables**: Tally of clickable elements detected on the page.
+- **Injection Health**: Confirms the content scripts are successfully running.
 
 ### 3. Quick Controls
-- **Open Docs**: Jump directly to the documentation (like this page!).
-- **Reconnect**: Manually trigger a connection refresh if the transport is interrupted.
-- **Open Panel**: Slide out the **Operator Surface** for detailed diagnostics.
+Global actions to manage your session and the extension UI.
 
-### 4. Overlay Policy
-A per-tab toggle to **Always show link overlays**. When enabled, Maestro will automatically highlight interactive elements whenever you navigate to a new page on this tab, without needing the "show links" command.
+![Quick Controls](../assets/browser/deck-quick-controls.png)
+
+- **Open Docs**: Jump directly to the documentation.
+- **Reconnect**: Manually refresh the connection if interrupted.
+- **Open Panel**: Slide out the **Operator Surface** (Sidebar) for deep diagnostics.
+
+### 4. Internal States (Diagnostics)
+Deep metrics for the underlying transport and command execution.
+
+![Diagnostics](../assets/browser/deck-diagnostics.png)
+
+- **Targeting**: Details on the resolved tab and frame ID.
+- **Watchdog**: Tracks reinjection activity and worker wake-ups.
+- **Last Action**: Detailed breakdown of the most recent command, including route, result, and latency.
+
+![Last Action](../assets/browser/deck-last-action.png)
+
+### 5. Overlay Policy
+A per-tab toggle to **Always show link overlays**. When enabled, Maestro will automatically highlight interactive elements upon navigation, without needing a voice command.
 
 ---
 

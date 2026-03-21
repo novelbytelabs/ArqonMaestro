@@ -33,9 +33,6 @@ Until the Arqon Maestro extension is fully approved on the Chrome Web Store, we 
     3. **Pin the extension**: For easy access, click the puzzles icon (Extensions) in your Chrome toolbar and click the pin icon next to **Arqon Maestro**.
     4. Ensure your Arqon Maestro Desktop app is running.
 
-![Pin Extension](../assets/browser/pin-extension.png)
-*Pinning the extension ensures the Operator Deck is always one click away.*
-
 === "Developer / Beta"
     1. Navigate to the `maestro-chrome-extension` repository.
     2. Run `npm install` and `npm run build`.
@@ -43,6 +40,10 @@ Until the Arqon Maestro extension is fully approved on the Chrome Web Store, we 
     4. Enable **Developer Mode** (top right).
     5. Click **Load unpacked** and select the extension root folder.
     6. **Pin the extension**: Click the puzzle icon in the Chrome toolbar and pin Arqon Maestro.
+
+![Pin Extension](../assets/browser/pin-extension.png)
+
+*Pinning the extension ensures the Operator Deck and Sidepanel are always one click away.*
 
 > [!IMPORTANT]
 > Always reload your browser tabs after installing or updating the extension to ensure the content scripts are correctly injected.
