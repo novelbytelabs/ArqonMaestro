@@ -138,6 +138,12 @@ export default class Executor {
   private lastBlockedCommand: string = "";
   private lastBlockedAt: string = "";
   private lastAuthorizationReasonCode: string = "";
+  private lastAuthorizationRequiredFactors: string[] = [];
+  private lastAuthorizationSatisfiedFactors: string[] = [];
+  private lastAuthorizationMissingFactor: string = "";
+  private lastAuthorizationStepUpType: string = "none";
+  private lastAuthorizationFactorDecision: string = "";
+  private lastAuthorizationFactorReasonCode: string = "";
   private securitySessionPolicyService: SecuritySessionPolicyService;
   private interactionSequence = 0;
   private previousTrustState: SecurityTrustState = "unknown";
@@ -2414,6 +2420,16 @@ export default class Executor {
       this.lastAuthorizationDecision = result.decision;
       this.lastAuthorizationReason = result.reason || "";
       this.lastAuthorizationReasonCode = String(result.metadata?.reasonCode || securitySession.reasonCode || "");
+      this.lastAuthorizationRequiredFactors = Array.isArray(result.metadata?.requiredFactors)
+        ? (result.metadata?.requiredFactors as string[])
+        : [];
+      this.lastAuthorizationSatisfiedFactors = Array.isArray(result.metadata?.satisfiedFactors)
+        ? (result.metadata?.satisfiedFactors as string[])
+        : [];
+      this.lastAuthorizationMissingFactor = String(result.metadata?.missingFactor || "");
+      this.lastAuthorizationStepUpType = String(result.metadata?.stepUpType || "none");
+      this.lastAuthorizationFactorDecision = String(result.metadata?.factorDecision || "");
+      this.lastAuthorizationFactorReasonCode = String(result.metadata?.factorReasonCode || "");
       this.publishSecuritySessionBridgeState();
 
       if (result.decision === AuthorizationDecision.ALLOW) {
@@ -2452,6 +2468,12 @@ export default class Executor {
       this.lastAuthorizationDecision = AuthorizationDecision.DENY;
       this.lastAuthorizationReason = "Authorization subsystem error (fail-safe block)";
       this.lastAuthorizationReasonCode = "execute_suppressed_not_authorized";
+      this.lastAuthorizationRequiredFactors = ["voice"];
+      this.lastAuthorizationSatisfiedFactors = [];
+      this.lastAuthorizationMissingFactor = "voice";
+      this.lastAuthorizationStepUpType = "none";
+      this.lastAuthorizationFactorDecision = "block";
+      this.lastAuthorizationFactorReasonCode = "auth_block_voice_required";
       this.lastBlockedCommand =
         response.execute?.commands?.[0]?.text || commandTypeToString(commandType || 0);
       this.lastBlockedAt = new Date().toISOString();
@@ -2533,6 +2555,12 @@ export default class Executor {
     securityReplayTotalRecords: number;
     securityReplaySessionEventCount: number;
     securityReplayLastSequence: number;
+    securityRequiredFactors: string[];
+    securitySatisfiedFactors: string[];
+    securityMissingFactor: string;
+    securityStepUpType: string;
+    securityFactorDecision: string;
+    securityLastFactorReasonCode: string;
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
     const replaySummary = phase3BReplayAuditService.getSummary();
@@ -2553,6 +2581,13 @@ export default class Executor {
       securityReplayTotalRecords: replaySummary.totalRecords,
       securityReplaySessionEventCount: replaySummary.recordsByCategory.security_session_event,
       securityReplayLastSequence: replaySummary.lastSequence,
+      securityRequiredFactors: this.lastAuthorizationRequiredFactors,
+      securitySatisfiedFactors: this.lastAuthorizationSatisfiedFactors,
+      securityMissingFactor: this.lastAuthorizationMissingFactor,
+      securityStepUpType: this.lastAuthorizationStepUpType,
+      securityFactorDecision: this.lastAuthorizationFactorDecision,
+      securityLastFactorReasonCode:
+        this.lastAuthorizationFactorReasonCode || this.lastAuthorizationReasonCode,
     };
   }
 

@@ -26,6 +26,10 @@ import {
   SecurityPolicyMode,
   SecurityTrustState,
 } from "./security-session-policy-service";
+import {
+  evaluateSecurityFactorContract,
+  SecurityFactorContractResult,
+} from "./security-factor-orchestrator";
 
 /**
  * Command risk levels
@@ -414,6 +418,10 @@ export default class AuthorizationService {
     if (!session) {
       return null;
     }
+    const factorContract = evaluateSecurityFactorContract({
+      riskLevel: request.riskLevel,
+      trustState: session.trustState,
+    });
 
     if (session.trustState === "contaminated") {
       return {
@@ -425,6 +433,7 @@ export default class AuthorizationService {
           reasonCode: "authorize_block_fail_closed_contaminated",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -439,6 +448,7 @@ export default class AuthorizationService {
           reasonCode: "authorize_block_fail_closed_provider_degraded",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -453,6 +463,7 @@ export default class AuthorizationService {
           reasonCode: "authorize_block_locked_mode",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -467,6 +478,7 @@ export default class AuthorizationService {
           reasonCode: "authorize_block_observe_no_actuation",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -481,6 +493,7 @@ export default class AuthorizationService {
           reasonCode: "auth_block_unknown_speaker",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -495,6 +508,7 @@ export default class AuthorizationService {
           reasonCode: "auth_block_unknown_speaker",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -509,6 +523,7 @@ export default class AuthorizationService {
           reasonCode: "auth_required_per_command",
           policyMode: session.mode,
           trustState: session.trustState,
+          ...this.factorContractMetadata(factorContract),
         },
       };
     }
@@ -522,7 +537,23 @@ export default class AuthorizationService {
         reasonCode: "authorize_allow_verified_policy_match",
         policyMode: session.mode,
         trustState: session.trustState,
+        ...this.factorContractMetadata(factorContract),
       },
+    };
+  }
+
+  private factorContractMetadata(
+    factorContract: SecurityFactorContractResult
+  ): Record<string, unknown> {
+    return {
+      requiredFactors: factorContract.requiredFactors,
+      satisfiedFactors: factorContract.satisfiedFactors,
+      missingFactor: factorContract.missingFactor,
+      stepUpType: factorContract.stepUpType,
+      factorDecision: factorContract.factorDecision,
+      factorReasonCode: factorContract.factorReasonCode,
+      targetFactors: factorContract.targetFactors,
+      targetStepUpType: factorContract.targetStepUpType,
     };
   }
 

@@ -85,6 +85,8 @@ async function run(): Promise<void> {
       },
     });
     assert(result.decision === AuthorizationDecision.BLOCK, `expected block, got ${result.decision}`);
+    assert(result.metadata?.missingFactor === "voice", "expected missing voice factor");
+    assert(result.metadata?.factorDecision === "block", "expected factor decision block");
   });
 
   await test("assist verified medium allows with per-command authentication", async () => {
@@ -105,6 +107,12 @@ async function run(): Promise<void> {
       },
     });
     assert(result.decision === AuthorizationDecision.ALLOW, `expected allow, got ${result.decision}`);
+    assert(Array.isArray(result.metadata?.requiredFactors), "expected requiredFactors metadata");
+    assert(
+      (result.metadata?.requiredFactors as string[]).includes("voice"),
+      "expected required voice factor"
+    );
+    assert(result.metadata?.factorDecision === "allow", "expected factor decision allow");
   });
 
   await test("assist verified medium also allows without grace", async () => {

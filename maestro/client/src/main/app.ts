@@ -640,6 +640,12 @@ export default class App {
         securityReplayTotalRecords: 0,
         securityReplaySessionEventCount: 0,
         securityReplayLastSequence: 0,
+        securityRequiredFactors: [],
+        securitySatisfiedFactors: [],
+        securityMissingFactor: "",
+        securityStepUpType: "none",
+        securityFactorDecision: "",
+        securityLastFactorReasonCode: "",
       };
     }
 
@@ -702,6 +708,13 @@ export default class App {
       securityReplayTotalRecords: status?.securityReplayTotalRecords || 0,
       securityReplaySessionEventCount: status?.securityReplaySessionEventCount || 0,
       securityReplayLastSequence: status?.securityReplayLastSequence || 0,
+      securityRequiredFactors: status?.securityRequiredFactors || [],
+      securitySatisfiedFactors: status?.securitySatisfiedFactors || [],
+      securityMissingFactor: status?.securityMissingFactor || "",
+      securityStepUpType: status?.securityStepUpType || "none",
+      securityFactorDecision: status?.securityFactorDecision || "",
+      securityLastFactorReasonCode:
+        status?.securityLastFactorReasonCode || status?.reasonCode || "",
     };
   }
 

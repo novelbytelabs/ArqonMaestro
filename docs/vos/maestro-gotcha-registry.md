@@ -486,3 +486,19 @@ Use with care:
 * treat `docs/security/session-bootstrap-root-trust.md` as canonical for startup/bootstrap/factor hierarchy
 * keep `docs/browser/security-policy-matrix.md` focused on runtime mode/risk/trust decisions
 * avoid duplicating root-trust rules in browser docs unless explicitly marked as a summary with canonical link
+
+### G-030: Program B B1 Factor Contract Is Additive; Non-Voice Step-Up Is Not Yet Enforced
+
+Symptom:
+
+Developers see `targetStepUpType`/`targetFactors` in metadata and assume PIN/passkey enforcement is already active for medium/high.
+
+Why:
+
+Program B B1 intentionally froze a unified factor contract surface first, while preserving current runtime enforcement to avoid abrupt behavior regressions.
+
+Use with care:
+
+* treat `requiredFactors` as current enforced set for this slice (currently voice)
+* treat `targetFactors`/`targetStepUpType` as forward-policy signals for subsequent slices
+* do not claim medium/high PIN/passkey hard-enforcement is complete until later slices land

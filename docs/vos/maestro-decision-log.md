@@ -844,3 +844,24 @@ Consequences:
 * browser matrix/decisions/enrollment/policy docs defer startup/factor hierarchy to canonical spec
 * profile security governance is explicitly documented with strict mutation gates
 * Definition of Done for this documentation closure is explicit and evidence-oriented
+
+---
+
+## VOS-035: Program B B1 Freezes A Unified Factor-Orchestrator Contract As Additive Metadata First
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Program B B1 starts with a unified runtime factor contract surface (required/satisfied/missing/step-up/decision/reason) and exposes it through authorization + bridge snapshots before enabling full passkey/PIN enforcement.
+
+Why:
+
+Freezing cross-surface fields first reduces policy drift and integration churn between desktop runtime and extension consumers while avoiding abrupt behavior regressions during transition.
+
+Consequences:
+
+* factor metadata is now emitted deterministically for authorization outcomes
+* app/renderer state includes additive factor fields for observability and downstream parity
+* current enforcement remains voice-per-command baseline in this bounded slice; medium/high step-up targets are surfaced but not yet hard-enforced

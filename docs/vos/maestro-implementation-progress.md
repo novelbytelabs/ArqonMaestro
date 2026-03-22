@@ -96,6 +96,54 @@ Next slice:
   * introduce unified factor-orchestrator contract surfaces
   * keep behavior additive/non-breaking while freezing decision fields and reason-code wiring
 
+## Program B B1 - Unified Factor Orchestrator (Additive Contract) - Execution Update
+
+Date: 2026-03-22
+
+Status: **in progress (first bounded runtime slice landed)**
+
+What landed:
+
+* Added runtime factor-orchestrator contract surface:
+  * `maestro/client/src/main/runtime/security-factor-orchestrator.ts`
+* Added additive factor decision fields to authorization metadata:
+  * `requiredFactors`
+  * `satisfiedFactors`
+  * `missingFactor`
+  * `stepUpType`
+  * `factorDecision`
+  * `factorReasonCode`
+  * plus target-policy preview fields (`targetFactors`, `targetStepUpType`)
+* Wired factor contract fields into executor last-authorization snapshot and app/renderer bridge state:
+  * `securityRequiredFactors`
+  * `securitySatisfiedFactors`
+  * `securityMissingFactor`
+  * `securityStepUpType`
+  * `securityFactorDecision`
+  * `securityLastFactorReasonCode`
+* Added factor-orchestrator unit evidence:
+  * `maestro/client/src/main/runtime/security-factor-orchestrator.test.ts`
+* Extended authorization security-session tests to validate factor metadata presence.
+
+Behavior note for this bounded B1 slice:
+
+* Enforcement remains additive and non-breaking: per-command voice factor remains the active required factor.
+* Medium/high step-up targets are surfaced as contract metadata for later Program B slices, not yet hard-enforced.
+
+Verification evidence:
+
+* `cd maestro/client && npx ts-node src/main/runtime/security-factor-orchestrator.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts` -> PASS
+* `cd maestro/client && npm run build:main` -> PASS
+* `cd maestro/client && npm run build:renderer` -> PASS
+* `cd maestro && ./gradlew :core:installDist client:installServer -x downloadModels` -> PASS
+
+Next B1 continuation:
+
+* move factor contract fields into bridge parity surfaces for extension consumers
+* add dedicated reason-code coverage for factor substitution blocking paths
+* begin explicit step-up enforcement gating in subsequent Program B slices (`B2`+)
+
 ## Program A1 Extension Closure (E0-E5) - Execution Update
 
 Date: 2026-03-21
