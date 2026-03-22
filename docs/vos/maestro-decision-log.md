@@ -705,3 +705,69 @@ Consequences:
 
 * modal-boundary and app-boundary jump behavior is easier to reason about and test
 * future boundary-signal expansion can be added in one utility surface
+
+---
+
+## VOS-029: Program A1 Extension Bridge Contract Is Versioned And Correlated On `plugin.chrome`
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Program A1 extension bridge traffic over Arqon Bus now requires:
+
+* `securityContractVersion: "a1.v1"`
+* `requestId` correlation for all security request/response channels
+* source validation restricted to `plugin.chrome`
+
+Why:
+
+Extension closure needs deterministic, auditable channel behavior and explicit compatibility boundaries. Unversioned/unmatched payloads increase policy drift risk.
+
+Consequences:
+
+* missing/mismatched contract version now fails hard (`security_bridge_version_mismatch`)
+* invalid request correlation fails deterministically (`security_bridge_invalid_payload`)
+* unauthorized channel source is rejected (`security_bridge_unauthorized_source`)
+
+---
+
+## VOS-030: Replay Reset Is Devtools-Gated For Program A1 Extension Flows
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+`securityResetReplaySnapshot` is blocked unless `ARQON_SECURITY_DEVTOOLS=1`.
+
+Why:
+
+Replay reset is useful for adversarial/test harness setup but is unsafe as a production control.
+
+Consequences:
+
+* production/default behavior returns `security_bridge_reset_forbidden`
+* test operators must explicitly opt in via env gate
+
+---
+
+## VOS-031: Extension Enforces Bridge-Unavailable Fail-Closed Only For Executable Medium/High Commands
+
+* Date: 2026-03-21
+* Status: Accepted
+
+Decision:
+
+Extension policy handling now fails closed for executable medium/high commands only after bridge retry budget exhaustion (`1500ms + 250ms + 750ms`), while reflex emergency commands remain allowed.
+
+Why:
+
+This aligns with safety-first policy while avoiding over-blocking emergency stop/cancel controls.
+
+Consequences:
+
+* first timeout does not immediately mark bridge unavailable
+* unavailable state applies only after retries are exhausted
+* reflex commands are exempt from bridge-unavailable blocking

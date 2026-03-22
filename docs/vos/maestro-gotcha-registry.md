@@ -406,3 +406,63 @@ Use with care:
 
 * use key-shape fields for security boundary decisions
 * keep diagnostic timestamp changes out of boundary keys to avoid false invalidation churn
+
+### G-025: Program A1 Extension Security Bridge Now Hard-Fails Missing/Bad Contract Version
+
+Symptom:
+
+Security request flows fail immediately even when payload otherwise looks usable.
+
+Why:
+
+Program A1 extension contract now requires `securityContractVersion: "a1.v1"` on every security request/response. Missing or mismatched versions return `security_bridge_version_mismatch` and are not silently tolerated.
+
+Use with care:
+
+* always include `securityContractVersion` and `requestId`
+* do not rely on legacy unversioned payload behavior
+
+### G-026: Bridge-Unavailable Fail-Closed Activates Only After Retry Budget Exhaustion
+
+Symptom:
+
+Operators may expect medium/high commands to block after the first timeout but see one retry window first.
+
+Why:
+
+Program A1 marks bridge unavailable only after timeout + retry backoff budget is exhausted (`1500ms + 250ms + 750ms`).
+
+Use with care:
+
+* treat first timeout as transient
+* inspect `security_bridge_unavailable` vs `security_bridge_timeout` for triage
+
+### G-027: Extension Lifecycle Dedupe Enforces Monotonic `interactionId`
+
+Symptom:
+
+Some lifecycle updates are ignored after reconnect or out-of-order transport.
+
+Why:
+
+Program A1 extension dedupe rejects backward `interactionId` transitions unless reconnect bootstrap explicitly resets monotonic baseline.
+
+Use with care:
+
+* on reconnect/bootstrap, trigger explicit snapshot bootstrap before trusting incremental events
+* debug out-of-order lifecycle by checking bootstrap reset time and last accepted interaction id
+
+### G-028: Replay Reset Is Devtools-Gated (`ARQON_SECURITY_DEVTOOLS=1`)
+
+Symptom:
+
+`securityResetReplaySnapshot` returns forbidden in normal runs.
+
+Why:
+
+Reset is intentionally blocked outside explicit devtools mode for production safety.
+
+Use with care:
+
+* set `ARQON_SECURITY_DEVTOOLS=1` only in controlled test environments
+* expect `security_bridge_reset_forbidden` in standard/production contexts

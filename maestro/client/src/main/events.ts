@@ -515,6 +515,9 @@ export default class RendererProcessEventHandlers {
     });
 
     ipcMain.on("securityResetReplaySnapshot", () => {
+      if (process.env.ARQON_SECURITY_DEVTOOLS !== "1") {
+        return;
+      }
       resetPhase3BReplayAuditSnapshot();
     });
 

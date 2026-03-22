@@ -57,6 +57,138 @@ The Focus Project implements a layered focus management system for Arqon Maestro
   * broader real-browser activation integration/adversarial runs in a live extension harness
   * governance promotion from bounded local persistence to durable policy evidence backend (Program D)
 
+## Program A1 Extension Closure (E0-E5) - Execution Update
+
+Date: 2026-03-21
+
+Status: E0-E4 implemented; E5 harness runbook and export path implemented; live-browser scenario artifact execution pending operator run.
+
+### E0 Contract preflight
+
+1) Files changed
+* `docs/browser/extension-program-a1-plan.md`
+* `maestro-chrome-extension/src/security-contract.ts`
+* `maestro-chrome-extension/src/test/fixtures/security-contract/*`
+* `maestro-chrome-extension/src/test/security-contract-fixtures.test.js`
+
+2) Why (policy/spec tie-back)
+* Froze `securityContractVersion: "a1.v1"` and request correlation.
+* Added `security_bridge_version_mismatch`.
+* Froze bridge unavailable threshold (retry-budget exhausted only), lifecycle monotonicity rule, reflex fail-open exemption, and hard-fail on missing contract version.
+
+3) Evidence (commands + pass/fail)
+* `cd maestro-chrome-extension && node src/test/security-contract-fixtures.test.js` -> PASS
+* `cd maestro-chrome-extension && npm run build` -> PASS
+
+4) Risks/gotchas
+* Extension `tsc --noEmit` currently fails on ambient dependency typing (`@types/node` + TS version mismatch), independent of A1 changes.
+
+5) Next slice plan
+* E1 contract binding and correlated bus handlers.
+
+### E1 Contract binding and state model
+
+1) Files changed
+* `maestro/client/src/main/ipc/bus-plugin-server.ts`
+* `maestro/client/src/main/app.ts`
+* `maestro/client/src/main/events.ts`
+* `maestro-chrome-extension/src/ipc.ts`
+* `maestro-chrome-extension/src/operator-snapshot.ts`
+* `maestro-chrome-extension/src/extension.ts`
+
+2) Why (policy/spec tie-back)
+* Added security request/response channels on plugin bus with strict `requestId` + `a1.v1`.
+* Added source validation guard (`plugin.chrome` only).
+* Added deterministic error mapping and reset-forbidden behavior outside `ARQON_SECURITY_DEVTOOLS=1`.
+
+3) Evidence (commands + pass/fail)
+* `cd maestro/client && npm run build:main` -> PASS
+* `cd maestro-chrome-extension && npm run build` -> PASS
+
+4) Risks/gotchas
+* Legacy/non-contract payloads now hard-fail by design; old callers must include version/requestId.
+
+5) Next slice plan
+* E2 lifecycle parity + dedupe and E3 fail-closed command gating.
+
+### E2 Lifecycle parity and dedupe
+
+1) Files changed
+* `maestro-chrome-extension/src/ipc.ts`
+* `maestro-chrome-extension/src/operator-snapshot.ts`
+
+2) Why (policy/spec tie-back)
+* Added lifecycle monotonicity guard and dedupe keying by `phase:interactionId`.
+* Reconnect bootstrap explicitly resets monotonic baseline.
+
+3) Evidence (commands + pass/fail)
+* `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts` -> PASS
+
+4) Risks/gotchas
+* Backward `interactionId` events are rejected unless bootstrap reset occurs.
+
+5) Next slice plan
+* E3 policy parity enforcement for bridge-unavailable behavior.
+
+### E3 Policy enforcement parity
+
+1) Files changed
+* `maestro-chrome-extension/src/ipc.ts`
+
+2) Why (policy/spec tie-back)
+* Enforced fail-closed only for executable medium/high commands when bridge is unavailable after retry budget.
+* Reflex commands remain allowed.
+
+3) Evidence (commands + pass/fail)
+* `cd maestro-chrome-extension && npm run build` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/phase3b-replay-audit-summary.test.ts` -> PASS
+
+4) Risks/gotchas
+* Command risk mapping is extension-local and should be expanded as command surface grows.
+
+5) Next slice plan
+* E4 replay observability controls in extension UI.
+
+### E4 Replay/audit observability
+
+1) Files changed
+* `maestro-chrome-extension/src/popup.html`
+* `maestro-chrome-extension/src/popup.ts`
+* `maestro-chrome-extension/src/sidepanel.html`
+* `maestro-chrome-extension/src/sidepanel.ts`
+* `maestro-chrome-extension/src/extension.ts`
+
+2) Why (policy/spec tie-back)
+* Added replay metrics + refresh/reset controls.
+* Added export channel for raw event-log capture to support E5 bundles.
+
+3) Evidence (commands + pass/fail)
+* `cd maestro-chrome-extension && npm run build` -> PASS
+
+4) Risks/gotchas
+* Production reset is blocked by env guard; test operators must explicitly set `ARQON_SECURITY_DEVTOOLS=1`.
+
+5) Next slice plan
+* E5 live adversarial execution with per-scenario artifact bundles.
+
+### E5 Adversarial harness status
+
+1) Files changed
+* `maestro-chrome-extension/deliverables/program-a1/e5-adversarial-harness-runbook.md`
+
+2) Why (policy/spec tie-back)
+* Added mandatory bundle format: screenshot + raw event log + reason-code line + expected/actual verdict.
+
+3) Evidence (commands + pass/fail)
+* Harness runbook committed -> PASS
+* Live scenario execution artifacts -> PENDING (requires live browser operator run)
+
+4) Risks/gotchas
+* Live scenarios require interactive browser session and cannot be fully executed in headless-only code build steps.
+
+5) Next slice plan
+* Execute 8 live scenarios and archive artifact bundles.
+
 ## Program A Settings IA Slice (Profiles Migration)
 
 Date: 2026-03-21

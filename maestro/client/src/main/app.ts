@@ -218,7 +218,8 @@ export default class App {
       miniModeWindow,
       pluginManager,
       stream,
-      log
+      log,
+      () => instance.getSecurityPanelState()
     );
 
     await custom.start();

@@ -10,8 +10,22 @@ import Stream from "../stream/stream";
 import { core } from "../../gen/core";
 import Log from "../log";
 import Settings from "../settings";
+import {
+  getPhase3BReplayAuditSnapshot,
+  getPhase3BReplayAuditSummary,
+  resetPhase3BReplayAuditSnapshot,
+} from "../runtime/phase3b-replay-audit-harness";
 
 const maximumIconLength = 20000;
+const securityContractVersion = "a1.v1";
+const securityErrorCodes = {
+  timeout: "security_bridge_timeout",
+  unavailable: "security_bridge_unavailable",
+  invalidPayload: "security_bridge_invalid_payload",
+  unauthorizedSource: "security_bridge_unauthorized_source",
+  resetForbidden: "security_bridge_reset_forbidden",
+  versionMismatch: "security_bridge_version_mismatch",
+} as const;
 
 type PluginMessage = {
   message: string;
@@ -51,7 +65,8 @@ export default class BusPluginServer {
     private miniModeWindow: MiniModeWindow,
     private pluginManager: PluginManager,
     private stream: Stream,
-    private log: Log
+    private log: Log,
+    private getSecuritySnapshot: () => Record<string, unknown>
   ) {
     this.connect();
   }
@@ -123,6 +138,92 @@ export default class BusPluginServer {
     return null;
   }
 
+  private isAuthorizedPluginChromeSource(parsed: any): boolean {
+    const topLevelChannel = parsed?.channel;
+    const payloadChannel = parsed?.payload?.channel;
+    if (typeof topLevelChannel == "string" && topLevelChannel != "plugin.chrome") {
+      return false;
+    }
+    if (typeof payloadChannel == "string" && payloadChannel != "plugin.chrome") {
+      return false;
+    }
+    return true;
+  }
+
+  private publishSecurityMessage(pluginId: string, app: string, message: string, payload: any) {
+    this.publishToPlugin(
+      pluginId,
+      app,
+      JSON.stringify({
+        message,
+        data: payload,
+      })
+    );
+  }
+
+  private publishSecurityError(
+    pluginId: string,
+    app: string,
+    requestId: string,
+    errorCode: string,
+    errorMessage: string
+  ) {
+    this.publishSecurityMessage(pluginId, app, "securityBridgeError", {
+      requestId,
+      securityContractVersion,
+      errorCode,
+      errorMessage,
+    });
+  }
+
+  private parseSecurityRequest(data: any): {
+    ok: boolean;
+    requestId: string;
+    errorCode?: string;
+    errorMessage?: string;
+  } {
+    const requestId = typeof data?.requestId == "string" ? data.requestId.trim() : "";
+    if (!requestId) {
+      return {
+        ok: false,
+        requestId: "",
+        errorCode: securityErrorCodes.invalidPayload,
+        errorMessage: "requestId required",
+      };
+    }
+    if (typeof data?.securityContractVersion != "string") {
+      return {
+        ok: false,
+        requestId,
+        errorCode: securityErrorCodes.versionMismatch,
+        errorMessage: "securityContractVersion missing",
+      };
+    }
+    if (data.securityContractVersion !== securityContractVersion) {
+      return {
+        ok: false,
+        requestId,
+        errorCode: securityErrorCodes.versionMismatch,
+        errorMessage: "securityContractVersion mismatch",
+      };
+    }
+    return { ok: true, requestId };
+  }
+
+  private publishSecurityState(pluginId: string, app: string) {
+    const snapshot = this.getSecuritySnapshot();
+    const replaySummary = getPhase3BReplayAuditSummary();
+    this.publishSecurityMessage(pluginId, app, "securityBridgeState", {
+      requestId: `bridge_${Date.now()}`,
+      securityContractVersion,
+      ...snapshot,
+      securityReplayGeneratedAt: replaySummary.generatedAt,
+      securityReplayTotalRecords: replaySummary.totalRecords,
+      securityReplaySessionEventCount: replaySummary.recordsByCategory.security_session_event,
+      securityReplayLastSequence: replaySummary.lastSequence,
+    });
+  }
+
   private pluginSocketKey(id: string, app: string): string {
     return `${app}:${id}`;
   }
@@ -167,6 +268,8 @@ export default class BusPluginServer {
 
     const reqData = request.data || {};
     const socket = this.getSocketForRequest(reqData);
+    const pluginId = typeof reqData?.id == "string" ? reqData.id : "";
+    const app = typeof reqData?.app == "string" ? reqData.app : "";
 
     if (request.message === "active") {
       let icon = reqData.icon;
@@ -181,6 +284,7 @@ export default class BusPluginServer {
 
       if (socket) {
         this.pluginManager.updateActive(socket, reqData.id, reqData.app, reqData.match, icon);
+        this.publishSecurityState(reqData.id, reqData.app);
       }
     } else if (request.message === "callback") {
       this.pluginManager.resolve(reqData.callback, reqData.data);
@@ -191,7 +295,98 @@ export default class BusPluginServer {
     } else if (request.message === "heartbeat") {
       if (socket) {
         this.pluginManager.updateHeartbeat(socket, reqData.id, reqData.app);
+        this.publishSecurityState(reqData.id, reqData.app);
       }
+    }
+
+    if (
+      request.message === "securityRequestSnapshot" ||
+      request.message === "securityRequestReplaySummary" ||
+      request.message === "securityRequestReplaySnapshot" ||
+      request.message === "securityResetReplaySnapshot" ||
+      request.message === "securitySubscribe"
+    ) {
+      if (!pluginId || !app) {
+        return;
+      }
+
+      if (!this.isAuthorizedPluginChromeSource(parsed)) {
+        const requestId = typeof reqData?.requestId == "string" ? reqData.requestId : "";
+        this.publishSecurityError(
+          pluginId,
+          app,
+          requestId || `bridge_${Date.now()}`,
+          securityErrorCodes.unauthorizedSource,
+          "unauthorized source"
+        );
+        return;
+      }
+
+      const parsedReq = this.parseSecurityRequest(reqData);
+      if (!parsedReq.ok) {
+        this.publishSecurityError(
+          pluginId,
+          app,
+          parsedReq.requestId || `bridge_${Date.now()}`,
+          parsedReq.errorCode || securityErrorCodes.invalidPayload,
+          parsedReq.errorMessage || "invalid payload"
+        );
+        return;
+      }
+
+      const requestId = parsedReq.requestId;
+      if (request.message === "securityRequestSnapshot") {
+        const snapshot = this.getSecuritySnapshot();
+        const replaySummary = getPhase3BReplayAuditSummary();
+        this.publishSecurityMessage(pluginId, app, "securitySnapshot", {
+          requestId,
+          securityContractVersion,
+          ...snapshot,
+          securityReplayGeneratedAt: replaySummary.generatedAt,
+          securityReplayTotalRecords: replaySummary.totalRecords,
+          securityReplaySessionEventCount: replaySummary.recordsByCategory.security_session_event,
+          securityReplayLastSequence: replaySummary.lastSequence,
+        });
+      } else if (request.message === "securityRequestReplaySummary") {
+        const summary = getPhase3BReplayAuditSummary();
+        this.publishSecurityMessage(pluginId, app, "securityReplaySummary", {
+          requestId,
+          securityContractVersion,
+          ...summary,
+        });
+      } else if (request.message === "securityRequestReplaySnapshot") {
+        const replaySnapshot = getPhase3BReplayAuditSnapshot();
+        this.publishSecurityMessage(pluginId, app, "securityReplaySnapshot", {
+          requestId,
+          securityContractVersion,
+          ...replaySnapshot,
+        });
+      } else if (request.message === "securityResetReplaySnapshot") {
+        if (process.env.ARQON_SECURITY_DEVTOOLS !== "1") {
+          this.publishSecurityError(
+            pluginId,
+            app,
+            requestId,
+            securityErrorCodes.resetForbidden,
+            "security replay reset forbidden outside devtools mode"
+          );
+          return;
+        }
+        resetPhase3BReplayAuditSnapshot();
+        const summary = getPhase3BReplayAuditSummary();
+        this.publishSecurityMessage(pluginId, app, "securityReplaySummary", {
+          requestId,
+          securityContractVersion,
+          ...summary,
+        });
+      } else if (request.message === "securitySubscribe") {
+        this.publishSecurityMessage(pluginId, app, "securitySubscribed", {
+          requestId,
+          securityContractVersion,
+        });
+        this.publishSecurityState(pluginId, app);
+      }
+      return;
     }
 
     if (request.message === "customCommands") {
