@@ -66,6 +66,7 @@ nav:
       - Editor Integrations: guides/editor-integrations.md
       - In-App Tutorials: guides/in-app-tutorials.md
       - Building: guides/building.md
+  - E5 Execution: browser/e5-execution.md
   - Browser:
       - Getting Started: browser/getting-started.md
       - Navigation: browser/navigation.md
