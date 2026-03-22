@@ -626,6 +626,8 @@ export default class RendererProcessEventHandlers {
             },
           ],
           highlighted: [0],
+          executedSuccess: [],
+          staleOrFailed: [],
           partial: false,
           suggestion: "",
         },

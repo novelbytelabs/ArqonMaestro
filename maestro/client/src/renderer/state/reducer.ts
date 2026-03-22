@@ -24,6 +24,8 @@ const initialState = {
   executeSilenceThreshold: 1,
   filename: "",
   highlighted: [],
+  executedSuccess: [],
+  staleOrFailed: [],
   icon: "",
   language: core.Language.LANGUAGE_DEFAULT,
   languageName: "Auto-Detect",

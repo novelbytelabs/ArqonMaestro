@@ -7,6 +7,7 @@ import {
   faCheck,
   faEllipsisH,
   faExclamationTriangle,
+  faMinus,
   faTimes,
 } from "@fortawesome/free-solid-svg-icons";
 import { updateMiniModeWindowHeight } from "../pages/mini-mode";
@@ -24,6 +25,8 @@ const Alternative: React.FC<{
   };
   index: number;
   highlighted: boolean;
+  executedSuccess: boolean;
+  staleOrFailed: boolean;
   miniMode: boolean;
   miniModeBottomUp: boolean;
   miniModeReversed: boolean;
@@ -34,6 +37,8 @@ const Alternative: React.FC<{
   alternative,
   index,
   highlighted,
+  executedSuccess,
+  staleOrFailed,
   miniMode,
   miniModeBottomUp,
   miniModeReversed,
@@ -63,16 +68,21 @@ const Alternative: React.FC<{
   }
 
   const valid = isValidAlternative(alternative);
-  const usable = !partial && valid && !highlighted;
-  const unusable = (partial || !valid) && !highlighted;
+  const usable = !partial && valid && !highlighted && !executedSuccess && !staleOrFailed;
+  const unusable =
+    (partial || !valid) && !highlighted && !executedSuccess && !staleOrFailed;
 
   let circle = <>{index}</>;
   if (spinner) {
     circle = <Spinner hidden={false} />;
   } else if (partial) {
     circle = <FontAwesomeIcon icon={faEllipsisH} />;
-  } else if (highlighted && !partial) {
+  } else if (executedSuccess && !partial) {
     circle = <FontAwesomeIcon icon={faCheck} />;
+  } else if (staleOrFailed && !partial) {
+    circle = <FontAwesomeIcon icon={faMinus} />;
+  } else if (highlighted && !partial) {
+    circle = <FontAwesomeIcon icon={faTimes} />;
   } else if (!valid) {
     circle = <FontAwesomeIcon icon={faTimes} />;
   }
@@ -94,6 +104,8 @@ const Alternative: React.FC<{
               "bg-white/10 border-white/10": usable,
               "bg-white/5 border-white/5": unusable,
               "bg-cyan-500/30 border-cyan-400/50": highlighted,
+              "bg-gray-700/40 border-gray-500/40": staleOrFailed,
+              "bg-emerald-500/25 border-emerald-400/50": executedSuccess,
             })}
             key={i}
           >
@@ -114,6 +126,8 @@ const Alternative: React.FC<{
             "bg-white/10 border-white/10": usable,
             "bg-white/5 border-white/5": unusable,
             "bg-cyan-500/30 border-cyan-400/50": highlighted,
+            "bg-gray-700/40 border-gray-500/40": staleOrFailed,
+            "bg-emerald-500/25 border-emerald-400/50": executedSuccess,
           })}
           key={i}
         >
@@ -136,6 +150,9 @@ const Alternative: React.FC<{
           "glass-card border-white/10 hover:border-cyan-500/30 hover:bg-white/5 cursor-pointer": usable,
           "bg-white/5 border border-white/5 opacity-40 cursor-default": unusable,
           "bg-cyan-500/20 border border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.4)] cursor-default": highlighted,
+          "bg-emerald-500/20 border border-emerald-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] cursor-default":
+            executedSuccess,
+          "bg-gray-700/25 border border-gray-500/40 opacity-80 cursor-default": staleOrFailed,
           "mb-1.5 mx-1": !miniMode,
           "mt-1": index > 1 || (miniMode && miniModeBottomUp && miniModeReversed),
         }
@@ -151,6 +168,9 @@ const Alternative: React.FC<{
               "bg-black/40 border border-cyan-500/30 text-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.2)] group-hover:border-cyan-400 group-hover:shadow-[0_0_12px_rgba(34,211,238,0.4)]": usable,
               "bg-gray-800/40 border border-white/10 text-gray-400": unusable,
               "bg-cyan-500 border border-cyan-300 text-white shadow-[0_0_10px_rgba(255,255,255,0.4)]": highlighted,
+              "bg-emerald-500 border border-emerald-300 text-white shadow-[0_0_10px_rgba(52,211,153,0.45)]":
+                executedSuccess,
+              "bg-gray-700 border border-gray-400 text-gray-200": staleOrFailed,
             }
           )}
         >
@@ -162,7 +182,11 @@ const Alternative: React.FC<{
         style={{
           fontSize: "0.85rem",
           lineHeight: "1.2rem",
-          color: highlighted ? "#fff" : "rgba(255,255,255,0.9)",
+          color: staleOrFailed
+            ? "rgba(209,213,219,0.88)"
+            : highlighted || executedSuccess
+              ? "#fff"
+              : "rgba(255,255,255,0.9)",
         }}
       >
         {description}
@@ -211,6 +235,8 @@ const AlternativesListComponent: React.FC<{
   alternativesSpinner: number[];
   backendIssue: string;
   highlighted: number[];
+  executedSuccess: number[];
+  staleOrFailed: number[];
   loggedIn: boolean;
   miniMode: boolean;
   miniModeBottomUp: boolean;
@@ -227,6 +253,8 @@ const AlternativesListComponent: React.FC<{
   alternativesSpinner,
   backendIssue,
   highlighted,
+  executedSuccess,
+  staleOrFailed,
   loggedIn,
   miniMode,
   miniModeBottomUp,
@@ -279,6 +307,8 @@ const AlternativesListComponent: React.FC<{
         alternative={e}
         index={i + 1}
         highlighted={highlighted.includes(i)}
+        executedSuccess={executedSuccess.includes(i)}
+        staleOrFailed={staleOrFailed.includes(i)}
         miniMode={miniMode}
         miniModeBottomUp={miniModeBottomUp}
         miniModeReversed={miniModeReversed}
@@ -297,6 +327,8 @@ const AlternativesListComponent: React.FC<{
           alternative={e}
           index={i + valid.length + 1}
           highlighted={false}
+          executedSuccess={false}
+          staleOrFailed={false}
           miniMode={miniMode}
           miniModeBottomUp={miniModeBottomUp}
           miniModeReversed={miniModeReversed}
@@ -402,6 +434,8 @@ export const AlternativesList = connect((state: any) => ({
   alternativesSpinner: state.alternativesSpinner,
   backendIssue: state.backendIssue,
   highlighted: state.highlighted,
+  executedSuccess: state.executedSuccess || [],
+  staleOrFailed: state.staleOrFailed || [],
   loggedIn: state.loggedIn,
   miniMode: state.miniMode,
   miniModeBottomUp: state.miniModeBottomUp,

@@ -496,6 +496,8 @@ export default class App {
       {
         alternatives,
         highlighted: [],
+        executedSuccess: [],
+        staleOrFailed: [],
       },
       [this.mainWindow, this.miniModeWindow]
     );

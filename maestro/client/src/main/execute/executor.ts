@@ -80,6 +80,15 @@ import { ModalContext, modalAwarenessService } from "../runtime/modal-awareness-
 import { SurfaceContext, surfaceModelService } from "../runtime/surface-model-service";
 import { buildModalBoundaryKey, hasBoundaryJump } from "../runtime/security-context-boundary";
 
+type CommandCompletionOutcome = "confirmed" | "failed" | "unknown";
+
+type AuthorizationCheckResult = {
+  authorized: boolean;
+  reason?: string;
+  interactionId?: number;
+  trustState?: SecurityTrustState;
+};
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
@@ -130,6 +139,9 @@ export default class Executor {
   private securitySessionPolicyService: SecuritySessionPolicyService;
   private interactionSequence = 0;
   private previousTrustState: SecurityTrustState = "unknown";
+  private readonly completionEvidenceTimeoutMs = 3000;
+  private completionEvidenceTimeout?: NodeJS.Timeout;
+  private activeCompletionInteractionId?: number;
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -390,9 +402,9 @@ export default class Executor {
    * - pre-validation is evaluated before focus
    * - post-validation sees the real pre-transfer state
    */
-  private async handleFocusCommand(command: core.ICommand): Promise<void> {
+  private async handleFocusCommand(command: core.ICommand): Promise<boolean> {
     if (!command.text) {
-      return;
+      return false;
     }
 
     const originalText = command.text;
@@ -448,7 +460,7 @@ export default class Executor {
         this.log.logVerbose(
           `Focus pre-validation FAILED: ${preValidation.blockingIssues.join("; ")}`
         );
-        return;
+        return false;
       }
 
       this.log.logVerbose("Focus pre-validation PASSED - proceeding with transfer");
@@ -511,16 +523,19 @@ export default class Executor {
             console.log(
               `[RECOVERY] Post-recovery verification still failed: ${recoveryVerification.details}`
             );
+            return false;
           } else {
             console.log(
               `[RECOVERY] Post-recovery verification SUCCESS: ${recoveryVerification.details}`
             );
+            return true;
           }
         }
+        return true;
       } else {
         const commandType = commandTypeToString(command.type!);
         if (!(commandType in this.commandHandler())) {
-          return;
+          return false;
         }
 
         await this.commandHandler()[commandType](command);
@@ -556,12 +571,15 @@ export default class Executor {
             console.log(
               `[RECOVERY] Post-recovery verification still failed: ${recoveryVerification.details}`
             );
+            return false;
           } else {
             console.log(
               `[RECOVERY] Post-recovery verification SUCCESS: ${recoveryVerification.details}`
             );
+            return true;
           }
         }
+        return true;
       }
     } finally {
       // Always invalidate pre-transfer cache so future validations do not reuse stale state.
@@ -1082,12 +1100,133 @@ export default class Executor {
     await this.execute(response, updateRenderer);
   }
 
-  async execute(response: core.ICommandsResponse, updateRenderer: boolean = true) {
+  private clearCompletionEvidenceTimeout(): void {
+    if (this.completionEvidenceTimeout) {
+      clearTimeout(this.completionEvidenceTimeout);
+      this.completionEvidenceTimeout = undefined;
+    }
+    this.activeCompletionInteractionId = undefined;
+  }
+
+  private setLifecycleRendererState(
+    alternativeIndex: number | undefined,
+    lifecycle: "activated" | "executed_success" | "stale_or_failed"
+  ): void {
+    const safeIndex = typeof alternativeIndex === "number" && alternativeIndex >= 0 ? alternativeIndex : 0;
+    if (lifecycle === "executed_success") {
+      this.setAlternativesState({
+        highlighted: [safeIndex],
+        executedSuccess: [safeIndex],
+        staleOrFailed: [],
+      });
+      return;
+    }
+    if (lifecycle === "stale_or_failed") {
+      this.setAlternativesState({
+        highlighted: [safeIndex],
+        executedSuccess: [],
+        staleOrFailed: [safeIndex],
+      });
+      return;
+    }
+
+    this.setAlternativesState({
+      highlighted: [safeIndex],
+      executedSuccess: [],
+      staleOrFailed: [],
+    });
+  }
+
+  private beginCompletionEvidenceWindow(
+    interactionId: number | undefined,
+    trustState: SecurityTrustState | undefined,
+    alternativeIndex: number | undefined
+  ): void {
+    this.clearCompletionEvidenceTimeout();
+    if (interactionId == null) {
+      return;
+    }
+    if (trustState !== "verified") {
+      this.lastAuthorizationReasonCode = "execution_unverified_or_unknown_speaker";
+      this.publishSecuritySessionBridgeState();
+      this.setLifecycleRendererState(alternativeIndex, "stale_or_failed");
+      return;
+    }
+
+    this.activeCompletionInteractionId = interactionId;
+    this.completionEvidenceTimeout = setTimeout(() => {
+      if (this.activeCompletionInteractionId !== interactionId) {
+        return;
+      }
+      this.lastAuthorizationReasonCode = "execution_evidence_timeout";
+      this.publishSecuritySessionBridgeState();
+      this.setLifecycleRendererState(alternativeIndex, "stale_or_failed");
+      this.clearCompletionEvidenceTimeout();
+    }, this.completionEvidenceTimeoutMs);
+  }
+
+  private finalizeCompletionEvidence(
+    outcome: CommandCompletionOutcome,
+    trustState: SecurityTrustState | undefined,
+    interactionId: number | undefined,
+    alternativeIndex: number | undefined
+  ): void {
+    const completionWasPending =
+      interactionId != null && this.activeCompletionInteractionId === interactionId;
+
+    const isVerified = trustState === "verified";
+    if (outcome === "confirmed" && isVerified) {
+      if (completionWasPending) {
+        this.clearCompletionEvidenceTimeout();
+      }
+      this.setLifecycleRendererState(alternativeIndex, "executed_success");
+      this.securitySessionPolicyService.onExecuted();
+      this.recordSecuritySessionEvent("executed", interactionId, trustState);
+      this.lastAuthorizationReasonCode =
+        this.lastAuthorizationReasonCode || "execution_confirmed";
+      this.publishSecuritySessionBridgeState();
+      return;
+    }
+
+    if (outcome === "unknown" && isVerified && completionWasPending) {
+      this.lastAuthorizationReasonCode = "execution_pending_evidence";
+      this.publishSecuritySessionBridgeState();
+      return;
+    }
+
+    if (completionWasPending) {
+      this.clearCompletionEvidenceTimeout();
+    }
+
+    this.setLifecycleRendererState(alternativeIndex, "stale_or_failed");
+    this.lastAuthorizationReasonCode =
+      outcome === "failed"
+        ? "execution_failed"
+        : outcome === "unknown"
+          ? "execution_evidence_unavailable"
+          : "execution_unverified_or_unknown_speaker";
+    this.publishSecuritySessionBridgeState();
+  }
+
+  private inferExecutionOutcomeFromError(error: unknown): CommandCompletionOutcome {
+    if (error) {
+      return "failed";
+    }
+    return "unknown";
+  }
+
+  async execute(
+    response: core.ICommandsResponse,
+    updateRenderer: boolean = true,
+    selectedAlternativeIndex: number = 0
+  ) {
     this.lastEndpointId = response.endpointId!;
 
     this.bridge.setState(
       {
         alternativesSpinner: [],
+        executedSuccess: [],
+        staleOrFailed: [],
       },
       [this.mainWindow, this.miniModeWindow]
     );
@@ -1115,11 +1254,17 @@ export default class Executor {
     if (!authorizationResult.authorized) {
       console.log(`[EXECUTOR] Authorization denied: ${authorizationResult.reason}`);
       this.log.logVerbose(`[FP-2A] Authorization denied: ${authorizationResult.reason}`);
+      this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
       // Still resolve chain but don't execute
       this.resolveChainFinished();
       this.newChainFinishedPromise();
       return;
     }
+
+    const trustState = authorizationResult.trustState || "unknown";
+    const interactionId = authorizationResult.interactionId;
+    this.setLifecycleRendererState(selectedAlternativeIndex, "activated");
+    this.beginCompletionEvidenceWindow(interactionId, trustState, selectedAlternativeIndex);
 
     if (
       (this.active.app == "jetbrains" && this.active.filename == "jetbrains-modal") ||
@@ -1141,6 +1286,7 @@ export default class Executor {
     }
 
     let pluginResponse;
+    let executionOutcome: CommandCompletionOutcome = "unknown";
     if (forwardToPlugin) {
       try {
         pluginResponse = await this.pluginManager.sendResponseToApp(this.active.app, response);
@@ -1149,44 +1295,67 @@ export default class Executor {
       }
     }
 
-    if (response.execute && response.execute.commands) {
-      for (const command of response.execute.commands) {
-        const commandType = commandTypeToString(command.type!);
+    try {
+      if (response.execute && response.execute.commands) {
+        let allCommandsConfirmed = true;
+        let hasExecutableCommands = false;
+        for (const command of response.execute.commands) {
+          const commandType = commandTypeToString(command.type!);
+          hasExecutableCommands = true;
 
-        // Dedicated focus command path
-        if (command.type == core.CommandType.COMMAND_TYPE_FOCUS) {
-          await this.handleFocusCommand(command);
-          continue;
+          // Dedicated focus command path
+          if (command.type == core.CommandType.COMMAND_TYPE_FOCUS) {
+            const focusConfirmed = await this.handleFocusCommand(command);
+            if (!focusConfirmed) {
+              allCommandsConfirmed = false;
+            }
+            continue;
+          }
+
+          if (commandType in this.commandHandler()) {
+            if (
+              command.type != core.CommandType.COMMAND_TYPE_DIFF &&
+              command.type != core.CommandType.COMMAND_TYPE_INSERT &&
+              command.type != core.CommandType.COMMAND_TYPE_RUN
+            ) {
+              this.insertHistory.clear();
+            }
+
+            await this.commandHandler()[commandType](command);
+
+            if (
+              command.type == core.CommandType.COMMAND_TYPE_RUN ||
+              command.type == core.CommandType.COMMAND_TYPE_PRESS
+            ) {
+              this.insertHistory.clear();
+            }
+          } else {
+            allCommandsConfirmed = false;
+          }
         }
-
-        if (commandType in this.commandHandler()) {
-          if (
-            command.type != core.CommandType.COMMAND_TYPE_DIFF &&
-            command.type != core.CommandType.COMMAND_TYPE_INSERT &&
-            command.type != core.CommandType.COMMAND_TYPE_RUN
-          ) {
-            this.insertHistory.clear();
-          }
-
-          await this.commandHandler()[commandType](command);
-
-          if (
-            command.type == core.CommandType.COMMAND_TYPE_RUN ||
-            command.type == core.CommandType.COMMAND_TYPE_PRESS
-          ) {
-            this.insertHistory.clear();
-          }
+        if (hasExecutableCommands) {
+          executionOutcome = allCommandsConfirmed ? "confirmed" : "unknown";
         }
       }
-    }
 
-    if (response.execute && response.execute.remaining) {
-      await this.executeChain(response.execute.remaining);
-    } else {
-      this.handleResponseFromPlugin(pluginResponse);
-    }
+      if (response.execute && response.execute.remaining) {
+        await this.executeChain(response.execute.remaining);
+      } else {
+        this.handleResponseFromPlugin(pluginResponse);
+      }
 
-    this.nux.updateForResponse(response);
+      this.nux.updateForResponse(response);
+    } catch (error) {
+      executionOutcome = this.inferExecutionOutcomeFromError(error);
+      throw error;
+    } finally {
+      this.finalizeCompletionEvidence(
+        executionOutcome,
+        trustState,
+        interactionId,
+        selectedAlternativeIndex
+      );
+    }
   }
 
   async executePending(index: number) {
@@ -1204,13 +1373,8 @@ export default class Executor {
           });
         }
 
-        await this.execute({ execute: alternative }, false);
-        this.bridge.setState(
-          {
-            highlighted: [index],
-          },
-          [this.mainWindow, this.miniModeWindow]
-        );
+        this.setLifecycleRendererState(index, "activated");
+        await this.execute({ execute: alternative }, false, index);
       }
     }
   }
@@ -1267,6 +1431,8 @@ export default class Executor {
       this.setAlternativesState(
         {
           alternatives: response.alternatives,
+          executedSuccess: [],
+          staleOrFailed: [],
         }
       );
 
@@ -2127,10 +2293,7 @@ export default class Executor {
   /**
    * Check authorization before executing commands (FP-2A)
    */
-  private async checkAuthorization(response: core.ICommandsResponse): Promise<{
-    authorized: boolean;
-    reason?: string;
-  }> {
+  private async checkAuthorization(response: core.ICommandsResponse): Promise<AuthorizationCheckResult> {
     try {
       // Get the primary command to check
       const command = response.execute?.commands?.[0];
@@ -2183,9 +2346,7 @@ export default class Executor {
         } else if (command.type === core.CommandType.COMMAND_TYPE_STOP_DICTATE) {
           this.identityGateway.setInteractionMode(InteractionMode.COMMAND);
         }
-        this.securitySessionPolicyService.onExecuted();
-        this.recordSecuritySessionEvent("executed", interactionId, trustState);
-        return { authorized: true };
+        return { authorized: true, interactionId, trustState };
       }
 
       // Handle blocked or denied commands
@@ -2208,7 +2369,7 @@ export default class Executor {
         commandType === core.CommandType.COMMAND_TYPE_STOP_DICTATE;
       if (reflexLike) {
         console.log(`[FP-2A] Authorization check error: ${error}, allowing reflex command`);
-        return { authorized: true };
+        return { authorized: true, interactionId: ++this.interactionSequence, trustState: "unknown" };
       }
       console.log(`[FP-2A] Authorization check error: ${error}, blocking command (fail-safe)`);
       this.lastAuthorizationDecision = AuthorizationDecision.DENY;
