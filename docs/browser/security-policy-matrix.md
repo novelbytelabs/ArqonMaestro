@@ -1,8 +1,8 @@
-# Browser Voice Security Policy Matrix (v1)
+# Browser Voice Security Policy Matrix (v2)
 
 This document is the executable policy matrix for browser voice control.
 
-It is designed to be deterministic, auditable, and safety-first.
+It is deterministic, auditable, and safety-first.
 
 ## Core State Model
 
@@ -18,10 +18,12 @@ Security transitions are driven by `activated` and `executed`, not `heard` alone
 
 1. No state downgrade on `heard`-only events.
 2. `activated` is security-relevant even if not executed.
-3. `Paused -> Listening` always clears grace and requires re-authentication context.
+3. Every executable non-reflex command requires per-command authentication.
 4. Degraded/contaminated provider behavior is fail-closed (`reflex` only).
-5. Medium-risk grace period is `9s`, Assist mode only.
+5. Unknown speaker recognized commands are blocked immediately.
 6. Profiles are managed in UI, but runtime authority is inferred per interaction from live voice evidence.
+7. Operator mode authority is app/window scoped (extension/app surface), not desktop-global.
+8. Desktop runtime must synchronize to the focused app's effective operator mode before authorization.
 
 ## Trust States
 
@@ -35,15 +37,13 @@ Security transitions are driven by `activated` and `executed`, not `heard` alone
 - `LOCKED`: reflex-only
 - `OBSERVE`: no actuation
 - `ASSIST`: guarded operation mode
-- `PILOT`: full operation mode for verified speakers, with automatic downgrade logic
+- `PILOT`: full operation mode for verified speakers only
 
 ## Decision Matrix
 
 Legend:
 
-- Decision: `allow`, `block`, `degrade_then_eval`, `reflex_only`
-- Re-auth: `required`, `not_required`
-- Grace: `none`, `9s_assist_only`
+- Decision: `allow`, `block`, `reflex_only`
 
 ### LOCKED Mode
 
@@ -54,11 +54,6 @@ Legend:
 | contaminated | reflex_only | reflex_only | reflex_only |
 | provider_degraded | reflex_only | reflex_only | reflex_only |
 
-Notes:
-
-- LOCKED ignores grace.
-- Only reflex commands (`stop`, `cancel`, `pause`) are executable.
-
 ### OBSERVE Mode
 
 | Trust State | Low | Medium | High |
@@ -68,69 +63,66 @@ Notes:
 | contaminated | reflex_only | reflex_only | reflex_only |
 | provider_degraded | reflex_only | reflex_only | reflex_only |
 
-Notes:
-
-- OBSERVE supports visibility only (`heard`, diagnostic surfaces, previews).
-
 ### ASSIST Mode
 
 | Trust State | Low | Medium | High |
 | --- | --- | --- | --- |
-| verified | allow (re-auth required at interaction boundary) | allow with 9s grace when valid; otherwise re-auth required | re-auth required every command |
-| unknown | block until verification | block until verification | block until verification |
+| verified | allow | allow | allow |
+| unknown | block | block | block |
 | contaminated | reflex_only | reflex_only | reflex_only |
 | provider_degraded | reflex_only | reflex_only | reflex_only |
 
 Notes:
 
-- Unknown speaker does not execute commands in Assist.
-- Medium grace is invalidated by events listed in [Grace Invalidation Events](#grace-invalidation-events).
+- Verified means current-request identity evidence passed.
+- Unknown speaker never executes commands in Assist.
 
 ### PILOT Mode
 
 | Trust State | Low | Medium | High |
 | --- | --- | --- | --- |
-| verified | allow | re-auth required every command | re-auth required every command |
-| unknown | degrade_then_eval under Assist rules | degrade_then_eval under Assist rules | degrade_then_eval under Assist rules |
+| verified | allow | allow | allow |
+| unknown | block | block | block |
 | contaminated | reflex_only | reflex_only | reflex_only |
 | provider_degraded | reflex_only | reflex_only | reflex_only |
 
 Notes:
 
-- In Pilot, unknown activation causes automatic downgrade to Assist before evaluation.
-- Restoration to previous verified-speaker mode occurs automatically after successful verification event.
+- Unknown speaker activation is blocked by default.
+- No degrade-then-eval default path for unknown speaker commands.
 
-## Activation and Downgrade Rules
+## Activation Rules
 
 1. `heard` only:
    - no downgrade
-   - no grace invalidation
-2. `activated` with `unknown/contaminated/provider_degraded` in Pilot:
-   - downgrade to Assist
-   - evaluate command under Assist matrix
-3. `activated` in any mode:
-   - mark `requires_reauth_next=true`
-   - invalidate grace token where applicable
-
-## Grace Invalidation Events
-
-Any one of these invalidates Assist medium-risk grace:
-
-- command activation event
-- speaker trust state change
-- contamination detected
-- provider readiness degraded
-- context/surface jump
-- `Paused -> Listening` transition
-- explicit timeout (`9s`)
+   - no authorization transition
+2. `activated`:
+   - command is treated as security-relevant
+   - authorization requires current-request identity evidence
 
 ## Pause/Listen Boundary Policy
 
 On `Paused -> Listening`:
 
-- clear grace token
-- clear inherited auth context
-- require fresh voice verification evidence before next executable medium/high command
+- clear inherited assumptions
+- require fresh voice verification evidence before next executable command
+
+## Mode Authority And Synchronization
+
+- Mode changes originate from the app/window control surface (for browser: extension popup/sidepanel).
+- Desktop does not independently choose browser mode for active browser interactions.
+- Desktop runtime applies the focused app's mode (`pilot`, `assist`, `observe`, `locked`) at authorization time.
+- If focused app mode cannot be resolved, runtime falls back to fail-safe behavior (`assist`/block-oriented posture) until mode state is restored.
+
+## Command Panel Mode Indicator
+
+Main desktop command-results panel provides a compact mode signal:
+
+- `PILOT`: primary/bright panel tint
+- `ASSIST`: warning tint
+- `OBSERVE` / `LOCKED`: muted/gray tint
+
+Each panel also renders a small mode label (`PILOT`, `ASSIST`, `OBSERVE`, `LOCKED`) above the active command rows.
 
 ## Unknown Activation Rate Guard
 

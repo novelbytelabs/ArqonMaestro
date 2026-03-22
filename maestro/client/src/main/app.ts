@@ -83,6 +83,7 @@ export default class App {
   private securityProfilesLastAction: string = "";
   private securityProfilesLastError: string = "";
   private securityPersistInterval?: NodeJS.Timeout;
+  private securityModeSyncInterval?: NodeJS.Timeout;
   private lastPersistedSecurityStateJson = "";
 
   private previousShouldUseDarkColors?: boolean;
@@ -219,7 +220,8 @@ export default class App {
       pluginManager,
       stream,
       log,
-      () => instance.getSecurityPanelState()
+      () => instance.getSecurityPanelState(),
+      (appName, mode) => instance.executor?.setSecurityPolicyModeForApp(appName, mode)
     );
 
     await custom.start();
@@ -796,6 +798,11 @@ export default class App {
     this.securityPersistInterval = setInterval(() => {
       this.persistSecurityRuntimeState("interval");
     }, 10_000);
+    if (!this.securityModeSyncInterval) {
+      this.securityModeSyncInterval = setInterval(() => {
+        this.executor?.syncSecurityPolicyModeToCurrentApp();
+      }, 500);
+    }
   }
 
   private resolveSecurityActiveProfileId(gateway: NonNullable<ReturnType<Executor["getIdentityGateway"]>>): string {

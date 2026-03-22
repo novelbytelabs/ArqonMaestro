@@ -87,7 +87,7 @@ async function run(): Promise<void> {
     assert(result.decision === AuthorizationDecision.BLOCK, `expected block, got ${result.decision}`);
   });
 
-  await test("assist verified medium allows when grace valid", async () => {
+  await test("assist verified medium allows with per-command authentication", async () => {
     const service = createService();
     const result = await service.authorize({
       commandFamily: "browser",
@@ -107,7 +107,7 @@ async function run(): Promise<void> {
     assert(result.decision === AuthorizationDecision.ALLOW, `expected allow, got ${result.decision}`);
   });
 
-  await test("assist verified medium requires confirm without grace", async () => {
+  await test("assist verified medium also allows without grace", async () => {
     const service = createService();
     const result = await service.authorize({
       commandFamily: "browser",
@@ -124,7 +124,7 @@ async function run(): Promise<void> {
         graceValid: false,
       },
     });
-    assert(result.decision === AuthorizationDecision.CONFIRM, `expected confirm, got ${result.decision}`);
+    assert(result.decision === AuthorizationDecision.ALLOW, `expected allow, got ${result.decision}`);
   });
 
   await test("locked mode blocks non-reflex commands", async () => {

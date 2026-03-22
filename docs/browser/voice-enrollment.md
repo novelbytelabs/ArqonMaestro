@@ -108,12 +108,47 @@ It is the operational console for:
 
 ## Policy Source of Truth
 
-Current browser security-session policy (including medium-risk verified grace duration) is governed by:
+Current browser security-session policy (per-command authentication baseline) is governed by:
 
-- [Security Policy Matrix (v1)](./security-policy-matrix.md)
+- [Security Policy Matrix (v2)](./security-policy-matrix.md)
 - [Security Decisions (Ground Truth)](./security-policy-decisions.md)
 
 If there is any mismatch between this page and those two documents, treat the matrix and decisions docs as authoritative.
+
+## Per-Command Authentication Baseline
+
+Maestro authenticates every executable request with current voice evidence.
+
+Policy default:
+
+- every executable non-reflex command requires current-request authentication
+- reflex safety commands (`stop`, `cancel`, `pause`) remain available
+- unknown speaker recognized commands are blocked immediately
+- no grace-period carry-over authorization
+
+This means a successful `Test Verification` confirms the pipeline is healthy, but command authorization still depends on the speaker evidence for each command request.
+
+## Mode Authority Clarification
+
+Operator mode (`PILOT`, `ASSIST`, `OBSERVE`, `LOCKED`) is app/window scoped.
+
+For browser operations:
+
+- mode is selected in the Chrome extension control surface
+- desktop runtime synchronizes to the focused app mode before authorization
+- desktop should not remain in a stale mode when focused app mode changes
+
+## Why Commands Can Still Block After Successful Test Verification
+
+Even after a successful verification test, command execution can block when:
+
+1. speaker mismatch: current voice does not match the enrolled profile
+2. provider degraded/unavailable: verification or diarization evidence is not reliable
+3. contamination: multi-speaker/overlap state forces fail-closed behavior
+4. security bridge unavailability (browser extension path): medium/high actuation fails closed
+5. policy mode restrictions: active mode is `LOCKED` or `OBSERVE`
+
+Use the Security tab reason codes and last authorization outcome to distinguish these causes.
 
 ## Interaction Mode Clarification
 

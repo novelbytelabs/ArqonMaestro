@@ -245,6 +245,7 @@ const AlternativesListComponent: React.FC<{
   nuxCompleted: boolean;
   nuxTutorial: string;
   partial: boolean;
+  securityPolicyMode: string;
   scriptError: string;
   suggestion: string;
   updateNotification: string;
@@ -263,6 +264,7 @@ const AlternativesListComponent: React.FC<{
   nuxCompleted,
   nuxTutorial,
   partial,
+  securityPolicyMode,
   scriptError,
   suggestion,
   updateNotification,
@@ -351,6 +353,27 @@ const AlternativesListComponent: React.FC<{
 
   const validSection = valid.length > 0 ? valid : null;
   const invalidSection = invalid.length > 0 ? invalid : null;
+  const normalizedMode = String(securityPolicyMode || "assist").toLowerCase();
+  const modeLabel =
+    normalizedMode == "pilot"
+      ? "PILOT MODE"
+      : normalizedMode == "assist"
+        ? "ASSIST MODE"
+        : normalizedMode == "observe"
+          ? "OBSERVE MODE"
+          : "LOCKED MODE";
+  const modePanelClass =
+    normalizedMode == "pilot"
+      ? "border-cyan-400/40 bg-cyan-500/10"
+      : normalizedMode == "assist"
+        ? "border-amber-400/40 bg-amber-500/10"
+        : "border-gray-500/45 bg-gray-700/25";
+  const modeLabelClass =
+    normalizedMode == "pilot"
+      ? "text-cyan-300/90"
+      : normalizedMode == "assist"
+        ? "text-amber-300/90"
+        : "text-gray-300/85";
   const syntaxError = suggestion.toLowerCase().includes("syntax");
   const suggestionSection = (
     <div
@@ -422,8 +445,15 @@ const AlternativesListComponent: React.FC<{
       {nuxCompleted && (suggestion || scriptError) ? suggestionSection : null}
       {!loggedIn || nuxCompleted ? null : !nuxTutorial ? <TutorialSelection /> : <NUX />}
       {examplesSection}
-      {validSection}
-      {invalidSection}
+      {validSection || invalidSection ? (
+        <div className={classNames("rounded-lg border mx-1 my-1", modePanelClass)}>
+          <div className={classNames("font-mono text-[10px] tracking-[0.18em] uppercase", modeLabelClass)} style={{ padding: "5px 5px 0 5px" }}>
+            {modeLabel}
+          </div>
+          {validSection}
+          {invalidSection}
+        </div>
+      ) : null}
       {spacer}
     </div>
   );
@@ -443,6 +473,7 @@ export const AlternativesList = connect((state: any) => ({
   nuxCompleted: state.nuxCompleted,
   nuxTutorial: state.nuxTutorial,
   partial: state.partial,
+  securityPolicyMode: state.securityPolicyMode || "assist",
   scriptError: state.scriptError,
   suggestion: state.suggestion,
   updateNotification: state.updateNotification,

@@ -1,8 +1,12 @@
 import { ModalContext } from "./modal-awareness-service";
 
-export function buildModalBoundaryKey(modalContext: ModalContext): string {
+export function buildModalBoundaryKey(modalContext?: ModalContext | null): string {
+  if (!modalContext) {
+    return "none:none:none:0:0";
+  }
+
   return [
-    modalContext.overlayState,
+    modalContext.overlayState || "none",
     modalContext.modalType || "none",
     modalContext.classification || "none",
     modalContext.blocksNonReflex ? "1" : "0",

@@ -672,13 +672,12 @@ Primary governing specs:
 
 Deliverables:
 
-* verified medium-risk grace window set to `9s` (Assist-only) with explicit invalidation events
+* per-command authentication baseline for every executable non-reflex command
 * runtime lifecycle policy enforcement for `heard`/`activated`/`executed`
 * activation-driven security transitions (no downgrade on heard-only events)
-* Pilot unknown activation flow: degrade to Assist, then evaluate under Assist policy
-* automatic restore to prior verified-speaker mode after successful verification event
+* unknown speaker recognized command flow: immediate block by default policy
 * fail-closed behavior for contaminated/degraded provider states (reflex-only)
-* pause-to-listening boundary that clears grace and forces re-auth context for next executable medium/high interaction
+* pause-to-listening boundary that clears inherited assumptions and requires fresh evidence
 * machine-readable reason-code emission for transition and decision paths
 * additive desktop state exposure for downstream UI/extension consumers:
   * `securityRequiresReauthNext`
@@ -1084,7 +1083,7 @@ Immediate priority areas:
 * restore-state fidelity and focus-stack fidelity for later advanced interaction completion
 * browser security session bridge implementation:
   * enforce `heard`/`activated`/`executed` policy transitions
-  * enforce Assist-only verified medium-risk grace duration of `9s`
+  * enforce per-command authentication for every executable non-reflex command
   * apply fail-closed contamination/provider-degraded behavior
   * emit machine-readable reason codes for policy transitions/decisions
 * begin namespace/dependency-root normalization:

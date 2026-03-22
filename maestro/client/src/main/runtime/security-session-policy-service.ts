@@ -56,12 +56,12 @@ export interface SecuritySessionPersistenceState {
   lastInteractionId: number;
 }
 
-const MEDIUM_RISK_GRACE_MS = 9000;
 const UNKNOWN_RATE_WINDOW_SHORT_MS = 10_000;
 const UNKNOWN_RATE_WINDOW_LONG_MS = 60_000;
 const UNKNOWN_RATE_SHORT_THRESHOLD = 3;
 const UNKNOWN_RATE_LONG_THRESHOLD = 5;
 const UNKNOWN_RATE_LOCK_MS = 30_000;
+const MANUAL_MODE_RATE_GUARD_COOLDOWN_MS = 3_000;
 
 export default class SecuritySessionPolicyService {
   private mode: SecurityPolicyMode = "pilot";
@@ -75,6 +75,7 @@ export default class SecuritySessionPolicyService {
   private unknownActivationMs: number[] = [];
   private lockUntilMs = 0;
   private lockedUntilVerified = false;
+  private lastManualModeSetAtMs = 0;
 
   getSnapshot(nowMs = Date.now()): SecuritySessionSnapshot {
     return {
@@ -157,12 +158,16 @@ export default class SecuritySessionPolicyService {
       this.mode = "locked";
       this.lockedUntilVerified = false;
       this.lockUntilMs = 0;
+      this.unknownActivationMs = [];
+      this.lastManualModeSetAtMs = Date.now();
       this.lastReasonCode = "mode_transition_manual_locked";
       return;
     }
     this.mode = mode;
     this.lockUntilMs = 0;
     this.lockedUntilVerified = false;
+    this.unknownActivationMs = [];
+    this.lastManualModeSetAtMs = Date.now();
     if (mode === "pilot" || mode === "assist") {
       this.previousVerifiedMode = mode;
     }
@@ -173,9 +178,11 @@ export default class SecuritySessionPolicyService {
       interactionId,
       trustState: this.lastTrustState,
       mode: this.getEffectiveMode(nowMs),
-      requiresReauth: interactionId > this.requiresReauthAfterInteractionId,
-      graceValid: this.isGraceValid(nowMs),
-      graceExpiresAt: this.graceExpiresAtMs > 0 ? new Date(this.graceExpiresAtMs).toISOString() : "",
+      // Policy reset: every executable command is authenticated per request.
+      // These fields remain for bridge compatibility but are no longer active control paths.
+      requiresReauth: false,
+      graceValid: false,
+      graceExpiresAt: "",
       reasonCode: this.lastReasonCode,
     };
   }
@@ -192,22 +199,12 @@ export default class SecuritySessionPolicyService {
     this.lastInteractionId = event.interactionId;
 
     this.invalidateGrace("grace_invalidated_activation");
-    this.requiresReauthAfterInteractionId = Math.max(
-      this.requiresReauthAfterInteractionId,
-      event.interactionId
-    );
+    this.requiresReauthAfterInteractionId = 0;
 
     if (event.trustState === "unknown") {
       this.recordUnknownActivation(nowMs);
-      if (this.getEffectiveMode(nowMs) === "pilot") {
-        this.previousVerifiedMode = "pilot";
-        this.mode = "assist";
-        this.lastReasonCode = "mode_transition_pilot_to_assist_unknown_activation";
-      }
       this.applyUnknownRateGuard(nowMs);
-      if (this.lastReasonCode === "grace_invalidated_activation") {
-        this.lastReasonCode = "activation_detected_unknown";
-      }
+      this.lastReasonCode = "activation_detected_unknown";
       return;
     }
 
@@ -231,7 +228,7 @@ export default class SecuritySessionPolicyService {
 
   onPauseToListeningBoundary(): void {
     this.invalidateGrace("grace_invalidated_pause_to_listen");
-    this.requiresReauthAfterInteractionId = Number.MAX_SAFE_INTEGER;
+    this.requiresReauthAfterInteractionId = 0;
     this.lastLifecyclePhase = "pause_to_listening";
   }
 
@@ -249,19 +246,8 @@ export default class SecuritySessionPolicyService {
     this.lockedUntilVerified = false;
     this.lockUntilMs = 0;
 
-    if (this.mode === "assist" && this.previousVerifiedMode === "pilot") {
-      this.mode = "pilot";
-      this.lastReasonCode = "mode_transition_restore_verified_event";
-    } else {
-      this.lastReasonCode = "auth_success_verified_primary";
-    }
-
-    // Verified evidence refreshes medium-risk assist grace.
-    if (this.getEffectiveMode() === "assist") {
-      this.graceExpiresAtMs = Date.now() + MEDIUM_RISK_GRACE_MS;
-      this.lastReasonCode = "grace_created_medium_assist";
-    }
-
+    this.lastReasonCode = "auth_success_verified_primary";
+    this.graceExpiresAtMs = 0;
     this.requiresReauthAfterInteractionId = 0;
     this.unknownActivationMs = [];
   }
@@ -286,20 +272,13 @@ export default class SecuritySessionPolicyService {
   }
 
   clearBoundaryReauthRequirement(): void {
-    if (this.requiresReauthAfterInteractionId === Number.MAX_SAFE_INTEGER) {
-      this.requiresReauthAfterInteractionId = 0;
-    }
+    this.requiresReauthAfterInteractionId = 0;
   }
 
   private isGraceValid(nowMs: number): boolean {
-    if (this.graceExpiresAtMs <= 0) {
-      return false;
-    }
-    if (nowMs <= this.graceExpiresAtMs) {
-      return true;
-    }
+    // Policy reset: grace path disabled.
+    void nowMs;
     this.graceExpiresAtMs = 0;
-    this.lastReasonCode = "grace_expired_timeout";
     return false;
   }
 
@@ -315,6 +294,9 @@ export default class SecuritySessionPolicyService {
   }
 
   private applyUnknownRateGuard(nowMs: number): void {
+    if (nowMs - this.lastManualModeSetAtMs < MANUAL_MODE_RATE_GUARD_COOLDOWN_MS) {
+      return;
+    }
     const shortCount = this.unknownActivationMs.filter(
       (eventMs) => nowMs - eventMs <= UNKNOWN_RATE_WINDOW_SHORT_MS
     ).length;

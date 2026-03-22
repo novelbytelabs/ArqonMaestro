@@ -171,11 +171,6 @@ const ALWAYS_AVAILABLE_COMMANDS = [
   "stop",
   "cancel",
   "pause",
-  "mute",
-  "wake",
-  "sleep",
-  "no",
-  "undo", // when safe and scoped
 ];
 
 /**
@@ -479,11 +474,11 @@ export default class AuthorizationService {
     if (session.mode === "assist" && session.trustState === "unknown") {
       return {
         decision: AuthorizationDecision.BLOCK,
-        reason: "Assist mode: unknown speaker blocked until verification",
+        reason: "Assist mode: unknown speaker blocked immediately",
         riskLevel: request.riskLevel,
         isFallback: false,
         metadata: {
-          reasonCode: "authorize_block_unknown_assist_policy",
+          reasonCode: "auth_block_unknown_speaker",
           policyMode: session.mode,
           trustState: session.trustState,
         },
@@ -493,11 +488,11 @@ export default class AuthorizationService {
     if (session.mode === "pilot" && session.trustState === "unknown") {
       return {
         decision: AuthorizationDecision.BLOCK,
-        reason: "Pilot mode: unknown activation degraded to assist and blocked pending verification",
+        reason: "Pilot mode: unknown speaker blocked immediately",
         riskLevel: request.riskLevel,
         isFallback: false,
         metadata: {
-          reasonCode: "authorize_block_unknown_assist_policy",
+          reasonCode: "auth_block_unknown_speaker",
           policyMode: session.mode,
           trustState: session.trustState,
         },
@@ -505,117 +500,30 @@ export default class AuthorizationService {
     }
 
     if (session.trustState !== "verified") {
-      return null;
-    }
-
-    if (session.mode === "pilot") {
-      if (request.riskLevel === CommandRiskLevel.LOW) {
-        return {
-          decision: AuthorizationDecision.ALLOW,
-          reason: "Pilot mode: verified low-risk command allowed",
-          riskLevel: request.riskLevel,
-          isFallback: false,
-          metadata: {
-            reasonCode: "authorize_allow_verified_policy_match",
-            policyMode: session.mode,
-            trustState: session.trustState,
-          },
-        };
-      }
       return {
-        decision: AuthorizationDecision.CONFIRM,
-        reason:
-          request.riskLevel === CommandRiskLevel.MEDIUM
-            ? "Pilot mode: medium-risk command requires re-authentication"
-            : "Pilot mode: high-risk command requires per-command re-authentication",
-        confirmationLevel: "high",
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Per-command authentication required: identity not verified for this request",
         riskLevel: request.riskLevel,
         isFallback: false,
         metadata: {
-          reasonCode:
-            request.riskLevel === CommandRiskLevel.MEDIUM
-              ? "auth_required_medium_risk"
-              : "auth_required_high_risk",
+          reasonCode: "auth_required_per_command",
           policyMode: session.mode,
           trustState: session.trustState,
         },
       };
     }
 
-    if (session.mode === "assist") {
-      if (session.requiresReauth) {
-        return {
-          decision: AuthorizationDecision.CONFIRM,
-          reason: "Assist mode: fresh verification required at interaction boundary",
-          confirmationLevel: "high",
-          riskLevel: request.riskLevel,
-          isFallback: false,
-          metadata: {
-            reasonCode: "auth_required_reauth_next",
-            policyMode: session.mode,
-            trustState: session.trustState,
-          },
-        };
-      }
-
-      if (request.riskLevel === CommandRiskLevel.LOW) {
-        return {
-          decision: AuthorizationDecision.ALLOW,
-          reason: "Assist mode: verified low-risk command allowed",
-          riskLevel: request.riskLevel,
-          isFallback: false,
-          metadata: {
-            reasonCode: "authorize_allow_verified_policy_match",
-            policyMode: session.mode,
-            trustState: session.trustState,
-          },
-        };
-      }
-
-      if (request.riskLevel === CommandRiskLevel.MEDIUM) {
-        if (session.graceValid) {
-          return {
-            decision: AuthorizationDecision.ALLOW,
-            reason: "Assist mode: medium-risk command allowed within grace window",
-            riskLevel: request.riskLevel,
-            isFallback: false,
-            metadata: {
-              reasonCode: "authorize_allow_verified_policy_match",
-              policyMode: session.mode,
-              trustState: session.trustState,
-              graceExpiresAt: session.graceExpiresAt || "",
-            },
-          };
-        }
-        return {
-          decision: AuthorizationDecision.CONFIRM,
-          reason: "Assist mode: medium-risk command requires re-authentication",
-          confirmationLevel: "high",
-          riskLevel: request.riskLevel,
-          isFallback: false,
-          metadata: {
-            reasonCode: "auth_required_medium_risk",
-            policyMode: session.mode,
-            trustState: session.trustState,
-          },
-        };
-      }
-
-      return {
-        decision: AuthorizationDecision.CONFIRM,
-        reason: "Assist mode: high-risk command requires per-command re-authentication",
-        confirmationLevel: "high",
-        riskLevel: request.riskLevel,
-        isFallback: false,
-        metadata: {
-          reasonCode: "auth_required_high_risk",
-          policyMode: session.mode,
-          trustState: session.trustState,
-        },
-      };
-    }
-
-    return null;
+    return {
+      decision: AuthorizationDecision.ALLOW,
+      reason: "Per-command authentication satisfied: verified speaker for this request",
+      riskLevel: request.riskLevel,
+      isFallback: false,
+      metadata: {
+        reasonCode: "authorize_allow_verified_policy_match",
+        policyMode: session.mode,
+        trustState: session.trustState,
+      },
+    };
   }
 
   /**
@@ -624,14 +532,6 @@ export default class AuthorizationService {
   private isAlwaysAvailable(commandVerb: string): boolean {
     const normalized = commandVerb.toLowerCase();
     if (ALWAYS_AVAILABLE_COMMANDS.includes(normalized)) {
-      return true;
-    }
-    if (
-      normalized.includes("start dictate") ||
-      normalized.includes("start dictation") ||
-      normalized.includes("stop dictate") ||
-      normalized.includes("stop dictation")
-    ) {
       return true;
     }
     return false;

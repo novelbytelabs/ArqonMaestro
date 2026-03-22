@@ -16,9 +16,11 @@ Maestro automatically categorizes domains to set a baseline safety posture.
 ### 2. Command-Based Policy
 Individual commands are calibrated based on their potential for destruction or data mutation.
 
-- **Low-Risk**: Navigation (`back`, `next tab`), Inspection (`show links`). Usually run without verification.
-- **Medium-Risk**: Navigation with side effects (`reload`, `go to site`). May require verification on sensitive domains.
-- **High-Risk**: Mutation (`click`, `submit`, `type code`). Strongly gated by both domain policy and speaker identity.
+- **Low-Risk**: Navigation and non-mutating inspection.
+- **Medium-Risk**: Commands with side effects.
+- **High-Risk**: Destructive or privileged mutation.
+
+All executable non-reflex commands require per-command authentication evidence.
 
 ---
 
@@ -29,10 +31,22 @@ The **Effective Mode** you see in the Operator Deck is the real-time result of t
 | State | Resulting Mode |
 | :--- | :--- |
 | **Verified Voice + Trusted Domain** | **PILOT** (Full Authority) |
-| **Unknown Voice + Trusted Domain** | **PILOT** (Standard Authority) |
-| **Verified Voice + Sensitive Domain** | **PILOT** (Elevated Authority) |
-| **Unknown Voice + Sensitive Domain** | **ASSIST** (Read-Only) |
+| **Unknown Voice + Trusted Domain** | **Block executable commands** |
+| **Verified Voice + Sensitive Domain** | **ASSIST/PILOT per domain policy** |
+| **Unknown Voice + Sensitive Domain** | **Block executable commands** |
 | **Any Voice + Restricted Domain** | **LOCKED** (No Automation) |
+
+Unknown speaker recognized commands are blocked immediately by policy.
+
+Reflex safety commands (`stop`, `cancel`, `pause`) remain available.
+
+## App-Scoped Mode Authority
+
+Operator mode is app/window scoped, not desktop-global.
+
+- Browser mode changes originate from extension controls.
+- Desktop runtime syncs to focused app mode before authorization checks.
+- This prevents desktop-mode drift when multiple apps/windows use different mode settings.
 
 ---
 

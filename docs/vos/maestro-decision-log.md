@@ -223,10 +223,9 @@ Program A1 runtime behavior is implemented through a dedicated desktop service:
 This service is now the bounded authority for:
 
 * lifecycle phase signals (`heard` / `activated` / `executed`)
-* Assist medium-risk grace (`9s`)
-* activation-driven grace invalidation
-* pause -> listening re-auth boundary invalidation
-* Pilot unknown activation downgrade semantics
+* per-command authentication gating for executable commands
+* pause -> listening fresh-evidence boundary invalidation
+* unknown-speaker hard-block semantics in Assist/Pilot
 * unknown-activation rate guard and LOCKED transitions
 * security reason-code continuity for downstream UI/audit surfaces
 
@@ -237,7 +236,7 @@ Without a dedicated bridge, policy semantics remained fragmented across UI assum
 Consequences:
 
 * authorization path now accepts additive session-policy context and reasons over it before legacy fallback logic
-* desktop security state now exposes policy bridge signals (`securityPolicyMode`, `securityRequiresReauthNext`, `securityGraceValid`, `securityGraceExpiresAt`, `securityLastAuthorizationReasonCode`)
+* desktop security state now exposes policy bridge signals (`securityPolicyMode`, `securityRequiresReauthNext`, `securityLastAuthorizationReasonCode`)
 * Security tab identity display is resolved through enrollment/profile label first, then fallback identity metadata
 
 ---
@@ -427,12 +426,10 @@ Program A authorization replay records now include additive security-session con
 * `reasonCode`
 * `securityPolicyMode`
 * `securityRequiresReauthNext`
-* `securityGraceValid`
-* `securityGraceExpiresAt`
 
 Why:
 
-Without these fields, downstream replay can show decision outcomes but cannot reconstruct whether a decision was driven by grace expiry, reauth boundaries, or session-policy transitions.
+Without these fields, downstream replay can show decision outcomes but cannot reconstruct whether a decision was driven by per-command auth boundaries, speaker trust transitions, or session-policy transitions.
 
 Consequences:
 
@@ -456,7 +453,7 @@ Phase 3B replay audit schema now includes `security_session_event` category with
 * `pause_to_listening`
 * `trust_state_change`
 
-Each event carries mode/grace/reauth and reason-code state snapshot fields.
+Each event carries mode/reauth and reason-code state snapshot fields.
 
 Why:
 
@@ -486,7 +483,7 @@ Persistence is restored on startup and checkpointed periodically and on profile/
 
 Why:
 
-Program A1 completion criteria explicitly call out persistence hardening. Without restart continuity, mode/grace/profile context can drift across sessions and degrade deterministic policy behavior.
+Program A1 completion criteria explicitly call out persistence hardening. Without restart continuity, mode/profile context can drift across sessions and degrade deterministic policy behavior.
 
 Consequences:
 
@@ -577,7 +574,7 @@ Program A1 now triggers security-session context-jump invalidation from live app
 
 Why:
 
-Program A1 policy requires grace invalidation on context/surface jumps. Having an API hook without a real runtime trigger leaves a silent policy gap.
+Program A1 policy requires context-boundary invalidation on context/surface jumps. Having an API hook without a real runtime trigger leaves a silent policy gap.
 
 Consequences:
 
@@ -678,7 +675,7 @@ Program A requires live-signal wiring beyond app-only context shifts. Modal tran
 
 Consequences:
 
-* grace invalidation and re-auth continuity now respond to modal-context transitions
+* boundary invalidation and re-auth continuity now respond to modal-context transitions
 * duplicate invalidations are avoided when app and modal boundaries both shift in the same interaction
 
 ---
@@ -771,3 +768,47 @@ Consequences:
 * first timeout does not immediately mark bridge unavailable
 * unavailable state applies only after retries are exhausted
 * reflex commands are exempt from bridge-unavailable blocking
+
+---
+
+## VOS-032: App-Scoped Operator Mode Is Authoritative; Desktop Syncs To Focused App
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Operator mode authority is app/window scoped. For browser interactions, mode set in extension (`pilot` / `assist` / `observe` / `locked`) is authoritative, and desktop runtime synchronizes to focused app mode before authorization.
+
+Why:
+
+Desktop-global mode state created drift where extension could be in `pilot` while desktop remained in stale `assist`, causing false blocks and inconsistent operator expectations.
+
+Consequences:
+
+* extension emits `securitySetPolicyMode` over security bridge contract
+* desktop bus bridge validates and applies app-scoped mode updates
+* executor applies focused-app mode at authorization time to prevent stale desktop mode lock-in
+
+---
+
+## VOS-033: Desktop Command Panel Must Expose Effective Mode With Compact Visual Signal
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Desktop command results pane renders an explicit effective-mode indicator:
+
+* tiny mode label (`PILOT`, `ASSIST`, `OBSERVE`, `LOCKED`)
+* mode-tinted container around command rows
+
+Why:
+
+Lifecycle visibility (`heard`/`activated`/`executed`) is not enough by itself; operators also need immediate mode context to explain why command behavior differs across focused surfaces.
+
+Consequences:
+
+* command panel communicates mode state without opening settings
+* muted tint for `OBSERVE`/`LOCKED`, warning tint for `ASSIST`, primary tint for `PILOT`

@@ -39,29 +39,29 @@ function run(): void {
     assert(snapshot.lastReasonCode === "ingress_heard_no_transition", "expected heard-only reason code");
   });
 
-  test("unknown activation in pilot degrades to assist", () => {
+  test("unknown activation in pilot remains pilot and marks unknown activation", () => {
     const service = new SecuritySessionPolicyService();
     service.onActivated({ interactionId: 1, trustState: "unknown" });
     const snapshot = service.getSnapshot();
-    assert(snapshot.mode === "assist", `expected assist, got ${snapshot.mode}`);
+    assert(snapshot.mode === "pilot", `expected pilot, got ${snapshot.mode}`);
     assert(
-      snapshot.lastReasonCode === "mode_transition_pilot_to_assist_unknown_activation",
+      snapshot.lastReasonCode === "activation_detected_unknown",
       `unexpected reason code: ${snapshot.lastReasonCode}`
     );
   });
 
-  test("assist verified event creates 9s grace", () => {
+  test("assist verified event does not create grace window", () => {
     const service = new SecuritySessionPolicyService();
     service.setMode("assist");
     withNow(1_000, () => {
-      service.onVerificationEvent({ trustState: "verified" }); // stays assist for this tick then grace
+      service.onVerificationEvent({ trustState: "verified" });
     });
     const snapshot = withNow(5_000, () => service.getSnapshot());
-    assert(snapshot.graceValid === true, "expected grace to be valid");
-    assert(snapshot.graceExpiresAt !== "", "expected grace expiration timestamp");
+    assert(snapshot.graceValid === false, "expected grace to remain disabled");
+    assert(snapshot.graceExpiresAt === "", "expected no grace expiration timestamp");
   });
 
-  test("pause to listening invalidates grace and marks reauth boundary", () => {
+  test("pause to listening marks boundary reason without grace/reauth token", () => {
     const service = new SecuritySessionPolicyService();
     withNow(1_000, () => {
       service.onActivated({ interactionId: 1, trustState: "unknown" });
@@ -70,7 +70,7 @@ function run(): void {
     service.onPauseToListeningBoundary();
     const snapshot = service.getSnapshot();
     assert(snapshot.graceValid === false, "expected grace invalidated");
-    assert(snapshot.requiresReauthNext === true, "expected requires reauth next");
+    assert(snapshot.requiresReauthNext === false, "expected no reauth token carry-over");
     assert(
       snapshot.lastReasonCode === "grace_invalidated_pause_to_listen",
       `unexpected reason code: ${snapshot.lastReasonCode}`
@@ -140,14 +140,14 @@ function run(): void {
     assert(snapshot.lastReasonCode === "custom_code", "expected valid custom reason code");
   });
 
-  test("context jump invalidates grace and updates lifecycle phase", () => {
+  test("context jump updates lifecycle phase without grace dependency", () => {
     const service = new SecuritySessionPolicyService();
     service.setMode("assist");
     withNow(1_000, () => service.onVerificationEvent({ trustState: "verified" }));
-    assert(withNow(1_500, () => service.getSnapshot()).graceValid === true, "expected grace before jump");
+    assert(withNow(1_500, () => service.getSnapshot()).graceValid === false, "expected no grace baseline");
     service.onContextJump();
     const snapshot = withNow(1_600, () => service.getSnapshot());
-    assert(snapshot.graceValid === false, "expected grace invalidated on context jump");
+    assert(snapshot.graceValid === false, "expected no grace after context jump");
     assert(
       snapshot.lastReasonCode === "grace_invalidated_context_jump",
       `unexpected reason code: ${snapshot.lastReasonCode}`

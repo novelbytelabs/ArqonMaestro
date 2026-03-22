@@ -27,6 +27,8 @@ const securityErrorCodes = {
   versionMismatch: "security_bridge_version_mismatch",
 } as const;
 
+type SecurityOperatorMode = "pilot" | "assist" | "observe" | "locked";
+
 type PluginMessage = {
   message: string;
   data?: any;
@@ -66,7 +68,8 @@ export default class BusPluginServer {
     private pluginManager: PluginManager,
     private stream: Stream,
     private log: Log,
-    private getSecuritySnapshot: () => Record<string, unknown>
+    private getSecuritySnapshot: () => Record<string, unknown>,
+    private onSecurityPolicyModeForApp?: (app: string, mode: SecurityOperatorMode) => void
   ) {
     this.connect();
   }
@@ -304,7 +307,8 @@ export default class BusPluginServer {
       request.message === "securityRequestReplaySummary" ||
       request.message === "securityRequestReplaySnapshot" ||
       request.message === "securityResetReplaySnapshot" ||
-      request.message === "securitySubscribe"
+      request.message === "securitySubscribe" ||
+      request.message === "securitySetPolicyMode"
     ) {
       if (!pluginId || !app) {
         return;
@@ -383,6 +387,28 @@ export default class BusPluginServer {
         this.publishSecurityMessage(pluginId, app, "securitySubscribed", {
           requestId,
           securityContractVersion,
+        });
+        this.publishSecurityState(pluginId, app);
+      } else if (request.message === "securitySetPolicyMode") {
+        const mode = String(reqData?.mode || "").toLowerCase();
+        if (!["pilot", "assist", "observe", "locked"].includes(mode)) {
+          this.publishSecurityError(
+            pluginId,
+            app,
+            requestId,
+            securityErrorCodes.invalidPayload,
+            `invalid security mode: ${mode}`
+          );
+          return;
+        }
+        if (this.onSecurityPolicyModeForApp) {
+          this.onSecurityPolicyModeForApp(app, mode as SecurityOperatorMode);
+        }
+        this.publishSecurityMessage(pluginId, app, "securitySetPolicyModeAck", {
+          requestId,
+          securityContractVersion,
+          mode,
+          app,
         });
         this.publishSecurityState(pluginId, app);
       }

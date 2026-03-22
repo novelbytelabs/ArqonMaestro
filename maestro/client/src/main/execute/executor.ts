@@ -89,6 +89,8 @@ type AuthorizationCheckResult = {
   trustState?: SecurityTrustState;
 };
 
+type SecurityOperatorMode = "pilot" | "assist" | "observe" | "locked";
+
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
@@ -139,9 +141,11 @@ export default class Executor {
   private securitySessionPolicyService: SecuritySessionPolicyService;
   private interactionSequence = 0;
   private previousTrustState: SecurityTrustState = "unknown";
+  private readonly maxIdentityEvidenceAgeMs = 3000;
   private readonly completionEvidenceTimeoutMs = 3000;
   private completionEvidenceTimeout?: NodeJS.Timeout;
   private activeCompletionInteractionId?: number;
+  private securityPolicyModeByApp: Record<string, SecurityOperatorMode> = {};
 
   // Map of region keywords to RegionKind
   private readonly regionKeywords: Record<string, RegionKind> = {
@@ -2168,11 +2172,18 @@ export default class Executor {
   private deriveTrustState(): SecurityTrustState {
     const context = this.identityGateway.getIdentityContext();
     const evidence = this.identityGateway.getIdentityEvidenceStatus();
+    const speakerState = this.identityGateway.getSpeakerState();
+    const lastUpdatedMs = Date.parse(speakerState.lastUpdated || "");
+    const evidenceFresh =
+      Number.isFinite(lastUpdatedMs) && Date.now() - lastUpdatedMs <= this.maxIdentityEvidenceAgeMs;
     if (context.contaminated) {
       return "contaminated";
     }
     if (!evidence.ready) {
       return "provider_degraded";
+    }
+    if (!evidenceFresh) {
+      return "unknown";
     }
     if (context.isVerified) {
       return "verified";
@@ -2215,6 +2226,41 @@ export default class Executor {
     return changed;
   }
 
+  private normalizeSecurityAppKey(rawApp?: string): string {
+    const normalized = String(rawApp || "")
+      .trim()
+      .toLowerCase();
+    if (!normalized) {
+      return "";
+    }
+    if (normalized.includes("chrome")) {
+      return "chrome";
+    }
+    if (normalized.includes("vscode") || normalized.includes("code")) {
+      return "vscode";
+    }
+    if (normalized.includes("terminal") || normalized.includes("gnome-terminal")) {
+      return "terminal";
+    }
+    return normalized.split(/[,\s]+/)[0] || "";
+  }
+
+  private syncSecurityPolicyModeToFocusedApp(): void {
+    const appKey = this.normalizeSecurityAppKey(this.active.app || this.focusHistoryService.snapshot().current);
+    if (!appKey) {
+      return;
+    }
+    const appMode = this.securityPolicyModeByApp[appKey];
+    if (!appMode) {
+      return;
+    }
+    const currentMode = this.securitySessionPolicyService.getSnapshot().mode;
+    if (currentMode !== appMode) {
+      this.securitySessionPolicyService.setMode(appMode);
+      this.publishSecuritySessionBridgeState();
+    }
+  }
+
   onTranscriptHeard(): void {
     this.securitySessionPolicyService.onHeard();
     this.recordSecuritySessionEvent("heard");
@@ -2240,9 +2286,26 @@ export default class Executor {
     this.publishSecuritySessionBridgeState();
   }
 
-  setSecurityPolicyMode(mode: "pilot" | "assist" | "observe" | "locked"): void {
+  setSecurityPolicyMode(mode: SecurityOperatorMode): void {
     this.securitySessionPolicyService.setMode(mode);
     this.publishSecuritySessionBridgeState();
+  }
+
+  setSecurityPolicyModeForApp(app: string, mode: SecurityOperatorMode): void {
+    const appKey = this.normalizeSecurityAppKey(app);
+    if (!appKey) {
+      return;
+    }
+    this.securityPolicyModeByApp[appKey] = mode;
+    // Apply immediately so UI state reflects operator mode changes without waiting
+    // for the next authorization cycle.
+    this.securitySessionPolicyService.setMode(mode);
+    this.publishSecuritySessionBridgeState();
+    this.syncSecurityPolicyModeToFocusedApp();
+  }
+
+  syncSecurityPolicyModeToCurrentApp(): void {
+    this.syncSecurityPolicyModeToFocusedApp();
   }
 
   private publishSecuritySessionBridgeState(): void {
@@ -2302,6 +2365,7 @@ export default class Executor {
       }
 
       // Map command type to family and risk level
+      this.syncSecurityPolicyModeToFocusedApp();
       const commandType = commandTypeToString(command.type!);
       const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
       const commandVerb = command.text || commandType;
@@ -2322,8 +2386,21 @@ export default class Executor {
       this.recordSecuritySessionEvent("activated", interactionId, trustState);
       const securitySession = this.securitySessionPolicyService.getAuthContext(interactionId);
 
+      const identityContext = this.identityGateway.getIdentityContext();
+      const speakerState = this.identityGateway.getSpeakerState();
+      const expectedIdentity = this.identityGateway
+        .getActiveEnrollments()
+        .find((entry) => entry.status === "active" && entry.role === "sovereign_owner")?.identityId;
       console.log(`[FP-2A] Authorizing: ${commandFamily}/${commandType} risk=${riskLevel}`);
-      console.log(`[FP-2A] Identity state: ${JSON.stringify(this.identityGateway.getIdentityContext())}`);
+      console.log(`[FP-2A] Identity state: ${JSON.stringify(identityContext)}`);
+      console.log(
+        `[FP-2A] Identity evidence: ${JSON.stringify({
+          expectedIdentity: expectedIdentity || "n/a",
+          observedIdentity: identityContext.identityId || "unknown",
+          confidenceValue: speakerState.confidenceValue,
+          trustState,
+        })}`
+      );
 
       // Authorize through identity gateway
       const result = await this.identityGateway.authorize({

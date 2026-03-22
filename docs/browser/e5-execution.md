@@ -15,7 +15,7 @@ Open a terminal and run:
 ```bash
 cd ~/Projects/arqon/ArqonMaestro/maestro
 export ARQON_MAESTRO_SOURCE_ROOT="$PWD"
-export ARQON_MAESTRO_LIBRARY_ROOT="$HOME/libserenade"
+export ARQON_MAESTRO_LIBRARY_ROOT="$HOME/libarqonmaestro"
 export SERENADE_SOURCE_ROOT="$ARQON_MAESTRO_SOURCE_ROOT"
 export SERENADE_LIBRARY_ROOT="$ARQON_MAESTRO_LIBRARY_ROOT"
 
@@ -130,6 +130,10 @@ For each scenario (S01-S08):
 
 3. **Run scenario steps**:
     - Follow the steps in the scenario description file
+    - Confirm mode sync:
+      - set Chrome extension mode (`Pilot` / `Assist` / `Observe` / `Locked`)
+      - verify desktop command panel mode label/tint matches focused app mode
+      - if desktop mode does not match, treat as scenario failure
 
 4. **Capture result**:
     - Take screenshot after action

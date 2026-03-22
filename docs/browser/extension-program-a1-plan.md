@@ -24,8 +24,6 @@ Desktop/runtime is already exposing the security bridge contract:
 - Live additive bridge fields are already present in renderer state:
   - `securityPolicyMode`
   - `securityRequiresReauthNext`
-  - `securityGraceValid`
-  - `securityGraceExpiresAt`
   - `securityLastReasonCode`
   - `securityLastLifecyclePhase`
   - `securityLastInteractionId`
@@ -80,31 +78,34 @@ Deliver:
 
 1. Freeze channel contract version for this rollout (`securityContractVersion: "a1.v1"`).
 2. Add request correlation id requirement for all request/response channels (`requestId`).
-3. Define timeout/retry behavior:
+3. Add app-scoped mode sync channel:
+   - `securitySetPolicyMode` (`plugin.chrome` -> desktop bridge)
+   - payload includes `{ requestId, securityContractVersion, mode }`
+4. Define timeout/retry behavior:
    - snapshot/summary/snapshot-replay request timeout: 1500 ms
    - retries: 2
    - backoff: 250 ms then 750 ms
-4. Define source validation rules on desktop bridge:
+5. Define source validation rules on desktop bridge:
    - only service extension plugin channel/source (`plugin.chrome`)
-5. Define production lock rule:
+6. Define production lock rule:
    - `securityResetReplaySnapshot` must be disabled outside dev/test mode
-6. Freeze error code set for extension and desktop bridge:
+7. Freeze error code set for extension and desktop bridge:
    - `security_bridge_timeout`
    - `security_bridge_unavailable`
    - `security_bridge_invalid_payload`
    - `security_bridge_version_mismatch`
    - `security_bridge_unauthorized_source`
    - `security_bridge_reset_forbidden`
-7. Freeze lifecycle monotonicity guard:
+8. Freeze lifecycle monotonicity guard:
    - reject or out-rank lifecycle events where `interactionId` goes backward
    - allow reset only on explicit reconnect bootstrap
-8. Freeze fail-closed scope:
+9. Freeze fail-closed scope:
    - only executable medium/high commands fail closed on bridge unavailability
    - reflex emergency commands are never blocked by bridge-unavailable policy
-9. Freeze bridge unavailable threshold:
+10. Freeze bridge unavailable threshold:
    - bridge is considered unavailable only after retries are exhausted
    - not on first timeout
-10. Freeze compatibility hard-fail rule:
+11. Freeze compatibility hard-fail rule:
    - missing `securityContractVersion` in any response is a hard failure (no silent fallback)
 
 Exit evidence:
@@ -155,7 +156,7 @@ Exit evidence:
 
 Deliver:
 
-1. Respect `securityPolicyMode`, `securityRequiresReauthNext`, `securityGraceValid`, `securityGraceExpiresAt`.
+1. Respect `securityPolicyMode`, `securityRequiresReauthNext`, and per-command auth decision fields/reason codes.
 2. Enforce mode-aware behavior in extension command paths:
    - unknown/degraded/contaminated handling
    - fail-closed UI behavior for restricted/reflex-only states
@@ -199,9 +200,9 @@ Deliver:
 Run and record repeatable adversarial scenarios in live browser sessions:
 
 1. heard-only ambient noise scenario (no activation)
-2. unknown speaker activation in Pilot mode (degrade behavior)
-3. verified medium-risk interaction inside grace window
-4. verified medium-risk interaction after grace expiry
+2. unknown speaker recognized command in Pilot mode (hard block behavior)
+3. verified speaker command execution in Pilot mode
+4. unknown speaker recognized command hard block in Pilot/Assist
 5. contamination/degraded provider fail-closed scenario
 6. pause -> listening transition forcing reauth context
 7. rapid context jumps across browser surfaces/modal transitions
@@ -221,6 +222,7 @@ Exit evidence:
 | `securityRequestReplaySummary` | ext -> desktop | `{ requestId, securityContractVersion }` | `securityReplaySummary` `{ requestId, securityContractVersion, generatedAt, totalRecords, recordsByCategory, lastSequence }` | `requestId`, `securityContractVersion` | same as above |
 | `securityRequestReplaySnapshot` | ext -> desktop | `{ requestId, securityContractVersion }` | `securityReplaySnapshot` `{ requestId, securityContractVersion, generatedAt, totalRecords, recordsByCategory, records }` | `requestId`, `securityContractVersion` | same as above |
 | `securityResetReplaySnapshot` | ext -> desktop | `{ requestId, securityContractVersion }` | `securityReplaySummary` (post-reset refresh) | `requestId`, `securityContractVersion` | `security_bridge_reset_forbidden`, plus common codes |
+| `securitySetPolicyMode` | ext -> desktop | `{ requestId, securityContractVersion, mode }` | `securitySetPolicyModeAck` `{ requestId, securityContractVersion, mode, app }` | `requestId`, `securityContractVersion`, `mode` | `security_bridge_invalid_payload`, `security_bridge_unauthorized_source`, `security_bridge_version_mismatch` |
 
 ## Test strategy
 
@@ -256,7 +258,7 @@ Program A1 extension work is done only when all are true:
 3. Extension enforces policy parity for:
    - mode
    - reauth-next
-   - grace validity/expiry
+   - per-command authentication baseline
    - fail-closed degraded/contaminated behavior
 4. Replay summary/snapshot diagnostics are available and stable in extension tooling.
 5. Adversarial live harness scenarios pass with captured evidence artifacts.
@@ -271,6 +273,7 @@ Program A1 extension work is done only when all are true:
 10. Extension state converges to desktop state within 2 seconds after reconnect.
 11. Lifecycle monotonicity is enforced unless explicit reconnect bootstrap reset occurs.
 12. Fail-closed bridge-unavailable behavior applies only to executable medium/high commands; reflex emergency commands remain allowed.
+13. App-scoped mode updates (`securitySetPolicyMode`) converge to desktop focused-app policy state and are reflected in bridge snapshot.
 
 ## Required documentation updates during execution
 

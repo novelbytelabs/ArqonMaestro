@@ -54,3 +54,11 @@ Maestro transitions between modes based on a combination of automatic safety tri
 - **Automatic Triggering**: Maestro uses an internal safety registry to automatically drop into **Assist** or **Locked** mode when it detects sensitive patterns (e.g., URLs containing `/billing/`, `/checkout/`, or `/login`).
 - **Domain Policies**: You can customize the default behavior for specific domains in your [Global Configuration](../operations/configuration.md).
 - **Security Guardrails**: These modes ensure that voice commands cannot accidentally trigger high-risk actions on sensitive pages without explicit overrides.
+
+## 🔗 Mode Authority and Desktop Sync
+
+Automation mode is **app/window scoped**.
+
+- Chrome mode is set from the extension UI.
+- Desktop runtime consumes this mode and synchronizes to the focused app context before command authorization.
+- The desktop shell should not remain in a stale mode when Chrome mode changes.
