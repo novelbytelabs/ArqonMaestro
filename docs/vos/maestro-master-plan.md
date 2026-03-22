@@ -199,6 +199,7 @@ The following documents are the canonical design authorities for Maestro’s maj
 
 ### Browser security control-plane docs (cross-directory, policy authority for trust/session behavior)
 
+* [`../security/session-bootstrap-root-trust.md`](../security/session-bootstrap-root-trust.md)
 * [`../browser/automation-modes.md`](../browser/automation-modes.md)
 * [`../browser/policy.md`](../browser/policy.md)
 * [`../browser/security-policy-matrix.md`](../browser/security-policy-matrix.md)
@@ -701,6 +702,7 @@ Objective:
 
 Primary governing specs:
 
+* [`../security/session-bootstrap-root-trust.md`](../security/session-bootstrap-root-trust.md)
 * [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
 * [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
 * [`maestro-actuation-policy-engine.md`](./maestro-actuation-policy-engine.md)

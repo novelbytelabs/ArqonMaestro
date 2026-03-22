@@ -4,6 +4,10 @@ This document captures design decisions, rationale, and nuanced behavior for bro
 
 Its purpose is continuity: future design iterations should start here before changing policy.
 
+Startup/bootstrap and factor hierarchy authority is defined in:
+
+- [Session Bootstrap and Root Trust](../security/session-bootstrap-root-trust.md)
+
 ## Decision Record
 
 ## D-001: Interaction State Separation
@@ -149,6 +153,70 @@ Implications:
 
 - Authorization and UI state (`securityPolicyMode`) reflect focused app effective mode.
 - Command panel mode tint/label is derived from synced mode, not static desktop defaults.
+
+## D-011: Passkey-First Root Trust
+
+Decision:
+
+- Root trust is passkey/WebAuthn first.
+- TOTP is recovery-only, not primary normal-mode root trust.
+
+Rationale:
+
+- Stronger phishing resistance and cleaner startup trust semantics.
+
+Implications:
+
+- Cold-start root trust must be established by passkey (or policy-approved equivalent).
+- Recovery paths are explicit and constrained.
+
+## D-012: Profiles Own Security State, Not Provider Preferences
+
+Decision:
+
+- Profiles can manage enrolled factors and policy state.
+- Profiles cannot store provider/browser/OS authenticator preference.
+
+Rationale:
+
+- Authentication routing is a platform/runtime concern, not a user preference concern.
+
+Implications:
+
+- No UI for selecting Apple/Google/Windows provider preference.
+- Profile settings remain policy-centric and vendor-neutral.
+
+## D-013: Authentication Chooses Profile
+
+Decision:
+
+- Successful authentication selects/activates profile context.
+- Profile selection alone never implies authenticated trust.
+
+Rationale:
+
+- Prevent trust leakage from chooser UX or stale profile context.
+
+Implications:
+
+- Shared-machine startup requires explicit authentication after profile selection.
+- No implicit trust carry-over across profile boundaries.
+
+## D-014: Security Mutation Gate = Fresh Passkey
+
+Decision:
+
+- High-risk security mutations require fresh passkey in normal mode.
+- PIN-only substitution is forbidden.
+
+Rationale:
+
+- Preserve factor-strength law at critical trust-boundary mutation points.
+
+Implications:
+
+- Passkey reset/factor mutation/disable-voice flows are strongly gated.
+- Recovery can be used only via explicit recovery policy path.
 
 ## Reason Code Taxonomy (v2)
 

@@ -466,3 +466,23 @@ Use with care:
 
 * set `ARQON_SECURITY_DEVTOOLS=1` only in controlled test environments
 * expect `security_bridge_reset_forbidden` in standard/production contexts
+
+### G-029: Startup/Root-Trust Semantics Are Now Canonicalized Outside `docs/browser`
+
+Symptom:
+
+Teams update browser policy/enrollment pages and accidentally reintroduce conflicting startup or factor-hierarchy behavior.
+
+Why:
+
+Program B B0 moved startup/root-trust/factor-order authority into:
+
+* `docs/security/session-bootstrap-root-trust.md`
+
+Browser docs remain scoped for runtime behavior and UX, but are no longer the authority for bootstrap law.
+
+Use with care:
+
+* treat `docs/security/session-bootstrap-root-trust.md` as canonical for startup/bootstrap/factor hierarchy
+* keep `docs/browser/security-policy-matrix.md` focused on runtime mode/risk/trust decisions
+* avoid duplicating root-trust rules in browser docs unless explicitly marked as a summary with canonical link

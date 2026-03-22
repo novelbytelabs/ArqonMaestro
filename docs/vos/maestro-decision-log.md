@@ -812,3 +812,35 @@ Consequences:
 
 * command panel communicates mode state without opening settings
 * muted tint for `OBSERVE`/`LOCKED`, warning tint for `ASSIST`, primary tint for `PILOT`
+
+---
+
+## VOS-034: Program B Root Trust Is Canonicalized As Passkey-First With Profile Security Governance
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Program B root trust and startup behavior are centralized in:
+
+* [`docs/security/session-bootstrap-root-trust.md`](../security/session-bootstrap-root-trust.md)
+
+with the following frozen rules:
+
+* passkey/WebAuthn is root trust
+* local device-bound PIN is continuity unlock
+* voice remains per-command live evidence
+* TOTP is recovery-only
+* profile security controls are allowed, provider preferences are not
+* phased hardening slices are used (B0-B6), not big-bang delivery
+
+Why:
+
+Browser policy/enrollment/decision docs had begun to accumulate overlapping startup/factor semantics. A single canonical authority prevents drift and preserves implementation clarity.
+
+Consequences:
+
+* browser matrix/decisions/enrollment/policy docs defer startup/factor hierarchy to canonical spec
+* profile security governance is explicitly documented with strict mutation gates
+* Definition of Done for this documentation closure is explicit and evidence-oriented

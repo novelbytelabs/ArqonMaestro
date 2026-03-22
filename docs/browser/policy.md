@@ -2,6 +2,10 @@
 
 Maestro uses a multi-layered **Interaction Policy** to ensure that voice control is both powerful and safe. Policy determines what the system is allowed to do based on the current domain, the command risk, and the speaker's identity.
 
+For startup/bootstrap factor hierarchy, see:
+
+- [Session Bootstrap and Root Trust](../security/session-bootstrap-root-trust.md)
+
 ---
 
 ## 🏗️ Policy Layers

@@ -4,6 +4,12 @@ Voice Enrollment decides whether Maestro can trust the current speaker for high-
 
 Commands like `delete`, `undo`, `redo`, `enter`, and `submit` depend on this trust path.
 
+Startup/bootstrap root trust is defined in:
+
+- [Session Bootstrap and Root Trust](../security/session-bootstrap-root-trust.md)
+
+Important: voice enrollment is not a replacement for root authentication bootstrap.
+
 ## Design Update (Current UX)
 
 Enrollment is now split into two surfaces:
@@ -112,6 +118,7 @@ Current browser security-session policy (per-command authentication baseline) is
 
 - [Security Policy Matrix (v2)](./security-policy-matrix.md)
 - [Security Decisions (Ground Truth)](./security-policy-decisions.md)
+- [Session Bootstrap and Root Trust](../security/session-bootstrap-root-trust.md)
 
 If there is any mismatch between this page and those two documents, treat the matrix and decisions docs as authoritative.
 

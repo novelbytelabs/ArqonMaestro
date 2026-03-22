@@ -57,6 +57,45 @@ The Focus Project implements a layered focus management system for Arqon Maestro
   * broader real-browser activation integration/adversarial runs in a live extension harness
   * governance promotion from bounded local persistence to durable policy evidence backend (Program D)
 
+## Program B Canonical Spec Finalization (B0) - Execution Update
+
+Date: 2026-03-22
+
+Status: **B0 complete (docs authority freeze + alignment), B1 ready to start**
+
+What landed:
+
+* Added canonical startup/root-trust authority:
+  * `docs/security/session-bootstrap-root-trust.md`
+* Folded profile/UI governance into canonical spec:
+  * profile security state model
+  * profile security operations (passkey/PIN/recovery policy controls)
+  * forbidden provider-preference settings
+  * security-mutation gate rules (fresh passkey in normal mode)
+  * UI authority boundaries (`Profiles` vs `Security` vs `Wizard`)
+  * sensitive action gate UX + profile mutation audit UX
+  * Program B phased hardening slices (`B0`-`B6`)
+  * explicit Definition of Done for canonical spec closure
+* Performed sniper alignment edits:
+  * `docs/browser/security-policy-matrix.md`
+  * `docs/browser/security-policy-decisions.md`
+  * `docs/browser/voice-enrollment.md`
+  * `docs/browser/policy.md`
+  * `docs/vos/maestro-master-plan.md`
+  * `docs/vos/maestro-decision-log.md` (VOS-034)
+
+Regression evidence before B1 kickoff:
+
+* `cd maestro/client && npm run build:main` -> PASS
+* `cd maestro/client && npm run build:renderer` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts` -> PASS
+
+Next slice:
+
+* Start Program B `B1` implementation:
+  * introduce unified factor-orchestrator contract surfaces
+  * keep behavior additive/non-breaking while freezing decision fields and reason-code wiring
+
 ## Program A1 Extension Closure (E0-E5) - Execution Update
 
 Date: 2026-03-21

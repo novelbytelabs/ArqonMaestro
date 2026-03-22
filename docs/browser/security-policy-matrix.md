@@ -4,6 +4,12 @@ This document is the executable policy matrix for browser voice control.
 
 It is deterministic, auditable, and safety-first.
 
+Startup/bootstrap root-trust authority is defined in:
+
+- [Session Bootstrap and Root Trust](../security/session-bootstrap-root-trust.md)
+
+This matrix remains authoritative for runtime mode/risk/trust decisions after bootstrap.
+
 ## Core State Model
 
 The runtime treats each interaction as one of three stages:
