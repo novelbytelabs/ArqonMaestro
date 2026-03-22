@@ -4,11 +4,25 @@ export interface PasskeyBootstrapSnapshot {
   bootstrapped: boolean;
   lastBootstrapAt: string;
   lastMethod: "none" | "passkey" | "session_auth" | "totp_recovery";
+  providerChallengeActive: boolean;
+  providerChallengeId: string;
+  lastProviderName: string;
+  lastProviderOutcome: "none" | "verified" | "failed";
+  lastProviderReasonCode: string;
+  lastProviderOutcomeAt: string;
 }
 
 export interface PasskeyBootstrapServiceConfig {
   requiredOnColdStart: boolean;
   providerReady: boolean;
+}
+
+export interface PasskeyProviderVerificationOutcome {
+  provider: string;
+  challengeId?: string;
+  verified: boolean;
+  method?: "passkey" | "totp_recovery";
+  reasonCode?: string;
 }
 
 const DEFAULT_CONFIG: PasskeyBootstrapServiceConfig = {
@@ -27,6 +41,12 @@ export default class PasskeyBootstrapService {
   private bootstrapped = false;
   private lastBootstrapAtMs = 0;
   private lastMethod: "none" | "passkey" | "session_auth" | "totp_recovery" = "none";
+  private providerChallengeActive = false;
+  private providerChallengeId = "";
+  private lastProviderName = "";
+  private lastProviderOutcome: "none" | "verified" | "failed" = "none";
+  private lastProviderReasonCode = "";
+  private lastProviderOutcomeAtMs = 0;
 
   constructor(config: Partial<PasskeyBootstrapServiceConfig> = {}) {
     const merged = { ...DEFAULT_CONFIG, ...config };
@@ -44,6 +64,10 @@ export default class PasskeyBootstrapService {
 
   isProviderReady(): boolean {
     return this.providerReady;
+  }
+
+  setProviderReady(providerReady: boolean): void {
+    this.providerReady = !!providerReady;
   }
 
   completePasskeyBootstrap(): void {
@@ -77,6 +101,35 @@ export default class PasskeyBootstrapService {
     this.bootstrapped = false;
     this.lastBootstrapAtMs = 0;
     this.lastMethod = "none";
+    this.providerChallengeActive = false;
+    this.providerChallengeId = "";
+  }
+
+  startProviderChallenge(challengeId?: string): void {
+    this.providerChallengeActive = true;
+    this.providerChallengeId = String(challengeId || "").trim();
+    this.lastProviderReasonCode = "";
+  }
+
+  applyProviderOutcome(outcome: PasskeyProviderVerificationOutcome): void {
+    this.lastProviderName = String(outcome.provider || "").trim();
+    this.lastProviderOutcome = outcome.verified ? "verified" : "failed";
+    this.lastProviderReasonCode = String(outcome.reasonCode || "").trim();
+    this.lastProviderOutcomeAtMs = Date.now();
+    this.providerChallengeActive = false;
+    this.providerChallengeId = "";
+    this.providerReady = true;
+
+    if (!outcome.verified) {
+      return;
+    }
+
+    if (outcome.method === "totp_recovery") {
+      this.completeRecoveryBootstrap();
+      return;
+    }
+
+    this.completePasskeyBootstrap();
   }
 
   getSnapshot(): PasskeyBootstrapSnapshot {
@@ -86,6 +139,13 @@ export default class PasskeyBootstrapService {
       bootstrapped: this.bootstrapped,
       lastBootstrapAt: this.lastBootstrapAtMs > 0 ? new Date(this.lastBootstrapAtMs).toISOString() : "",
       lastMethod: this.lastMethod,
+      providerChallengeActive: this.providerChallengeActive,
+      providerChallengeId: this.providerChallengeId,
+      lastProviderName: this.lastProviderName,
+      lastProviderOutcome: this.lastProviderOutcome,
+      lastProviderReasonCode: this.lastProviderReasonCode,
+      lastProviderOutcomeAt:
+        this.lastProviderOutcomeAtMs > 0 ? new Date(this.lastProviderOutcomeAtMs).toISOString() : "",
     };
   }
 }

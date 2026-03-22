@@ -263,6 +263,57 @@ Next B2 continuation:
 * add runtime + integration tests for blocked-listen behavior across cold-start/authenticated transitions
 * add extension bridge parity tests for passkey bootstrap snapshot transitions
 
+## Program B B2 - Provider Outcome Wiring + Runtime Transition Tests (Continuation) - Execution Update
+
+Date: 2026-03-22
+
+Status: **implemented (runtime provider-contract continuation slice)**
+
+What landed:
+
+* Added explicit passkey provider challenge/outcome contract handling in runtime bootstrap service:
+  * challenge start tracking (`providerChallengeActive`, `providerChallengeId`)
+  * provider outcome tracking (`lastProviderName`, `lastProviderOutcome`, `lastProviderReasonCode`, `lastProviderOutcomeAt`)
+  * provider-verified bootstrap completion path for:
+    * `passkey`
+    * `totp_recovery`
+* Wired explicit provider outcome handling through desktop runtime/process boundaries:
+  * executor methods:
+    * `beginPasskeyProviderChallenge(...)`
+    * `applyPasskeyProviderOutcome(...)`
+  * app methods:
+    * `beginPasskeyProviderChallenge(...)`
+    * `applyPasskeyProviderOutcome(...)`
+  * IPC channels:
+    * `securityBeginPasskeyProviderChallenge`
+    * `securityReportPasskeyProviderOutcome`
+* Extended plugin security bridge contract handling for provider outcomes:
+  * accepted message:
+    * `securityReportPasskeyProviderOutcome`
+  * deterministic ack message:
+    * `securityReportPasskeyProviderOutcomeAck`
+* Added runtime transition verification for blocked-listen behavior:
+  * new test:
+    * `maestro/client/src/main/stream/chunk-manager-passkey-bootstrap.test.ts`
+  * validates fail-closed cold-start lock and authenticated transition to listening-ready state.
+* Security tab observability now includes provider challenge/outcome fields for operator inspection.
+
+Verification evidence:
+
+* `cd maestro/client && npx ts-node src/main/runtime/passkey-bootstrap-service.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/stream/chunk-manager-passkey-bootstrap.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts` -> PASS
+* `cd maestro/client && npm run build:main` -> PASS
+* `cd maestro/client && npm run build:renderer` -> PASS
+* `cd maestro && ./gradlew :core:installDist client:installServer -x downloadModels` -> PASS
+
+Next B2 continuation:
+
+* extension-consumer parity validation for new provider outcome bridge message in live extension workspace
+* promote from transitional `session_auth` bootstrap fallback to provider-outcome-only authority once extension/provider rollout is complete
+* adversarial/live-browser passkey bootstrap scenarios in extension harness evidence bundle
+
 ## Program A1 Extension Closure (E0-E5) - Execution Update
 
 Date: 2026-03-21

@@ -521,6 +521,35 @@ export default class RendererProcessEventHandlers {
       resetPhase3BReplayAuditSnapshot();
     });
 
+    ipcMain.on("securityBeginPasskeyProviderChallenge", (_event: any, challengeId: string) => {
+      this.app.beginPasskeyProviderChallenge(challengeId);
+      this.bridge.setState(this.app.getSecurityPanelState(), [
+        this.mainWindow,
+        this.miniModeWindow,
+        this.settingsWindow(),
+      ]);
+    });
+
+    ipcMain.on("securityReportPasskeyProviderOutcome", (_event: any, outcome: any) => {
+      const payload = {
+        provider: String(outcome?.provider || "").trim(),
+        challengeId: String(outcome?.challengeId || "").trim(),
+        verified: !!outcome?.verified,
+        method:
+          outcome?.method === "totp_recovery" ? "totp_recovery" : "passkey",
+        reasonCode: String(outcome?.reasonCode || "").trim(),
+      };
+      if (!payload.provider) {
+        return;
+      }
+      this.app.applyPasskeyProviderOutcome(payload);
+      this.bridge.setState(this.app.getSecurityPanelState(), [
+        this.mainWindow,
+        this.miniModeWindow,
+        this.settingsWindow(),
+      ]);
+    });
+
     ipcMain.on("securitySetMode", async (_event: any, mode: SecurityMode) => {
       await this.app.setSecurityMode(mode);
       this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);

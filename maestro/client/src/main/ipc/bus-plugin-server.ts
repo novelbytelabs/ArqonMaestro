@@ -28,6 +28,15 @@ const securityErrorCodes = {
 } as const;
 
 type SecurityOperatorMode = "pilot" | "assist" | "observe" | "locked";
+type SecurityPasskeyProviderMethod = "passkey" | "totp_recovery";
+
+interface SecurityPasskeyProviderOutcome {
+  provider: string;
+  challengeId?: string;
+  verified: boolean;
+  method: SecurityPasskeyProviderMethod;
+  reasonCode?: string;
+}
 
 type PluginMessage = {
   message: string;
@@ -69,7 +78,11 @@ export default class BusPluginServer {
     private stream: Stream,
     private log: Log,
     private getSecuritySnapshot: () => Record<string, unknown>,
-    private onSecurityPolicyModeForApp?: (app: string, mode: SecurityOperatorMode) => void
+    private onSecurityPolicyModeForApp?: (app: string, mode: SecurityOperatorMode) => void,
+    private onSecurityPasskeyProviderOutcomeForApp?: (
+      app: string,
+      outcome: SecurityPasskeyProviderOutcome
+    ) => void
   ) {
     this.connect();
   }
@@ -308,7 +321,8 @@ export default class BusPluginServer {
       request.message === "securityRequestReplaySnapshot" ||
       request.message === "securityResetReplaySnapshot" ||
       request.message === "securitySubscribe" ||
-      request.message === "securitySetPolicyMode"
+      request.message === "securitySetPolicyMode" ||
+      request.message === "securityReportPasskeyProviderOutcome"
     ) {
       if (!pluginId || !app) {
         return;
@@ -409,6 +423,44 @@ export default class BusPluginServer {
           securityContractVersion,
           mode,
           app,
+        });
+        this.publishSecurityState(pluginId, app);
+      } else if (request.message === "securityReportPasskeyProviderOutcome") {
+        const provider = String(reqData?.provider || "").trim();
+        const verified = !!reqData?.verified;
+        const method: SecurityPasskeyProviderMethod =
+          reqData?.method === "totp_recovery" ? "totp_recovery" : "passkey";
+        const reasonCode = String(reqData?.reasonCode || "").trim();
+        const challengeId = String(reqData?.challengeId || "").trim();
+        if (!provider) {
+          this.publishSecurityError(
+            pluginId,
+            app,
+            requestId,
+            securityErrorCodes.invalidPayload,
+            "provider required"
+          );
+          return;
+        }
+
+        if (this.onSecurityPasskeyProviderOutcomeForApp) {
+          this.onSecurityPasskeyProviderOutcomeForApp(app, {
+            provider,
+            challengeId,
+            verified,
+            method,
+            reasonCode,
+          });
+        }
+        this.publishSecurityMessage(pluginId, app, "securityReportPasskeyProviderOutcomeAck", {
+          requestId,
+          securityContractVersion,
+          app,
+          provider,
+          challengeId,
+          verified,
+          method,
+          reasonCode,
         });
         this.publishSecurityState(pluginId, app);
       }

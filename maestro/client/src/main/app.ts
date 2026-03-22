@@ -50,6 +50,7 @@ import {
 } from "./runtime/identity-gateway-service";
 import { EnrollmentPersistenceState } from "./runtime/speaker-enrollment-service";
 import { SecuritySessionPersistenceState } from "./runtime/security-session-policy-service";
+import { PasskeyProviderVerificationOutcome } from "./runtime/passkey-bootstrap-service";
 import * as examples from "./examples";
 import { SpeechRecorder } from "./audio";
 
@@ -221,7 +222,8 @@ export default class App {
       stream,
       log,
       () => instance.getSecurityPanelState(),
-      (appName, mode) => instance.executor?.setSecurityPolicyModeForApp(appName, mode)
+      (appName, mode) => instance.executor?.setSecurityPolicyModeForApp(appName, mode),
+      (_appName, outcome) => instance.applyPasskeyProviderOutcome(outcome)
     );
 
     await custom.start();
@@ -653,6 +655,12 @@ export default class App {
         securityPasskeyProviderReady: false,
         securityPasskeyBootstrapMethod: "none",
         securityPasskeyBootstrapAt: "",
+        securityPasskeyProviderChallengeActive: false,
+        securityPasskeyProviderChallengeId: "",
+        securityPasskeyLastProviderName: "",
+        securityPasskeyLastProviderOutcome: "none",
+        securityPasskeyLastProviderReasonCode: "",
+        securityPasskeyLastProviderOutcomeAt: "",
       };
     }
 
@@ -727,6 +735,12 @@ export default class App {
       securityPasskeyProviderReady: !!status?.securityPasskeyProviderReady,
       securityPasskeyBootstrapMethod: status?.securityPasskeyBootstrapMethod || "none",
       securityPasskeyBootstrapAt: status?.securityPasskeyBootstrapAt || "",
+      securityPasskeyProviderChallengeActive: !!status?.securityPasskeyProviderChallengeActive,
+      securityPasskeyProviderChallengeId: status?.securityPasskeyProviderChallengeId || "",
+      securityPasskeyLastProviderName: status?.securityPasskeyLastProviderName || "",
+      securityPasskeyLastProviderOutcome: status?.securityPasskeyLastProviderOutcome || "none",
+      securityPasskeyLastProviderReasonCode: status?.securityPasskeyLastProviderReasonCode || "",
+      securityPasskeyLastProviderOutcomeAt: status?.securityPasskeyLastProviderOutcomeAt || "",
     };
   }
 
@@ -1057,6 +1071,14 @@ export default class App {
 
   syncPasskeyBootstrapFromSessionAuth(isAuthenticatedSession: boolean): void {
     this.executor?.syncPasskeyBootstrapFromSessionAuth(isAuthenticatedSession);
+  }
+
+  beginPasskeyProviderChallenge(challengeId?: string): void {
+    this.executor?.beginPasskeyProviderChallenge(challengeId);
+  }
+
+  applyPasskeyProviderOutcome(outcome: PasskeyProviderVerificationOutcome): void {
+    this.executor?.applyPasskeyProviderOutcome(outcome);
   }
 
   isPasskeyBootstrapBlocked(): boolean {

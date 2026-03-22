@@ -54,6 +54,45 @@ function run(): void {
     assert(snapshot.lastMethod === "session_auth", "expected session_auth method");
   });
 
+  test("provider verification outcome marks passkey bootstrap explicitly", () => {
+    const service = new PasskeyBootstrapService({
+      requiredOnColdStart: true,
+      providerReady: false,
+    });
+    service.startProviderChallenge("challenge_1");
+    service.applyProviderOutcome({
+      provider: "webauthn_local",
+      challengeId: "challenge_1",
+      verified: true,
+      method: "passkey",
+    });
+    const snapshot = service.getSnapshot();
+    assert(snapshot.bootstrapped === true, "expected provider verified bootstrap");
+    assert(snapshot.lastMethod === "passkey", "expected passkey method");
+    assert(snapshot.providerChallengeActive === false, "expected challenge to be closed");
+    assert(snapshot.lastProviderName === "webauthn_local", "expected provider name");
+    assert(snapshot.lastProviderOutcome === "verified", "expected verified outcome");
+  });
+
+  test("provider failure keeps bootstrap blocked with failure observability", () => {
+    const service = new PasskeyBootstrapService({
+      requiredOnColdStart: true,
+      providerReady: true,
+    });
+    service.startProviderChallenge("challenge_fail");
+    service.applyProviderOutcome({
+      provider: "webauthn_local",
+      challengeId: "challenge_fail",
+      verified: false,
+      reasonCode: "provider_denied",
+    });
+    const snapshot = service.getSnapshot();
+    assert(snapshot.bootstrapped === false, "expected bootstrap to remain blocked");
+    assert(snapshot.lastProviderOutcome === "failed", "expected failed outcome");
+    assert(snapshot.lastProviderReasonCode === "provider_denied", "expected failure reason");
+    assert(snapshot.providerChallengeActive === false, "expected challenge to be closed");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

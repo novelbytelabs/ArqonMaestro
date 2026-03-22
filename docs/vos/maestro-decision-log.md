@@ -933,3 +933,30 @@ Consequences:
 * main-process manual bootstrap IPC handlers are removed from the active flow
 * listen-toggle lock now has runtime enforcement, not renderer-only gating
 * provider-backed challenge/verify remains required for full B2 cutover completion
+
+---
+
+## VOS-039: Program B B2 Bootstrap Authority Shifts To Explicit Provider Outcomes, With Session-Auth As Transitional Fallback
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Program B B2 now accepts explicit provider challenge/verify outcomes as first-class runtime bootstrap authority through desktop IPC and plugin bridge contracts. Session-auth bootstrap remains present only as a transitional fallback path until full provider rollout parity is complete.
+
+Why:
+
+Relying only on session-auth to mark bootstrap created ambiguity between authenticated continuity and explicit root-trust provider verification. Explicit provider outcomes reduce ambiguity and create a deterministic promotion path to provider-authoritative bootstrap.
+
+Consequences:
+
+* passkey bootstrap snapshot now includes provider challenge/outcome observability fields
+* runtime exposes explicit provider outcome ingestion paths:
+  * desktop IPC:
+    * `securityBeginPasskeyProviderChallenge`
+    * `securityReportPasskeyProviderOutcome`
+  * plugin bridge:
+    * `securityReportPasskeyProviderOutcome` + deterministic ack
+* runtime transition test coverage now includes blocked-listen cold-start -> authenticated/unblocked transition behavior in `ChunkManager`
+* hard-close remains gated on live extension/provider parity and adversarial evidence, not only desktop runtime wiring

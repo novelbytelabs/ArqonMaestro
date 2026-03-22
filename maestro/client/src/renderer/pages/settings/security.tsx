@@ -81,6 +81,12 @@ const SecurityComponent: React.FC<{
   securityPasskeyProviderReady: boolean;
   securityPasskeyBootstrapMethod: string;
   securityPasskeyBootstrapAt: string;
+  securityPasskeyProviderChallengeActive: boolean;
+  securityPasskeyProviderChallengeId: string;
+  securityPasskeyLastProviderName: string;
+  securityPasskeyLastProviderOutcome: string;
+  securityPasskeyLastProviderReasonCode: string;
+  securityPasskeyLastProviderOutcomeAt: string;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -119,6 +125,12 @@ const SecurityComponent: React.FC<{
   securityPasskeyProviderReady,
   securityPasskeyBootstrapMethod,
   securityPasskeyBootstrapAt,
+  securityPasskeyProviderChallengeActive,
+  securityPasskeyProviderChallengeId,
+  securityPasskeyLastProviderName,
+  securityPasskeyLastProviderOutcome,
+  securityPasskeyLastProviderReasonCode,
+  securityPasskeyLastProviderOutcomeAt,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
   const [replaySnapshot, setReplaySnapshot] = useState<ReplaySnapshotPayload | null>(null);
@@ -323,8 +335,26 @@ const SecurityComponent: React.FC<{
         </div>
         <div className="text-white/70">Bootstrap method: {securityPasskeyBootstrapMethod || "none"}</div>
         <div className="text-white/70">Bootstrap timestamp: {securityPasskeyBootstrapAt || "n/a"}</div>
+        <div className="text-white/70">
+          Provider challenge active: {securityPasskeyProviderChallengeActive ? "Yes" : "No"}
+        </div>
+        <div className="text-white/70">
+          Provider challenge id: {securityPasskeyProviderChallengeId || "n/a"}
+        </div>
+        <div className="text-white/70">
+          Last provider: {securityPasskeyLastProviderName || "n/a"}
+        </div>
+        <div className="text-white/70">
+          Last provider outcome: {securityPasskeyLastProviderOutcome || "none"}
+        </div>
+        <div className="text-white/70">
+          Last provider reason code: {securityPasskeyLastProviderReasonCode || "n/a"}
+        </div>
+        <div className="text-white/70">
+          Last provider outcome at: {securityPasskeyLastProviderOutcomeAt || "n/a"}
+        </div>
         <div className="text-white/60 mt-1">
-          Bootstrap state is derived from authenticated session state and runtime health.
+          Bootstrap state is driven by provider outcomes, with authenticated-session fallback during rollout.
         </div>
       </div>
 
@@ -445,4 +475,10 @@ export const Security = connect((state: any) => ({
   securityPasskeyProviderReady: !!state.securityPasskeyProviderReady,
   securityPasskeyBootstrapMethod: state.securityPasskeyBootstrapMethod || "none",
   securityPasskeyBootstrapAt: state.securityPasskeyBootstrapAt || "",
+  securityPasskeyProviderChallengeActive: !!state.securityPasskeyProviderChallengeActive,
+  securityPasskeyProviderChallengeId: state.securityPasskeyProviderChallengeId || "",
+  securityPasskeyLastProviderName: state.securityPasskeyLastProviderName || "",
+  securityPasskeyLastProviderOutcome: state.securityPasskeyLastProviderOutcome || "none",
+  securityPasskeyLastProviderReasonCode: state.securityPasskeyLastProviderReasonCode || "",
+  securityPasskeyLastProviderOutcomeAt: state.securityPasskeyLastProviderOutcomeAt || "",
 }))(SecurityComponent);

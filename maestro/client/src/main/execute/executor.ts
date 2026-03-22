@@ -62,7 +62,9 @@ import SecuritySessionPolicyService, {
   SecuritySessionPersistenceState,
   SecurityTrustState,
 } from "../runtime/security-session-policy-service";
-import PasskeyBootstrapService from "../runtime/passkey-bootstrap-service";
+import PasskeyBootstrapService, {
+  PasskeyProviderVerificationOutcome,
+} from "../runtime/passkey-bootstrap-service";
 import { phase3BReplayAuditService } from "../runtime/phase3b-replay-audit-service";
 
 // Workflow and Nexus imports (FP-2B)
@@ -2572,6 +2574,12 @@ export default class Executor {
     securityPasskeyProviderReady: boolean;
     securityPasskeyBootstrapMethod: string;
     securityPasskeyBootstrapAt: string;
+    securityPasskeyProviderChallengeActive: boolean;
+    securityPasskeyProviderChallengeId: string;
+    securityPasskeyLastProviderName: string;
+    securityPasskeyLastProviderOutcome: string;
+    securityPasskeyLastProviderReasonCode: string;
+    securityPasskeyLastProviderOutcomeAt: string;
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
     const passkeySnapshot = this.passkeyBootstrapService.getSnapshot();
@@ -2605,11 +2613,27 @@ export default class Executor {
       securityPasskeyProviderReady: passkeySnapshot.providerReady,
       securityPasskeyBootstrapMethod: passkeySnapshot.lastMethod,
       securityPasskeyBootstrapAt: passkeySnapshot.lastBootstrapAt,
+      securityPasskeyProviderChallengeActive: passkeySnapshot.providerChallengeActive,
+      securityPasskeyProviderChallengeId: passkeySnapshot.providerChallengeId,
+      securityPasskeyLastProviderName: passkeySnapshot.lastProviderName,
+      securityPasskeyLastProviderOutcome: passkeySnapshot.lastProviderOutcome,
+      securityPasskeyLastProviderReasonCode: passkeySnapshot.lastProviderReasonCode,
+      securityPasskeyLastProviderOutcomeAt: passkeySnapshot.lastProviderOutcomeAt,
     };
   }
 
   syncPasskeyBootstrapFromSessionAuth(isAuthenticatedSession: boolean): void {
     this.passkeyBootstrapService.applySessionAuthState(isAuthenticatedSession);
+    this.publishSecuritySessionBridgeState();
+  }
+
+  beginPasskeyProviderChallenge(challengeId?: string): void {
+    this.passkeyBootstrapService.startProviderChallenge(challengeId);
+    this.publishSecuritySessionBridgeState();
+  }
+
+  applyPasskeyProviderOutcome(outcome: PasskeyProviderVerificationOutcome): void {
+    this.passkeyBootstrapService.applyProviderOutcome(outcome);
     this.publishSecuritySessionBridgeState();
   }
 

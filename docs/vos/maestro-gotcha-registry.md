@@ -553,3 +553,19 @@ Use with care:
 * treat `session_auth` as transitional runtime bootstrap evidence, not final provider-proof completion
 * confirm runtime lock behavior using cold-start vs authenticated session transitions
 * do not mark B2 complete until provider challenge/verify outcomes are the direct bootstrap source
+
+### G-034: Provider Outcome Wiring Exists In Desktop Runtime, But Extension Workspace Parity Must Be Validated Separately
+
+Symptom:
+
+Desktop runtime shows provider challenge/outcome fields and accepts provider outcome events, but full cross-surface proof is still incomplete.
+
+Why:
+
+Current workspace includes desktop runtime + plugin-bus contract wiring for provider outcomes, while the live browser-extension consumer workspace/evidence loop may be outside this repository context.
+
+Use with care:
+
+* treat provider outcome support in this repo as runtime-authority wiring complete, not full ecosystem closeout
+* require extension-side consumption + live-browser adversarial evidence before marking Program B2/A1 hard-closed
+* do not remove transitional `session_auth` fallback until extension/provider parity is validated in operator harness runs
