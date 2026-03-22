@@ -66,6 +66,8 @@ const SecurityComponent: React.FC<{
   securityLastBlockedCommand: string;
   securityLastBlockedAt: string;
   securityPolicyMode: string;
+  securityPolicyEffectiveMode: string;
+  securityPolicyLockReason: string;
   securityRequiresReauthNext: boolean;
   securityGraceValid: boolean;
   securityGraceExpiresAt: string;
@@ -78,6 +80,7 @@ const SecurityComponent: React.FC<{
   securityReplayLastSequence: number;
   securityPasskeyBootstrapRequired: boolean;
   securityPasskeyBootstrapped: boolean;
+  securityPasskeyBootstrapBlocked: boolean;
   securityPasskeyProviderReady: boolean;
   securityPasskeyBootstrapMethod: string;
   securityPasskeyBootstrapAt: string;
@@ -110,6 +113,8 @@ const SecurityComponent: React.FC<{
   securityLastBlockedCommand,
   securityLastBlockedAt,
   securityPolicyMode,
+  securityPolicyEffectiveMode,
+  securityPolicyLockReason,
   securityRequiresReauthNext,
   securityGraceValid,
   securityGraceExpiresAt,
@@ -122,6 +127,7 @@ const SecurityComponent: React.FC<{
   securityReplayLastSequence,
   securityPasskeyBootstrapRequired,
   securityPasskeyBootstrapped,
+  securityPasskeyBootstrapBlocked,
   securityPasskeyProviderReady,
   securityPasskeyBootstrapMethod,
   securityPasskeyBootstrapAt,
@@ -135,6 +141,14 @@ const SecurityComponent: React.FC<{
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
   const [replaySnapshot, setReplaySnapshot] = useState<ReplaySnapshotPayload | null>(null);
   const [replaySummary, setReplaySummary] = useState<ReplaySummaryPayload | null>(null);
+  const lockReasonLabel =
+    securityPolicyLockReason === "passkey_required"
+      ? "Passkey required"
+      : securityPolicyLockReason === "unknown_rate_guard"
+        ? "Unknown activation rate guard"
+        : securityPolicyLockReason === "manual_locked"
+          ? "Manual locked mode"
+          : "None";
 
   useEffect(() => {
     shell.send("securityRefreshStatus");
@@ -326,10 +340,16 @@ const SecurityComponent: React.FC<{
 
       <div className="py-3 text-sm border-t border-white/5">
         <h3 className="font-bold text-white/90 mb-1">Passkey bootstrap</h3>
+        {securityPasskeyBootstrapBlocked ? (
+          <div className="mb-2 rounded border border-amber-400/40 bg-amber-500/10 p-2 text-amber-100/90">
+            Locked by passkey bootstrap gate. Complete provider-verified passkey bootstrap to unlock runtime command/listening paths.
+          </div>
+        ) : null}
         <div className="text-white/70">
           Required on cold start: {securityPasskeyBootstrapRequired ? "Yes" : "No"}
         </div>
         <div className="text-white/70">Bootstrapped: {securityPasskeyBootstrapped ? "Yes" : "No"}</div>
+        <div className="text-white/70">Bootstrap blocked: {securityPasskeyBootstrapBlocked ? "Yes" : "No"}</div>
         <div className="text-white/70">
           Provider readiness: {securityPasskeyProviderReady ? "Ready" : "Degraded"}
         </div>
@@ -360,7 +380,11 @@ const SecurityComponent: React.FC<{
 
       <div className="py-3 text-sm border-t border-white/5">
         <h3 className="font-bold text-white/90 mb-1">Session policy bridge</h3>
-        <div className="text-white/70">Policy mode: {securityPolicyMode || "assist"}</div>
+        <div className="text-white/70">Base policy mode: {securityPolicyMode || "assist"}</div>
+        <div className="text-white/70">
+          Effective policy mode: {securityPolicyEffectiveMode || securityPolicyMode || "assist"}
+        </div>
+        <div className="text-white/70">Lock reason: {lockReasonLabel}</div>
         <div className="text-white/70">Requires re-auth next: {securityRequiresReauthNext ? "Yes" : "No"}</div>
         <div className="text-white/70">Grace valid: {securityGraceValid ? "Yes" : "No"}</div>
         <div className="text-white/70">Grace expires: {securityGraceExpiresAt || "n/a"}</div>
@@ -460,6 +484,8 @@ export const Security = connect((state: any) => ({
   securityLastBlockedCommand: state.securityLastBlockedCommand,
   securityLastBlockedAt: state.securityLastBlockedAt,
   securityPolicyMode: state.securityPolicyMode,
+  securityPolicyEffectiveMode: state.securityPolicyEffectiveMode || state.securityPolicyMode,
+  securityPolicyLockReason: state.securityPolicyLockReason || "none",
   securityRequiresReauthNext: state.securityRequiresReauthNext,
   securityGraceValid: state.securityGraceValid,
   securityGraceExpiresAt: state.securityGraceExpiresAt,
@@ -472,6 +498,7 @@ export const Security = connect((state: any) => ({
   securityReplayLastSequence: state.securityReplayLastSequence,
   securityPasskeyBootstrapRequired: !!state.securityPasskeyBootstrapRequired,
   securityPasskeyBootstrapped: !!state.securityPasskeyBootstrapped,
+  securityPasskeyBootstrapBlocked: !!state.securityPasskeyBootstrapBlocked,
   securityPasskeyProviderReady: !!state.securityPasskeyProviderReady,
   securityPasskeyBootstrapMethod: state.securityPasskeyBootstrapMethod || "none",
   securityPasskeyBootstrapAt: state.securityPasskeyBootstrapAt || "",

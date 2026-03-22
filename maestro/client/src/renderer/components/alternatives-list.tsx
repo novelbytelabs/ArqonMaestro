@@ -245,7 +245,7 @@ const AlternativesListComponent: React.FC<{
   nuxCompleted: boolean;
   nuxTutorial: string;
   partial: boolean;
-  securityPolicyMode: string;
+  securityPolicyEffectiveMode: string;
   scriptError: string;
   suggestion: string;
   updateNotification: string;
@@ -264,7 +264,7 @@ const AlternativesListComponent: React.FC<{
   nuxCompleted,
   nuxTutorial,
   partial,
-  securityPolicyMode,
+  securityPolicyEffectiveMode,
   scriptError,
   suggestion,
   updateNotification,
@@ -353,7 +353,7 @@ const AlternativesListComponent: React.FC<{
 
   const validSection = valid.length > 0 ? valid : null;
   const invalidSection = invalid.length > 0 ? invalid : null;
-  const normalizedMode = String(securityPolicyMode || "assist").toLowerCase();
+  const normalizedMode = String(securityPolicyEffectiveMode || "assist").toLowerCase();
   const modeLabel =
     normalizedMode == "pilot"
       ? "PILOT MODE"
@@ -473,7 +473,7 @@ export const AlternativesList = connect((state: any) => ({
   nuxCompleted: state.nuxCompleted,
   nuxTutorial: state.nuxTutorial,
   partial: state.partial,
-  securityPolicyMode: state.securityPolicyMode || "assist",
+  securityPolicyEffectiveMode: state.securityPolicyEffectiveMode || state.securityPolicyMode || "assist",
   scriptError: state.scriptError,
   suggestion: state.suggestion,
   updateNotification: state.updateNotification,

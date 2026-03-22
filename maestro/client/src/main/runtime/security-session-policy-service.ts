@@ -156,7 +156,8 @@ export default class SecuritySessionPolicyService {
     }
     if (mode === "locked") {
       this.mode = "locked";
-      this.lockedUntilVerified = false;
+      // Manual locked mode must remain locked until operator or verified path clears it.
+      this.lockedUntilVerified = true;
       this.lockUntilMs = 0;
       this.unknownActivationMs = [];
       this.lastManualModeSetAtMs = Date.now();

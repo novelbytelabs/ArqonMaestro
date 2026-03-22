@@ -634,6 +634,8 @@ export default class App {
         securityLastBlockedCommand: "",
         securityLastBlockedAt: "",
         securityPolicyMode: "assist",
+        securityPolicyEffectiveMode: "assist",
+        securityPolicyLockReason: "none",
         securityRequiresReauthNext: false,
         securityGraceValid: false,
         securityGraceExpiresAt: "",
@@ -652,6 +654,7 @@ export default class App {
         securityLastFactorReasonCode: "",
         securityPasskeyBootstrapRequired: false,
         securityPasskeyBootstrapped: true,
+        securityPasskeyBootstrapBlocked: false,
         securityPasskeyProviderReady: false,
         securityPasskeyBootstrapMethod: "none",
         securityPasskeyBootstrapAt: "",
@@ -713,6 +716,8 @@ export default class App {
       securityLastBlockedCommand: status?.blockedCommand || "",
       securityLastBlockedAt: status?.blockedAt || "",
       securityPolicyMode: status?.securityPolicyMode || "assist",
+      securityPolicyEffectiveMode: status?.securityPolicyEffectiveMode || status?.securityPolicyMode || "assist",
+      securityPolicyLockReason: status?.securityPolicyLockReason || "none",
       securityRequiresReauthNext: !!status?.securityRequiresReauthNext,
       securityGraceValid: !!status?.securityGraceValid,
       securityGraceExpiresAt: status?.securityGraceExpiresAt || "",
@@ -732,6 +737,7 @@ export default class App {
         status?.securityLastFactorReasonCode || status?.reasonCode || "",
       securityPasskeyBootstrapRequired: !!status?.securityPasskeyBootstrapRequired,
       securityPasskeyBootstrapped: !!status?.securityPasskeyBootstrapped,
+      securityPasskeyBootstrapBlocked: !!status?.securityPasskeyBootstrapBlocked,
       securityPasskeyProviderReady: !!status?.securityPasskeyProviderReady,
       securityPasskeyBootstrapMethod: status?.securityPasskeyBootstrapMethod || "none",
       securityPasskeyBootstrapAt: status?.securityPasskeyBootstrapAt || "",
@@ -1086,7 +1092,7 @@ export default class App {
     if (!status) {
       return false;
     }
-    return !!status.securityPasskeyBootstrapRequired && !status.securityPasskeyBootstrapped;
+    return !!status.securityPasskeyBootstrapBlocked;
   }
 
   show() {

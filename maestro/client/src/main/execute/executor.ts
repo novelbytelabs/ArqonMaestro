@@ -65,6 +65,11 @@ import SecuritySessionPolicyService, {
 import PasskeyBootstrapService, {
   PasskeyProviderVerificationOutcome,
 } from "../runtime/passkey-bootstrap-service";
+import {
+  computeSecurityPolicyEffectiveState,
+  SecurityPolicyEffectiveMode,
+  SecurityPolicyLockReason,
+} from "../runtime/security-policy-effective-state";
 import { phase3BReplayAuditService } from "../runtime/phase3b-replay-audit-service";
 
 // Workflow and Nexus imports (FP-2B)
@@ -2321,10 +2326,15 @@ export default class Executor {
 
   private publishSecuritySessionBridgeState(): void {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
+    const passkeySnapshot = this.passkeyBootstrapService.getSnapshot();
+    const effectivePolicy = computeSecurityPolicyEffectiveState(snapshot, passkeySnapshot);
     const replaySummary = phase3BReplayAuditService.getSummary();
     this.bridge.setState(
       {
         securityPolicyMode: snapshot.mode,
+        securityPolicyEffectiveMode: effectivePolicy.mode,
+        securityPolicyLockReason: effectivePolicy.lockReason,
+        securityPasskeyBootstrapBlocked: effectivePolicy.passkeyBootstrapBlocked,
         securityRequiresReauthNext: snapshot.requiresReauthNext,
         securityGraceValid: snapshot.graceValid,
         securityGraceExpiresAt: snapshot.graceExpiresAt,
@@ -2554,6 +2564,8 @@ export default class Executor {
     blockedCommand: string;
     blockedAt: string;
     securityPolicyMode: string;
+    securityPolicyEffectiveMode: SecurityPolicyEffectiveMode;
+    securityPolicyLockReason: SecurityPolicyLockReason;
     securityRequiresReauthNext: boolean;
     securityGraceValid: boolean;
     securityGraceExpiresAt: string;
@@ -2571,6 +2583,7 @@ export default class Executor {
     securityLastFactorReasonCode: string;
     securityPasskeyBootstrapRequired: boolean;
     securityPasskeyBootstrapped: boolean;
+    securityPasskeyBootstrapBlocked: boolean;
     securityPasskeyProviderReady: boolean;
     securityPasskeyBootstrapMethod: string;
     securityPasskeyBootstrapAt: string;
@@ -2583,6 +2596,7 @@ export default class Executor {
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
     const passkeySnapshot = this.passkeyBootstrapService.getSnapshot();
+    const effectivePolicy = computeSecurityPolicyEffectiveState(snapshot, passkeySnapshot);
     const replaySummary = phase3BReplayAuditService.getSummary();
     return {
       decision: this.lastAuthorizationDecision,
@@ -2592,6 +2606,8 @@ export default class Executor {
       blockedCommand: this.lastBlockedCommand,
       blockedAt: this.lastBlockedAt,
       securityPolicyMode: snapshot.mode,
+      securityPolicyEffectiveMode: effectivePolicy.mode,
+      securityPolicyLockReason: effectivePolicy.lockReason,
       securityRequiresReauthNext: snapshot.requiresReauthNext,
       securityGraceValid: snapshot.graceValid,
       securityGraceExpiresAt: snapshot.graceExpiresAt,
@@ -2610,6 +2626,7 @@ export default class Executor {
         this.lastAuthorizationFactorReasonCode || this.lastAuthorizationReasonCode,
       securityPasskeyBootstrapRequired: passkeySnapshot.requiredOnColdStart,
       securityPasskeyBootstrapped: passkeySnapshot.bootstrapped,
+      securityPasskeyBootstrapBlocked: effectivePolicy.passkeyBootstrapBlocked,
       securityPasskeyProviderReady: passkeySnapshot.providerReady,
       securityPasskeyBootstrapMethod: passkeySnapshot.lastMethod,
       securityPasskeyBootstrapAt: passkeySnapshot.lastBootstrapAt,

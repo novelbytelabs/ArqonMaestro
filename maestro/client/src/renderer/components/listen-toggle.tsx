@@ -9,17 +9,15 @@ const ListenToggleComponent: React.FC<{
   listening: boolean;
   localLoading: boolean;
   volume: number;
-  securityPasskeyBootstrapRequired: boolean;
-  securityPasskeyBootstrapped: boolean;
+  securityPasskeyBootstrapBlocked: boolean;
 }> = ({
   darkTheme,
   listening,
   localLoading,
   volume,
-  securityPasskeyBootstrapRequired,
-  securityPasskeyBootstrapped,
+  securityPasskeyBootstrapBlocked,
 }) => {
-  const passkeyLocked = securityPasskeyBootstrapRequired && !securityPasskeyBootstrapped;
+  const passkeyLocked = securityPasskeyBootstrapBlocked;
 
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -92,6 +90,5 @@ export const ListenToggle = connect((state: any) => ({
   listening: state.listening,
   localLoading: state.localLoading,
   volume: state.volume,
-  securityPasskeyBootstrapRequired: !!state.securityPasskeyBootstrapRequired,
-  securityPasskeyBootstrapped: !!state.securityPasskeyBootstrapped,
+  securityPasskeyBootstrapBlocked: !!state.securityPasskeyBootstrapBlocked,
 }))(ListenToggleComponent);

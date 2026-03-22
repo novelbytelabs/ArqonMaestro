@@ -14,20 +14,18 @@ import { shell } from "../shell";
 
 const AlternativesPageComponent: React.FC<{
   miniMode: boolean;
-  securityPasskeyBootstrapRequired: boolean;
-  securityPasskeyBootstrapped: boolean;
+  securityPasskeyBootstrapBlocked: boolean;
   securityPasskeyProviderReady: boolean;
 }> = ({
   miniMode,
-  securityPasskeyBootstrapRequired,
-  securityPasskeyBootstrapped,
+  securityPasskeyBootstrapBlocked,
   securityPasskeyProviderReady,
 }) => {
   React.useEffect(() => {
     shell.send("securityRefreshStatus");
   }, []);
 
-  const passkeyLocked = securityPasskeyBootstrapRequired && !securityPasskeyBootstrapped;
+  const passkeyLocked = securityPasskeyBootstrapBlocked;
   return (
     <div className="overflow-hidden flex flex-col h-screen pt-[40px]">
       <div className="flex items-center justify-between select-none px-2 py-1">
@@ -85,7 +83,6 @@ const AlternativesPageComponent: React.FC<{
 
 export const AlternativesPage = connect((state: any) => ({
   miniMode: state.miniMode,
-  securityPasskeyBootstrapRequired: !!state.securityPasskeyBootstrapRequired,
-  securityPasskeyBootstrapped: !!state.securityPasskeyBootstrapped,
+  securityPasskeyBootstrapBlocked: !!state.securityPasskeyBootstrapBlocked,
   securityPasskeyProviderReady: !!state.securityPasskeyProviderReady,
 }))(AlternativesPageComponent);

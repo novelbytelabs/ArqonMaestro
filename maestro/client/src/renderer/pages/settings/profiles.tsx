@@ -18,7 +18,14 @@ const ProfilesComponent: React.FC<{
   securityActiveProfileId: string;
   securityProfilesLastAction: string;
   securityProfilesLastError: string;
-}> = ({ securityProfiles, securityActiveProfileId, securityProfilesLastAction, securityProfilesLastError }) => {
+  securityPasskeyBootstrapBlocked: boolean;
+}> = ({
+  securityProfiles,
+  securityActiveProfileId,
+  securityProfilesLastAction,
+  securityProfilesLastError,
+  securityPasskeyBootstrapBlocked,
+}) => {
   const [newDisplayName, setNewDisplayName] = useState("");
   const [editingProfileId, setEditingProfileId] = useState("");
   const [editingDisplayName, setEditingDisplayName] = useState("");
@@ -42,6 +49,12 @@ const ProfilesComponent: React.FC<{
       {securityProfilesLastAction ? (
         <div className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 p-3 mb-3 text-xs text-cyan-100">
           Last profile action: {securityProfilesLastAction}
+        </div>
+      ) : null}
+      {securityPasskeyBootstrapBlocked ? (
+        <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 mb-3 text-xs text-amber-100">
+          Runtime is currently locked by passkey bootstrap requirements. Profile controls are still visible, but listening and
+          executable command paths will remain blocked until bootstrap is satisfied.
         </div>
       ) : null}
 
@@ -206,4 +219,5 @@ export const Profiles = connect((state: any) => ({
   securityActiveProfileId: state.securityActiveProfileId,
   securityProfilesLastAction: state.securityProfilesLastAction,
   securityProfilesLastError: state.securityProfilesLastError,
+  securityPasskeyBootstrapBlocked: !!state.securityPasskeyBootstrapBlocked,
 }))(ProfilesComponent);
