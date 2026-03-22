@@ -1346,3 +1346,53 @@ Use `extra high` only for:
 * Security boundary changes
 * Layer boundary changes (Layer 4+)
 * Roadmap reshaping after new evidence
+
+---
+
+## 2026-03-22 - Extension Workspace B2/A1 Provider-Outcome Hard-Close Execution
+
+Workspace:
+
+* `maestro-chrome-extension` on branch `feat/b2-a1-hard-close-provider-outcome`
+
+What landed:
+
+* Provider-outcome contract parity in extension security contract/types/fixtures:
+  * request: `securityReportPasskeyProviderOutcome`
+  * ack: `securityReportPasskeyProviderOutcomeAck`
+* Strict validator additions retained `a1.v1` and `requestId` hard requirements.
+* Extension runtime wiring added:
+  * passkey provider observability fields in operator snapshot
+  * correlated provider-outcome request/ack handling in IPC
+  * mismatch ack detection path
+  * in-flight duplicate outcome dedupe by payload fingerprint
+  * post-ack snapshot refresh path
+  * runtime message routes for challenge begin and provider outcome report
+* Live evidence runner and bundle generation for 8 required scenarios:
+  * `deliverables/program-a1/b2-a1-hard-close-evidence/`
+
+Commands run:
+
+1. `git checkout -b feat/b2-a1-hard-close-provider-outcome` -> pass
+2. `git status --short && git rev-parse --short HEAD` -> pass
+3. `npm run build` -> pass
+4. `node src/test/security-contract-fixtures.test.js` -> pass
+5. `node src/test/security-provider-outcome-contract.test.js` -> pass
+6. `node src/test/security-provider-outcome-runtime-wiring.test.js` -> pass
+7. `python3 deliverables/program-a1/b2-a1-hard-close-evidence/scripts/run_scenarios.py` -> pass
+
+Evidence summary:
+
+* S01 FAIL, S02 FAIL, S03 PASS, S04 PASS, S05 FAIL, S06 FAIL, S07 FAIL, S08 PASS
+* Summary table:
+  * `deliverables/program-a1/b2-a1-hard-close-evidence/summary.md`
+
+Residual risks:
+
+* Correlated `securityReportPasskeyProviderOutcomeAck` was not observed in live extension/bus probes for S01/S02/S05/S06/S07.
+* Provider-outcome authority transition remains unproven in this runtime despite wiring/tests landing.
+* Hard-close gate requiring full live-provider-outcome evidence is therefore not yet satisfied.
+
+Explicit next step:
+
+* Validate/fix desktop/plugin-bus ack emission path for provider outcomes, then rerun S01/S02/S05/S06/S07 until correlated ack and bridge-state transition evidence is green.

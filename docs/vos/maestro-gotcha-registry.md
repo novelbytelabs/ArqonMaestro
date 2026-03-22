@@ -569,3 +569,23 @@ Use with care:
 * treat provider outcome support in this repo as runtime-authority wiring complete, not full ecosystem closeout
 * require extension-side consumption + live-browser adversarial evidence before marking Program B2/A1 hard-closed
 * do not remove transitional `session_auth` fallback until extension/provider parity is validated in operator harness runs
+
+### G-035: ArqonBus Echoes Provider-Outcome Requests, But Correlated Ack May Still Be Absent In Live Extension Harness
+
+Symptom:
+
+Extension-side live probes observe:
+
+* outgoing `securityReportPasskeyProviderOutcome` on `room=maestro/channel=plugin.chrome`
+* periodic `securityBridgeState` telemetry from `maestro-client`
+* but no correlated `securityReportPasskeyProviderOutcomeAck` for matching `requestId`
+
+Why:
+
+In this environment, ArqonBus transport and telemetry feed are active, but provider-outcome ack completion can still fail to surface through the full extension harness path (desktop/plugin-bus responder path not conclusively completing for the correlated request).
+
+Use with care:
+
+* do not mark B2/A1 extension slice hard-closed without live correlated ack evidence
+* treat timeout/no-ack as fail-closed and keep transitional safeguards in place
+* require rerun of provider-outcome adversarial scenarios after bus/responder confirmation
