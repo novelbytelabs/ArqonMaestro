@@ -646,6 +646,11 @@ export default class App {
         securityStepUpType: "none",
         securityFactorDecision: "",
         securityLastFactorReasonCode: "",
+        securityPasskeyBootstrapRequired: false,
+        securityPasskeyBootstrapped: true,
+        securityPasskeyProviderReady: false,
+        securityPasskeyBootstrapMethod: "none",
+        securityPasskeyBootstrapAt: "",
       };
     }
 
@@ -715,6 +720,11 @@ export default class App {
       securityFactorDecision: status?.securityFactorDecision || "",
       securityLastFactorReasonCode:
         status?.securityLastFactorReasonCode || status?.reasonCode || "",
+      securityPasskeyBootstrapRequired: !!status?.securityPasskeyBootstrapRequired,
+      securityPasskeyBootstrapped: !!status?.securityPasskeyBootstrapped,
+      securityPasskeyProviderReady: !!status?.securityPasskeyProviderReady,
+      securityPasskeyBootstrapMethod: status?.securityPasskeyBootstrapMethod || "none",
+      securityPasskeyBootstrapAt: status?.securityPasskeyBootstrapAt || "",
     };
   }
 
@@ -1041,6 +1051,18 @@ export default class App {
   async enrollAndVerifySecurityProfile(displayName: string): Promise<void> {
     await this.upsertSecurityEnrollment(displayName);
     await this.runSecurityAuthorizationProbe();
+  }
+
+  completePasskeyBootstrap(): void {
+    this.executor?.completePasskeyBootstrap();
+  }
+
+  completeRecoveryBootstrap(): void {
+    this.executor?.completeRecoveryBootstrap();
+  }
+
+  resetPasskeyBootstrap(): void {
+    this.executor?.resetPasskeyBootstrap();
   }
 
   show() {

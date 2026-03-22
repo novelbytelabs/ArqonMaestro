@@ -144,6 +144,53 @@ Next B1 continuation:
 * add dedicated reason-code coverage for factor substitution blocking paths
 * begin explicit step-up enforcement gating in subsequent Program B slices (`B2`+)
 
+## Program B B2 - Passkey Bootstrap Interfaces and Cold-Start Gate (Bounded) - Execution Update
+
+Date: 2026-03-22
+
+Status: **implemented (bounded runtime-first slice)**
+
+What landed:
+
+* Added passkey bootstrap runtime service:
+  * `maestro/client/src/main/runtime/passkey-bootstrap-service.ts`
+* Added bounded passkey bootstrap policy gate wiring in authorization:
+  * when passkey bootstrap is required and not satisfied, executable commands are blocked with
+    `auth_block_passkey_required`
+* Wired additive passkey bootstrap snapshot fields into executor/app/renderer state:
+  * `securityPasskeyBootstrapRequired`
+  * `securityPasskeyBootstrapped`
+  * `securityPasskeyProviderReady`
+  * `securityPasskeyBootstrapMethod`
+  * `securityPasskeyBootstrapAt`
+* Added IPC hooks for future UI/provider integration paths:
+  * `securityCompletePasskeyBootstrap`
+  * `securityCompleteRecoveryBootstrap`
+  * `securityResetPasskeyBootstrap`
+* Extended authorization-session tests for passkey bootstrap block/allow behavior.
+
+Bounded behavior note:
+
+* bootstrap enforcement is runtime-configurable via environment gates in this slice:
+  * `ARQON_PASSKEY_BOOTSTRAP_REQUIRED=1`
+  * `ARQON_PASSKEY_PROVIDER_READY=1`
+* this preserves current default runtime compatibility while enabling explicit B2 verification.
+
+Verification evidence:
+
+* `cd maestro/client && npx ts-node src/main/runtime/passkey-bootstrap-service.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts` -> PASS
+* `cd maestro/client && npm run build:main` -> PASS
+* `cd maestro/client && npm run build:renderer` -> PASS
+* `cd maestro && ./gradlew :core:installDist client:installServer -x downloadModels` -> PASS
+
+Next B2 continuation:
+
+* map passkey bootstrap gate into explicit locked startup UX flow
+* connect real provider challenge/verify path behind the passkey bootstrap service contract
+* add extension bridge parity tests for passkey snapshot fields
+
 ## Program A1 Extension Closure (E0-E5) - Execution Update
 
 Date: 2026-03-21

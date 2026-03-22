@@ -62,6 +62,7 @@ import SecuritySessionPolicyService, {
   SecuritySessionPersistenceState,
   SecurityTrustState,
 } from "../runtime/security-session-policy-service";
+import PasskeyBootstrapService from "../runtime/passkey-bootstrap-service";
 import { phase3BReplayAuditService } from "../runtime/phase3b-replay-audit-service";
 
 // Workflow and Nexus imports (FP-2B)
@@ -145,6 +146,7 @@ export default class Executor {
   private lastAuthorizationFactorDecision: string = "";
   private lastAuthorizationFactorReasonCode: string = "";
   private securitySessionPolicyService: SecuritySessionPolicyService;
+  private passkeyBootstrapService: PasskeyBootstrapService;
   private interactionSequence = 0;
   private previousTrustState: SecurityTrustState = "unknown";
   private readonly maxIdentityEvidenceAgeMs = 3000;
@@ -660,6 +662,7 @@ export default class Executor {
       },
     });
     this.securitySessionPolicyService = new SecuritySessionPolicyService();
+    this.passkeyBootstrapService = new PasskeyBootstrapService();
 
     // Initialize Workflow and Nexus services (FP-2B)
     this.workflowService = new WorkflowContractService();
@@ -2391,6 +2394,9 @@ export default class Executor {
       });
       this.recordSecuritySessionEvent("activated", interactionId, trustState);
       const securitySession = this.securitySessionPolicyService.getAuthContext(interactionId);
+      securitySession.passkeyBootstrapRequired = this.passkeyBootstrapService.isBootstrapRequired();
+      securitySession.passkeyBootstrapped = this.passkeyBootstrapService.isBootstrapped();
+      securitySession.passkeyProviderReady = this.passkeyBootstrapService.isProviderReady();
 
       const identityContext = this.identityGateway.getIdentityContext();
       const speakerState = this.identityGateway.getSpeakerState();
@@ -2561,8 +2567,14 @@ export default class Executor {
     securityStepUpType: string;
     securityFactorDecision: string;
     securityLastFactorReasonCode: string;
+    securityPasskeyBootstrapRequired: boolean;
+    securityPasskeyBootstrapped: boolean;
+    securityPasskeyProviderReady: boolean;
+    securityPasskeyBootstrapMethod: string;
+    securityPasskeyBootstrapAt: string;
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
+    const passkeySnapshot = this.passkeyBootstrapService.getSnapshot();
     const replaySummary = phase3BReplayAuditService.getSummary();
     return {
       decision: this.lastAuthorizationDecision,
@@ -2588,7 +2600,27 @@ export default class Executor {
       securityFactorDecision: this.lastAuthorizationFactorDecision,
       securityLastFactorReasonCode:
         this.lastAuthorizationFactorReasonCode || this.lastAuthorizationReasonCode,
+      securityPasskeyBootstrapRequired: passkeySnapshot.requiredOnColdStart,
+      securityPasskeyBootstrapped: passkeySnapshot.bootstrapped,
+      securityPasskeyProviderReady: passkeySnapshot.providerReady,
+      securityPasskeyBootstrapMethod: passkeySnapshot.lastMethod,
+      securityPasskeyBootstrapAt: passkeySnapshot.lastBootstrapAt,
     };
+  }
+
+  completePasskeyBootstrap(): void {
+    this.passkeyBootstrapService.completePasskeyBootstrap();
+    this.publishSecuritySessionBridgeState();
+  }
+
+  completeRecoveryBootstrap(): void {
+    this.passkeyBootstrapService.completeRecoveryBootstrap();
+    this.publishSecuritySessionBridgeState();
+  }
+
+  resetPasskeyBootstrap(): void {
+    this.passkeyBootstrapService.resetBootstrap();
+    this.publishSecuritySessionBridgeState();
   }
 
   /**

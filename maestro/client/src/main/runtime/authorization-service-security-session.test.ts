@@ -175,6 +175,53 @@ async function run(): Promise<void> {
     assert(result.decision === AuthorizationDecision.BLOCK, `expected block, got ${result.decision}`);
   });
 
+  await test("cold-start passkey bootstrap requirement blocks executable commands", async () => {
+    const service = createService();
+    const result = await service.authorize({
+      commandFamily: "browser",
+      commandVerb: "focus chrome",
+      riskLevel: CommandRiskLevel.LOW,
+      securityMode: SecurityMode.NORMAL,
+      sharedRoomMode: false,
+      interactionMode: InteractionMode.COMMAND,
+      securitySession: {
+        interactionId: 6,
+        mode: "pilot",
+        trustState: "verified",
+        requiresReauth: false,
+        graceValid: false,
+        passkeyBootstrapRequired: true,
+        passkeyBootstrapped: false,
+        passkeyProviderReady: true,
+      },
+    });
+    assert(result.decision === AuthorizationDecision.BLOCK, `expected block, got ${result.decision}`);
+    assert(result.metadata?.reasonCode === "auth_block_passkey_required", "expected passkey required reason");
+  });
+
+  await test("cold-start passkey bootstrap satisfied allows normal policy path", async () => {
+    const service = createService();
+    const result = await service.authorize({
+      commandFamily: "browser",
+      commandVerb: "focus chrome",
+      riskLevel: CommandRiskLevel.LOW,
+      securityMode: SecurityMode.NORMAL,
+      sharedRoomMode: false,
+      interactionMode: InteractionMode.COMMAND,
+      securitySession: {
+        interactionId: 7,
+        mode: "pilot",
+        trustState: "verified",
+        requiresReauth: false,
+        graceValid: false,
+        passkeyBootstrapRequired: true,
+        passkeyBootstrapped: true,
+        passkeyProviderReady: true,
+      },
+    });
+    assert(result.decision === AuthorizationDecision.ALLOW, `expected allow, got ${result.decision}`);
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

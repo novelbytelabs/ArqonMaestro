@@ -502,3 +502,22 @@ Use with care:
 * treat `requiredFactors` as current enforced set for this slice (currently voice)
 * treat `targetFactors`/`targetStepUpType` as forward-policy signals for subsequent slices
 * do not claim medium/high PIN/passkey hard-enforcement is complete until later slices land
+
+### G-031: Program B B2 Passkey Bootstrap Gate Is Environment-Gated In This Bounded Slice
+
+Symptom:
+
+Operators expect passkey bootstrap block behavior by default but do not see it in local runs.
+
+Why:
+
+B2 introduces passkey bootstrap interfaces and gate wiring with explicit environment controls to avoid abrupt runtime lockout before full provider UX integration:
+
+* `ARQON_PASSKEY_BOOTSTRAP_REQUIRED=1`
+* `ARQON_PASSKEY_PROVIDER_READY=1`
+
+Use with care:
+
+* treat current B2 behavior as bounded/runtime-first scaffolding
+* enable env gates in controlled validation runs when verifying passkey bootstrap block paths
+* do not treat provider-ready false positives as production passkey integration completeness

@@ -112,6 +112,9 @@ export interface AuthorizationRequest {
     graceValid: boolean;
     graceExpiresAt?: string;
     reasonCode?: string;
+    passkeyBootstrapRequired?: boolean;
+    passkeyBootstrapped?: boolean;
+    passkeyProviderReady?: boolean;
   };
 }
 
@@ -422,6 +425,30 @@ export default class AuthorizationService {
       riskLevel: request.riskLevel,
       trustState: session.trustState,
     });
+
+    if (session.passkeyBootstrapRequired && !session.passkeyBootstrapped) {
+      return {
+        decision: AuthorizationDecision.BLOCK,
+        reason: "Cold-start root trust required: passkey bootstrap not satisfied",
+        riskLevel: request.riskLevel,
+        isFallback: false,
+        metadata: {
+          reasonCode: "auth_block_passkey_required",
+          policyMode: session.mode,
+          trustState: session.trustState,
+          passkeyBootstrapRequired: true,
+          passkeyBootstrapped: false,
+          passkeyProviderReady: !!session.passkeyProviderReady,
+          ...this.factorContractMetadata({
+            ...factorContract,
+            requiredFactors: ["passkey", ...factorContract.requiredFactors],
+            missingFactor: "passkey",
+            factorDecision: "block",
+            factorReasonCode: "auth_block_passkey_required",
+          }),
+        },
+      };
+    }
 
     if (session.trustState === "contaminated") {
       return {

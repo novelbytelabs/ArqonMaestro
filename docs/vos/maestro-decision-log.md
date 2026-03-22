@@ -865,3 +865,27 @@ Consequences:
 * factor metadata is now emitted deterministically for authorization outcomes
 * app/renderer state includes additive factor fields for observability and downstream parity
 * current enforcement remains voice-per-command baseline in this bounded slice; medium/high step-up targets are surfaced but not yet hard-enforced
+
+---
+
+## VOS-036: Program B B2 Introduces Passkey Bootstrap Gate As Runtime-First, Environment-Gated Slice
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Program B B2 adds passkey bootstrap interfaces and cold-start gate wiring in runtime now, with explicit environment gating until full provider challenge UX is integrated.
+
+Why:
+
+This preserves forward security direction (passkey-first root trust) while preventing abrupt lockout/regressions during the transition from policy freeze to full provider implementation.
+
+Consequences:
+
+* passkey bootstrap state is now a first-class runtime snapshot surface
+* authorization can block executable commands with `auth_block_passkey_required` when bootstrap is required and unsatisfied
+* B2 verification can be exercised deterministically via:
+  * `ARQON_PASSKEY_BOOTSTRAP_REQUIRED=1`
+  * `ARQON_PASSKEY_PROVIDER_READY=1`
+* full provider cutover remains a follow-on B2 continuation scope
