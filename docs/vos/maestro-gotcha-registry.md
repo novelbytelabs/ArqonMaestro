@@ -522,18 +522,34 @@ Use with care:
 * enable env gates in controlled validation runs when verifying passkey bootstrap block paths
 * do not treat provider-ready false positives as production passkey integration completeness
 
-### G-032: B2 Locked Startup UX Uses Temporary Bootstrap Action Controls Until Provider Challenge Cutover
+### G-032: (Historical) Earlier B2 Slice Used Temporary Bootstrap Action Controls
 
 Symptom:
 
-Operators can complete passkey bootstrap using explicit UI actions in the current B2 continuation slice, rather than through a real provider challenge flow.
+In earlier B2 continuation slices, operators could complete passkey bootstrap using explicit UI actions.
 
 Why:
 
-This bounded continuation prioritizes deterministic lock visibility and desktop sync behavior ahead of full provider challenge/verify integration.
+That bounded continuation prioritized deterministic lock visibility and desktop sync behavior ahead of full provider challenge/verify integration.
+
+Current status:
+
+* manual bootstrap action controls have been removed from active desktop UI flow
+* runtime listen-lock enforcement now occurs at `ChunkManager` boundary
+* provider challenge/verify integration remains pending for full cutover completion
+
+### G-033: Session-Auth Bootstrap Is Stronger Than Manual Buttons But Still Not Provider-Challenge Completion
+
+Symptom:
+
+Operators see bootstrap method `session_auth` and assume full passkey provider cutover is complete.
+
+Why:
+
+Current B2 hardening removed manual bootstrap controls and now synchronizes bootstrap from authenticated session state, with runtime listen-lock enforcement. This is stricter than manual completion controls, but provider challenge/verify wiring is still a separate completion step.
 
 Use with care:
 
-* treat current bootstrap action buttons as transition scaffolding, not final security UX
-* validate lock behavior using both runtime gate state and visible alternatives-surface lock banner
-* do not claim passkey provider cutover completion until bootstrap actions are replaced by real challenge/verify flows
+* treat `session_auth` as transitional runtime bootstrap evidence, not final provider-proof completion
+* confirm runtime lock behavior using cold-start vs authenticated session transitions
+* do not mark B2 complete until provider challenge/verify outcomes are the direct bootstrap source

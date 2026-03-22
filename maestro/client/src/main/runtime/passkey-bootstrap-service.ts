@@ -3,7 +3,7 @@ export interface PasskeyBootstrapSnapshot {
   providerReady: boolean;
   bootstrapped: boolean;
   lastBootstrapAt: string;
-  lastMethod: "none" | "passkey" | "totp_recovery";
+  lastMethod: "none" | "passkey" | "session_auth" | "totp_recovery";
 }
 
 export interface PasskeyBootstrapServiceConfig {
@@ -26,7 +26,7 @@ export default class PasskeyBootstrapService {
   private providerReady: boolean;
   private bootstrapped = false;
   private lastBootstrapAtMs = 0;
-  private lastMethod: "none" | "passkey" | "totp_recovery" = "none";
+  private lastMethod: "none" | "passkey" | "session_auth" | "totp_recovery" = "none";
 
   constructor(config: Partial<PasskeyBootstrapServiceConfig> = {}) {
     const merged = { ...DEFAULT_CONFIG, ...config };
@@ -50,6 +50,21 @@ export default class PasskeyBootstrapService {
     this.bootstrapped = true;
     this.lastBootstrapAtMs = Date.now();
     this.lastMethod = "passkey";
+  }
+
+  completeSessionAuthBootstrap(): void {
+    this.bootstrapped = true;
+    this.lastBootstrapAtMs = Date.now();
+    this.lastMethod = "session_auth";
+  }
+
+  applySessionAuthState(isAuthenticatedSession: boolean): void {
+    if (!this.requiredOnColdStart) {
+      return;
+    }
+    if (isAuthenticatedSession && !this.bootstrapped) {
+      this.completeSessionAuthBootstrap();
+    }
   }
 
   completeRecoveryBootstrap(): void {

@@ -2608,18 +2608,8 @@ export default class Executor {
     };
   }
 
-  completePasskeyBootstrap(): void {
-    this.passkeyBootstrapService.completePasskeyBootstrap();
-    this.publishSecuritySessionBridgeState();
-  }
-
-  completeRecoveryBootstrap(): void {
-    this.passkeyBootstrapService.completeRecoveryBootstrap();
-    this.publishSecuritySessionBridgeState();
-  }
-
-  resetPasskeyBootstrap(): void {
-    this.passkeyBootstrapService.resetBootstrap();
+  syncPasskeyBootstrapFromSessionAuth(isAuthenticatedSession: boolean): void {
+    this.passkeyBootstrapService.applySessionAuthState(isAuthenticatedSession);
     this.publishSecuritySessionBridgeState();
   }
 

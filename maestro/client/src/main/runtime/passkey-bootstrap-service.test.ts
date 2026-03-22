@@ -43,6 +43,17 @@ function run(): void {
     assert(snapshot.lastMethod === "totp_recovery", "expected totp_recovery method");
   });
 
+  test("authenticated session marks bootstrap with session_auth method", () => {
+    const service = new PasskeyBootstrapService({
+      requiredOnColdStart: true,
+      providerReady: true,
+    });
+    service.applySessionAuthState(true);
+    const snapshot = service.getSnapshot();
+    assert(snapshot.bootstrapped === true, "expected session-auth bootstrapped");
+    assert(snapshot.lastMethod === "session_auth", "expected session_auth method");
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed > 0) {
     process.exit(1);

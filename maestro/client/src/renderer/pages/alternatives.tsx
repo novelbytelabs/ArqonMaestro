@@ -48,24 +48,13 @@ const AlternativesPageComponent: React.FC<{
               Locked Startup Gate
             </div>
             <div className="text-xs text-amber-100/90 mt-1">
-              Passkey bootstrap is required before listening can start.
+              Authenticated session bootstrap is required before listening can start.
             </div>
             <div className="text-[11px] text-amber-100/70 mt-1">
               Provider readiness: {securityPasskeyProviderReady ? "ready" : "degraded"}
             </div>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <button
-                className="px-3 py-1 rounded bg-amber-500/20 border border-amber-300/50 text-amber-100 text-xs uppercase tracking-widest"
-                onClick={() => shell.send("securityCompletePasskeyBootstrap")}
-              >
-                Complete Passkey Bootstrap
-              </button>
-              <button
-                className="px-3 py-1 rounded bg-white/5 border border-white/20 text-white/80 text-xs uppercase tracking-widest"
-                onClick={() => shell.send("securityCompleteRecoveryBootstrap")}
-              >
-                Recovery Bootstrap
-              </button>
+            <div className="text-[11px] text-amber-100/70 mt-1">
+              Sign in and wait for backend health to turn ready, then retry listening.
             </div>
           </div>
         ) : null}

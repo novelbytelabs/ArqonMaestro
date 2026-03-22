@@ -323,25 +323,8 @@ const SecurityComponent: React.FC<{
         </div>
         <div className="text-white/70">Bootstrap method: {securityPasskeyBootstrapMethod || "none"}</div>
         <div className="text-white/70">Bootstrap timestamp: {securityPasskeyBootstrapAt || "n/a"}</div>
-        <div className="flex flex-wrap gap-2 mt-2">
-          <button
-            className="px-3 py-1 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs uppercase tracking-widest"
-            onClick={() => shell.send("securityCompletePasskeyBootstrap")}
-          >
-            Complete Passkey Bootstrap
-          </button>
-          <button
-            className="px-3 py-1 rounded bg-white/5 border border-white/20 text-white/80 text-xs uppercase tracking-widest"
-            onClick={() => shell.send("securityCompleteRecoveryBootstrap")}
-          >
-            Recovery Bootstrap
-          </button>
-          <button
-            className="px-3 py-1 rounded bg-red-500/10 border border-red-400/40 text-red-200 text-xs uppercase tracking-widest"
-            onClick={() => shell.send("securityResetPasskeyBootstrap")}
-          >
-            Reset Bootstrap
-          </button>
+        <div className="text-white/60 mt-1">
+          Bootstrap state is derived from authenticated session state and runtime health.
         </div>
       </div>
 

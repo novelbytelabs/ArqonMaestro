@@ -229,6 +229,40 @@ Next B2 continuation:
 * enforce startup lock at process/runtime boundary (not only renderer UX guard)
 * add extension bridge parity tests for passkey bootstrap snapshot transitions
 
+## Program B B2 - Runtime-Boundary Bootstrap Enforcement (No Manual Completion Controls) - Execution Update
+
+Date: 2026-03-22
+
+Status: **implemented (hardening continuation slice)**
+
+What landed:
+
+* Passkey bootstrap state now syncs from authenticated runtime session state:
+  * bootstrap transitions from `none` to `session_auth` when authenticated session is established
+  * no manual UI completion path is required for normal runtime bootstrap
+* Startup lock is now enforced at runtime listening boundary, not only renderer UX:
+  * `ChunkManager.toggle(true)` fail-closes when passkey bootstrap is required and unsatisfied
+  * blocked toggle keeps listening disabled and sets status text to `Locked: Passkey Required`
+* Removed manual bootstrap completion/reset controls from desktop UI surfaces:
+  * alternatives page lock panel is now informational only
+  * Security tab passkey section is observability-only (no complete/recovery/reset buttons)
+* Removed manual bootstrap IPC action channels from main event handlers.
+
+Verification evidence:
+
+* `cd maestro/client && npx ts-node src/main/runtime/passkey-bootstrap-service.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/authorization-service-security-session.test.ts` -> PASS
+* `cd maestro/client && npx ts-node src/main/runtime/security-session-policy-service.test.ts` -> PASS
+* `cd maestro/client && npm run build:main` -> PASS
+* `cd maestro/client && npm run build:renderer` -> PASS
+* `cd maestro && ./gradlew :core:installDist client:installServer -x downloadModels` -> PASS
+
+Next B2 continuation:
+
+* wire authenticated bootstrap source to explicit passkey challenge/verify provider outcomes (session-auth signal remains transitional)
+* add runtime + integration tests for blocked-listen behavior across cold-start/authenticated transitions
+* add extension bridge parity tests for passkey bootstrap snapshot transitions
+
 ## Program A1 Extension Closure (E0-E5) - Execution Update
 
 Date: 2026-03-21

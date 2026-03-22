@@ -911,3 +911,25 @@ Consequences:
 * listen-toggle clicks fail closed until bootstrap is satisfied
 * passkey bootstrap action state updates now publish across renderer targets, not settings-only
 * this remains a bounded continuation slice until real provider challenge/verify UX replaces the temporary action controls
+
+---
+
+## VOS-038: Program B B2 Removes Manual Bootstrap Completion Controls And Enforces Listen Lock At Runtime Boundary
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+Program B B2 must not depend on manual bootstrap completion/reset buttons in desktop UI. Bootstrap state is synchronized from authenticated runtime session state, and listening enablement is blocked in runtime (`ChunkManager`) when bootstrap is unsatisfied.
+
+Why:
+
+Manual completion controls created a simulated path that could be mistaken for real provider-backed root trust. Runtime-boundary enforcement plus session-auth synchronization is stricter and reduces bypass risk during B2 hardening.
+
+Consequences:
+
+* alternatives and Security UI are observability-first for bootstrap state
+* main-process manual bootstrap IPC handlers are removed from the active flow
+* listen-toggle lock now has runtime enforcement, not renderer-only gating
+* provider-backed challenge/verify remains required for full B2 cutover completion

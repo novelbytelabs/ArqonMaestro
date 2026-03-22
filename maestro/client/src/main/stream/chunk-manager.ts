@@ -957,6 +957,17 @@ export default class ChunkManager {
       listening = !this.listening;
     }
 
+    if (listening && this.app.isPasskeyBootstrapBlocked()) {
+      this.bridge.setState(
+        {
+          listening: false,
+          statusText: "Locked: Passkey Required",
+        },
+        [this.mainWindow, this.miniModeWindow]
+      );
+      return;
+    }
+
     const wasListening = this.listening;
     const generation = ++this.toggleGeneration;
     const requestedListening = listening;

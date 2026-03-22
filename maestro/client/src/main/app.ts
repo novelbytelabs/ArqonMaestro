@@ -410,6 +410,7 @@ export default class App {
       mainWindow,
       miniModeWindow,
     ]);
+    instance.syncPasskeyBootstrapFromSessionAuth(initialLoggedIn);
     // Renderer startup can race with IPC listener registration; send once more
     // so loggedIn doesn't stay undefined on the loading page.
     setTimeout(() => {
@@ -434,6 +435,7 @@ export default class App {
         if (coreHealthy && speechHealthy && codeHealthy) {
           console.log("[ArqonMaestro] Local backend healthy; enabling loggedIn state.");
           bridge.setState({ loggedIn: true, listening: false }, [mainWindow, miniModeWindow]);
+          instance.syncPasskeyBootstrapFromSessionAuth(true);
           clearInterval(interval);
           return;
         }
@@ -1053,16 +1055,16 @@ export default class App {
     await this.runSecurityAuthorizationProbe();
   }
 
-  completePasskeyBootstrap(): void {
-    this.executor?.completePasskeyBootstrap();
+  syncPasskeyBootstrapFromSessionAuth(isAuthenticatedSession: boolean): void {
+    this.executor?.syncPasskeyBootstrapFromSessionAuth(isAuthenticatedSession);
   }
 
-  completeRecoveryBootstrap(): void {
-    this.executor?.completeRecoveryBootstrap();
-  }
-
-  resetPasskeyBootstrap(): void {
-    this.executor?.resetPasskeyBootstrap();
+  isPasskeyBootstrapBlocked(): boolean {
+    const status = this.executor?.getLastAuthorizationStatus();
+    if (!status) {
+      return false;
+    }
+    return !!status.securityPasskeyBootstrapRequired && !status.securityPasskeyBootstrapped;
   }
 
   show() {
