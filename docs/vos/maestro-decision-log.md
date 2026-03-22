@@ -889,3 +889,25 @@ Consequences:
   * `ARQON_PASSKEY_BOOTSTRAP_REQUIRED=1`
   * `ARQON_PASSKEY_PROVIDER_READY=1`
 * full provider cutover remains a follow-on B2 continuation scope
+
+---
+
+## VOS-037: Program B B2 Locked Startup UX Is Enforced In Main Desktop Surface Before Provider Cutover
+
+* Date: 2026-03-22
+* Status: Accepted
+
+Decision:
+
+B2 continuation adds explicit locked-startup UX in the main desktop command surface and security settings, and disables listen-toggle activation while passkey bootstrap is required but unsatisfied.
+
+Why:
+
+Runtime-only gate wiring was not visible enough to operators. A clear UX lock state was required to reduce ambiguity and prevent accidental listening activation before root-trust bootstrap.
+
+Consequences:
+
+* users now see a deterministic startup lock banner in the main alternatives page when passkey bootstrap is required
+* listen-toggle clicks fail closed until bootstrap is satisfied
+* passkey bootstrap action state updates now publish across renderer targets, not settings-only
+* this remains a bounded continuation slice until real provider challenge/verify UX replaces the temporary action controls

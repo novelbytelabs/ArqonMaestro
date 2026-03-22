@@ -10,45 +10,93 @@ import { LanguageIndicator } from "../components/indicators/language-indicator";
 import { ModeIndicator } from "../components/indicators/mode-indicator";
 import { SettingsButton } from "../components/settings-button";
 import { VolumeIndicator } from "../components/indicators/volume-indicator";
+import { shell } from "../shell";
 
-const AlternativesPageComponent: React.FC<{ miniMode: boolean }> = ({ miniMode }) => (
-  <div className="overflow-hidden flex flex-col h-screen pt-[40px]">
-    <div className="flex items-center justify-between select-none px-2 py-1">
-      <div className="flex items-center pl-1" style={{ minHeight: "30px" }}>
-        <ListenToggle />
-        <ListenStatus />
-      </div>
-      <div className="flex items-center pr-1">
-        <VolumeIndicator />
-        <ConnectionIndicator />
-        <SettingsButton />
-      </div>
-    </div>
-    <div className="flex-1 overflow-y-auto px-2">
-      {miniMode ? null : (
-        <div className="glass-card p-2 animate-fade-in">
-          <AlternativesList miniModePage={false} />
+const AlternativesPageComponent: React.FC<{
+  miniMode: boolean;
+  securityPasskeyBootstrapRequired: boolean;
+  securityPasskeyBootstrapped: boolean;
+  securityPasskeyProviderReady: boolean;
+}> = ({
+  miniMode,
+  securityPasskeyBootstrapRequired,
+  securityPasskeyBootstrapped,
+  securityPasskeyProviderReady,
+}) => {
+  React.useEffect(() => {
+    shell.send("securityRefreshStatus");
+  }, []);
+
+  const passkeyLocked = securityPasskeyBootstrapRequired && !securityPasskeyBootstrapped;
+  return (
+    <div className="overflow-hidden flex flex-col h-screen pt-[40px]">
+      <div className="flex items-center justify-between select-none px-2 py-1">
+        <div className="flex items-center pl-1" style={{ minHeight: "30px" }}>
+          <ListenToggle />
+          <ListenStatus />
         </div>
-      )}
-    </div>
-    <div
-      className="status-indicators flex border-t border-cyan-500/20 mt-1.5 bg-black/20 backdrop-blur-md"
-      style={{
-        padding: "4px 8px",
-      }}
-    >
-      <div className="flex scale-90 origin-left">
-        <ActiveAppIndicator />
+        <div className="flex items-center pr-1">
+          <VolumeIndicator />
+          <ConnectionIndicator />
+          <SettingsButton />
+        </div>
       </div>
-      <div className="flex ml-auto gap-2 scale-90 origin-right">
-        <ModeIndicator />
-        <LanguageIndicator />
-        <EndpointIndicator />
+      <div className="flex-1 overflow-y-auto px-2">
+        {passkeyLocked && !miniMode ? (
+          <div className="mb-2 rounded-lg border border-amber-400/40 bg-amber-500/10 p-2.5 animate-fade-in">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">
+              Locked Startup Gate
+            </div>
+            <div className="text-xs text-amber-100/90 mt-1">
+              Passkey bootstrap is required before listening can start.
+            </div>
+            <div className="text-[11px] text-amber-100/70 mt-1">
+              Provider readiness: {securityPasskeyProviderReady ? "ready" : "degraded"}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <button
+                className="px-3 py-1 rounded bg-amber-500/20 border border-amber-300/50 text-amber-100 text-xs uppercase tracking-widest"
+                onClick={() => shell.send("securityCompletePasskeyBootstrap")}
+              >
+                Complete Passkey Bootstrap
+              </button>
+              <button
+                className="px-3 py-1 rounded bg-white/5 border border-white/20 text-white/80 text-xs uppercase tracking-widest"
+                onClick={() => shell.send("securityCompleteRecoveryBootstrap")}
+              >
+                Recovery Bootstrap
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {miniMode ? null : (
+          <div className="glass-card p-2 animate-fade-in">
+            <AlternativesList miniModePage={false} />
+          </div>
+        )}
+      </div>
+      <div
+        className="status-indicators flex border-t border-cyan-500/20 mt-1.5 bg-black/20 backdrop-blur-md"
+        style={{
+          padding: "4px 8px",
+        }}
+      >
+        <div className="flex scale-90 origin-left">
+          <ActiveAppIndicator />
+        </div>
+        <div className="flex ml-auto gap-2 scale-90 origin-right">
+          <ModeIndicator />
+          <LanguageIndicator />
+          <EndpointIndicator />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const AlternativesPage = connect((state: any) => ({
   miniMode: state.miniMode,
+  securityPasskeyBootstrapRequired: !!state.securityPasskeyBootstrapRequired,
+  securityPasskeyBootstrapped: !!state.securityPasskeyBootstrapped,
+  securityPasskeyProviderReady: !!state.securityPasskeyProviderReady,
 }))(AlternativesPageComponent);

@@ -548,17 +548,17 @@ export default class RendererProcessEventHandlers {
 
     ipcMain.on("securityCompletePasskeyBootstrap", () => {
       this.app.completePasskeyBootstrap();
-      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+      this.bridge.setState(this.app.getSecurityPanelState());
     });
 
     ipcMain.on("securityCompleteRecoveryBootstrap", () => {
       this.app.completeRecoveryBootstrap();
-      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+      this.bridge.setState(this.app.getSecurityPanelState());
     });
 
     ipcMain.on("securityResetPasskeyBootstrap", () => {
       this.app.resetPasskeyBootstrap();
-      this.bridge.setState(this.app.getSecurityPanelState(), [this.settingsWindow()]);
+      this.bridge.setState(this.app.getSecurityPanelState());
     });
 
     ipcMain.on("securityCreateProfile", async (_event: any, displayName: string) => {

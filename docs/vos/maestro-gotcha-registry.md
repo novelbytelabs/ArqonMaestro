@@ -521,3 +521,19 @@ Use with care:
 * treat current B2 behavior as bounded/runtime-first scaffolding
 * enable env gates in controlled validation runs when verifying passkey bootstrap block paths
 * do not treat provider-ready false positives as production passkey integration completeness
+
+### G-032: B2 Locked Startup UX Uses Temporary Bootstrap Action Controls Until Provider Challenge Cutover
+
+Symptom:
+
+Operators can complete passkey bootstrap using explicit UI actions in the current B2 continuation slice, rather than through a real provider challenge flow.
+
+Why:
+
+This bounded continuation prioritizes deterministic lock visibility and desktop sync behavior ahead of full provider challenge/verify integration.
+
+Use with care:
+
+* treat current bootstrap action buttons as transition scaffolding, not final security UX
+* validate lock behavior using both runtime gate state and visible alternatives-surface lock banner
+* do not claim passkey provider cutover completion until bootstrap actions are replaced by real challenge/verify flows

@@ -76,6 +76,11 @@ const SecurityComponent: React.FC<{
   securityReplayTotalRecords: number;
   securityReplaySessionEventCount: number;
   securityReplayLastSequence: number;
+  securityPasskeyBootstrapRequired: boolean;
+  securityPasskeyBootstrapped: boolean;
+  securityPasskeyProviderReady: boolean;
+  securityPasskeyBootstrapMethod: string;
+  securityPasskeyBootstrapAt: string;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -109,6 +114,11 @@ const SecurityComponent: React.FC<{
   securityReplayTotalRecords,
   securityReplaySessionEventCount,
   securityReplayLastSequence,
+  securityPasskeyBootstrapRequired,
+  securityPasskeyBootstrapped,
+  securityPasskeyProviderReady,
+  securityPasskeyBootstrapMethod,
+  securityPasskeyBootstrapAt,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
   const [replaySnapshot, setReplaySnapshot] = useState<ReplaySnapshotPayload | null>(null);
@@ -303,6 +313,39 @@ const SecurityComponent: React.FC<{
       </div>
 
       <div className="py-3 text-sm border-t border-white/5">
+        <h3 className="font-bold text-white/90 mb-1">Passkey bootstrap</h3>
+        <div className="text-white/70">
+          Required on cold start: {securityPasskeyBootstrapRequired ? "Yes" : "No"}
+        </div>
+        <div className="text-white/70">Bootstrapped: {securityPasskeyBootstrapped ? "Yes" : "No"}</div>
+        <div className="text-white/70">
+          Provider readiness: {securityPasskeyProviderReady ? "Ready" : "Degraded"}
+        </div>
+        <div className="text-white/70">Bootstrap method: {securityPasskeyBootstrapMethod || "none"}</div>
+        <div className="text-white/70">Bootstrap timestamp: {securityPasskeyBootstrapAt || "n/a"}</div>
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button
+            className="px-3 py-1 rounded bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs uppercase tracking-widest"
+            onClick={() => shell.send("securityCompletePasskeyBootstrap")}
+          >
+            Complete Passkey Bootstrap
+          </button>
+          <button
+            className="px-3 py-1 rounded bg-white/5 border border-white/20 text-white/80 text-xs uppercase tracking-widest"
+            onClick={() => shell.send("securityCompleteRecoveryBootstrap")}
+          >
+            Recovery Bootstrap
+          </button>
+          <button
+            className="px-3 py-1 rounded bg-red-500/10 border border-red-400/40 text-red-200 text-xs uppercase tracking-widest"
+            onClick={() => shell.send("securityResetPasskeyBootstrap")}
+          >
+            Reset Bootstrap
+          </button>
+        </div>
+      </div>
+
+      <div className="py-3 text-sm border-t border-white/5">
         <h3 className="font-bold text-white/90 mb-1">Session policy bridge</h3>
         <div className="text-white/70">Policy mode: {securityPolicyMode || "assist"}</div>
         <div className="text-white/70">Requires re-auth next: {securityRequiresReauthNext ? "Yes" : "No"}</div>
@@ -414,4 +457,9 @@ export const Security = connect((state: any) => ({
   securityReplayTotalRecords: state.securityReplayTotalRecords,
   securityReplaySessionEventCount: state.securityReplaySessionEventCount,
   securityReplayLastSequence: state.securityReplayLastSequence,
+  securityPasskeyBootstrapRequired: !!state.securityPasskeyBootstrapRequired,
+  securityPasskeyBootstrapped: !!state.securityPasskeyBootstrapped,
+  securityPasskeyProviderReady: !!state.securityPasskeyProviderReady,
+  securityPasskeyBootstrapMethod: state.securityPasskeyBootstrapMethod || "none",
+  securityPasskeyBootstrapAt: state.securityPasskeyBootstrapAt || "",
 }))(SecurityComponent);

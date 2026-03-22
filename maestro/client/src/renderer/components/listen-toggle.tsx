@@ -9,9 +9,24 @@ const ListenToggleComponent: React.FC<{
   listening: boolean;
   localLoading: boolean;
   volume: number;
-}> = ({ darkTheme, listening, localLoading, volume }) => {
+  securityPasskeyBootstrapRequired: boolean;
+  securityPasskeyBootstrapped: boolean;
+}> = ({
+  darkTheme,
+  listening,
+  localLoading,
+  volume,
+  securityPasskeyBootstrapRequired,
+  securityPasskeyBootstrapped,
+}) => {
+  const passkeyLocked = securityPasskeyBootstrapRequired && !securityPasskeyBootstrapped;
+
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (passkeyLocked) {
+      shell.send("securityRefreshStatus");
+      return;
+    }
     shell.send("toggleChunkManager", !listening);
   };
 
@@ -31,10 +46,13 @@ const ListenToggleComponent: React.FC<{
       </div>
       <div
         onClick={toggle}
-        className={classNames("cursor-pointer mr-[5px] relative group transition-all duration-300", {
+        className={classNames("mr-[5px] relative group transition-all duration-300", {
+          "cursor-not-allowed opacity-60": passkeyLocked,
+          "cursor-pointer": !passkeyLocked,
           listening,
           hidden: localLoading,
         })}
+        title={passkeyLocked ? "Passkey bootstrap required before listening can be enabled" : ""}
         style={{
           width: width + "px",
           height: height + "px",
@@ -74,4 +92,6 @@ export const ListenToggle = connect((state: any) => ({
   listening: state.listening,
   localLoading: state.localLoading,
   volume: state.volume,
+  securityPasskeyBootstrapRequired: !!state.securityPasskeyBootstrapRequired,
+  securityPasskeyBootstrapped: !!state.securityPasskeyBootstrapped,
 }))(ListenToggleComponent);
