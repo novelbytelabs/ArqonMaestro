@@ -24,6 +24,12 @@ Desktop/runtime is already exposing the security bridge contract:
 - Live additive bridge fields are already present in renderer state:
   - `securityPolicyMode`
   - `securityRequiresReauthNext`
+  - `securityRequiredFactors`
+  - `securitySatisfiedFactors`
+  - `securityMissingFactor`
+  - `securityStepUpType`
+  - `securityFactorDecision`
+  - `securityLastFactorReasonCode`
   - `securityLastReasonCode`
   - `securityLastLifecyclePhase`
   - `securityLastInteractionId`
@@ -157,6 +163,7 @@ Exit evidence:
 Deliver:
 
 1. Respect `securityPolicyMode`, `securityRequiresReauthNext`, and per-command auth decision fields/reason codes.
+   - including factor contract fields (`required/satisfied/missing/stepUp/factorDecision`)
 2. Enforce mode-aware behavior in extension command paths:
    - unknown/degraded/contaminated handling
    - fail-closed UI behavior for restricted/reflex-only states
