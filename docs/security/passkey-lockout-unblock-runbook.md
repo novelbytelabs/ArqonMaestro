@@ -23,9 +23,9 @@ Expected:
 
 ## 2) Locate runtime persistence snapshot
 
-Maestro persists runtime security state to:
+On Ubuntu this is typically:
 
-`<settings_dir>/security-runtime-state.json`
+`~/.arqon/security-runtime-state.json`
 
 In app code this is resolved via `App.securityRuntimeStateFile()`.
 
@@ -37,13 +37,13 @@ If policy state appears stale or contradictory across screens:
 2. Back up the snapshot:
 
 ```bash
-cp "<settings_dir>/security-runtime-state.json" "<settings_dir>/security-runtime-state.backup.$(date +%s).json"
+cp ~/.arqon/security-runtime-state.json ~/.arqon/security-runtime-state.backup.$(date +%s).json
 ```
 
 3. Remove the active snapshot:
 
 ```bash
-rm -f "<settings_dir>/security-runtime-state.json"
+rm -f ~/.arqon/security-runtime-state.json
 ```
 
 4. Restart Maestro and open Settings -> Security.
@@ -72,3 +72,12 @@ Capture after unblock:
 3. Short note with current env gate values.
 4. Timestamp and profile id/display name used.
 
+## 6) Quick local recovery toggle (optional)
+
+If you must regain access immediately for local recovery:
+
+```bash
+export ARQON_PASSKEY_BOOTSTRAP_REQUIRED=0
+```
+
+Restart Maestro, recover state, then restore strict mode (`ARQON_PASSKEY_BOOTSTRAP_REQUIRED=1`) for passkey-gated operation.
