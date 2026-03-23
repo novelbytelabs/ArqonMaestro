@@ -34,7 +34,7 @@ def main() -> int:
         text = " ".join((segment.text or "").strip() for segment in segments).strip()
 
         if not text:
-            print_json({"ok": False, "error": "empty_transcript"})
+            print_json({"ok": False, "error": "empty_audio", "retryable": True})
             return 0
 
         print_json(
@@ -48,7 +48,14 @@ def main() -> int:
         )
         return 0
     except Exception as exc:
-        print_json({"ok": False, "error": str(exc)})
+        error_str = str(exc).lower()
+        # Map to stable error codes
+        if "model" in error_str and "load" in error_str:
+            print_json({"ok": False, "error": "model_load_failed", "retryable": False})
+        elif "timeout" in error_str:
+            print_json({"ok": False, "error": "timeout", "retryable": True})
+        else:
+            print_json({"ok": False, "error": "inference_failed", "retryable": False})
         return 1
 
 

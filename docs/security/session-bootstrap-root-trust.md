@@ -1,22 +1,20 @@
-# Session Bootstrap and Root Trust
+# Arqon Maestro Session Bootstrap and Root Trust
 
 ## Purpose
 
 This document is the canonical source of truth for:
-
 - session bootstrap and startup trust
 - factor hierarchy and factor-strength rules
 - human profile security governance
-- shared-machine profile selection and isolation
-- step-up and recovery boundaries
-- phased hardening slices for Program B
+- multi-user room architecture and live isolation
+- trust window lifecycles and step-up boundaries
+- recovery boundaries and security mutations
 
 ## Authority Rule
 
-This file is authoritative for startup/bootstrap and factor ordering.
+This file is authoritative for startup, bootstrap, multi-user trust, and factor ordering. 
 
 Scoped docs must defer to this file for overlapping behavior:
-
 - `docs/browser/security-policy-matrix.md` (runtime mode/risk decisions)
 - `docs/browser/security-policy-decisions.md` (decision provenance)
 - `docs/browser/voice-enrollment.md` (enrollment UX and maintenance)
@@ -24,62 +22,51 @@ Scoped docs must defer to this file for overlapping behavior:
 
 ## Foundational Model
 
-Maestro is passkey-first and vendor-neutral:
-
-- root trust: `passkey/WebAuthn` (or hardware-backed FIDO2)
-- continuity unlock: local device-bound `PIN`
-- live actuation trust: per-command `voice`
-- recovery fallback: `TOTP` (recovery-only)
-- agent identity: cryptographic workload identity only (never voice persona)
+Maestro operates as a passkey-first, vendor-neutral Voice Operating System. It uses layered trust:
+- **root trust:** `passkey/WebAuthn` (or hardware-backed FIDO2)
+- **continuity unlock:** local device-bound `PIN` (refreshing stale trust windows)
+- **live actuation trust:** per-command `voice` (speaker attribution)
+- **recovery fallback:** `TOTP` (recovery-only, heavily audited)
+- **agent identity:** cryptographic workload identity only (never voice persona)
 
 ## Core Laws
 
-1. Root trust law: no executable trust until passkey bootstrap succeeds.
-2. Factor strength law: weaker factors never satisfy stronger requirements.
-3. Live speaker law: executable commands require current-request voice evidence unless reflex exempt.
-4. Unknown speaker law: unknown speaker executable commands are hard-blocked.
-5. Fail-closed law: uncertain/degraded trust state blocks execution (except reflex where policy allows).
-6. Provider neutrality law: policy must not bind to a single vendor provider.
-7. Authentication chooses profile: profile selection never implies authentication.
+1. **Root Trust Law:** No executable trust is granted until passkey bootstrap succeeds.
+2. **Factor Strength Law:** Weaker factors never satisfy stronger requirements. Voice + PIN cannot bypass a Passkey requirement.
+3. **Live Speaker Law:** Executable commands require current-request voice evidence matching the authenticated profile, unless explicitly reflex exempt.
+4. **Unknown Speaker Law:** Unknown speaker executable commands are hard-blocked.
+5. **No Borrowed Trust Law:** One participant’s passkey authentication, PIN freshness, or active state NEVER grants another participant executable authority. Trust is strictly personal and evaluated per-speaker.
+6. **Fail-Closed Law:** Uncertain, degraded, or contaminated trust state blocks execution.
+7. **Provider Neutrality Law:** Policy must not bind to a single vendor provider. Maestro standardizes on platform-native WebAuthn APIs.
+8. **Authentication Chooses Profile:** Profile selection never implies authentication. Passkey assertion dictates the active profile.
+9. **Agent Boundary Law:** Agents do not possess Voice or Passkey factors. They authenticate via cryptographic workload identity only.
 
 ## Profile Security Governance
 
 ### Profile Security State Model
-
-Each human profile stores policy/factor state, not vendor preference:
-
-- `profileId`, `displayName`, `status`
-- `voiceEnrolled`
-- `passkeyEnrolled`
-- `pinConfigured`
-- `recoveryEnabled`
-- `policyTier`
+Each human profile stores policy and factor state, not vendor preference:
+- `profileId`, `displayName`, `status`, `policyTier`
+- `voiceEnrolled`, `passkeyEnrolled`, `pinConfigured`, `recoveryEnabled`
 - `inactivityTimeoutSec`
+- `trustWindowValidUntil`
 - `lastAuthAt`, `lastStepUpAt`
-- `localPartitionId`
 
 ### Profile Security Operations
-
 Allowed profile-level capabilities:
-
 - enroll/register passkey
-- rotate/reset passkey (fresh passkey, or explicit recovery path)
+- rotate/reset passkey (requires fresh passkey, or explicit recovery path)
 - set/reset local PIN
 - enable/disable recovery path (policy-gated)
-- adjust inactivity timeout/step-up strictness by policy tier
+- adjust inactivity timeout / step-up strictness by policy tier
 
 ### Forbidden Profile Preferences
-
-Profiles must not allow:
-
-- passkey provider preference
+Profiles must not allow or store:
+- passkey provider preference (e.g., "Use Apple" vs "Use Google")
 - preferred browser authenticator
 - OS authentication provider preference
 
 ### Security Mutation Rules
-
-The following are high-risk security mutations and require fresh passkey in normal mode:
-
+The following are high-risk security mutations and require **fresh passkey only** in normal mode:
 - passkey reset/replace/remove
 - factor enrollment/reset changes
 - disabling voice auth
@@ -87,27 +74,24 @@ The following are high-risk security mutations and require fresh passkey in norm
 - recovery policy changes
 - security tier changes
 
-No PIN-only reset path is allowed.
+**No PIN-only reset path is allowed.**
 
 ## UI Authority Boundaries
 
-- `Profiles` tab: factor lifecycle management and profile security controls.
-- `Security` tab: runtime observability only (status/readiness/freshness/reason codes).
-- `Wizard` tab: onboarding/orchestration only, not long-term factor administration.
+- **`Profiles` tab:** Deep administrative surface. Factor lifecycle management and profile security controls. Humans and Agents are strictly separated visually.
+- **`Participants Popup`:** Floating, fast-access live room surface. Used for viewing who is in the shared room, joining the room via passkey, or quickly unlocking a stale profile.
+- **`Security` tab:** Runtime observability only (status/readiness/freshness/reason codes).
+- **`Wizard` tab:** Onboarding/orchestration only, not long-term factor administration.
 
-## Sensitive Action Gate UX
-
+### Sensitive Action Gate UX
 Before sensitive actions, UI must show explicit factor requirement:
+- *"Requires fresh passkey"*
+- *"Recovery flow required"*
 
-- "Requires fresh passkey"
-- "Recovery flow required"
+Policy violations must show explicit block reason codes (e.g., preventing PIN-only reset attempts).
 
-Policy violations must show explicit block reason code (including PIN-only reset attempts).
-
-## Profile Mutation Audit UX
-
-After profile security mutations, UI shows an audit receipt line with:
-
+### Profile Mutation Audit UX
+After profile security mutations, the UI must generate an audit receipt line with:
 - timestamp
 - profile id/display name
 - factor path used
@@ -116,8 +100,7 @@ After profile security mutations, UI shows an audit receipt line with:
 
 ## Startup and Session Flows
 
-### First-time user
-
+### First-Time User Flow
 1. Launch in locked shell
 2. Create/select human profile
 3. Register passkey
@@ -126,79 +109,50 @@ After profile security mutations, UI shows an audit receipt line with:
 6. Confirm readiness (`passkey`, `PIN`, `voice`, `recovery`)
 7. Enter active runtime
 
-### Returning user
-
+### Returning Single-User Flow
 1. Launch
-2. Passkey bootstrap
-3. Profile mapping
+2. Passkey-first bootstrap
+3. Profile mapped automatically via assertion
 4. Active runtime
 
-### Shared machine
+### Multi-User Room Flow (Shared Machine)
+1. Launch locked Maestro session
+2. Session Sponsor authenticates via Passkey to boot the room
+3. Participants Popup unlocks
+4. Additional participants select their profile from the Popup and authenticate via their own Passkeys
+5. Live commands are attributed to specific speakers via diarization and evaluated against their personal Trust Windows
 
-1. Launch locked profile chooser
-2. Select profile
-3. Passkey authentication for selected profile
-4. Activate isolated profile partition
-5. Runtime voice verification per command
+### Recovery Flow
+1. `TOTP` allowed only in explicitly invoked recovery mode
+2. Recovery does not become normal-mode root trust
+3. Passkey-first policy resumes immediately after passkey restoration
 
-### Inactivity unlock
+## Risk Gate Baseline & Trust Windows
 
-- required factors: `voice + PIN`
-- continuity unlock never satisfies passkey-only actions
+To prevent PIN-spam during live collaboration, Maestro uses **Trust Windows** (Active -> Stale -> Locked). The router evaluates the command risk against the specific speaker's current window.
 
-### Recovery
-
-- `TOTP` allowed only in explicitly invoked recovery mode
-- recovery does not become normal-mode root trust
-- passkey-first policy resumes after passkey restoration
-
-## Risk Gate Baseline
-
-- cold launch / crash restart: `passkey`
-- medium-risk command: `voice + PIN`
-- high-risk irreversible: `voice + fresh passkey`
-- security mutations: `fresh passkey only`
-- reflex controls (`stop`, `cancel`, `pause`): explicitly exempt by policy
+- **Reflex Controls** (`stop`, `cancel`, `pause`): Explicitly exempt. Immediate execution.
+- **Low Risk** (Navigational): Requires speaker to be `Joined` in the room + Live Voice. Executes even if window is Stale.
+- **Operational Risk** (Tool usage, workflow): Requires speaker to have an `Active` trust window + Live Voice. If Stale, command is suspended pending a quick PIN unlock, then resumes.
+- **Guarded Risk** (Commits, external comms): Requires `Active` window + Live Voice. If Stale, prompts PIN. *(Can be configured by policy to always prompt PIN)*.
+- **High Risk Irreversible** (Destructive actions): Requires `Joined` + Live Voice + **Fresh Passkey Challenge**. PIN is never sufficient.
+- **Security Mutations**: Requires **Fresh Passkey Only**. Voice verification is bypassed.
 
 ## Factor Freshness Invalidation
 
-Invalidate relevant freshness on:
+A participant's Trust Window degrades from Active to Stale (or Locked) upon:
+- Speaker change or unknown speaker detection
+- Reaching the inactivity timeout limit
+- Contamination or provider degraded state
+- Pause -> listening transition
+- Session lock or profile switch
+- Bridge desynchronization / OS environment shift
+- Context/surface jump where trust parity is uncertain
 
-- speaker change or unknown speaker
-- contamination or provider degraded state
-- pause -> listening transition
-- mode downgrade
-- profile switch
-- session lock/timeout
-- bridge desynchronization/interruption
-- context/surface jump where trust parity is uncertain
+## Multi-Human Room Isolation
 
-## Multi-Human Isolation
-
-Shared systems require profile-isolated runtime state:
-
-- separate Electron partitions per human (for example `persist:human:<profile-id>`)
-- separated browser/session/continuity state
-- no cross-profile factor carry-over
-
-## Program B Phased Hardening Slices
-
-- `B0`: docs + contract freeze
-- `B1`: unified factor orchestrator
-- `B2`: passkey bootstrap integration
-- `B3`: PIN continuity unlock
-- `B4`: per-command voice hardening
-- `B5`: constrained TOTP recovery
-- `B6`: UI/telemetry parity + adversarial closeout
-
-Each slice must have entry criteria, exit criteria, and evidence artifacts.
-
-## Definition of Done
-
-Program B canonical spec finalization is done when all are true:
-
-1. This canonical file exists and is referenced by matrix, decisions, enrollment, policy, and master plan.
-2. No conflicting startup/factor-order statements remain in browser docs.
-3. Profile governance is complete: allowed capabilities, forbidden provider preferences, mutation gate rules, and audit UX are explicitly documented.
-4. Policy integrity is explicit: unknown-speaker hard block, per-command voice requirement, recovery-only TOTP, and weaker-factor substitution prohibition.
-5. Phased readiness is explicit: B0-B6 slices include entry/exit criteria and evidence expectations.
+Even within a single Maestro Room, human runtime trust state remains strictly logically isolated:
+- Separate continuity and factor freshness state per human.
+- Commands are evaluated strictly against the speaking human's policy tier and trust window.
+- No cross-profile factor carry-over.
+- If true private workspace separation is required, the participant's workflow runs in an isolated Electron partition (e.g., `persist:human:<profile-id>`), but room-level voice interaction remains unified.

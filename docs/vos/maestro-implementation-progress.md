@@ -1396,3 +1396,21 @@ Residual risks:
 Explicit next step:
 
 * Validate/fix desktop/plugin-bus ack emission path for provider outcomes, then rerun S01/S02/S05/S06/S07 until correlated ack and bridge-state transition evidence is green.
+
+---
+
+## Program C ASR Modernization (Parakeet + Qwen3) - Execution Update
+
+Date: 2026-03-23
+
+Status: **Planned and Approved**
+
+What's planned:
+
+* Migrate `command-fast` locally from `whisper.cpp` to `Parakeet-TDT-0.6B-v3`
+* Migrate `dictation-accurate` locally from `faster-whisper` to `Qwen3-ASR-1.7B`
+* Support Qwen3 in both local and `vllm_service` (streaming) modes without shims
+* Retain legacy engines as non-default manual fallbacks with parallel `chunk-manager.ts` routing maps
+* Strict Definition of Done (DoD) per stage requiring explicit evidence logs/packs
+
+Current stage: Stage 1 (Python Bridge Strict Contracts) - Ready to begin execution.

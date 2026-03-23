@@ -80,6 +80,15 @@ nav:
       - Policy: browser/policy.md
       - Security Policy Matrix (v1): browser/security-policy-matrix.md
       - Security Decisions (Ground Truth): browser/security-policy-decisions.md
+  - Security:
+      - Session Bootstrap and Root Trust: security/session-bootstrap-root-trust.md
+      - Ubuntu 22.04 Passkey Setup and Recovery: security/passkey-ubuntu-22-setup-and-recovery.md
+      - Passkey Lockout Unblock Runbook: security/passkey-lockout-unblock-runbook.md
+      - Browser Policy: browser/policy.md
+      - Browser Security Policy Matrix (v1): browser/security-policy-matrix.md
+      - Browser Security Decisions (Ground Truth): browser/security-policy-decisions.md
+      - Browser Voice Enrollment: browser/voice-enrollment.md
+      - Extension B2/A1 Hard-Close Handoff: browser/maestro-chrome-extension-ai-handoff-b2-a1-hard-close.md
   - Architecture:
       - Codebase Layout: architecture/codebase-layout.md
       - Request Lifecycle: architecture/request-lifecycle.md

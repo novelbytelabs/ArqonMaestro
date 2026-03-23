@@ -960,3 +960,24 @@ Consequences:
     * `securityReportPasskeyProviderOutcome` + deterministic ack
 * runtime transition test coverage now includes blocked-listen cold-start -> authenticated/unblocked transition behavior in `ChunkManager`
 * hard-close remains gated on live extension/provider parity and adversarial evidence, not only desktop runtime wiring
+
+---
+
+## VOS-040: ASR Model Migration to Parakeet and Qwen3
+
+* Date: 2026-03-23
+* Status: Accepted
+
+Decision:
+
+Migrate from `whisper.cpp` to `Parakeet-TDT-0.6B-v3` for command-fast, and from `faster-whisper` to `Qwen3-ASR-1.7B` for dictation-accurate. Legacy engines are preserved as optional manual fallbacks in Advanced Settings. The python bridges must support strict JSON contracts and Qwen3 must expose a `vllm_service` endpoint mode.
+
+Why:
+
+The new models offer better latency and accuracy. Maintaining the legacy engines ensures fallback compatibility without invisible or magic auto-routing.
+
+Consequences:
+
+* explicit fallback toggles in `system` settings (no automatic silent fallback)
+* exact routing maps in `chunk-manager.ts` will use parallel state maps (e.g., `chunkUseCommandFastProvider`) rather than renaming legacy maps to avoid collision risk
+* Qwen3 integrates directly against vLLM streaming APIs, removing the need for intermediary shims

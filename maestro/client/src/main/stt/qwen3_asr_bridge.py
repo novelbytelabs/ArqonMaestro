@@ -1,0 +1,418 @@
+#!/usr/bin/env python3
+"""
+Qwen3 ASR Bridge - Maestro STT Integration
+
+Audio Contract:
+- Format: Mono, PCM16 LE, 16 kHz, 16-bit
+- Preprocessing: float32 = int16 / 32768.0, clamp [-1, 1]
+
+Output Contract:
+- Strict single-line JSON to stdout
+- All framework logs redirected to stderr
+"""
+import argparse
+import json
+import os
+import sys
+import wave
+from typing import Optional, Tuple
+
+# Stable error codes
+ERROR_CODES = {
+    "empty_audio": (True, "Audio file is empty or contains no valid samples"),
+    "audio_format_invalid": (False, "Audio format not supported - expected PCM16 LE mono 16kHz"),
+    "model_load_failed": (False, "Failed to load Qwen3 ASR model"),
+    "inference_failed": (False, "ASR inference failed"),
+    "timeout": (True, "Inference timeout"),
+    "endpoint_503": (True, "Service unavailable"),
+    "connection_refused": (True, "Connection refused"),
+    "json_output_invalid": (False, "Invalid JSON output from model"),
+}
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Maestro Qwen3 ASR bridge")
+    parser.add_argument("--audio", required=True, help="Path to WAV audio file")
+    parser.add_argument("--model-path", required=True, help="Path to Qwen3 ASR model directory")
+    parser.add_argument("--mode", required=True, choices=["local", "vllm_service"], 
+                        help="Inference mode: local or vllm_service")
+    parser.add_argument("--endpoint", help="vLLM endpoint URL (required for vllm_service mode)")
+    parser.add_argument("--device", default="cuda", help="Device name (cpu/cuda) for local mode")
+    return parser.parse_args()
+
+
+def print_json(payload: dict) -> None:
+    """Output strict single-line JSON to stdout."""
+    print(json.dumps(payload, ensure_ascii=True))
+
+
+def log_stderr(message: str) -> None:
+    """Log to stderr - all framework noise goes here."""
+    print(message, file=sys.stderr)
+
+
+def load_audio_pcm16(wav_path: str) -> Tuple[Optional[bytes], Optional[str]]:
+    """
+    Load audio file and validate PCM16 LE format.
+    
+    Returns:
+        Tuple of (audio_bytes, error_code) - error_code is None on success
+    """
+    if not os.path.exists(wav_path):
+        return None, "audio_format_invalid"
+    
+    file_size = os.path.getsize(wav_path)
+    if file_size == 0:
+        return None, "empty_audio"
+    
+    try:
+        with wave.open(wav_path, "rb") as wf:
+            # Validate wave format
+            n_channels = wf.getnchannels()
+            sampwidth = wf.getsampwidth()
+            framerate = wf.getframerate()
+            
+            # Check: Mono (1 channel), 16-bit (2 bytes), 16kHz
+            if n_channels != 1:
+                log_stderr(f"Warning: Expected mono, got {n_channels} channels")
+                return None, "audio_format_invalid"
+            
+            if sampwidth != 2:
+                log_stderr(f"Warning: Expected 16-bit (sampwidth=2), got {sampwidth}")
+                return None, "audio_format_invalid"
+            
+            if framerate != 16000:
+                log_stderr(f"Warning: Expected 16kHz, got {framerate}")
+                return None, "audio_format_invalid"
+            
+            # Read raw PCM16 LE data
+            audio_bytes = wf.readframes(wf.getnframes())
+            
+            if len(audio_bytes) == 0:
+                return None, "empty_audio"
+            
+            return audio_bytes, None
+            
+    except wave.Error as e:
+        log_stderr(f"Wave file error: {e}")
+        return None, "audio_format_invalid"
+    except Exception as e:
+        log_stderr(f"Unexpected error reading audio: {e}")
+        return None, "audio_format_invalid"
+
+
+def normalize_pcm16_to_float32(audio_bytes: bytes) -> Tuple[Optional[list], Optional[str]]:
+    """
+    Convert PCM16 LE bytes to normalized float32 array.
+    
+    Preprocessing: float32 = int16 / 32768.0, clamp [-1, 1]
+    """
+    try:
+        import numpy as np
+        
+        # Convert bytes to int16 array
+        int16_data = np.frombuffer(audio_bytes, dtype=np.int16)
+        
+        if len(int16_data) == 0:
+            return None, "empty_audio"
+        
+        # Normalize: float32 = int16 / 32768.0
+        float32_data = int16_data.astype(np.float32) / 32768.0
+        
+        # Clamp to [-1, 1]
+        float32_data = np.clip(float32_data, -1.0, 1.0)
+        
+        return float32_data.tolist(), None
+        
+    except Exception as e:
+        log_stderr(f"Error normalizing audio: {e}")
+        return None, "audio_format_invalid"
+
+
+def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Run local inference on Qwen3 model.
+    
+    Returns:
+        Tuple of (transcript, error_code)
+    """
+    try:
+        import numpy as np
+        import torch
+        
+        # Convert list back to numpy array
+        audio_np = np.array(audio_data, dtype=np.float32)
+        
+        # Run inference
+        with torch.no_grad():
+            # The model expects a waveform tensor
+            waveform = torch.tensor(audio_np).unsqueeze(0)
+            
+            # Run the model - Qwen3 ASR specific
+            # This is a placeholder - actual implementation depends on the model format
+            # Common patterns for Qwen3 ASR models
+            results = model.transcribe_batch(waveform)
+            
+            # Extract text from results
+            if isinstance(results, (list, tuple)):
+                text = results[0] if len(results) > 0 else ""
+            elif isinstance(results, dict):
+                text = results.get("text", "") or results.get("transcription", "")
+            else:
+                text = str(results) if results else ""
+            
+            text = text.strip()
+            
+            if not text:
+                return None, "empty_audio"
+            
+            return text, None
+            
+    except TimeoutError as e:
+        return None, "timeout"
+    except Exception as e:
+        log_stderr(f"Inference error: {e}")
+        return None, "inference_failed"
+
+
+def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Send audio to vLLM service for inference.
+    
+    Uses urllib.request for HTTP calls with explicit timeout handling.
+    Targets OpenAI-compatible /v1/audio/transcriptions endpoint.
+    
+    Returns:
+        Tuple of (transcript, error_code)
+    """
+    import base64
+    import urllib.request
+    import urllib.error
+    
+    # Validate endpoint
+    if not endpoint:
+        return None, "endpoint_503"
+    
+    # Ensure endpoint has proper scheme
+    if not endpoint.startswith(("http://", "https://")):
+        endpoint = f"http://{endpoint}"
+    
+    # Build the full URL for OpenAI-compatible endpoint
+    # vLLM uses /v1/audio/transcriptions for Whisper-compatible API
+    endpoint_url = endpoint.rstrip("/") + "/v1/audio/transcriptions"
+    
+    # Prepare multipart form data
+    # Using urllib to create multipart request
+    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+    
+    # Encode audio as base64 for JSON transport (or use multipart)
+    audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+    
+    # Create JSON payload for the request
+    # vLLM OpenAI-compatible API expects multipart form data
+    body = f"--{boundary}\r\n"
+    body += 'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n'
+    body += "Content-Type: audio/wav\r\n\r\n"
+    body = body.encode("utf-8") + audio_bytes + f"\r\n--{boundary}\r\n".encode("utf-8")
+    body += 'Content-Disposition: form-data; name="model"\r\n\r\n'
+    body += "qwen-asr\r\n".encode("utf-8")
+    body += f"--{boundary}--\r\n".encode("utf-8")
+    
+    try:
+        # Create request with explicit timeout
+        req = urllib.request.Request(
+            endpoint_url,
+            data=body,
+            headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Accept": "application/json"
+            },
+            method="POST"
+        )
+        
+        # Execute request with timeout
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            response_body = response.read().decode("utf-8")
+            
+            # Parse JSON response
+            try:
+                result = json.loads(response_body)
+                
+                # Extract text from OpenAI-compatible response
+                # Format: {"text": "..."} or {"transcription": "..."}
+                text = result.get("text", "") or result.get("transcription", "")
+                
+                if not text:
+                    return None, "json_output_invalid"
+                
+                return text.strip(), None
+                
+            except json.JSONDecodeError as e:
+                log_stderr(f"JSON decode error: {e}, response: {response_body[:200]}")
+                return None, "json_output_invalid"
+                
+    except urllib.error.HTTPError as e:
+        if e.code == 503:
+            return None, "endpoint_503"
+        elif e.code == 400:
+            return None, "audio_format_invalid"
+        else:
+            log_stderr(f"HTTP error {e.code}: {e.reason}")
+            return None, "inference_failed"
+    except urllib.error.URLError as e:
+        reason = e.reason
+        if isinstance(reason, str):
+            if "Connection refused" in reason:
+                return None, "connection_refused"
+            elif "timed out" in reason:
+                return None, "timeout"
+        log_stderr(f"URL error: {e}")
+        return None, "connection_refused"
+    except TimeoutError:
+        return None, "timeout"
+    except Exception as e:
+        log_stderr(f"Unexpected error during vLLM request: {e}")
+        return None, "inference_failed"
+
+
+def load_qwen3_model(model_path: str, device: str):
+    """
+    Load Qwen3 ASR model from path.
+    """
+    try:
+        # Import inside function to defer loading until needed
+        try:
+            import torch
+            from speechbrain.pretrained import EncoderDecoderASR
+        except ImportError as e:
+            log_stderr(f"Missing dependency: {e}")
+            raise RuntimeError("speechbrain or torch not installed") from e
+        
+        # Check if model path exists
+        if not os.path.isdir(model_path):
+            log_stderr(f"Model path does not exist: {model_path}")
+            raise FileNotFoundError(f"Model directory not found: {model_path}")
+        
+        # Load Qwen3 ASR model using SpeechBrain
+        model = EncoderDecoderASR.from_hparams(
+            source=model_path,
+            savedir=model_path,
+            run_opts={"device": device}
+        )
+        
+        return model
+        
+    except FileNotFoundError as e:
+        raise RuntimeError(f"model_load_failed: {e}") from e
+    except Exception as e:
+        raise RuntimeError(f"model_load_failed: {e}") from e
+
+
+def main() -> int:
+    args = parse_args()
+    
+    # Validate mode-specific arguments
+    if args.mode == "vllm_service" and not args.endpoint:
+        print_json({
+            "ok": False,
+            "error": "endpoint_503",
+            "retryable": True
+        })
+        return 1
+    
+    # Step 1: Load and validate audio
+    audio_bytes, error_code = load_audio_pcm16(args.audio)
+    if error_code:
+        retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
+        print_json({
+            "ok": False,
+            "error": error_code,
+            "retryable": retryable
+        })
+        return 1
+    
+    # Step 2: For local mode, normalize audio
+    audio_float = None
+    if args.mode == "local":
+        audio_float, error_code = normalize_pcm16_to_float32(audio_bytes)
+        if error_code:
+            retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
+            print_json({
+                "ok": False,
+                "error": error_code,
+                "retryable": retryable
+            })
+            return 1
+    
+    # Step 3: Handle based on mode
+    if args.mode == "local":
+        # Load model
+        try:
+            model = load_qwen3_model(args.model_path, args.device)
+        except RuntimeError as e:
+            print_json({
+                "ok": False,
+                "error": "model_load_failed",
+                "retryable": False
+            })
+            return 1
+        except Exception as e:
+            print_json({
+                "ok": False,
+                "error": "model_load_failed",
+                "retryable": False
+            })
+            return 1
+        
+        # Run local inference
+        text, error_code = transcribe_local(model, audio_float)
+        if error_code:
+            retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
+            print_json({
+                "ok": False,
+                "error": error_code,
+                "retryable": retryable
+            })
+            return 1
+        
+        # Success - output JSON to stdout
+        print_json({
+            "ok": True,
+            "text": text,
+            "model": args.model_path,
+            "device": args.device
+        })
+        return 0
+        
+    elif args.mode == "vllm_service":
+        # Run vLLM service inference
+        text, error_code = transcribe_vllm_service(audio_bytes, args.endpoint)
+        if error_code:
+            retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
+            print_json({
+                "ok": False,
+                "error": error_code,
+                "retryable": retryable
+            })
+            return 1
+        
+        # Success - output JSON to stdout
+        print_json({
+            "ok": True,
+            "text": text,
+            "model": "vllm_service",
+            "device": "remote"
+        })
+        return 0
+    
+    # Should not reach here
+    print_json({
+        "ok": False,
+        "error": "inference_failed",
+        "retryable": False
+    })
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

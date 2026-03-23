@@ -589,3 +589,18 @@ Use with care:
 * do not mark B2/A1 extension slice hard-closed without live correlated ack evidence
 * treat timeout/no-ack as fail-closed and keep transitional safeguards in place
 * require rerun of provider-outcome adversarial scenarios after bus/responder confirmation
+
+### G-036: `chunk-manager.ts` Uses Parallel Routing Maps for New ASR Models
+
+Symptom:
+
+Developers looking for `chunkUseWhisperCommandFast` references might miss chunk assignments when the Parakeet engine is active.
+
+Why:
+
+During the migration to Parakeet and Qwen3 ASR models (Program C), parallel state maps (e.g., `chunkUseCommandFastProvider`) were added instead of renaming the legacy maps. This was an explicit architectural decision (VOS-040) to eliminate collision risks and preserve the legacy fallback path with zero semantic drift. 
+
+Use with care:
+
+* when modifying chunk management logic, ensure both the legacy map and the new provider map are updated symmetrically
+* do not delete the legacy mapping structures unless the legacy engines are being fully removed from the codebase

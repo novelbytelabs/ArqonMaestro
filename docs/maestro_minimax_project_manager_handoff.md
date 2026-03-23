@@ -113,6 +113,21 @@ The best workflow is:
 
 This is now the standard doctrine.
 
+## Routine upgrade (new standing routine)
+
+Use this upgraded loop for every meaningful stage:
+
+1. PM writes the best plan possible (constitution + stage specs + acceptance criteria)
+2. Minimax executes one constrained stage sprint
+3. Minimax must run an **honest technical debt audit** before reporting
+4. Minimax may perform one bounded cleanup pass based on that audit (no scope creep)
+5. Minimax enters **REPORT — FREEZE STATE** with commit-before-claim evidence
+6. PM audits and hard-closes the stage manually if the tail is small, or issues one new scoped stage if not
+
+This upgrade is intentional: the technical-debt audit step repeatedly exposed overstatement, placeholders, shims, and unfinished work that normal reporting did not surface.
+
+
+
 ---
 
 # 2. User Preferences and PM Communication Rules
@@ -431,11 +446,13 @@ Keep for PM / human closeout:
 - last-mile manual close
 
 ## Best operating pattern
-1. PM writes a strong implementation constitution
-2. implementation model executes one large constrained sprint
-3. implementation model switches to **REPORT — FREEZE STATE**
-4. PM audits once
-5. PM manually closes the tail if the remaining gap is small
+1. PM writes a strong implementation constitution and explicit stage specs
+2. implementation model executes one large constrained stage sprint
+3. implementation model performs an honest technical debt audit
+4. implementation model performs one bounded cleanup pass based on that audit
+5. implementation model switches to **REPORT — FREEZE STATE**
+6. PM audits once
+7. PM manually closes the tail if the remaining gap is small
 
 This is superior to repeated “fix one thing, re-explain, re-audit” loops.
 
@@ -564,6 +581,30 @@ Before claiming readiness for review, the model should answer:
 - what evidence is still indirect?
 
 This suppresses completion theater.
+
+## Rule 10 — Honest technical debt audit (mandatory)
+Before claiming readiness for review, the model must run and report an explicit technical debt audit covering:
+- placeholders
+- shims
+- TODO/FIXME shortcuts
+- downgraded or bypassed tests
+- incomplete edge/error handling
+- mismatches between status claims and delivered behavior
+
+If the audit finds material debt, the model must either:
+1. fix it before entering REPORT mode, or
+2. declare it as a blocker with exact scope and impact
+
+## Rule 11 — Ground-truth packet required
+For each stage, the PM must provide the implementation model with:
+- the stage constitution
+- explicit technical specs
+- acceptance criteria
+- source-of-truth file list
+
+This is a governance obligation: quality improves when the model is given clear ground truth for decision-making, not just a vague objective.
+
+
 
 ---
 
@@ -816,10 +857,11 @@ Once the remaining issues were narrow, the winning strategy was to stop looping 
 
 ## Correct workflow for Patch 3
 1. PM writes the strongest Patch 3 implementation constitution possible
-2. implementation model executes one full sprint
-3. implementation model enters `MODE: REPORT — FREEZE STATE`
-4. PM audits once
-5. PM manually hard-closes the tail if needed
+2. implementation model executes one full stage sprint
+3. implementation model runs an honest technical debt audit and performs one bounded cleanup pass if needed
+4. implementation model enters `MODE: REPORT — FREEZE STATE`
+5. PM audits once
+6. PM manually hard-closes the tail if needed
 
 ## Patch 3 implementation guardrails
 - keep `DefaultVadProvider` authoritative initially
@@ -836,7 +878,7 @@ Once the remaining issues were narrow, the winning strategy was to stop looping 
 
 A future PM session can be bootstrapped with something like:
 
-> You are the project manager supervising implementation work on Arqon Maestro. Use the attached PM constitution as your operating brief. The roadmap is canonical. Enforce strict IMPLEMENT vs REPORT modes, freeze-state reporting, no self-awarded acceptance, no destructive test changes without approval, and evidence-first sign-off. Current accepted state: Wave A Patch 1 + 2 are hard-closed. Current next target: Wave A Patch 3 — Silero shadow mode + turn event enrichment. Use one strong implementation sprint, one freeze-state report, then manual hard-close if the tail is small.
+> You are the project manager supervising implementation work on Arqon Maestro. Use the attached PM constitution as your operating brief. The roadmap is canonical. Enforce strict IMPLEMENT vs REPORT modes, freeze-state reporting, no self-awarded acceptance, no destructive test changes without approval, and evidence-first sign-off. Current accepted state: Wave A Patch 1 + 2 are hard-closed. Current next target: Wave A Patch 3 — Silero shadow mode + turn event enrichment. Use one strong stage sprint, require an honest technical debt audit before REPORT mode, then freeze-state reporting and manual PM hard-close if the tail is small. Provide the model with stage constitution plus explicit specs and source-of-truth files as ground truth.
 
 ---
 
