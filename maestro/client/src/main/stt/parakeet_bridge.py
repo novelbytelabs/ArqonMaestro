@@ -128,30 +128,31 @@ def normalize_pcm16_to_float32(audio_bytes: bytes) -> Tuple[Optional[list], Opti
 
 def load_parakeet_model(model_path: str, device: str):
     """
-    Load Parakeet model from path.
+    Load Parakeet model from path using NVIDIA NeMo ASR.
     """
     try:
-        # Import inside function to defer loading until needed
-        # This allows proper error handling if packages aren't installed
+        # Import NeMo ASR
         try:
             import torch
-            from speechbrain.pretrained import EncoderDecoderASR
+            import nemo.collections.asr as nemo_asr
         except ImportError as e:
             log_stderr(f"Missing dependency: {e}")
-            raise RuntimeError("speechbrain or torch not installed") from e
+            raise RuntimeError("nemo.collections.asr or torch not installed") from e
         
         # Check if model path exists
         if not os.path.isdir(model_path):
             log_stderr(f"Model path does not exist: {model_path}")
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
-        # Load Parakeet model using SpeechBrain
-        # Parakeet is available via speechbrain.pretrained
-        model = EncoderDecoderASR.from_hparams(
-            source=model_path,
-            savedir=model_path,
-            run_opts={"device": device}
-        )
+        # Load Parakeet model using NeMo
+        # NeMo uses EncDecCTCModel for CTC-based ASR models like Parakeet
+        model = nemo_asr.models.EncDecCTCModel.restore_from(model_path)
+        
+        # Move to specified device
+        if device == "cuda" and torch.cuda.is_available():
+            model = model.cuda()
+        else:
+            model = model.cpu()
         
         return model
         

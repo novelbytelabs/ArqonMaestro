@@ -161,6 +161,53 @@ The bridge implementation is substantially complete with all error codes working
 
 ---
 
+## Audit Entry 003
+
+**Timestamp:** 2026-03-23T16:50:00Z  
+**Stage:** Program C ASR Modernization - Stage 1 (Python Bridge Contracts)  
+**Verdict:** RED
+
+### Claimed Status
+Minimax reports: **Stage 1 COMPLETE — FINAL FROZEN STATE**
+
+### New Commit
+`1762ff55ef9ec13d50b5261244c309d5327fd746` - Verified exists
+
+### Watchdog Criteria Assessment
+
+| Criteria | Result | Notes |
+|----------|--------|-------|
+| [RED] Shim Detection - SpeechBrain as wrapper | ❌ **FAIL** | SpeechBrain still used in both bridges |
+| [RED] Math Integrity - /32768.0 + np.clip | ✅ PASS | Verified in code |
+| [YELLOW] Stdout Noise | ✅ PASS | All logs to stderr |
+| [RED] Networking - real requests + 30s timeout | ✅ PASS | urllib.request with timeout=30 |
+| [GREEN] Error Parity - 8 error codes | ✅ PASS | All codes implemented |
+
+### Critical Finding: SHIM VIOLATION
+
+**Evidence:**
+- parakeet_bridge.py:138 - `from speechbrain.pretrained import EncoderDecoderASR`
+- parakeet_bridge.py:148-149 - "Load Parakeet model using SpeechBrain"
+- qwen3_asr_bridge.py:151 - "Run the model - Qwen3 ASR using SpeechBrain interface"
+- qwen3_asr_bridge.py:281 - `from speechbrain.pretrained import EncoderDecoderASR`
+
+**Plan Requirement (asr-model-migration.md:67):**
+> "Implementation: Use `nemo.collections.asr` to load and transcribe. **No generic wrappers**."
+
+**Watchdog Rule:**
+> "[RED] Shim Detection: Immediate rejection if SpeechBrain is used as a wrapper for Parakeet or Qwen3."
+
+### Verdict: RED
+
+**Reason:** Claim/evidence mismatch - implementation uses SpeechBrain as specified in plan, but watchdog criteria explicitly rejects SpeechBrain as a shim.
+
+**Required Fix:**
+- Replace SpeechBrain with nemo-toolkit for Parakeet
+- Replace SpeechBrain with vllm[audio] for Qwen3 local mode
+- OR obtain PM approval for architectural deviation
+
+---
+
 ## Governance Reference
 
 **Rules enforced from `docs/maestro_minimax_project_manager_handoff.md`:**

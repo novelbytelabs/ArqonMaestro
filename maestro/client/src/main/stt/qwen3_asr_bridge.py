@@ -272,28 +272,30 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
 
 def load_qwen3_model(model_path: str, device: str):
     """
-    Load Qwen3 ASR model from path.
+    Load Qwen3 ASR model from path using vllm[audio].
     """
     try:
-        # Import inside function to defer loading until needed
+        # Import vllm audio
         try:
             import torch
-            from speechbrain.pretrained import EncoderDecoderASR
+            from vllm import ASRModel
         except ImportError as e:
             log_stderr(f"Missing dependency: {e}")
-            raise RuntimeError("speechbrain or torch not installed") from e
+            raise RuntimeError("vllm[audio] or torch not installed") from e
         
         # Check if model path exists
         if not os.path.isdir(model_path):
             log_stderr(f"Model path does not exist: {model_path}")
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
-        # Load Qwen3 ASR model using SpeechBrain
-        model = EncoderDecoderASR.from_hparams(
-            source=model_path,
-            savedir=model_path,
-            run_opts={"device": device}
-        )
+        # Load Qwen3 ASR model using vllm
+        model = ASRModel(model_path)
+        
+        # Move to specified device
+        if device == "cuda" and torch.cuda.is_available():
+            model = model.cuda()
+        else:
+            model = model.cpu()
         
         return model
         
