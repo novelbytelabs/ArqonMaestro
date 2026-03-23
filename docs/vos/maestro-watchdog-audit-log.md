@@ -410,6 +410,106 @@ const response = await fetch('http://localhost:8001/transcribe', {...});
 
 ---
 
+## Audit Entry 008
+
+**Timestamp:** 2026-03-23T18:05:00Z  
+**Stage:** Program C ASR Modernization - Stage 2A (Service Contract + Routing Cut)  
+**Verdict:** YELLOW ⚠️
+
+### Claimed Status
+Minimax reports: **Stage 2A COMPLETE**
+
+### Commit
+`43254af2110bdd7c24c5dc71401222adba46575a` - ✅ VERIFIED EXISTS
+
+### Files Changed (8 files)
+1. `maestro/client/src/main/settings.ts` - Added 45 lines for sidecar routing keys
+2. `maestro/client/src/main/stt/parakeet-command-fast-provider.ts` - Added sidecar client + routing
+3. `maestro/client/src/main/stt/qwen3-asr-dictation-provider.ts` - Added sidecar client + routing
+4. `maestro/client/src/test/audio/parakeet-command-fast-provider.unit.spec.ts` - Added 15 new tests
+5. `maestro/client/src/test/audio/qwen3-asr-dictation-provider.unit.spec.ts` - Added 17 new tests
+6. `plans/asr-model-migration.md` - Updated plan status
+7. `docs/vos/maestro-implementation-progress.md` - Updated progress doc
+8. `docs/vos/maestro-watchdog-audit-log.md` - Added audit entry
+
+### Watchdog Criteria Assessment
+
+| Criteria | Result | Notes |
+|----------|--------|-------|
+| [GREEN] Sidecar HTTP Client | ✅ PASS | Added `postSidecarJson` using node http module |
+| [GREEN] Bridge Client Wrappers | ✅ PASS | HTTP POST to sidecar endpoints implemented |
+| [GREEN] Settings Keys | ✅ PASS | `arqon_asr_*` keys added to settings.ts |
+| [GREEN] Routing Tests | ✅ PASS | 50 tests pass (sidecar routing, fallback, 503) |
+| [GREEN] Environment | ✅ PASS | "No environment mutation performed" |
+| [RED] **TEMP FILE I/O** | ⚠️ PARTIAL | Local path still writes to /tmp (sidecar path uses HTTP) |
+| [RED] **TELEMETRY** | ⚠️ NOT CHECKED | tracking.ts integration not verified in this commit |
+
+### Test Output (VERIFIED)
+```
+Test Suites: 2 passed, 2 total
+Tests:       50 passed, 50 total
+Time:        4.64 s
+
+PASS src/test/audio/parakeet-command-fast-provider.unit.spec.ts
+PASS src/test/audio/qwen3-asr-dictation-provider.unit.spec.ts
+```
+
+### Technical Debt Audit
+
+| Finding | Resolution |
+|---------|------------|
+| No TypeScript errors | ✅ PASS |
+| No console.log statements | ✅ PASS |
+| No placeholder/shim code | ✅ PASS |
+| All stable error codes preserved | ✅ PASS |
+
+### Sidecar Contract (VERIFIED)
+
+**Request:**
+```json
+{"audio_b64": "...", "sample_rate_hz": 16000, "chunk_id": "...", ...}
+```
+
+**Response Success:**
+```json
+{"ok": true, "text": "...", "model": "...", "device": "..."}
+```
+
+**Response Failure:**
+```json
+{"ok": false, "error": "sidecar_unavailable", "retryable": true}
+```
+
+### Settings Added (VERIFIED)
+- `arqon_asr_parakeet_command_url` → `http://127.0.0.1:7782`
+- `arqon_asr_qwen3_dictation_url` → `http://127.0.0.1:7783`
+- `arqon_asr_sidecar_timeout_ms` → `5000`
+- `arqon_asr_parakeet_mode` → `local` | `sidecar`
+- `arqon_asr_qwen3_mode` → `local` | `sidecar`
+
+### Findings
+
+1. **IMPROVED**: Sidecar HTTP client now implemented using node http module ✅
+2. **PERSISTS**: Local path (`transcribeCommandLocal`) still writes audio to `/tmp` - performance directive violated for local mode
+3. **UNKNOWN**: Telemetry integration with tracking.ts not verified (not in commit diff)
+
+### Required Fixes (Before GREEN)
+
+1. **FIX Temp File I/O**: Also fix local path to pass audio via stdin - not just sidecar path
+2. **VERIFY Telemetry**: Confirm tracking.ts integration for parakeet/qwen3 providers or document deferred
+
+### Verdict Rationale
+
+**YELLOW** status because:
+- Sidecar HTTP path now correct ✅
+- Local path still has temp file I/O ⚠️
+- Telemetry unverified ⚠️
+- No environment mutation ✅
+
+- Tests pass ✅
+
+---
+
 ## Governance Reference
 
 **Rules enforced from `docs/maestro_minimax_project_manager_handoff.md`:**
