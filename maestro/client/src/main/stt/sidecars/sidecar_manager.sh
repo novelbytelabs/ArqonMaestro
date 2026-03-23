@@ -1,6 +1,8 @@
 #!/bin/bash
 # ASR Sidecar Lifecycle Management
-# Manages Parakeet and Qwen3 sidecar runtimes
+# Manages Parakeet and Qwen3 sidecar runtimes in isolated env
+# 
+# Environment: helios-asr-isolated (separate from frozen helios-gpu-118)
 # 
 # Usage:
 #   ./sidecar_manager.sh start <parakeet|qwen3|all>
@@ -8,35 +10,30 @@
 #   ./sidecar_manager.sh restart <parakeet|qwen3|all>
 #   ./sidecar_manager.sh status <parakeet|qwen3|all>
 #   ./sidecar_manager.sh test <parakeet|qwen3>
+#   ./sidecar_manager.sh preflight <parakeet|qwen3|all>
+#   ./sidecar_manager.sh warmup <parakeet|qwen3>
 
 set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ISOLATED_ENV="helios-asr-isolated"
 PARAKEET_PORT=5001
-Qwen3_PORT=5002
+QWEN3_PORT=5002
 PARAKEET_MODEL_PATH="${HOME}/models/arqon/asr/parakeet-tdt-0.6b-v3"
-Qwen3_MODEL_PATH="${HOME}/models/arqon/asr/qwen3-asr-1.7b"
+QWEN3_MODEL_PATH="${HOME}/models/arqon/asr/qwen3-asr-1.7b"
 PARAKEET_PID_FILE="/tmp/parakeet_sidecar.pid"
-Qwen3_PID_FILE="/tmp/qwen3_sidecar.pid"
+QWEN3_PID_FILE="/tmp/qwen3_sidecar.pid"
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Check if a process is running
 is_running() {
@@ -46,7 +43,6 @@ is_running() {
         if kill -0 "$pid" 2>/dev/null; then
             return 0
         fi
-        # Stale PID file
         rm -f "$pid_file"
     fi
     return 1
@@ -65,6 +61,103 @@ get_pid() {
     return 1
 }
 
+# Preflight checks
+preflight_check() {
+    local sidecar=$1
+    local port=$2
+    local model_path=$3
+    local errors=0
+    
+    log_info "Running preflight checks for ${sidecar}..."
+    
+    # Check isolated env exists
+    log_info "Checking conda environment '${ISOLATED_ENV}'..."
+    if ! conda env list | grep -q "^${ISOLATED_ENV} "; then
+        log_error "Conda environment '${ISOLATED_ENV}' not found"
+        log_info "Run: ./setup_isolated_env.sh all"
+        ((errors++))
+    else
+        log_info "✓ Environment '${ISOLATED_ENV}' exists"
+    fi
+    
+    # Check CUDA visibility
+    log_info "Checking CUDA visibility..."
+    if conda run -n "${ISOLATED_ENV}" python -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; then
+        log_info "✓ CUDA available"
+    else
+        log_warn "⚠ CUDA not available (will run on CPU)"
+    fi
+    
+    # Check required imports
+    log_info "Checking Python imports..."
+    if [ "$sidecar" = "parakeet" ]; then
+        if conda run -n "${ISOLATED_ENV}" python -c "import nemo" 2>/dev/null; then
+            log_info "✓ nemo available"
+        else
+            log_error "✗ nemo not available"
+            ((errors++))
+        fi
+    elif [ "$sidecar" = "qwen3" ]; then
+        if conda run -n "${ISOLATED_ENV}" python -c "import vllm" 2>/dev/null; then
+            log_info "✓ vllm available"
+        else
+            log_warn "⚠ vllm not available"
+        fi
+    fi
+    
+    # Check model path exists
+    log_info "Checking model path: ${model_path}..."
+    if [ -d "$model_path" ]; then
+        log_info "✓ Model path exists"
+    else
+        log_error "✗ Model path not found: ${model_path}"
+        ((errors++))
+    fi
+    
+    # Check port availability
+    log_info "Checking port ${port} availability..."
+    if netstat -tuln 2>/dev/null | grep -q ":${port} " || ss -tuln 2>/dev/null | grep -q ":${port} "; then
+        log_warn "⚠ Port ${port} already in use"
+    else
+        log_info "✓ Port ${port} available"
+    fi
+    
+    if [ $errors -gt 0 ]; then
+        log_error "Preflight failed with ${errors} errors"
+        return 1
+    fi
+    
+    log_info "✓ Preflight checks passed for ${sidecar}"
+    return 0
+}
+
+# Warmup sidecar (load model, process dummy audio)
+warmup_sidecar() {
+    local sidecar=$1
+    local port=$2
+    local model_path=$3
+    
+    log_info "Warming up ${sidecar} sidecar..."
+    
+    # Create dummy PCM16 audio (1 second of silence = 32000 bytes)
+    local dummy_audio="/tmp/warmup_${sidecar}.raw"
+    python3 -c "import sys; sys.stdout.buffer.write(b'\x00' * 32000)" > "$dummy_audio"
+    
+    # Send warmup request
+    log_info "Sending warmup request to port ${port}..."
+    if curl -s -f -X POST "http://localhost:${port}/transcribe" \
+        -H "Content-Type: application/octet-stream" \
+        --data-binary @"$dummy_audio" > /dev/null 2>&1; then
+        log_info "✓ ${sidecar} warmup complete"
+        rm -f "$dummy_audio"
+        return 0
+    else
+        log_warn "⚠ Warmup request failed (may be normal if model not loaded yet)"
+        rm -f "$dummy_audio"
+        return 1
+    fi
+}
+
 # Start Parakeet sidecar
 start_parakeet() {
     log_info "Starting Parakeet sidecar on port ${PARAKEET_PORT}..."
@@ -72,6 +165,11 @@ start_parakeet() {
     if is_running "$PARAKEET_PID_FILE"; then
         log_warn "Parakeet sidecar already running (PID: $(cat $PARAKEET_PID_FILE))"
         return 0
+    fi
+    
+    # Run preflight
+    if ! preflight_check "parakeet" "$PARAKEET_PORT" "$PARAKEET_MODEL_PATH"; then
+        return 1
     fi
     
     # Check model path exists
@@ -87,9 +185,8 @@ start_parakeet() {
         return 1
     fi
     
-    # Start sidecar in background
-    # Note: Uses conda env helios-gpu-118 for protobuf 5.x isolation
-    nohup conda run -n helios-gpu-118 python "${SCRIPT_DIR}/parakeet_sidecar.py" \
+    # Start sidecar in isolated environment
+    nohup conda run -n "${ISOLATED_ENV}" python "${SCRIPT_DIR}/parakeet_sidecar.py" \
         --server \
         --model-path "$PARAKEET_MODEL_PATH" \
         --device cuda \
@@ -99,12 +196,16 @@ start_parakeet() {
     local pid=$!
     echo $pid > "$PARAKEET_PID_FILE"
     
-    # Wait for startup
-    sleep 3
+    # Wait for startup (model preload)
+    log_info "Waiting for model to load (this may take a minute)..."
+    sleep 5
     
     if is_running "$PARAKEET_PID_FILE"; then
         log_info "Parakeet sidecar started (PID: $pid, Port: ${PARAKEET_PORT})"
         log_info "Log: /tmp/parakeet_sidecar.log"
+        
+        # Run warmup
+        warmup_sidecar "parakeet" "$PARAKEET_PORT" "$PARAKEET_MODEL_PATH"
     else
         log_error "Failed to start Parakeet sidecar"
         log_error "Check /tmp/parakeet_sidecar.log for details"
@@ -114,43 +215,52 @@ start_parakeet() {
 
 # Start Qwen3 sidecar
 start_qwen3() {
-    log_info "Starting Qwen3 sidecar on port ${Qwen3_PORT}..."
+    log_info "Starting Qwen3 sidecar on port ${QWEN3_PORT}..."
     
-    if is_running "$Qwen3_PID_FILE"; then
-        log_warn "Qwen3 sidecar already running (PID: $(cat $Qwen3_PID_FILE))"
+    if is_running "$QWEN3_PID_FILE"; then
+        log_warn "Qwen3 sidecar already running (PID: $(cat $QWEN3_PID_FILE))"
         return 0
     fi
     
+    # Run preflight
+    if ! preflight_check "qwen3" "$QWEN3_PORT" "$QWEN3_MODEL_PATH"; then
+        return 1
+    fi
+    
     # Check model path exists
-    if [ ! -d "$Qwen3_MODEL_PATH" ]; then
-        log_error "Model path not found: ${Qwen3_MODEL_PATH}"
+    if [ ! -d "$QWEN3_MODEL_PATH" ]; then
+        log_error "Model path not found: ${QWEN3_MODEL_PATH}"
         log_info "Please download Qwen3 model first"
         return 1
     fi
     
     # Check if port is available
-    if netstat -tuln 2>/dev/null | grep -q ":${Qwen3_PORT} " || ss -tuln 2>/dev/null | grep -q ":${Qwen3_PORT} "; then
-        log_error "Port ${Qwen3_PORT} already in use"
+    if netstat -tuln 2>/dev/null | grep -q ":${QWEN3_PORT} " || ss -tuln 2>/dev/null | grep -q ":${QWEN3_PORT} "; then
+        log_error "Port ${QWEN3_PORT} already in use"
         return 1
     fi
     
-    # Start sidecar in background
-    nohup conda run -n helios-gpu-118 python "${SCRIPT_DIR}/qwen3_sidecar.py" \
+    # Start sidecar in isolated environment
+    nohup conda run -n "${ISOLATED_ENV}" python "${SCRIPT_DIR}/qwen3_sidecar.py" \
         --server \
-        --model-path "$Qwen3_MODEL_PATH" \
+        --model-path "$QWEN3_MODEL_PATH" \
         --device cuda \
-        --port "$Qwen3_PORT" \
+        --port "$QWEN3_PORT" \
         > /tmp/qwen3_sidecar.log 2>&1 &
     
     local pid=$!
-    echo $pid > "$Qwen3_PID_FILE"
+    echo $pid > "$QWEN3_PID_FILE"
     
-    # Wait for startup
-    sleep 3
+    # Wait for startup (model preload)
+    log_info "Waiting for model to load (this may take a minute)..."
+    sleep 5
     
-    if is_running "$Qwen3_PID_FILE"; then
-        log_info "Qwen3 sidecar started (PID: $pid, Port: ${Qwen3_PORT})"
+    if is_running "$QWEN3_PID_FILE"; then
+        log_info "Qwen3 sidecar started (PID: $pid, Port: ${QWEN3_PORT})"
         log_info "Log: /tmp/qwen3_sidecar.log"
+        
+        # Run warmup
+        warmup_sidecar "qwen3" "$QWEN3_PORT" "$QWEN3_MODEL_PATH"
     else
         log_error "Failed to start Qwen3 sidecar"
         log_error "Check /tmp/qwen3_sidecar.log for details"
@@ -166,14 +276,12 @@ stop_parakeet() {
         local pid=$(cat "$PARAKEET_PID_FILE")
         kill "$pid" 2>/dev/null || true
         
-        # Wait for graceful shutdown
         local count=0
         while kill -0 "$pid" 2>/dev/null && [ $count -lt 10 ]; do
             sleep 1
             count=$((count + 1))
         done
         
-        # Force kill if still running
         if kill -0 "$pid" 2>/dev/null; then
             log_warn "Forcing kill Parakeet sidecar..."
             kill -9 "$pid" 2>/dev/null || true
@@ -190,31 +298,29 @@ stop_parakeet() {
 stop_qwen3() {
     log_info "Stopping Qwen3 sidecar..."
     
-    if is_running "$Qwen3_PID_FILE"; then
-        local pid=$(cat "$Qwen3_PID_FILE")
+    if is_running "$QWEN3_PID_FILE"; then
+        local pid=$(cat "$QWEN3_PID_FILE")
         kill "$pid" 2>/dev/null || true
         
-        # Wait for graceful shutdown
         local count=0
         while kill -0 "$pid" 2>/dev/null && [ $count -lt 10 ]; do
             sleep 1
             count=$((count + 1))
         done
         
-        # Force kill if still running
         if kill -0 "$pid" 2>/dev/null; then
             log_warn "Forcing kill Qwen3 sidecar..."
             kill -9 "$pid" 2>/dev/null || true
         fi
         
-        rm -f "$Qwen3_PID_FILE"
+        rm -f "$QWEN3_PID_FILE"
         log_info "Qwen3 sidecar stopped"
     else
         log_warn "Qwen3 sidecar not running"
     fi
 }
 
-# Status of sidecars
+# Status
 status_sidecar() {
     local name=$1
     local pid_file=$2
@@ -230,26 +336,25 @@ status_sidecar() {
     fi
 }
 
-# Health check via HTTP
+# Health check
 health_check() {
     local name=$1
     local port=$2
     
     if curl -s -f "http://localhost:${port}/transcribe" -X POST \
         -H "Content-Length: 0" 2>/dev/null; then
-        echo -e "${GREEN}${name} health check: OK${NC}"
+        echo -e "${GREEN}${name} health: OK${NC}"
         return 0
     else
-        echo -e "${RED}${name} health check: FAILED${NC}"
+        echo -e "${RED}${name} health: FAILED${NC}"
         return 1
     fi
 }
 
-# Zombie process reaper
+# Zombie reaper
 reap_zombies() {
     log_info "Checking for zombie sidecar processes..."
     
-    # Find any orphaned sidecar processes
     local orphans=$(pgrep -f "parakeet_sidecar.py" 2>/dev/null || true)
     for pid in $orphans; do
         if [ -f "$PARAKEET_PID_FILE" ]; then
@@ -263,8 +368,8 @@ reap_zombies() {
     
     orphans=$(pgrep -f "qwen3_sidecar.py" 2>/dev/null || true)
     for pid in $orphans; do
-        if [ -f "$Qwen3_PID_FILE" ]; then
-            local stored_pid=$(cat "$Qwen3_PID_FILE")
+        if [ -f "$QWEN3_PID_FILE" ]; then
+            local stored_pid=$(cat "$QWEN3_PID_FILE")
             if [ "$pid" != "$stored_pid" ]; then
                 log_warn "Found orphan Qwen3 process (PID: $pid), killing..."
                 kill -9 "$pid" 2>/dev/null || true
@@ -273,8 +378,40 @@ reap_zombies() {
     done
 }
 
-# Main command dispatcher
+# Main
 case "$1" in
+    preflight)
+        case "$2" in
+            parakeet)
+                preflight_check "parakeet" "$PARAKEET_PORT" "$PARAKEET_MODEL_PATH"
+                ;;
+            qwen3)
+                preflight_check "qwen3" "$QWEN3_PORT" "$QWEN3_MODEL_PATH"
+                ;;
+            all)
+                preflight_check "parakeet" "$PARAKEET_PORT" "$PARAKEET_MODEL_PATH"
+                preflight_check "qwen3" "$QWEN3_PORT" "$QWEN3_MODEL_PATH"
+                ;;
+            *)
+                echo "Usage: $0 preflight <parakeet|qwen3|all>"
+                exit 1
+                ;;
+        esac
+        ;;
+    warmup)
+        case "$2" in
+            parakeet)
+                warmup_sidecar "parakeet" "$PARAKEET_PORT" "$PARAKEET_MODEL_PATH"
+                ;;
+            qwen3)
+                warmup_sidecar "qwen3" "$QWEN3_PORT" "$QWEN3_MODEL_PATH"
+                ;;
+            *)
+                echo "Usage: $0 warmup <parakeet|qwen3>"
+                exit 1
+                ;;
+        esac
+        ;;
     start)
         case "$2" in
             parakeet)
@@ -327,8 +464,8 @@ case "$1" in
         esac
         ;;
     status)
-        status_sidecar "Parakeet" "$PARAKEET_PID_FILE" "$PARAKEET_PORT"
-        status_sidecar "Qwen3" "$Qwen3_PID_FILE" "$Qwen3_PORT"
+        status_sidecar "Parakeet" "$PARAKEET_PID_FILE" "$PARAKEET_PORT" || true
+        status_sidecar "Qwen3" "$QWEN3_PID_FILE" "$QWEN3_PORT" || true
         ;;
     test)
         case "$2" in
@@ -336,7 +473,7 @@ case "$1" in
                 health_check "Parakeet" "$PARAKEET_PORT"
                 ;;
             qwen3)
-                health_check "Qwen3" "$Qwen3_PORT"
+                health_check "Qwen3" "$QWEN3_PORT"
                 ;;
             *)
                 echo "Usage: $0 test <parakeet|qwen3>"
@@ -349,20 +486,24 @@ case "$1" in
         ;;
     *)
         echo "ASR Sidecar Lifecycle Management"
+        echo "Environment: ${ISOLATED_ENV} (isolated from frozen helios-gpu-118)"
         echo ""
         echo "Usage: $0 <command> <target>"
         echo ""
         echo "Commands:"
-        echo "  start <parakeet|qwen3|all>  - Start sidecar(s)"
-        echo "  stop <parakeet|qwen3|all>   - Stop sidecar(s)"
-        echo "  restart <parakeet|qwen3|all> - Restart sidecar(s)"
-        echo "  status                       - Show status of all sidecars"
-        echo "  test <parakeet|qwen3>        - Health check via HTTP"
-        echo "  reap                         - Reap zombie processes"
+        echo "  preflight <parakeet|qwen3|all>  - Run preflight checks"
+        echo "  warmup <parakeet|qwen3>         - Warmup sidecar"
+        echo "  start <parakeet|qwen3|all>      - Start sidecar(s)"
+        echo "  stop <parakeet|qwen3|all>       - Stop sidecar(s)"
+        echo "  restart <parakeet|qwen3|all>    - Restart sidecar(s)"
+        echo "  status                         - Show status"
+        echo "  test <parakeet|qwen3>           - Health check"
+        echo "  reap                           - Reap zombie processes"
         echo ""
         echo "Configuration:"
         echo "  Parakeet: Port ${PARAKEET_PORT}, Model: ${PARAKEET_MODEL_PATH}"
-        echo "  Qwen3:    Port ${Qwen3_PORT}, Model: ${Qwen3_MODEL_PATH}"
+        echo "  Qwen3:    Port ${QWEN3_PORT}, Model: ${QWEN3_MODEL_PATH}"
+        echo "  Isolated env: ${ISOLATED_ENV}"
         exit 1
         ;;
 esac
