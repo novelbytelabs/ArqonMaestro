@@ -1,35 +1,28 @@
 MANIFEST.txt - ASR Model Migration Stage 1
-==========================================
-Commit: 2cc009b
 
-Files Changed:
---------------
-1. maestro/client/src/main/stt/qwen3-asr-dictation-provider.ts
-   - Added fallbackEndpoint to config interface
-   - Added onEndpoint503 callback to config interface
-   - Fixed TypeScript type for onEndpoint503 (using ?? with no-op)
-   - Added runFallbackTranscription() for vLLM 503 recovery
-   
-2. maestro/client/src/main/stt/qwen3_asr_bridge.py
-   - Fixed case-insensitive timeout detection in HTTP error handling
-   - Improved error message matching for connection_refused and timeout
+=== Files Modified ===
+maestro/client/src/main/stream/chunk-manager.ts
+- Added ParakeetCommandFastProvider import
+- Added chunkUseParakeetCommandFast Map for state tracking
+- Added shouldUseParakeetForCurrentChunk() routing method
+- Added handleParakeetFinalize() with endpoint_503 fallback
+- Updated request routing (audio + endpoint) to check Parakeet first
+- Added Parakeet to clear/reset operations
 
-Verification Status:
---------------------
-- All 8 mandatory stable error codes implemented:
-  * empty_audio
-  * audio_format_invalid
-  * model_load_failed
-  * inference_failed
-  * timeout
-  * endpoint_503
-  * connection_refused
-  * json_output_invalid
+=== Files Created (Previously Existing - No Changes Required) ===
+maestro/client/src/main/stt/parakeet_bridge.py
+- Implements --audio, --model-path, --device arguments
+- PCM16 LE, mono, 16kHz, 16-bit audio handling
+- float32 = int16 / 32768.0, clamp [-1, 1]
+- Strict single-line JSON output to stdout
+- Stable error codes: empty_audio, audio_format_invalid, model_load_failed, inference_failed, timeout, endpoint_503, connection_refused, json_output_invalid
 
-- Audio handling: Mono, PCM16 LE, 16 kHz, 16-bit
-- Preprocessing: float32 = int16 / 32768.0, clamp [-1, 1]
-- Output: Strict single-line JSON to stdout
-- Logging: All framework logs to stderr
+maestro/client/src/main/stt/qwen3_asr_bridge.py
+- Implements --audio, --model-path, --mode, --endpoint, --device arguments
+- local mode: uses vllm ASRModel with PCM16 normalization
+- vllm_service mode: uses urllib.request with explicit timeout
+- Targets OpenAI-compatible /v1/audio/transcriptions endpoint
+- Same audio handling and JSON output contracts as parakeet_bridge.py
 
-- No mock/shim HTTP responses - real urllib.request used
-- Network timeouts properly handled and mapped to JSON errors
+=== Commit Hash ===
+ebbcf55a83b25265003c3f635ae7779bd67c2375
