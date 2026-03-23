@@ -185,7 +185,6 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
     Returns:
         Tuple of (transcript, error_code)
     """
-    import base64
     import urllib.request
     import urllib.error
     
@@ -195,28 +194,26 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
     
     # Ensure endpoint has proper scheme
     if not endpoint.startswith(("http://", "https://")):
-        endpoint = f"http://{endpoint}"
+        endpoint = "http://" + endpoint
     
     # Build the full URL for OpenAI-compatible endpoint
     # vLLM uses /v1/audio/transcriptions for Whisper-compatible API
     endpoint_url = endpoint.rstrip("/") + "/v1/audio/transcriptions"
     
-    # Prepare multipart form data
-    # Using urllib to create multipart request
+    # Create multipart form data
     boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
     
-    # Encode audio as base64 for JSON transport (or use multipart)
-    audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
-    
-    # Create JSON payload for the request
-    # vLLM OpenAI-compatible API expects multipart form data
-    body = f"--{boundary}\r\n"
-    body += 'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n'
-    body += "Content-Type: audio/wav\r\n\r\n"
-    body = body.encode("utf-8") + audio_bytes + f"\r\n--{boundary}\r\n".encode("utf-8")
-    body += 'Content-Disposition: form-data; name="model"\r\n\r\n'
-    body += "qwen-asr\r\n".encode("utf-8")
-    body += f"--{boundary}--\r\n".encode("utf-8")
+    # Build body in bytes properly
+    body_parts = []
+    body_parts.append(b"--" + boundary.encode("utf-8") + b"\r\n")
+    body_parts.append(b'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n')
+    body_parts.append(b"Content-Type: audio/wav\r\n\r\n")
+    body_parts.append(audio_bytes)
+    body_parts.append(b"\r\n--" + boundary.encode("utf-8") + b"\r\n")
+    body_parts.append(b'Content-Disposition: form-data; name="model"\r\n\r\n')
+    body_parts.append(b"qwen-asr\r\n")
+    body_parts.append(b"--" + boundary.encode("utf-8") + b"--\r\n")
+    body = b"".join(body_parts)
     
     try:
         # Create request with explicit timeout
@@ -224,7 +221,7 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
             endpoint_url,
             data=body,
             headers={
-                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                "Content-Type": "multipart/form-data; boundary=" + boundary,
                 "Accept": "application/json"
             },
             method="POST"
