@@ -98,3 +98,4 @@ maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.so.*
 # Local audit bundles generated during PM freeze/report workflows
 maestro_integrity_layer_*/
 maestro_pm_reset_bundle_*/
+.codebuddy

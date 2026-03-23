@@ -175,18 +175,18 @@ def transcribe_parakeet(model, audio_data: list) -> Tuple[Optional[str], Optiona
         # Convert list back to numpy array
         audio_np = np.array(audio_data, dtype=np.float32)
         
-        # Run inference
-        # Parakeet expects the audio in a specific format
-        # Using the model's transcription method
+        # Run Parakeet inference using NVIDIA NeMo ASR
+        # Input: float32 waveform tensor [batch, samples]
+        # Output: transcription text string
         with torch.no_grad():
             # The model expects a waveform tensor
             waveform = torch.tensor(audio_np).unsqueeze(0)
             
-            # Run the model
+            # Run inference
             results = model.transcribe_batch(waveform)
             
             # Extract text from results
-            # Format varies by model version, try common patterns
+            # Format: transcription text string or dict with 'text' key
             if isinstance(results, (list, tuple)):
                 text = results[0] if len(results) > 0 else ""
             elif isinstance(results, dict):

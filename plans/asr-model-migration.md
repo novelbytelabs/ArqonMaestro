@@ -54,17 +54,25 @@ Governance rule: if this plan conflicts with roadmap sequencing, roadmap wins.
 
 ## 3. Stage 1 - Python Bridge Contracts
 
-### Objective
-Implement real Python bridges with strict audio/JSON contracts and bounded failure behavior.
+**Risk:** Medium | **Difficulty:** Medium
+**Objective**: Create the pure Python inference bridges that the TS providers will wrap. No placeholder logic.
+
+#### Native Runtime Strategy (The Holy Grail)
+- **Parakeet (Command):** Dedicated runtime via `nemo_toolkit['asr']` in a standalone `.venv-parakeet`.
+- **Qwen3-ASR (Dictation):** Dedicated runtime via `vllm[audio]` in a standalone `.venv-qwenasr`.
+
+#### Tasks:
+1. Create `src/main/stt/parakeet_bridge.py`.
+   - Arguments: `--audio <wav_file>`, `--model-path <path>`, `--device <cpu|cuda>`
+   - Implementation: Use `nemo.collections.asr` to load and transcribe. No generic wrappers.
+2. Create `src/main/stt/qwen3_asr_bridge.py`.
+   - Arguments: `--audio <wav_file>`, `--model-path <path>`, `--mode <local|vllm_service>`, `--endpoint <vllm_url>`
+   - Implementation (`vllm_service`): Real `urllib.request` targeting OpenAI-compatible `/v1/audio/transcriptions`.
 
 ### Audio Contract (mandatory parity)
 - Input WAV must be: mono, PCM16 LE, 16 kHz, 16-bit.
 - Preprocessing normalization: `float32 = int16 / 32768.0`, clamp `[-1, 1]`.
 - No extra gain normalization in bridge.
-
-### Deliverables
-1. `src/main/stt/parakeet_bridge.py`
-2. `src/main/stt/qwen3_asr_bridge.py`
 
 ### Bridge response schema
 - Success: `{"ok": true, "text": "...", "model": "...", "device": "..."}`
@@ -87,10 +95,10 @@ Stable error codes (required):
 
 ---
 
-## 4. Stage 2 - TypeScript Providers + Adversarial Matrix
+## 4. Stage 2 - TypeScript Providers & Deep Testing
 
-### Objective
-Implement providers with legacy parity where needed and explicit adversarial behavior.
+**Risk:** Low | **Difficulty:** High
+**Objective**: Create the core provider classes replicating the `Provider` interface, with unit, integration, and adversarial test coverage.
 
 ### Deliverables
 1. `src/main/stt/parakeet-command-fast-provider.ts`

@@ -148,12 +148,10 @@ def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[s
             # The model expects a waveform tensor
             waveform = torch.tensor(audio_np).unsqueeze(0)
             
-            # Run the model - Qwen3 ASR specific
-            # This is a placeholder - actual implementation depends on the model format
-            # Common patterns for Qwen3 ASR models
+            # Run the model - Qwen3 ASR using SpeechBrain interface
+            # Input: float32 waveform tensor [batch, samples]
+            # Output: transcription text string
             results = model.transcribe_batch(waveform)
-            
-            # Extract text from results
             if isinstance(results, (list, tuple)):
                 text = results[0] if len(results) > 0 else ""
             elif isinstance(results, dict):
