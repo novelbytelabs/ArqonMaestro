@@ -6,6 +6,7 @@
 - Node 20 only (`source ~/.nvm/nvm.sh && nvm use 20`)
 - Python only via `conda run -n helios-gpu-118`
 - No new Rust / Protobuf / Protoc installs
+- **[GOVERNANCE RULE]**: No runtime install scripts may be executed in frozen stages unless PM explicitly declares UNFREEZE.
 
 ---
 

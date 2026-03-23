@@ -1413,4 +1413,6 @@ What's planned:
 * Retain legacy engines as non-default manual fallbacks with parallel `chunk-manager.ts` routing maps
 * Strict Definition of Done (DoD) per stage requiring explicit evidence logs/packs
 
-Current stage: Stage 1 (Python Bridge Strict Contracts) - Ready to begin execution.
+Current stage: Stage 1 (Python Bridge Strict Contracts) - **REJECTED (Governance Violation)**
+- Installation script triggered a frozen environment violation (unverified pip installs that pull rust/protobuf/protoc).
+- Hard-close revoked until dependency path is audited.
