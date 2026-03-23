@@ -2,6 +2,8 @@ import { spawn } from "child_process";
 import { promises as fs } from "fs";
 import { homedir, tmpdir } from "os";
 import path from "path";
+import http from "http";
+import https from "https";
 import Log from "../log";
 
 export interface ParakeetCommandFastProviderConfig {
@@ -12,12 +14,35 @@ export interface ParakeetCommandFastProviderConfig {
   device?: "cpu" | "cuda";
   timeoutMs?: number;
   initialPrompt?: string;
+  // Sidecar mode config
+  mode?: "local" | "sidecar";
+  sidecarUrl?: string;
 }
 
 export interface ParakeetTranscriptionInput {
   chunkId: string;
   pcm16leAudio: Buffer;
   sampleRateHz: number;
+}
+
+// Sidecar contract: HTTP request JSON
+interface ParakeetSidecarRequest {
+  audio_b64: string;
+  sample_rate_hz: number;
+  chunk_id: string;
+  model_path?: string;
+  device?: string;
+  initial_prompt?: string;
+}
+
+// Sidecar contract: HTTP response JSON
+interface ParakeetSidecarResponse {
+  ok: boolean;
+  text?: string;
+  model?: string;
+  device?: string;
+  error?: string;
+  retryable?: boolean;
 }
 
 export interface ParakeetTranscriptionResult {
@@ -54,6 +79,12 @@ interface ParakeetCommandFastProviderDeps {
     args: string[],
     timeoutMs: number
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  // Sidecar HTTP client
+  postSidecarJson: (
+    urlString: string,
+    body: ParakeetSidecarRequest,
+    timeoutMs: number
+  ) => Promise<ParakeetSidecarResponse>;
 }
 
 function resolveHomePath(value: string): string {
@@ -123,6 +154,9 @@ export default class ParakeetCommandFastProvider {
       device: config.device || (process.env.MAESTRO_PARAKEET_DEVICE as "cpu" | "cuda") || "cuda",
       timeoutMs: config.timeoutMs || 5000,
       initialPrompt: config.initialPrompt || DEFAULT_PROMPT,
+      // Sidecar mode config
+      mode: config.mode || (process.env.MAESTRO_PARAKEET_MODE as "local" | "sidecar") || "local",
+      sidecarUrl: config.sidecarUrl || process.env.MAESTRO_PARAKEET_SIDECAR_URL || "",
     };
 
     this.deps = {
@@ -132,6 +166,8 @@ export default class ParakeetCommandFastProvider {
       rm: (targetPath) => fs.rm(targetPath, { recursive: true, force: true }),
       runBridge: (pythonPath, bridgeScriptPath, args, timeoutMs) =>
         this.defaultRunBridge(pythonPath, bridgeScriptPath, args, timeoutMs),
+      postSidecarJson: (urlString, body, timeoutMs) =>
+        this.defaultPostSidecarJson(urlString, body, timeoutMs),
       ...deps,
     };
 
@@ -245,6 +281,69 @@ export default class ParakeetCommandFastProvider {
     });
   }
 
+  /**
+   * Default sidecar HTTP client (POST JSON).
+   * Used when mode is "sidecar" and routes to HTTP proxy port.
+   */
+  private defaultPostSidecarJson(
+    urlString: string,
+    body: ParakeetSidecarRequest,
+    timeoutMs: number
+  ): Promise<ParakeetSidecarResponse> {
+    return new Promise<ParakeetSidecarResponse>((resolve, reject) => {
+      const parsedUrl = new URL(urlString);
+      const client = parsedUrl.protocol === "https:" ? https : http;
+      const payload = JSON.stringify(body);
+      const headers = {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+      };
+
+      const req = client.request(
+        {
+          protocol: parsedUrl.protocol,
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port,
+          path: parsedUrl.pathname + parsedUrl.search,
+          method: "POST",
+          headers,
+        },
+        (res) => {
+          let responseBody = "";
+          res.setEncoding("utf8");
+          res.on("data", (chunk) => {
+            responseBody += chunk;
+          });
+          res.on("end", () => {
+            const statusCode = res.statusCode || 0;
+            // HTTP errors -> sidecar_unavailable (retryable for 5xx)
+            if (statusCode >= 500) {
+              reject(new Error(`sidecar_http_${statusCode}: retryable`));
+              return;
+            }
+            if (statusCode < 200 || statusCode >= 300) {
+              reject(new Error(`sidecar_http_${statusCode}: ${responseBody.slice(0, 200)}`));
+              return;
+            }
+
+            try {
+              resolve(responseBody ? JSON.parse(responseBody) : { ok: false, error: "empty_response" });
+            } catch (e: any) {
+              reject(new Error(`sidecar_invalid_json: ${e.message}`));
+            }
+          });
+        }
+      );
+
+      req.setTimeout(timeoutMs, () => {
+        req.destroy(new Error("sidecar_timeout"));
+      });
+      req.on("error", (err) => reject(err));
+      req.write(payload);
+      req.end();
+    });
+  }
+
   private parseBridgeResponse(stdout: string): BridgeResponse {
     let parsed: unknown;
     try {
@@ -292,6 +391,18 @@ export default class ParakeetCommandFastProvider {
       throw new Error("parakeet_empty_audio");
     }
 
+    // Route based on mode: "local" spawns Python bridge, "sidecar" calls HTTP proxy
+    if (this.config.mode === "sidecar" && this.config.sidecarUrl) {
+      return this.transcribeCommandSidecar(input);
+    }
+
+    return this.transcribeCommandLocal(input);
+  }
+
+  /**
+   * Local mode: spawn Python bridge process (existing path).
+   */
+  private async transcribeCommandLocal(input: ParakeetTranscriptionInput): Promise<ParakeetTranscriptionResult> {
     const start = Date.now();
     const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-parakeet-"));
     const inputWavPath = path.join(tempDir, `${input.chunkId}.wav`);
@@ -349,6 +460,60 @@ export default class ParakeetCommandFastProvider {
       };
     } finally {
       await this.deps.rm(tempDir);
+    }
+  }
+
+  /**
+   * Sidecar mode: POST to HTTP proxy endpoint.
+   * Falls back to local mode on sidecar failure (replay buffered audio).
+   */
+  private async transcribeCommandSidecar(input: ParakeetTranscriptionInput): Promise<ParakeetTranscriptionResult> {
+    const start = Date.now();
+
+    try {
+      const requestBody: ParakeetSidecarRequest = {
+        audio_b64: input.pcm16leAudio.toString("base64"),
+        sample_rate_hz: input.sampleRateHz,
+        chunk_id: input.chunkId,
+        model_path: this.config.modelPath,
+        device: this.config.device,
+        initial_prompt: this.config.initialPrompt,
+      };
+
+      const response = await this.deps.postSidecarJson(
+        this.config.sidecarUrl,
+        requestBody,
+        this.config.timeoutMs
+      );
+
+      if (!response.ok) {
+        const error = response.error || "sidecar_error";
+        // Sidecar failure -> try local fallback
+        this.log?.logVerbose(`[ParakeetCommandFastProvider] sidecar failed: ${error}, falling back to local`);
+        return this.transcribeCommandLocal(input);
+      }
+
+      const text = response.text?.trim() || "";
+      if (!text) {
+        throw new Error("parakeet_empty_transcript");
+      }
+
+      return {
+        transcript: text,
+        model: response.model || this.config.modelPath,
+        device: response.device || this.config.device,
+        latencyMs: Date.now() - start,
+        provider: "parakeet",
+      };
+    } catch (error) {
+      // Re-throw empty transcript - it's a provider error, not a fallback case
+      if (error instanceof Error && error.message === "parakeet_empty_transcript") {
+        throw error;
+      }
+      // Network/timeout errors -> fallback to local (replay buffered audio)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.log?.logVerbose(`[ParakeetCommandFastProvider] sidecar error: ${errorMessage}, falling back to local`);
+      return this.transcribeCommandLocal(input);
     }
   }
 

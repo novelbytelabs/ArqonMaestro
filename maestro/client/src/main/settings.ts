@@ -1032,4 +1032,49 @@ export default class Settings {
   setArqonTtsKokoroStreamingEnabled(enabled: boolean) {
     this.set("system", "arqon_tts_kokoro_streaming_enabled", enabled);
   }
+
+  // ====== Sidecar ASR Configuration ======
+  // Parakeet command lane sidecar endpoint (HTTP proxy)
+  getArqonAsrParakeetCommandUrl(): string {
+    return this.get("system", "arqon_asr_parakeet_command_url", "http://127.0.0.1:7782");
+  }
+
+  setArqonAsrParakeetCommandUrl(url: string) {
+    this.set("system", "arqon_asr_parakeet_command_url", url);
+  }
+
+  // Qwen3 dictation lane sidecar endpoint (HTTP proxy)
+  getArqonAsrQwen3DictationUrl(): string {
+    return this.get("system", "arqon_asr_qwen3_dictation_url", "http://127.0.0.1:7783");
+  }
+
+  setArqonAsrQwen3DictationUrl(url: string) {
+    this.set("system", "arqon_asr_qwen3_dictation_url", url);
+  }
+
+  // Sidecar ASR timeout (ms)
+  getArqonAsrSidecarTimeoutMs(): number {
+    return this.get("system", "arqon_asr_sidecar_timeout_ms", 5000);
+  }
+
+  setArqonAsrSidecarTimeoutMs(timeout: number) {
+    this.set("system", "arqon_asr_sidecar_timeout_ms", timeout);
+  }
+
+  // Sidecar ASR mode: "local" (spawn Python bridge) or "sidecar" (HTTP proxy)
+  getArqonAsrParakeetMode(): "local" | "sidecar" {
+    return this.get("system", "arqon_asr_parakeet_mode", "local");
+  }
+
+  setArqonAsrParakeetMode(mode: "local" | "sidecar") {
+    this.set("system", "arqon_asr_parakeet_mode", mode);
+  }
+
+  getArqonAsrQwen3Mode(): "local" | "sidecar" {
+    return this.get("system", "arqon_asr_qwen3_mode", "local");
+  }
+
+  setArqonAsrQwen3Mode(mode: "local" | "sidecar") {
+    this.set("system", "arqon_asr_qwen3_mode", mode);
+  }
 }

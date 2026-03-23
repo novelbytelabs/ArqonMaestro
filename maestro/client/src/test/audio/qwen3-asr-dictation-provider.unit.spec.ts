@@ -447,4 +447,324 @@ describe("Qwen3ASRDictationProvider", () => {
       expect(provider.getLoadError()).toBe("provider_disabled");
     });
   });
+
+  // ====== Stage 2A: Sidecar Contract Tests ======
+  describe("Sidecar mode routing", () => {
+    const SIDECAR_CONFIG = {
+      enabled: true,
+      pythonPath: "/usr/bin/python3",
+      bridgeScriptPath: "/fake/path/qwen3_asr_bridge.py",
+      modelPath: "/fake/path/model",
+      device: "cuda" as const,
+      mode: "vllm_service" as const,
+      vllmEndpoint: "http://localhost:8000",
+      sidecarMode: "sidecar" as const,
+      sidecarUrl: "http://127.0.0.1:7783/transcribe",
+      timeoutMs: 30000,
+      language: "en",
+    };
+
+    describe("sidecar mode routing decision", () => {
+      it("should route to sidecar when sidecarMode is 'sidecar' and url is configured", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn(),
+          postSidecarJson: jest.fn().mockResolvedValue({
+            ok: true,
+            text: "sidecar dictation",
+            model: "qwen3-sidecar",
+            device: "cuda",
+          }),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        const result = await provider.transcribeDictation({
+          chunkId: "test-sidecar",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(result.text).toBe("sidecar dictation");
+        expect(result.provider).toBe("qwen3-asr");
+      });
+
+      it("should route to local when sidecarMode is 'local' (default)", async () => {
+        const LOCAL_CONFIG = {
+          enabled: true,
+          pythonPath: "/usr/bin/python3",
+          bridgeScriptPath: "/fake/path/qwen3_asr_bridge.py",
+          modelPath: "/fake/path/model",
+          device: "cuda" as const,
+          mode: "vllm_service" as const,
+          vllmEndpoint: "http://localhost:8000",
+          sidecarMode: "local" as const,
+          timeoutMs: 30000,
+          language: "en",
+        };
+
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn().mockResolvedValue({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              ok: true,
+              text: "local dictation",
+              model: "qwen3-local",
+              device: "cuda",
+            }),
+            stderr: "",
+          }),
+          postSidecarJson: jest.fn(),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          LOCAL_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        const result = await provider.transcribeDictation({
+          chunkId: "test-local",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        expect(mockDeps.runBridge).toHaveBeenCalled();
+        expect(mockDeps.postSidecarJson).not.toHaveBeenCalled();
+        expect(result.text).toBe("local dictation");
+      });
+    });
+
+    describe("sidecar failure → local fallback (replay)", () => {
+      it("should fallback to local when sidecar returns ok:false", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn().mockResolvedValue({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              ok: true,
+              text: "fallback dictation",
+              model: "qwen3-local",
+              device: "cuda",
+            }),
+            stderr: "",
+          }),
+          postSidecarJson: jest.fn().mockResolvedValue({
+            ok: false,
+            error: "sidecar_unavailable",
+            retryable: true,
+          }),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        const result = await provider.transcribeDictation({
+          chunkId: "test-fallback",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        expect(mockDeps.runBridge).toHaveBeenCalled();
+        expect(result.text).toBe("fallback dictation");
+      });
+
+      it("should fallback to local when sidecar throws network error", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn().mockResolvedValue({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              ok: true,
+              text: "fallback dictation",
+              model: "qwen3-local",
+              device: "cuda",
+            }),
+            stderr: "",
+          }),
+          postSidecarJson: jest.fn().mockRejectedValue(new Error("connection_refused")),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        const result = await provider.transcribeDictation({
+          chunkId: "test-fallback-error",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        expect(mockDeps.runBridge).toHaveBeenCalled();
+        expect(result.text).toBe("fallback dictation");
+      });
+
+      it("should fallback to local when sidecar returns HTTP 503", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn().mockResolvedValue({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              ok: true,
+              text: "fallback dictation",
+              model: "qwen3-local",
+              device: "cuda",
+            }),
+            stderr: "",
+          }),
+          postSidecarJson: jest.fn().mockRejectedValue(new Error("sidecar_http_503: retryable")),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        const result = await provider.transcribeDictation({
+          chunkId: "test-fallback-503",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        expect(mockDeps.runBridge).toHaveBeenCalled();
+        expect(result.text).toBe("fallback dictation");
+      });
+    });
+
+
+    describe("sidecar contract parsing", () => {
+      it("should parse valid sidecar JSON response", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn(),
+          postSidecarJson: jest.fn().mockResolvedValue({
+            ok: true,
+            text: "parsed dictation",
+            model: "qwen3-asr-sidecar",
+            device: "cuda",
+          }),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        const result = await provider.transcribeDictation({
+          chunkId: "test-parse",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        expect(result.text).toBe("parsed dictation");
+        expect(result.model).toBe("qwen3-asr-sidecar");
+        expect(result.device).toBe("cuda");
+      });
+
+      it("should throw for empty sidecar transcript", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn().mockResolvedValue({
+            exitCode: 0,
+            stdout: JSON.stringify({ ok: true, text: "unused", model: "q", device: "cuda" }),
+            stderr: "",
+          }),
+          postSidecarJson: jest.fn().mockResolvedValue({
+            ok: true,
+            text: "",
+            model: "qwen3-asr",
+            device: "cuda",
+          }),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        await expect(
+          provider.transcribeDictation({
+            chunkId: "test-empty",
+            pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+            sampleRateHz: 16000,
+          })
+        ).rejects.toThrow("qwen3_empty_transcript");
+      });
+    });
+
+    describe("vLLM 503 dictation handling", () => {
+      it("should classify endpoint_503 as retryable for fallback", async () => {
+        const mockDeps = {
+          fileExists: () => true,
+          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
+          writeFile: jest.fn().mockResolvedValue(undefined),
+          rm: jest.fn().mockResolvedValue(undefined),
+          runBridge: jest.fn().mockResolvedValue({
+            exitCode: 0,
+            stdout: JSON.stringify({
+              ok: false,
+              error: "endpoint_503",
+              retryable: true,
+            }),
+            stderr: "",
+          }),
+          postSidecarJson: jest.fn(),
+        };
+
+        const provider = new Qwen3ASRDictationProvider(
+          SIDECAR_CONFIG,
+          undefined,
+          mockDeps
+        );
+
+        // In local mode, endpoint_503 should trigger fallback
+        await expect(
+          provider.transcribeDictation({
+            chunkId: "test-503",
+            pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+            sampleRateHz: 16000,
+          })
+        ).rejects.toThrow("qwen3_endpoint_503:");
+      });
+    });
+  });
 });

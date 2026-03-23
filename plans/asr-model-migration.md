@@ -96,119 +96,39 @@ Stable error codes (required):
 
 ---
 
-## 4. Stage 2 - TypeScript Providers & Deep Testing
+## 4. Stage 2 - Process-Isolated ASR Rollout
 
-**Risk:** Low | **Difficulty:** High
-**Objective**: Create the core provider classes replicating the `Provider` interface, with unit, integration, and adversarial test coverage.
+**Risk:** High | **Difficulty:** High
+**Objective**: Replace in-env provider integration with a process-isolated sidecar architecture to resolve protobuf/dependency conflicts.
 
-### Deliverables
-1. `src/main/stt/parakeet-command-fast-provider.ts`
-2. `src/main/stt/qwen3-asr-dictation-provider.ts`
-3. Tests:
-   - `src/test/audio/parakeet-command-fast-provider.unit.spec.ts`
-   - `src/test/audio/qwen3-asr-dictation-provider.unit.spec.ts`
+### Stage 2A: Service Contracts + Bridge Routing
+- Define `Provider` interface adjustments to target isolated sidecar ports instead of local `exec()` Python calls.
+- Implement `ParakeetCommandFastProvider` targeting Parakeet sidecar proxy.
+- Implement `Qwen3AsrDictationProvider` targeting Qwen3 sidecar proxy.
+- **Performance constraints (Hot-path):**
+  - No hot-path temp files (in-memory PCM16 payloads end-to-end).
+  - Persistent connections (UDS preferred or long-lived localhost, no per-chunk reconnects).
+  - Early partials support (Command lane must support low-latency partial transcripts).
+  - Latency Guardrails: explicit p50/p95 metric tracking for end-to-first-text and end-to-final.
+- Unit testing with strict JSON mocking.
 
-### Legacy parity requirements
-- Command lane: preserve biasing behavior equivalent to whisper command prompt/language assumptions.
-- Dictation lane: preserve explicit timeout/device/model/language configurability.
+### Stage 2B: Installer/Bootstrap for Sidecar Runtimes
+- Create installation and orchestration scripts for the sidecars outside of `helios-gpu-118`.
+- Define lifecycle management (start, stop, port binding, zombie process reaping).
+- **Architecture constraint:** Sidecar must be persistent (models preloaded). No per-request model loading.
+- Ensure models download to isolated storage paths.
 
-### Failure Matrix (mandatory)
-- Invalid python path -> provider unavailable error -> fallback path -> listening remains active.
-- Exit code 1 / malformed JSON -> mapped structured failure -> fallback path.
-- 0-byte audio -> no bridge spawn; short-circuit.
-- Timeout -> failure metric + fallback.
-- **vLLM 503 during 30s dictation finalize** -> `endpoint_503`, replay buffered audio to endpoint, finalize once.
+### Stage 2C: Health Checks, Retry/Fallback UX, Watchdog Policy Gates
+- Implement heartbeat and health-check pooling for sidecars.
+- Failure Matrix (mandatory): 
+  - Subprocess crash -> structured failure -> fallback path.
+  - vLLM 503 -> `endpoint_503` recovery, replay buffered audio, finalize. 
+- UI recovery: Keep chunk routing intact, do not auto-stop listening.
 
-### UI Recovery for 503
-- Do not auto-stop listening.
-- Keep chunk/session flow intact.
-- Optional transient status if recovery exceeds 1500ms.
-
-### Stage 2 DoD
-- Jest target passes for parakeet/qwen3 provider tests.
-- All matrix scenarios have explicit assertions.
-
----
-
-## 5. Stage 3 - Settings + Chunk Routing
-
-### Objective
-Integrate new engines without breaking existing whisper/faster-whisper lanes.
-
-### System keys (use Arqon-prefixed naming)
-- `arqon_asr_command_fast_engine`: `parakeet | whisper`
-- `arqon_asr_dictation_engine`: `qwen3_asr | faster_whisper`
-- `arqon_asr_parakeet_python_path`
-- `arqon_asr_parakeet_model_path`
-- `arqon_asr_parakeet_device`
-- `arqon_asr_qwen3_python_path`
-- `arqon_asr_qwen3_model_path`
-- `arqon_asr_qwen3_mode`: `local | vllm_service`
-- `arqon_asr_qwen3_vllm_endpoint`
-- `arqon_asr_qwen3_timeout_ms`
-
-### Required settings plumbing
-If user/manual control is expected, wire both:
-- `events.ts` `setSettings` handlers
-- `app.ts` `sendAllSettings` state exposure
-
-### Required lifecycle hook coverage in `chunk-manager.ts`
-Any new map strategy must update all of:
-1. map/set declarations
-2. `send()` audio suppression branch
-3. `send()` endpoint finalize branch
-4. finalize handlers
-5. `onCommandsResponse(final)` cleanup
-6. `onChunkStart()` setup
-7. `resetListeningBuffers()` teardown
-
-### Mandatory fallback correction
-Command lane local failure must replay buffered audio before endpoint finalize, matching dictation fallback semantics.
-
-### Telemetry hierarchy (tracking.ts)
-- `stt.command_fast.parakeet.success`
-- `stt.command_fast.parakeet.failure`
-- `stt.command_fast.parakeet.timeout`
-- `stt.dictation.qwen3_asr.success`
-- `stt.dictation.qwen3_asr.failure`
-- `stt.dictation.qwen3_asr.endpoint_503`
-
-Payload fields:
-- `chunk_id`, `latency_ms`, `transcript_chars`, `model`, `device`, `mode`, `reason`, `fallback`
-
-### Stage 3 DoD
-- Engine selection works deterministically per chunk.
-- Legacy engine routing unchanged when selected.
-- No chunk state leaks across stop/start/reset.
-
----
-
-## 6. Stage 4 - Regression, Evidence, Hard-Close
-
-### Objective
-Produce hard-close proof pack in frozen environment.
-
-### Required test matrix
-1. command/parakeet success
-2. command/parakeet forced failure -> endpoint fallback with replay
-3. dictation/qwen3 local success
-4. dictation/qwen3 vLLM 503 -> endpoint fallback with replay
-5. legacy whisper command path intact
-6. legacy faster-whisper dictation path intact
-7. stop/start listening resets state safely
-
-### Evidence script
-Create `generate_asr_migration_evidence.sh` that:
-- enforces Node 20
-- runs targeted lint/test commands
-- emits machine-readable pass/fail summary
-
-### Required artifacts
-- `TEST_RESULTS.txt`
-- `REGRESSION_NOTES.txt`
-- `PRODUCTION_PATH.txt`
-- `IMPLEMENTATION_NOTES.txt`
-- `MANIFEST.txt` (commit hash + freeze-state declaration)
+### Stage 2D: Regression + Hard-Close Evidence
+- End-to-end regression matrix (Command success/failure, Dictation success/failure, Legacy tests).
+- Generate execution evidence summary.
+- Produce `asr_migration_hard_close_pack.zip`.
 
 ---
 
