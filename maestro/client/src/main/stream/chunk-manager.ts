@@ -29,6 +29,7 @@ import TranscriptResponseObserver from "../runtime/transcript-response-observer"
 import { phase3ABenchmarkService } from "../runtime/phase3a-benchmark-service";
 import { TurnEvent } from "../audio/turn-events";
 import WhisperCommandFastProvider from "../stt/whisper-command-fast-provider";
+import ParakeetCommandFastProvider from "../stt/parakeet-command-fast-provider";
 import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-provider";
 
 interface Request {
@@ -77,10 +78,12 @@ export default class ChunkManager {
   private sttShadowPublisher: STTShadowPublisher;
   private transcriptResponseObserver: TranscriptResponseObserver;
   private whisperCommandFastProvider: WhisperCommandFastProvider;
+  private parakeetCommandFastProvider: ParakeetCommandFastProvider;
   private fasterWhisperDictationProvider: FasterWhisperDictationProvider;
   private chunkAudioFrames = new Map<string, Buffer[]>();
   private chunkUseWhisperCommandFast = new Map<string, boolean>();
   private chunkUseFasterWhisperDictation = new Map<string, boolean>();
+  private chunkUseParakeetCommandFast = new Map<string, boolean>();
   private chunkFinalizationRequested = new Set<string>();
   private chunkTranscriptionInFlight = new Set<string>();
   private loggedWhisperUnavailable = false;
@@ -161,6 +164,7 @@ export default class ChunkManager {
       tracking,
     });
     this.whisperCommandFastProvider = new WhisperCommandFastProvider({}, log);
+    this.parakeetCommandFastProvider = new ParakeetCommandFastProvider({}, log);
     this.fasterWhisperDictationProvider = new FasterWhisperDictationProvider({}, log);
   }
 
@@ -310,6 +314,10 @@ export default class ChunkManager {
       await this.stream.sendInitializeRequest();
       await this.stopBufferingAndFlush();
     } else if (request.requestType == "audio") {
+      // Parakeet takes precedence over whisper for command lane
+      if (request.chunkId && this.chunkUseParakeetCommandFast.get(request.chunkId)) {
+        return;
+      }
       if (request.chunkId && this.chunkUseWhisperCommandFast.get(request.chunkId)) {
         return;
       }
@@ -320,6 +328,17 @@ export default class ChunkManager {
     } else if (request.requestType == "editor") {
       await this.stream.sendEditorStateRequest();
     } else if (request.requestType == "endpoint") {
+      // Parakeet takes precedence over whisper for command lane
+      if (request.chunkId && this.chunkUseParakeetCommandFast.get(request.chunkId)) {
+        if (request.finalize) {
+          const handled = await this.handleParakeetFinalize(request.chunkId);
+          // Parakeet fallback to whisper doesn't stop listening - continue with normal flow
+          if (!handled) {
+            await this.stream.sendEndpointRequest(request.chunkId, request.finalize!);
+          }
+        }
+        return;
+      }
       if (request.chunkId && this.chunkUseWhisperCommandFast.get(request.chunkId)) {
         if (request.finalize) {
           const handled = await this.handleWhisperFinalize(request.chunkId);
@@ -352,6 +371,22 @@ export default class ChunkManager {
         this.loggedWhisperUnavailable = true;
         this.whisperCommandFastProvider.logUnavailableOnce();
       }
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Check if Parakeet is available for command lane.
+   * Parakeet takes precedence over whisper.cpp when available.
+   */
+  private shouldUseParakeetForCurrentChunk(): boolean {
+    if (this.active.dictateMode) {
+      return false;
+    }
+
+    if (!this.parakeetCommandFastProvider.isReady()) {
       return false;
     }
 
@@ -465,6 +500,104 @@ export default class ChunkManager {
         reason,
       });
       return false;
+    } finally {
+      this.chunkAudioFrames.delete(chunkId);
+      this.chunkUseWhisperCommandFast.delete(chunkId);
+      this.chunkFinalizationRequested.delete(chunkId);
+      this.chunkTranscriptionInFlight.delete(chunkId);
+    }
+  }
+
+  /**
+   * Handle command finalize using Parakeet (takes precedence over whisper).
+   * Catches endpoint_503 and falls back to whisper without stopping listening.
+   */
+  private async handleParakeetFinalize(chunkId: string): Promise<boolean> {
+    if (this.chunkTranscriptionInFlight.has(chunkId)) {
+      this.log.logVerbose(`[Chunk] parakeet finalize deduped while in-flight for ${chunkId}`);
+      return true;
+    }
+
+    const frames = this.chunkAudioFrames.get(chunkId) || [];
+    const audio = frames.length > 0 ? Buffer.concat(frames) : Buffer.alloc(0);
+    if (audio.length === 0) {
+      this.log.logVerbose(
+        `[Chunk] parakeet finalize skipped for ${chunkId}: empty audio`
+      );
+      return false;
+    }
+
+    this.chunkTranscriptionInFlight.add(chunkId);
+    try {
+      const result = await this.parakeetCommandFastProvider.transcribeCommand({
+        chunkId,
+        pcm16leAudio: audio,
+        sampleRateHz: 16000,
+      });
+
+
+      this.log.logVerbose(
+        `[Chunk] parakeet transcript ${chunkId}: "${result.transcript}" (${result.latencyMs}ms)`
+      );
+      this.tracking.logParakeetSuccess({
+        chunk_id: chunkId,
+        latency_ms: result.latencyMs,
+        text_length: result.transcript.length,
+      });
+      phase3ABenchmarkService.recordLaneSample({
+        lane: "command_fast",
+        provider: `parakeet/${result.model}/${result.device}`,
+        success: true,
+        latencyMs: result.latencyMs,
+      });
+
+      this.sttShadowPublisher.onTranscriptObserved(
+        result.transcript,
+        true,
+        chunkId,
+        [
+          {
+            transcript: result.transcript,
+            rank: 0,
+            score: 1,
+            is_final: true,
+          },
+        ],
+        result.latencyMs,
+        0.3,
+        `parakeet/${result.model}/${result.device}`
+      );
+
+      await this.stream.sendTextRequest(result.transcript, true);
+      return true;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // Check for endpoint_503 - trigger fallback to whisper without stopping listening
+      if (errorMsg.includes("endpoint_503") || errorMsg.includes("503")) {
+        this.log.logVerbose(
+          `[Chunk] parakeet endpoint_503 for ${chunkId}; falling back to whisper without stopping listening`
+        );
+        this.tracking.logVLLM503Recovery({
+          chunk_id: chunkId,
+          recovery_success: false,  // Will retry with fallback
+          fallback_used: true,
+        });
+        // Don't stop listening - just fall through to whisper
+      } else {
+        this.log.logVerbose(
+          `[Chunk] parakeet failed for ${chunkId}; falling back to whisper: ${errorMsg}`
+        );
+        this.tracking.logParakeetFailure({
+          chunk_id: chunkId,
+          error_code: errorMsg,
+          retryable: errorMsg.includes("timeout") || errorMsg.includes("503"),
+        });
+      }
+      
+      // Fallback to whisper (UI stays active)
+      const whisperHandled = await this.handleWhisperFinalize(chunkId);
+      return whisperHandled;
     } finally {
       this.chunkAudioFrames.delete(chunkId);
       this.chunkUseWhisperCommandFast.delete(chunkId);
@@ -720,6 +853,7 @@ export default class ChunkManager {
     if (response.final) {
       this.chunkAudioFrames.delete(chunk.id);
       this.chunkUseWhisperCommandFast.delete(chunk.id);
+      this.chunkUseParakeetCommandFast.delete(chunk.id);
       this.chunkUseFasterWhisperDictation.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
       this.chunkTranscriptionInFlight.delete(chunk.id);
@@ -859,8 +993,10 @@ export default class ChunkManager {
     // Reset audio sequence number for new chunk
     this.audioSequenceNumber = 0;
     const useWhisperCommandFast = this.shouldUseWhisperForCurrentChunk();
+    const useParakeetCommandFast = this.shouldUseParakeetForCurrentChunk();
     const useFasterWhisperDictation = this.shouldUseFasterWhisperForCurrentChunk();
     this.chunkUseWhisperCommandFast.set(id, useWhisperCommandFast);
+    this.chunkUseParakeetCommandFast.set(id, useParakeetCommandFast);
     this.chunkUseFasterWhisperDictation.set(id, useFasterWhisperDictation);
     this.chunkAudioFrames.set(
       id,
@@ -916,6 +1052,7 @@ export default class ChunkManager {
     this.lastTurnEventPartialRequestAt = 0;
     this.chunkAudioFrames.clear();
     this.chunkUseWhisperCommandFast.clear();
+    this.chunkUseParakeetCommandFast.clear();
     this.chunkUseFasterWhisperDictation.clear();
     this.chunkFinalizationRequested.clear();
     this.chunkTranscriptionInFlight.clear();
