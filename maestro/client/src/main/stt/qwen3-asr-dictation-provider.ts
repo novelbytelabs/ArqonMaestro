@@ -12,8 +12,10 @@ export interface Qwen3ASRDictationProviderConfig {
   device?: "cpu" | "cuda";
   mode?: "local" | "vllm_service";
   vllmEndpoint?: string;
+  fallbackEndpoint?: string;
   timeoutMs?: number;
   language?: string;
+  onEndpoint503?: (bufferedAudio: Buffer, sampleRateHz: number, chunkId: string) => Promise<Qwen3TranscriptionResult | null>;
 }
 
 export interface Qwen3TranscriptionInput {
@@ -123,8 +125,10 @@ export default class Qwen3ASRDictationProvider {
       device: config.device || (process.env.MAESTRO_QWEN3_DEVICE as "cpu" | "cuda") || "cuda",
       mode: config.mode || (process.env.MAESTRO_QWEN3_MODE as "local" | "vllm_service") || "local",
       vllmEndpoint: config.vllmEndpoint || process.env.MAESTRO_QWEN3_VLLM_ENDPOINT || "",
+      fallbackEndpoint: config.fallbackEndpoint || process.env.MAESTRO_QWEN3_FALLBACK_ENDPOINT || "",
       timeoutMs: config.timeoutMs || 30000,
       language: config.language || process.env.MAESTRO_QWEN3_LANGUAGE || "en",
+      onEndpoint503: config.onEndpoint503 ?? (async () => null),
     };
 
     this.deps = {
@@ -357,7 +361,7 @@ export default class Qwen3ASRDictationProvider {
       const parsed = this.parseBridgeResponse(result.stdout.trim());
       if (!parsed.ok) {
         // Map bridge errors to provider errors
-        // vLLM 503 must be trapped specifically for replay
+        // vLLM 503 must be trapped specifically for replay to fallback endpoint
         const errorMap: Record<string, Qwen3FailureReason> = {
           empty_audio: "empty_audio",
           audio_format_invalid: "audio_format_invalid",
@@ -369,6 +373,26 @@ export default class Qwen3ASRDictationProvider {
           json_output_invalid: "json_parse_failed",
         };
         const reason = errorMap[parsed.error] || "inference_failed";
+        
+        // Handle vLLM 503: attempt replay to fallback endpoint
+        if (parsed.error === "endpoint_503" && this.config.fallbackEndpoint) {
+          this.log?.logVerbose(`[Qwen3ASRDictationProvider] vLLM 503, attempting fallback to ${this.config.fallbackEndpoint}`);
+          try {
+            const fallbackResult = await this.runFallbackTranscription(
+              input.pcm16leAudio,
+              input.sampleRateHz,
+              input.chunkId
+            );
+            if (fallbackResult) {
+              this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback succeeded`);
+              return fallbackResult;
+            }
+          } catch (fallbackError) {
+            this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback failed: ${fallbackError}`);
+            // Fall through to throw original error
+          }
+        }
+        
         throw new Error(`qwen3_${reason}:${parsed.error}`);
       }
 
@@ -391,5 +415,72 @@ export default class Qwen3ASRDictationProvider {
     this.log?.logVerbose(
       `[Qwen3ASRDictationProvider] unavailable: ${this.loadError || "not_ready"}`
     );
+  }
+
+  /**
+   * Run transcription to fallback endpoint when primary vLLM returns 503.
+   * Replays buffered audio to fallback endpoint and finalizes exactly once.
+   */
+  private async runFallbackTranscription(
+    pcm16leAudio: Buffer,
+    sampleRateHz: number,
+    chunkId: string
+  ): Promise<Qwen3TranscriptionResult | null> {
+    if (!this.config.fallbackEndpoint) {
+      return null;
+    }
+
+    const start = Date.now();
+    const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-qwen3-fallback-"));
+    const inputWavPath = path.join(tempDir, `${chunkId}.wav`);
+
+    try {
+      const wavBuffer = this.buildWavFile(pcm16leAudio, sampleRateHz);
+      await this.deps.writeFile(inputWavPath, wavBuffer);
+
+      const args = [
+        "--audio",
+        inputWavPath,
+        "--model-path",
+        this.config.modelPath,
+        "--mode",
+        "vllm_service",
+        "--endpoint",
+        this.config.fallbackEndpoint,
+        "--device",
+        this.config.device,
+      ];
+
+      const result = await this.deps.runBridge(
+        this.config.pythonPath,
+        this.config.bridgeScriptPath,
+        args,
+        this.config.timeoutMs
+      );
+
+      if (result.exitCode !== 0) {
+        this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback exit code: ${result.exitCode}`);
+        return null;
+      }
+
+      const parsed = this.parseBridgeResponse(result.stdout.trim());
+      if (!parsed.ok) {
+        this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback error: ${parsed.error}`);
+        return null;
+      }
+
+      return {
+        text: parsed.text,
+        model: parsed.model,
+        device: parsed.device,
+        latencyMs: Date.now() - start,
+        provider: "qwen3-asr",
+      };
+    } catch (error) {
+      this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback exception: ${error}`);
+      return null;
+    } finally {
+      await this.deps.rm(tempDir);
+    }
   }
 }

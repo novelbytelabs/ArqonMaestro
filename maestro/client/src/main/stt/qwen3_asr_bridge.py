@@ -257,10 +257,17 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
     except urllib.error.URLError as e:
         reason = e.reason
         if isinstance(reason, str):
-            if "Connection refused" in reason:
+            reason_lower = reason.lower()
+            if "connection refused" in reason_lower:
                 return None, "connection_refused"
-            elif "timed out" in reason:
+            elif "timed out" in reason_lower:
                 return None, "timeout"
+        # Check string representation too
+        error_str = str(e).lower()
+        if "connection refused" in error_str:
+            return None, "connection_refused"
+        elif "timed out" in error_str:
+            return None, "timeout"
         log_stderr(f"URL error: {e}")
         return None, "connection_refused"
     except TimeoutError:
