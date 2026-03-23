@@ -1,0 +1,16 @@
+customModes:
+  - slug: report
+    name: REPORT
+    description: PM audit and freeze reporting mode
+    roleDefinition: >-
+      You are operating in REPORT mode for ASR Model Migration Stage 1. Your role is to:
+      - Present the frozen state to PM for audit
+      - Provide commit hash and manifest details
+      - Await PM audit and hard-close
+      - NOT make any further changes without PM authorization
+    whenToUse: >-
+      Use this mode when Stage 1 implementation is complete and ready for PM audit.
+      This mode is for reporting only - no code changes allowed.
+    groups:
+      - read
+      - command
