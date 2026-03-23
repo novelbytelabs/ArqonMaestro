@@ -43,6 +43,7 @@ def parse_args() -> argparse.Namespace:
     # Sidecar mode: HTTP server
     parser.add_argument("--server", action="store_true", help="Run as HTTP sidecar server")
     parser.add_argument("--port", type=int, default=5001, help="Server port")
+    parser.add_argument("--health-port", type=int, default=5001, help="Health check port (same as server port)")
     return parser.parse_args()
 
 
@@ -248,6 +249,16 @@ def run_server(model, port: int) -> None:
     import threading
     
     class SidecarHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/health":
+                # Health check endpoint
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok", "model": "parakeet"}).encode("utf-8"))
+            else:
+                self.send_error(404, "Not Found")
+        
         def do_POST(self):
             if self.path != "/transcribe":
                 self.send_error(404, "Not Found")

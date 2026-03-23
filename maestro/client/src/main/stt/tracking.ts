@@ -521,6 +521,114 @@ export default class STTTracking {
       });
     }
   }
+
+  /**
+   * Log Parakeet (command_fast) success metrics.
+   * Metric: stt.command_fast.parakeet.success
+   */
+  logParakeetSuccess(data: {
+    chunk_id: string;
+    latency_ms: number;
+    text_length?: number;
+  }): void {
+    this.api.logEvent("stt.command_fast.parakeet.success", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
+
+  /**
+   * Log Parakeet (command_fast) failure metrics.
+   * Metric: stt.command_fast.parakeet.failure
+   */
+  logParakeetFailure(data: {
+    chunk_id: string;
+    error_code: string;
+    retryable: boolean;
+  }): void {
+    this.api.logEvent("stt.command_fast.parakeet.failure", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
+
+  /**
+   * Log Qwen3 ASR (dictation) success metrics.
+   * Metric: stt.dictation.qwen3_asr.success
+   */
+  logQwen3Success(data: {
+    chunk_id: string;
+    latency_ms: number;
+    text_length?: number;
+  }): void {
+    this.api.logEvent("stt.dictation.qwen3_asr.success", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
+
+  /**
+   * Log Qwen3 ASR (dictation) failure metrics.
+   * Metric: stt.dictation.qwen3_asr.failure
+   */
+  logQwen3Failure(data: {
+    chunk_id: string;
+    error_code: string;
+    retryable: boolean;
+  }): void {
+    this.api.logEvent("stt.dictation.qwen3_asr.failure", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
+
+  /**
+   * Log vLLM 503 recovery event for dictation.
+   * Metric: stt.dictation.vllm_503_recovery
+   */
+  logVLLM503Recovery(data: {
+    chunk_id: string;
+    recovery_success: boolean;
+    fallback_used: boolean;
+  }): void {
+    this.api.logEvent("stt.dictation.vllm_503_recovery", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
+
+  /**
+   * Log sidecar subprocess crash.
+   * Metric: stt.sidecar.crash
+   */
+  logSidecarCrash(data: {
+    sidecar_name: string;
+    exit_code?: number;
+    fallback_activated: boolean;
+  }): void {
+    this.api.logEvent("stt.sidecar.crash", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
 }
 
 /**

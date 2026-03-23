@@ -247,6 +247,16 @@ def run_server(model, device: str, port: int) -> None:
     from http.server import HTTPServer, BaseHTTPRequestHandler
     
     class SidecarHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path == "/health":
+                # Health check endpoint
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "ok", "model": "qwen3"}).encode("utf-8"))
+            else:
+                self.send_error(404, "Not Found")
+        
         def do_POST(self):
             if self.path != "/transcribe":
                 self.send_error(404, "Not Found")
