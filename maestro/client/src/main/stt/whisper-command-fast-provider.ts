@@ -36,6 +36,12 @@ interface WhisperCommandFastProviderDeps {
     args: string[],
     timeoutMs: number
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  runWhisperWithStdin: (
+    binaryPath: string,
+    args: string[],
+    stdinBuffer: Buffer,
+    timeoutMs: number
+  ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
 }
 
 function resolveHomePath(value: string): string {
@@ -92,6 +98,8 @@ export default class WhisperCommandFastProvider {
       readFile: (targetPath) => fs.readFile(targetPath, "utf8"),
       rm: (targetPath) => fs.rm(targetPath, { recursive: true, force: true }),
       runWhisper: (binaryPath, args, timeoutMs) => this.defaultRunWhisper(binaryPath, args, timeoutMs),
+      runWhisperWithStdin: (binaryPath, args, stdinBuffer, timeoutMs) => 
+        this.defaultRunWhisperWithStdin(binaryPath, args, stdinBuffer, timeoutMs),
       ...deps,
     };
 
@@ -194,6 +202,48 @@ export default class WhisperCommandFastProvider {
     });
   }
 
+  private defaultRunWhisperWithStdin(
+    binaryPath: string,
+    args: string[],
+    stdinBuffer: Buffer,
+    timeoutMs: number
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(binaryPath, args, {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill("SIGKILL");
+      }, timeoutMs);
+
+      proc.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+      proc.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) {
+          resolve({ exitCode: -1, stdout, stderr: `${stderr}\nwhisper_timeout` });
+          return;
+        }
+        resolve({ exitCode: code ?? 0, stdout, stderr });
+      });
+
+      proc.stdin.write(stdinBuffer);
+      proc.stdin.end();
+    });
+  }
+
   async transcribeCommand(input: WhisperTranscriptionInput): Promise<WhisperTranscriptionResult> {
     if (!this.ready) {
       throw new Error(`whisper_unavailable:${this.loadError || "not_ready"}`);
@@ -204,34 +254,27 @@ export default class WhisperCommandFastProvider {
     }
 
     const start = Date.now();
-    const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-whisper-"));
-    const inputWavPath = path.join(tempDir, `${input.chunkId}.wav`);
-    const outputBasePath = path.join(tempDir, `${input.chunkId}-out`);
-    const outputTxtPath = `${outputBasePath}.txt`;
 
     try {
       const wavBuffer = this.buildWavFile(input.pcm16leAudio, input.sampleRateHz);
-      await this.deps.writeFile(inputWavPath, wavBuffer);
 
       const args = [
         "-m",
         this.config.modelPath,
         "-f",
-        inputWavPath,
+        "-",
         "-l",
         this.config.language,
         "-nt",
         "-np",
         "--prompt",
         this.config.initialPrompt,
-        "-of",
-        outputBasePath,
-        "-otxt",
       ];
 
-      const result = await this.deps.runWhisper(
+      const result = await this.deps.runWhisperWithStdin(
         this.config.binaryPath,
         args,
+        wavBuffer,
         this.config.timeoutMs
       );
       if (result.exitCode !== 0) {
@@ -240,9 +283,7 @@ export default class WhisperCommandFastProvider {
         );
       }
 
-      const transcript = (await this.deps.readFile(outputTxtPath))
-        .trim()
-        .replace(/\s+/g, " ");
+      const transcript = result.stdout.trim().replace(/\s+/g, " ");
       if (!transcript) {
         throw new Error("whisper_empty_transcript");
       }
@@ -253,7 +294,7 @@ export default class WhisperCommandFastProvider {
         latencyMs: Date.now() - start,
       };
     } finally {
-      await this.deps.rm(tempDir);
+      // Temp file disk I/O eradicated 
     }
   }
 

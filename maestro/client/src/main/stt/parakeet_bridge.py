@@ -39,9 +39,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# Protect stdout from framework noise (Python & C-level)
+# Save original stdout fd, then point fd 1 to stderr (fd 2)
+try:
+    ORIGINAL_STDOUT_FD = os.dup(1)
+    os.dup2(2, 1)
+except Exception:
+    ORIGINAL_STDOUT_FD = None
+
 def print_json(payload: dict) -> None:
-    """Output strict single-line JSON to stdout."""
-    print(json.dumps(payload, ensure_ascii=True))
+    """Output strict single-line JSON to the original stdout."""
+    out_str = json.dumps(payload, ensure_ascii=True) + "\n"
+    if ORIGINAL_STDOUT_FD is not None:
+        try:
+            with os.fdopen(ORIGINAL_STDOUT_FD, "w", closefd=False) as f:
+                f.write(out_str)
+                f.flush()
+            return
+        except Exception:
+            pass
+    # Fallback if OS fd tricks failed
+    print(out_str, file=sys.__stdout__, flush=True)
 
 
 def log_stderr(message: str) -> None:
@@ -49,14 +67,33 @@ def log_stderr(message: str) -> None:
     print(message, file=sys.stderr)
 
 
-def load_audio_pcm16(wav_path: str) -> Tuple[Optional[bytes], Optional[str]]:
+def load_audio_pcm16(wav_path: Optional[str], from_stdin: bool = False) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Load audio file and validate PCM16 LE format.
+    Load audio and validate PCM16 LE format.
+    Supports reading from a file path or directly from stdin.
+    """
+    import io
     
-    Returns:
-        Tuple of (audio_bytes, error_code) - error_code is None on success
-    """
-    if not os.path.exists(wav_path):
+    if from_stdin:
+        try:
+            audio_data = sys.stdin.buffer.read()
+            if not audio_data:
+                return None, "empty_audio"
+                
+            # Check if it's a WAV file by header
+            if audio_data.startswith(b"RIFF"):
+                with wave.open(io.BytesIO(audio_data), "rb") as wf:
+                    if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
+                        return None, "audio_format_invalid"
+                    return wf.readframes(wf.getnframes()), None
+            else:
+                # Assume raw PCM16
+                return audio_data, None
+        except Exception as e:
+            log_stderr(f"Error reading from stdin: {e}")
+            return None, "audio_format_invalid"
+    
+    if not wav_path or not os.path.exists(wav_path):
         return None, "audio_format_invalid"
     
     file_size = os.path.getsize(wav_path)
@@ -146,8 +183,8 @@ def load_parakeet_model(model_path: str, device: str):
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
         # Load Parakeet model using NeMo
-        # NeMo uses EncDecCTCModel for CTC-based ASR models like Parakeet
-        model = nemo_asr.models.EncDecCTCModel.restore_from(model_path)
+        # NeMo uses ASRModel for architecture-agnostic loading (works for TDT/RNNT)
+        model = nemo_asr.models.ASRModel.restore_from(model_path)
         
         # Move to specified device
         if device == "cuda" and torch.cuda.is_available():
@@ -217,7 +254,7 @@ def main() -> int:
     # (Python logging can be configured here if needed)
     
     # Step 1: Load and validate audio
-    audio_bytes, error_code = load_audio_pcm16(args.audio)
+    audio_bytes, error_code = load_audio_pcm16(args.audio, getattr(args, "stdin", False))
     if error_code:
         retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
         print_json({

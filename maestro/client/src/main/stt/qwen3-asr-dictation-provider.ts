@@ -85,6 +85,13 @@ interface Qwen3ASRDictationProviderDeps {
     args: string[],
     timeoutMs: number
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  runBridgeWithStdin: (
+    pythonPath: string,
+    bridgeScriptPath: string,
+    args: string[],
+    stdinBuffer: Buffer,
+    timeoutMs: number
+  ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
   // Sidecar HTTP client
   postSidecarJson: (
     urlString: string,
@@ -174,6 +181,8 @@ export default class Qwen3ASRDictationProvider {
       rm: (targetPath) => fs.rm(targetPath, { recursive: true, force: true }),
       runBridge: (pythonPath, bridgeScriptPath, args, timeoutMs) =>
         this.defaultRunBridge(pythonPath, bridgeScriptPath, args, timeoutMs),
+      runBridgeWithStdin: (pythonPath, bridgeScriptPath, args, stdinBuffer, timeoutMs) =>
+        this.defaultRunBridgeWithStdin(pythonPath, bridgeScriptPath, args, stdinBuffer, timeoutMs),
       postSidecarJson: (urlString, body, timeoutMs) =>
         this.defaultPostSidecarJson(urlString, body, timeoutMs),
       ...deps,
@@ -309,6 +318,53 @@ export default class Qwen3ASRDictationProvider {
     });
   }
 
+  private defaultRunBridgeWithStdin(
+    pythonPath: string,
+    bridgeScriptPath: string,
+    args: string[],
+    stdinBuffer: Buffer,
+    timeoutMs: number
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(pythonPath, [bridgeScriptPath, ...args], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill("SIGKILL");
+      }, timeoutMs);
+
+      proc.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) {
+          resolve({ exitCode: -1, stdout, stderr: `${stderr}\nqwen3_timeout` });
+          return;
+        }
+        resolve({ exitCode: code ?? 0, stdout, stderr });
+      });
+
+      proc.stdin.write(stdinBuffer);
+      proc.stdin.end();
+    });
+  }
+
   /**
    * Default sidecar HTTP client (POST JSON).
    * Used when sidecarMode is "sidecar" and routes to HTTP proxy port.
@@ -432,16 +488,12 @@ export default class Qwen3ASRDictationProvider {
    */
   private async transcribeDictationLocal(input: Qwen3TranscriptionInput): Promise<Qwen3TranscriptionResult> {
     const start = Date.now();
-    const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-qwen3-"));
-    const inputWavPath = path.join(tempDir, `${input.chunkId}.wav`);
 
     try {
       const wavBuffer = this.buildWavFile(input.pcm16leAudio, input.sampleRateHz);
-      await this.deps.writeFile(inputWavPath, wavBuffer);
 
       const args = [
-        "--audio",
-        inputWavPath,
+        "--stdin",
         "--model-path",
         this.config.modelPath,
         "--mode",
@@ -455,10 +507,11 @@ export default class Qwen3ASRDictationProvider {
         args.push("--endpoint", this.config.vllmEndpoint);
       }
 
-      const result = await this.deps.runBridge(
+      const result = await this.deps.runBridgeWithStdin(
         this.config.pythonPath,
         this.config.bridgeScriptPath,
         args,
+        wavBuffer,
         this.config.timeoutMs
       );
 
@@ -517,7 +570,7 @@ export default class Qwen3ASRDictationProvider {
         provider: "qwen3-asr",
       };
     } finally {
-      await this.deps.rm(tempDir);
+      // Temp file eliminated
     }
   }
 
@@ -600,16 +653,12 @@ export default class Qwen3ASRDictationProvider {
     }
 
     const start = Date.now();
-    const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-qwen3-fallback-"));
-    const inputWavPath = path.join(tempDir, `${chunkId}.wav`);
 
     try {
       const wavBuffer = this.buildWavFile(pcm16leAudio, sampleRateHz);
-      await this.deps.writeFile(inputWavPath, wavBuffer);
 
       const args = [
-        "--audio",
-        inputWavPath,
+        "--stdin",
         "--model-path",
         this.config.modelPath,
         "--mode",
@@ -620,10 +669,11 @@ export default class Qwen3ASRDictationProvider {
         this.config.device,
       ];
 
-      const result = await this.deps.runBridge(
+      const result = await this.deps.runBridgeWithStdin(
         this.config.pythonPath,
         this.config.bridgeScriptPath,
         args,
+        wavBuffer,
         this.config.timeoutMs
       );
 
@@ -649,7 +699,7 @@ export default class Qwen3ASRDictationProvider {
       this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback exception: ${error}`);
       return null;
     } finally {
-      await this.deps.rm(tempDir);
+      // Temp file eliminated
     }
   }
 }

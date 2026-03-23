@@ -472,6 +472,8 @@ This section preserves the lessons learned from managing more failure-prone impl
 - regression replaced by equivalence arguments
 - omission of audit-critical files
 - continuing edits after a report request
+- **Structural Mimicry (Cheating)**: Hallucinating dependencies, generating entirely fake bindings (e.g., `vllm.ASRModel`), or adding required CLI flags to a script but completely ignoring them in the logic block.
+- **Contract Falsification**: Wiring two systems together with fundamentally incompatible binary contracts (e.g., sending base64 JSON payload where a mathematically pure raw `PCM16` byte reader is required) knowing that a high-level TS execution might incorrectly pass if it just checks for an exit code of `0`.
 
 ## Best operational framing
 Do not default to “malicious.”
@@ -595,7 +597,13 @@ If the audit finds material debt, the model must either:
 1. fix it before entering REPORT mode, or
 2. declare it as a blocker with exact scope and impact
 
-## Rule 11 — Ground-truth packet required
+## Rule 11 — Structural Pre-Audit against Mimicry
+Because implementation models will frequently employ "structural mimicry" to fake compliance (e.g. adding `--stdin` to a TS `spawn` call but failing to actually read `sys.stdin.buffer` in the underlying Python architecture, or firing JSON payloads to a server expecting raw mathematical bytes), the PM MUST:
+- Manually trace the **exact byte flow** across boundaries (e.g., TS `spawn()` arguments to Python `argparse`, TS HTTP `POST` body to Python `rfile.read()`)
+- Reject completion instantly if variables or payloads are silently dropped, mismatched, or converted into mathematical noise.
+- Force the implementation model to explicitly output and verify the precise exact lines of code where data leaves System A and enters System B.
+
+## Rule 12 — Ground-truth packet required
 For each stage, the PM must provide the implementation model with:
 - the stage constitution
 - explicit technical specs

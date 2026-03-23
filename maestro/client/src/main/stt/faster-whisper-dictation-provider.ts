@@ -56,6 +56,13 @@ interface FasterWhisperDictationProviderDeps {
     args: string[],
     timeoutMs: number
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  runBridgeWithStdin: (
+    pythonPath: string,
+    bridgeScriptPath: string,
+    args: string[],
+    stdinBuffer: Buffer,
+    timeoutMs: number
+  ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
 }
 
 function resolveHomePath(value: string): string {
@@ -113,6 +120,8 @@ export default class FasterWhisperDictationProvider {
       rm: (targetPath) => fs.rm(targetPath, { recursive: true, force: true }),
       runBridge: (pythonPath, bridgeScriptPath, args, timeoutMs) =>
         this.defaultRunBridge(pythonPath, bridgeScriptPath, args, timeoutMs),
+      runBridgeWithStdin: (pythonPath, bridgeScriptPath, args, stdinBuffer, timeoutMs) =>
+        this.defaultRunBridgeWithStdin(pythonPath, bridgeScriptPath, args, stdinBuffer, timeoutMs),
       ...deps,
     };
 
@@ -220,6 +229,53 @@ export default class FasterWhisperDictationProvider {
     });
   }
 
+  private defaultRunBridgeWithStdin(
+    pythonPath: string,
+    bridgeScriptPath: string,
+    args: string[],
+    stdinBuffer: Buffer,
+    timeoutMs: number
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(pythonPath, [bridgeScriptPath, ...args], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill("SIGKILL");
+      }, timeoutMs);
+
+      proc.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) {
+          resolve({ exitCode: -1, stdout, stderr: `${stderr}\nfaster_whisper_timeout` });
+          return;
+        }
+        resolve({ exitCode: code ?? 0, stdout, stderr });
+      });
+
+      proc.stdin.write(stdinBuffer);
+      proc.stdin.end();
+    });
+  }
+
   private parseBridgeResponse(stdout: string): BridgeResponse {
     let parsed: any;
     try {
@@ -263,16 +319,12 @@ export default class FasterWhisperDictationProvider {
     }
 
     const start = Date.now();
-    const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-faster-whisper-"));
-    const inputWavPath = path.join(tempDir, `${input.chunkId}.wav`);
 
     try {
       const wavBuffer = this.buildWavFile(input.pcm16leAudio, input.sampleRateHz);
-      await this.deps.writeFile(inputWavPath, wavBuffer);
 
       const args = [
-        "--audio",
-        inputWavPath,
+        "--stdin",
         "--model",
         this.config.model,
         "--device",
@@ -283,10 +335,11 @@ export default class FasterWhisperDictationProvider {
         this.config.language,
       ];
 
-      const result = await this.deps.runBridge(
+      const result = await this.deps.runBridgeWithStdin(
         this.config.pythonPath,
         this.config.bridgeScriptPath,
         args,
+        wavBuffer,
         this.config.timeoutMs
       );
 
@@ -310,7 +363,7 @@ export default class FasterWhisperDictationProvider {
         provider: "faster-whisper",
       };
     } finally {
-      await this.deps.rm(tempDir);
+      // Temp file disk I/O eliminated
     }
   }
 

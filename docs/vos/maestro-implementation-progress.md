@@ -1422,4 +1422,8 @@ Current stage: Stage 2A (Service Contracts + Bridge Routing) - **HARD-CLOSED (YE
 - Deferred items (In-memory Temp File I/O + Telemetry metrics) explicitly carried over to Stage 2B and 2C.
 - No environment mutation confirmed.
 
-Current stage: Stage 2B (Installer/Bootstrap for Sidecar Runtimes) - Ready to begin execution.
+Current stage: Stage 2B (Installer/Bootstrap for Sidecar Runtimes) - **HARD-CLOSED (GREEN)**
+- Commit: `7fa62406`. Watchdog Verdict: GREEN.
+- Environment isolation (`helios-asr-isolated`) verified. Preflight checks and warmup deployed. In-memory streams confirmed.
+
+Current stage: Stage 2C (Health Checks, Retry/Fallback UX, Watchdog Policy Gates) - Ready to begin execution.

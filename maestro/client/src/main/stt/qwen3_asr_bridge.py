@@ -42,9 +42,27 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# Protect stdout from framework noise (Python & C-level)
+# Save original stdout fd, then point fd 1 to stderr (fd 2)
+try:
+    ORIGINAL_STDOUT_FD = os.dup(1)
+    os.dup2(2, 1)
+except Exception:
+    ORIGINAL_STDOUT_FD = None
+
 def print_json(payload: dict) -> None:
-    """Output strict single-line JSON to stdout."""
-    print(json.dumps(payload, ensure_ascii=True))
+    """Output strict single-line JSON to the original stdout."""
+    out_str = json.dumps(payload, ensure_ascii=True) + "\n"
+    if ORIGINAL_STDOUT_FD is not None:
+        try:
+            with os.fdopen(ORIGINAL_STDOUT_FD, "w", closefd=False) as f:
+                f.write(out_str)
+                f.flush()
+            return
+        except Exception:
+            pass
+    # Fallback if OS fd tricks failed
+    print(out_str, file=sys.__stdout__, flush=True)
 
 
 def log_stderr(message: str) -> None:
@@ -52,14 +70,33 @@ def log_stderr(message: str) -> None:
     print(message, file=sys.stderr)
 
 
-def load_audio_pcm16(wav_path: str) -> Tuple[Optional[bytes], Optional[str]]:
+def load_audio_pcm16(wav_path: Optional[str], from_stdin: bool = False) -> Tuple[Optional[bytes], Optional[str]]:
     """
-    Load audio file and validate PCM16 LE format.
+    Load audio and validate PCM16 LE format.
+    Supports reading from a file path or directly from stdin.
+    """
+    import io
     
-    Returns:
-        Tuple of (audio_bytes, error_code) - error_code is None on success
-    """
-    if not os.path.exists(wav_path):
+    if from_stdin:
+        try:
+            audio_data = sys.stdin.buffer.read()
+            if not audio_data:
+                return None, "empty_audio"
+                
+            # Check if it's a WAV file by header
+            if audio_data.startswith(b"RIFF"):
+                with wave.open(io.BytesIO(audio_data), "rb") as wf:
+                    if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
+                        return None, "audio_format_invalid"
+                    return wf.readframes(wf.getnframes()), None
+            else:
+                # Assume raw PCM16
+                return audio_data, None
+        except Exception as e:
+            log_stderr(f"Error reading from stdin: {e}")
+            return None, "audio_format_invalid"
+    
+    if not wav_path or not os.path.exists(wav_path):
         return None, "audio_format_invalid"
     
     file_size = os.path.getsize(wav_path)
@@ -132,41 +169,37 @@ def normalize_pcm16_to_float32(audio_bytes: bytes) -> Tuple[Optional[list], Opti
 
 def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[str]]:
     """
-    Run local inference on Qwen3 model.
+    Run local inference on Qwen3 model using vLLM.
     
     Returns:
         Tuple of (transcript, error_code)
     """
     try:
         import numpy as np
-        import torch
         
         # Convert list back to numpy array
         audio_np = np.array(audio_data, dtype=np.float32)
         
-        # Run inference
-        with torch.no_grad():
-            # The model expects a waveform tensor
-            waveform = torch.tensor(audio_np).unsqueeze(0)
+        # Run the model - Qwen3 ASR using vllm LLM multimodal interface
+        outputs = model.generate({
+            "prompt": "<|audio|>\ntranscribe",
+            "multi_modal_data": {
+                "audio": (audio_np, 16000)
+            }
+        })
+        
+        if outputs and len(outputs) > 0:
+            text = outputs[0].outputs[0].text
+        else:
+            text = ""
             
-            # Run the model - Qwen3 ASR using vllm.ASRModel interface
-            # Input: float32 waveform tensor [batch, samples]
-            # Output: transcription text string
-            results = model.transcribe_batch(waveform)
-            if isinstance(results, (list, tuple)):
-                text = results[0] if len(results) > 0 else ""
-            elif isinstance(results, dict):
-                text = results.get("text", "") or results.get("transcription", "")
-            else:
-                text = str(results) if results else ""
-            
-            text = text.strip()
-            
-            if not text:
-                return None, "empty_audio"
-            
-            return text, None
-            
+        text = text.strip()
+        
+        if not text:
+            return None, "empty_audio"
+        
+        return text, None
+        
     except TimeoutError as e:
         return None, "timeout"
     except Exception as e:
@@ -199,6 +232,16 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
     # vLLM uses /v1/audio/transcriptions for Whisper-compatible API
     endpoint_url = endpoint.rstrip("/") + "/v1/audio/transcriptions"
     
+    # Reconstruct mathematical WAV container for the remote vLLM endpoint
+    import io, wave
+    with io.BytesIO() as wav_io:
+        with wave.open(wav_io, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframes(audio_bytes)
+        wav_bytes = wav_io.getvalue()
+        
     # Create multipart form data
     boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
     
@@ -207,7 +250,7 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
     body_parts.append(b"--" + boundary.encode("utf-8") + b"\r\n")
     body_parts.append(b'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n')
     body_parts.append(b"Content-Type: audio/wav\r\n\r\n")
-    body_parts.append(audio_bytes)
+    body_parts.append(wav_bytes)
     body_parts.append(b"\r\n--" + boundary.encode("utf-8") + b"\r\n")
     body_parts.append(b'Content-Disposition: form-data; name="model"\r\n\r\n')
     body_parts.append(b"qwen-asr\r\n")
@@ -280,31 +323,23 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30
 
 def load_qwen3_model(model_path: str, device: str):
     """
-    Load Qwen3 ASR model from path using vllm[audio].
+    Load Qwen3 ASR model from path using vllm multimodal LLM.
     """
     try:
-        # Import vllm audio
+        # Import vllm LLM
         try:
-            import torch
-            from vllm import ASRModel
+            from vllm import LLM
         except ImportError as e:
             log_stderr(f"Missing dependency: {e}")
-            raise RuntimeError("vllm[audio] or torch not installed") from e
+            raise RuntimeError("vllm not installed") from e
         
         # Check if model path exists
         if not os.path.isdir(model_path):
             log_stderr(f"Model path does not exist: {model_path}")
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
-        # Load Qwen3 ASR model using vllm
-        model = ASRModel(model_path)
-        
-        # Move to specified device
-        if device == "cuda" and torch.cuda.is_available():
-            model = model.cuda()
-        else:
-            model = model.cpu()
-        
+        # Load Qwen3 model using native vLLM
+        model = LLM(model=model_path, trust_remote_code=True)
         return model
         
     except FileNotFoundError as e:
@@ -326,7 +361,7 @@ def main() -> int:
         return 1
     
     # Step 1: Load and validate audio
-    audio_bytes, error_code = load_audio_pcm16(args.audio)
+    audio_bytes, error_code = load_audio_pcm16(args.audio, getattr(args, "stdin", False))
     if error_code:
         retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
         print_json({

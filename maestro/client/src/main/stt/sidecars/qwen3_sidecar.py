@@ -166,37 +166,37 @@ def normalize_pcm16_to_float32(audio_bytes: bytes) -> Tuple[Optional[list], Opti
 
 def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[str]]:
     """
-    Run local inference on Qwen3 model.
+    Run local inference on Qwen3 model using vLLM.
     
     Returns:
         Tuple of (transcript, error_code)
     """
     try:
         import numpy as np
-        import torch
         
         # Convert list back to numpy array
         audio_np = np.array(audio_data, dtype=np.float32)
         
-        # Run inference
-        with torch.no_grad():
-            waveform = torch.tensor(audio_np).unsqueeze(0)
-            results = model.transcribe_batch(waveform)
+        # Run inference using vllm LLM multimodal interface
+        outputs = model.generate({
+            "prompt": "<|audio|>\ntranscribe",
+            "multi_modal_data": {
+                "audio": (audio_np, 16000)
+            }
+        })
+        
+        if outputs and len(outputs) > 0:
+            text = outputs[0].outputs[0].text
+        else:
+            text = ""
             
-            if isinstance(results, (list, tuple)):
-                text = results[0] if len(results) > 0 else ""
-            elif isinstance(results, dict):
-                text = results.get("text", "") or results.get("transcription", "")
-            else:
-                text = str(results) if results else ""
-            
-            text = text.strip()
-            
-            if not text:
-                return None, "empty_audio"
-            
-            return text, None
-            
+        text = text.strip()
+        
+        if not text:
+            return None, "empty_audio"
+        
+        return text, None
+        
     except TimeoutError as e:
         return None, "timeout"
     except Exception as e:
@@ -206,16 +206,15 @@ def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[s
 
 def load_qwen3_model(model_path: str, device: str):
     """
-    Load Qwen3 ASR model from path using vllm[audio].
+    Load Qwen3 ASR model from path using natively configured vllm multimodal LLM.
     """
     try:
-        # Import vllm audio
+        # Import vllm LLM
         try:
-            import torch
-            from vllm import ASRModel
+            from vllm import LLM
         except ImportError as e:
             log_stderr(f"Missing dependency: {e}")
-            raise RuntimeError("vllm[audio] or torch not installed") from e
+            raise RuntimeError("vllm not installed") from e
         
         # Check if model path exists
         if not os.path.isdir(model_path):
@@ -223,14 +222,7 @@ def load_qwen3_model(model_path: str, device: str):
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
         # Load Qwen3 ASR model using vllm
-        model = ASRModel(model_path)
-        
-        # Move to specified device
-        if device == "cuda" and torch.cuda.is_available():
-            model = model.cuda()
-        else:
-            model = model.cpu()
-        
+        model = LLM(model=model_path, trust_remote_code=True)
         return model
         
     except FileNotFoundError as e:
@@ -262,9 +254,22 @@ def run_server(model, device: str, port: int) -> None:
                 self.send_error(404, "Not Found")
                 return
             
-            # Read audio from request body
+            import base64
+            
+            # Read JSON from request body
             content_length = int(self.headers.get("Content-Length", 0))
-            audio_bytes = self.rfile.read(content_length)
+            body_bytes = self.rfile.read(content_length)
+            
+            try:
+                req_json = json.loads(body_bytes.decode("utf-8"))
+                audio_b64 = req_json.get("audio_b64", "")
+                if not audio_b64:
+                    self.send_error(400, "empty_audio")
+                    return
+                audio_bytes = base64.b64decode(audio_b64)
+            except Exception as e:
+                self.send_error(400, "audio_format_invalid")
+                return
             
             # Normalize and transcribe
             audio_float, error_code = normalize_pcm16_to_float32(audio_bytes)

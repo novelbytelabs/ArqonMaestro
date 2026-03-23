@@ -184,7 +184,8 @@ def load_parakeet_model(model_path: str, device: str):
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
         # Load Parakeet model using NeMo
-        model = nemo_asr.models.EncDecCTCModel.restore_from(model_path)
+        # NeMo uses ASRModel for architecture-agnostic loading (works for TDT/RNNT)
+        model = nemo_asr.models.ASRModel.restore_from(model_path)
         
         # Move to specified device
         if device == "cuda" and torch.cuda.is_available():
@@ -264,9 +265,22 @@ def run_server(model, port: int) -> None:
                 self.send_error(404, "Not Found")
                 return
             
-            # Read audio from request body
+            import base64
+            
+            # Read JSON from request body
             content_length = int(self.headers.get("Content-Length", 0))
-            audio_bytes = self.rfile.read(content_length)
+            body_bytes = self.rfile.read(content_length)
+            
+            try:
+                req_json = json.loads(body_bytes.decode("utf-8"))
+                audio_b64 = req_json.get("audio_b64", "")
+                if not audio_b64:
+                    self.send_error(400, "empty_audio")
+                    return
+                audio_bytes = base64.b64decode(audio_b64)
+            except Exception as e:
+                self.send_error(400, "audio_format_invalid")
+                return
             
             # Normalize and transcribe
             audio_float, error_code = normalize_pcm16_to_float32(audio_bytes)
