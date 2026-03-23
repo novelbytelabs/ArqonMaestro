@@ -65,7 +65,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest
+          runBridgeWithStdin: jest
             .fn()
             .mockResolvedValue({
               exitCode: 1,
@@ -95,7 +95,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest
+          runBridgeWithStdin: jest
             .fn()
             .mockResolvedValue({
               exitCode: 1,
@@ -125,7 +125,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest
+          runBridgeWithStdin: jest
             .fn()
             .mockResolvedValue({
               exitCode: 0,
@@ -157,7 +157,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn(), // Should NOT be called
+          runBridgeWithStdin: jest.fn(), // Should NOT be called
         };
 
         const provider = new ParakeetCommandFastProvider(
@@ -176,7 +176,7 @@ describe("ParakeetCommandFastProvider", () => {
         ).rejects.toThrow("parakeet_empty_audio");
 
         // Verify bridge was NOT called
-        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
 
         // Undefined
         await expect(
@@ -187,7 +187,7 @@ describe("ParakeetCommandFastProvider", () => {
           })
         ).rejects.toThrow("parakeet_empty_audio");
 
-        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
     });
 
@@ -198,7 +198,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: -1,
             stdout: "",
             stderr: "parakeet_timeout",
@@ -241,7 +241,7 @@ describe("ParakeetCommandFastProvider", () => {
             mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
             writeFile: jest.fn().mockResolvedValue(undefined),
             rm: jest.fn().mockResolvedValue(undefined),
-            runBridge: jest.fn().mockResolvedValue({
+            runBridgeWithStdin: jest.fn().mockResolvedValue({
               exitCode: 0,
               stdout: BRIDGE_FAILURE(bridgeError, true),
               stderr: "",
@@ -273,7 +273,7 @@ describe("ParakeetCommandFastProvider", () => {
         mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
         writeFile: jest.fn().mockResolvedValue(undefined),
         rm: jest.fn().mockResolvedValue(undefined),
-        runBridge: jest.fn().mockResolvedValue({
+        runBridgeWithStdin: jest.fn().mockResolvedValue({
           exitCode: 0,
           stdout: BRIDGE_SUCCESS("parakeet-ctc", "cuda"),
           stderr: "",
@@ -355,7 +355,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn(),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockResolvedValue({
             ok: true,
             text: "sidecar command",
@@ -377,7 +377,7 @@ describe("ParakeetCommandFastProvider", () => {
         });
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
         expect(result.transcript).toBe("sidecar command");
         expect(result.provider).toBe("parakeet");
       });
@@ -400,7 +400,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({
               ok: true,
@@ -426,20 +426,20 @@ describe("ParakeetCommandFastProvider", () => {
           sampleRateHz: 16000,
         });
 
-        expect(mockDeps.runBridge).toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).toHaveBeenCalled();
         expect(mockDeps.postSidecarJson).not.toHaveBeenCalled();
         expect(result.transcript).toBe("local command");
       });
     });
 
-    describe("sidecar failure → local fallback (replay)", () => {
-      it("should fallback to local when sidecar returns ok:false", async () => {
+    describe("sidecar failure → strict failure (no fallback blowout trap)", () => {
+      it("should throw instead of falling back to local when sidecar returns ok:false", async () => {
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({
               ok: true,
@@ -462,33 +462,23 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeCommand({
+        await expect(provider.transcribeCommand({
           chunkId: "test-fallback",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        });
+        })).rejects.toThrow("parakeet_sidecar_error:sidecar_unavailable");
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).toHaveBeenCalled();
-        expect(result.transcript).toBe("fallback command");
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
 
-      it("should fallback to local when sidecar throws network error", async () => {
+      it("should throw instead of falling back when sidecar throws network error", async () => {
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
-            exitCode: 0,
-            stdout: JSON.stringify({
-              ok: true,
-              text: "fallback command",
-              model: "parakeet-local",
-              device: "cuda",
-            }),
-            stderr: "",
-          }),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockRejectedValue(new Error("connection_refused")),
         };
 
@@ -498,33 +488,23 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeCommand({
+        await expect(provider.transcribeCommand({
           chunkId: "test-fallback-error",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        });
+        })).rejects.toThrow("parakeet_sidecar_error:connection_refused");
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).toHaveBeenCalled();
-        expect(result.transcript).toBe("fallback command");
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
 
-      it("should fallback to local when sidecar returns HTTP 503", async () => {
+      it("should throw instead of falling back when sidecar returns HTTP 503", async () => {
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
-            exitCode: 0,
-            stdout: JSON.stringify({
-              ok: true,
-              text: "fallback command",
-              model: "parakeet-local",
-              device: "cuda",
-            }),
-            stderr: "",
-          }),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockRejectedValue(new Error("sidecar_http_503: retryable")),
         };
 
@@ -534,15 +514,14 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeCommand({
+        await expect(provider.transcribeCommand({
           chunkId: "test-fallback-503",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        });
+        })).rejects.toThrow("parakeet_sidecar_error:sidecar_http_503");
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).toHaveBeenCalled();
-        expect(result.transcript).toBe("fallback command");
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
     });
 
@@ -553,7 +532,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn(),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockResolvedValue({
             ok: true,
             text: "parsed command",
@@ -586,7 +565,7 @@ describe("ParakeetCommandFastProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({ ok: true, text: "unused", model: "p", device: "cuda" }),
             stderr: "",

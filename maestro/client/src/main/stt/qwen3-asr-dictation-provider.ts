@@ -5,6 +5,7 @@ import path from "path";
 import http from "http";
 import https from "https";
 import Log from "../log";
+import { buildWavFile } from "./audio-utils";
 
 export interface Qwen3ASRDictationProviderConfig {
   enabled?: boolean;
@@ -249,31 +250,7 @@ export default class Qwen3ASRDictationProvider {
     return { ...this.config };
   }
 
-  private buildWavFile(pcm16leAudio: Buffer, sampleRateHz: number): Buffer {
-    const channels = 1;
-    const bitsPerSample = 16;
-    const blockAlign = (channels * bitsPerSample) / 8;
-    const byteRate = sampleRateHz * blockAlign;
-    const dataSize = pcm16leAudio.length;
-    const riffSize = 36 + dataSize;
 
-    const header = Buffer.alloc(44);
-    header.write("RIFF", 0, "ascii");
-    header.writeUInt32LE(riffSize, 4);
-    header.write("WAVE", 8, "ascii");
-    header.write("fmt ", 12, "ascii");
-    header.writeUInt32LE(16, 16);
-    header.writeUInt16LE(1, 20);
-    header.writeUInt16LE(channels, 22);
-    header.writeUInt32LE(sampleRateHz, 24);
-    header.writeUInt32LE(byteRate, 28);
-    header.writeUInt16LE(blockAlign, 32);
-    header.writeUInt16LE(bitsPerSample, 34);
-    header.write("data", 36, "ascii");
-    header.writeUInt32LE(dataSize, 40);
-
-    return Buffer.concat([header, pcm16leAudio]);
-  }
 
   private defaultRunBridge(
     pythonPath: string,
@@ -490,7 +467,7 @@ export default class Qwen3ASRDictationProvider {
     const start = Date.now();
 
     try {
-      const wavBuffer = this.buildWavFile(input.pcm16leAudio, input.sampleRateHz);
+      const wavBuffer = buildWavFile(input.pcm16leAudio, input.sampleRateHz);
 
       const args = [
         "--stdin",
@@ -601,9 +578,8 @@ export default class Qwen3ASRDictationProvider {
 
       if (!response.ok) {
         const error = response.error || "sidecar_error";
-        // Sidecar failure -> try local fallback
-        this.log?.logVerbose(`[Qwen3ASRDictationProvider] sidecar failed: ${error}, falling back to local`);
-        return this.transcribeDictationLocal(input);
+        this.log?.logVerbose(`[Qwen3ASRDictationProvider] sidecar failed: ${error}`);
+        throw new Error(`qwen3_sidecar_error:${error}`);
       }
 
       const text = response.text?.trim() || "";
@@ -619,14 +595,12 @@ export default class Qwen3ASRDictationProvider {
         provider: "qwen3-asr",
       };
     } catch (error) {
-      // Re-throw empty transcript - it's a provider error, not a fallback case
-      if (error instanceof Error && error.message === "qwen3_empty_transcript") {
+      if (error instanceof Error && error.message.startsWith("qwen3_")) {
         throw error;
       }
-      // Network/timeout errors -> fallback to local (replay buffered audio)
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.log?.logVerbose(`[Qwen3ASRDictationProvider] sidecar error: ${errorMessage}, falling back to local`);
-      return this.transcribeDictationLocal(input);
+      this.log?.logVerbose(`[Qwen3ASRDictationProvider] sidecar exception: ${errorMessage}`);
+      throw new Error(`qwen3_sidecar_error:${errorMessage}`);
     }
   }
 
@@ -655,51 +629,77 @@ export default class Qwen3ASRDictationProvider {
     const start = Date.now();
 
     try {
-      const wavBuffer = this.buildWavFile(pcm16leAudio, sampleRateHz);
-
-      const args = [
-        "--stdin",
-        "--model-path",
-        this.config.modelPath,
-        "--mode",
-        "vllm_service",
-        "--endpoint",
-        this.config.fallbackEndpoint,
-        "--device",
-        this.config.device,
-      ];
-
-      const result = await this.deps.runBridgeWithStdin(
-        this.config.pythonPath,
-        this.config.bridgeScriptPath,
-        args,
-        wavBuffer,
-        this.config.timeoutMs
-      );
-
-      if (result.exitCode !== 0) {
-        this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback exit code: ${result.exitCode}`);
-        return null;
-      }
-
-      const parsed = this.parseBridgeResponse(result.stdout.trim());
-      if (!parsed.ok) {
-        this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback error: ${parsed.error}`);
-        return null;
-      }
-
-      return {
-        text: parsed.text,
-        model: parsed.model,
-        device: parsed.device,
-        latencyMs: Date.now() - start,
-        provider: "qwen3-asr",
+      const wavBuffer = buildWavFile(pcm16leAudio, sampleRateHz);
+      const audioB64 = wavBuffer.toString('base64');
+      
+      const vllmPayload = {
+        model: this.config.modelPath,
+        prompt: "<|audio|>\n",
+        temperature: 0.0,
+        stream: false,
+        multi_modal_data: {
+          audio: [
+            { type: "object", data: audioB64 }
+          ]
+        }
       };
+
+      return new Promise<Qwen3TranscriptionResult | null>((resolve, reject) => {
+        const parsedUrl = new URL(this.config.fallbackEndpoint!);
+        const client = parsedUrl.protocol === "https:" ? https : http;
+        const payloadStr = JSON.stringify(vllmPayload);
+        const headers = {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payloadStr),
+          "Connection": "keep-alive"
+        };
+        const req = client.request(
+          {
+            protocol: parsedUrl.protocol,
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port,
+            path: parsedUrl.pathname + parsedUrl.search,
+            method: "POST",
+            headers,
+          },
+          (res) => {
+            let responseBody = "";
+            res.setEncoding("utf8");
+            res.on("data", (chunk) => { responseBody += chunk; });
+            res.on("end", () => {
+              if (res.statusCode && res.statusCode >= 400) {
+                this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback HTTP error: ${res.statusCode}`);
+                resolve(null);
+                return;
+              }
+              try {
+                const parsed = JSON.parse(responseBody);
+                const text = parsed.choices?.[0]?.message?.content?.trim() || "";
+                if (!text) {
+                  resolve(null);
+                  return;
+                }
+                resolve({
+                  text,
+                  model: this.config.modelPath,
+                  device: "remote",
+                  latencyMs: Date.now() - start,
+                  provider: "qwen3-asr",
+                });
+              } catch (e: any) {
+                reject(e);
+              }
+            });
+          }
+        );
+        req.setTimeout(this.config.timeoutMs, () => req.destroy(new Error("Sidecar fallback HTTP timeout")));
+        req.on("error", (err) => resolve(null));
+        req.write(payloadStr);
+        req.end();
+      });
     } catch (error) {
       this.log?.logVerbose(`[Qwen3ASRDictationProvider] fallback exception: ${error}`);
       return null;
-    } finally {
-      // Temp file eliminated
     }
   }
 }

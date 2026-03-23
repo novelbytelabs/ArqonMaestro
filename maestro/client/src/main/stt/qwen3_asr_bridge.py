@@ -35,9 +35,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--audio", help="Path to WAV audio file")
     parser.add_argument("--stdin", action="store_true", help="Accept raw PCM16 via stdin")
     parser.add_argument("--model-path", required=True, help="Path to Qwen3 ASR model directory")
-    parser.add_argument("--mode", required=True, choices=["local", "vllm_service"], 
-                        help="Inference mode: local or vllm_service")
-    parser.add_argument("--endpoint", help="vLLM endpoint URL (required for vllm_service mode)")
+    parser.add_argument("--mode", required=True, choices=["local"], 
+                        help="Inference mode: local")
     parser.add_argument("--device", default="cuda", help="Device name (cpu/cuda) for local mode")
     return parser.parse_args()
 
@@ -207,119 +206,6 @@ def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[s
         return None, "inference_failed"
 
 
-def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, timeout: int = 30) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Send audio to vLLM service for inference.
-    
-    Uses urllib.request for HTTP calls with explicit timeout handling.
-    Targets OpenAI-compatible /v1/audio/transcriptions endpoint.
-    
-    Returns:
-        Tuple of (transcript, error_code)
-    """
-    import urllib.request
-    import urllib.error
-    
-    # Validate endpoint
-    if not endpoint:
-        return None, "endpoint_503"
-    
-    # Ensure endpoint has proper scheme
-    if not endpoint.startswith(("http://", "https://")):
-        endpoint = "http://" + endpoint
-    
-    # Build the full URL for OpenAI-compatible endpoint
-    # vLLM uses /v1/audio/transcriptions for Whisper-compatible API
-    endpoint_url = endpoint.rstrip("/") + "/v1/audio/transcriptions"
-    
-    # Reconstruct mathematical WAV container for the remote vLLM endpoint
-    import io, wave
-    with io.BytesIO() as wav_io:
-        with wave.open(wav_io, 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(16000)
-            wf.writeframes(audio_bytes)
-        wav_bytes = wav_io.getvalue()
-        
-    # Create multipart form data
-    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
-    
-    # Build body in bytes properly
-    body_parts = []
-    body_parts.append(b"--" + boundary.encode("utf-8") + b"\r\n")
-    body_parts.append(b'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n')
-    body_parts.append(b"Content-Type: audio/wav\r\n\r\n")
-    body_parts.append(wav_bytes)
-    body_parts.append(b"\r\n--" + boundary.encode("utf-8") + b"\r\n")
-    body_parts.append(b'Content-Disposition: form-data; name="model"\r\n\r\n')
-    body_parts.append(b"qwen-asr\r\n")
-    body_parts.append(b"--" + boundary.encode("utf-8") + b"--\r\n")
-    body = b"".join(body_parts)
-    
-    try:
-        # Create request with explicit timeout
-        req = urllib.request.Request(
-            endpoint_url,
-            data=body,
-            headers={
-                "Content-Type": "multipart/form-data; boundary=" + boundary,
-                "Accept": "application/json"
-            },
-            method="POST"
-        )
-        
-        # Execute request with timeout
-        with urllib.request.urlopen(req, timeout=timeout) as response:
-            response_body = response.read().decode("utf-8")
-            
-            # Parse JSON response
-            try:
-                result = json.loads(response_body)
-                
-                # Extract text from OpenAI-compatible response
-                # Format: {"text": "..."} or {"transcription": "..."}
-                text = result.get("text", "") or result.get("transcription", "")
-                
-                if not text:
-                    return None, "json_output_invalid"
-                
-                return text.strip(), None
-                
-            except json.JSONDecodeError as e:
-                log_stderr(f"JSON decode error: {e}, response: {response_body[:200]}")
-                return None, "json_output_invalid"
-                
-    except urllib.error.HTTPError as e:
-        if e.code == 503:
-            return None, "endpoint_503"
-        elif e.code == 400:
-            return None, "audio_format_invalid"
-        else:
-            log_stderr(f"HTTP error {e.code}: {e.reason}")
-            return None, "inference_failed"
-    except urllib.error.URLError as e:
-        reason = e.reason
-        if isinstance(reason, str):
-            reason_lower = reason.lower()
-            if "connection refused" in reason_lower:
-                return None, "connection_refused"
-            elif "timed out" in reason_lower:
-                return None, "timeout"
-        # Check string representation too
-        error_str = str(e).lower()
-        if "connection refused" in error_str:
-            return None, "connection_refused"
-        elif "timed out" in error_str:
-            return None, "timeout"
-        log_stderr(f"URL error: {e}")
-        return None, "connection_refused"
-    except TimeoutError:
-        return None, "timeout"
-    except Exception as e:
-        log_stderr(f"Unexpected error during vLLM request: {e}")
-        return None, "inference_failed"
-
 
 def load_qwen3_model(model_path: str, device: str):
     """
@@ -351,15 +237,7 @@ def load_qwen3_model(model_path: str, device: str):
 def main() -> int:
     args = parse_args()
     
-    # Validate mode-specific arguments
-    if args.mode == "vllm_service" and not args.endpoint:
-        print_json({
-            "ok": False,
-            "error": "endpoint_503",
-            "retryable": True
-        })
-        return 1
-    
+
     # Step 1: Load and validate audio
     audio_bytes, error_code = load_audio_pcm16(args.audio, getattr(args, "stdin", False))
     if error_code:
@@ -424,28 +302,7 @@ def main() -> int:
         })
         return 0
         
-    elif args.mode == "vllm_service":
-        # Run vLLM service inference
-        text, error_code = transcribe_vllm_service(audio_bytes, args.endpoint)
-        if error_code:
-            retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
-            print_json({
-                "ok": False,
-                "error": error_code,
-                "retryable": retryable
-            })
-            return 1
-        
-        # Success - output JSON to stdout
-        print_json({
-            "ok": True,
-            "text": text,
-            "model": "vllm_service",
-            "device": "remote"
-        })
-        return 0
-    
-    # Should not reach here
+
     print_json({
         "ok": False,
         "error": "inference_failed",

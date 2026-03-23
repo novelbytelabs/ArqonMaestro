@@ -78,7 +78,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 1,
             stdout: "",
             stderr: "json decode error",
@@ -106,7 +106,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 1,
             stdout: "",
             stderr: "model loading error",
@@ -134,7 +134,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: "{ invalid json }",
             stderr: "",
@@ -164,7 +164,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn(), // Should NOT be called
+          runBridgeWithStdin: jest.fn(), // Should NOT be called
         };
 
         const provider = new Qwen3ASRDictationProvider(
@@ -182,7 +182,7 @@ describe("Qwen3ASRDictationProvider", () => {
           })
         ).rejects.toThrow("qwen3_empty_audio");
 
-        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
 
         // Undefined
         await expect(
@@ -193,7 +193,7 @@ describe("Qwen3ASRDictationProvider", () => {
           })
         ).rejects.toThrow("qwen3_empty_audio");
 
-        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
     });
 
@@ -204,7 +204,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: -1,
             stdout: "",
             stderr: "qwen3_timeout",
@@ -234,7 +234,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: BRIDGE_FAILURE("endpoint_503", true),
             stderr: "",
@@ -280,7 +280,7 @@ describe("Qwen3ASRDictationProvider", () => {
             mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
             writeFile: jest.fn().mockResolvedValue(undefined),
             rm: jest.fn().mockResolvedValue(undefined),
-            runBridge: jest.fn().mockResolvedValue({
+            runBridgeWithStdin: jest.fn().mockResolvedValue({
               exitCode: 0,
               stdout: BRIDGE_FAILURE(bridgeError, true),
               stderr: "",
@@ -329,7 +329,7 @@ describe("Qwen3ASRDictationProvider", () => {
         mkdtemp: jest.fn(),
         writeFile: jest.fn(),
         rm: jest.fn(),
-        runBridge: jest.fn(),
+        runBridgeWithStdin: jest.fn(),
       };
 
       const provider = new Qwen3ASRDictationProvider(
@@ -348,7 +348,7 @@ describe("Qwen3ASRDictationProvider", () => {
         mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
         writeFile: jest.fn().mockResolvedValue(undefined),
         rm: jest.fn().mockResolvedValue(undefined),
-        runBridge: jest.fn().mockResolvedValue({
+        runBridgeWithStdin: jest.fn().mockResolvedValue({
           exitCode: 0,
           stdout: BRIDGE_SUCCESS("vllm_service", "remote"),
           stderr: "",
@@ -368,10 +368,11 @@ describe("Qwen3ASRDictationProvider", () => {
       });
 
       // Verify endpoint was passed
-      expect(mockDeps.runBridge).toHaveBeenCalledWith(
+      expect(mockDeps.runBridgeWithStdin).toHaveBeenCalledWith(
         "/usr/bin/python3",
         "/fake/path/qwen3_asr_bridge.py",
         expect.arrayContaining(["--endpoint", "http://localhost:8000"]),
+        expect.any(Buffer),
         30000
       );
     });
@@ -384,7 +385,7 @@ describe("Qwen3ASRDictationProvider", () => {
         mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
         writeFile: jest.fn().mockResolvedValue(undefined),
         rm: jest.fn().mockResolvedValue(undefined),
-        runBridge: jest.fn().mockResolvedValue({
+        runBridgeWithStdin: jest.fn().mockResolvedValue({
           exitCode: 0,
           stdout: BRIDGE_SUCCESS("qwen3-asr", "cuda"),
           stderr: "",
@@ -471,7 +472,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn(),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockResolvedValue({
             ok: true,
             text: "sidecar dictation",
@@ -493,7 +494,7 @@ describe("Qwen3ASRDictationProvider", () => {
         });
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).not.toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
         expect(result.text).toBe("sidecar dictation");
         expect(result.provider).toBe("qwen3-asr");
       });
@@ -517,7 +518,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({
               ok: true,
@@ -542,20 +543,20 @@ describe("Qwen3ASRDictationProvider", () => {
           sampleRateHz: 16000,
         });
 
-        expect(mockDeps.runBridge).toHaveBeenCalled();
+        expect(mockDeps.runBridgeWithStdin).toHaveBeenCalled();
         expect(mockDeps.postSidecarJson).not.toHaveBeenCalled();
         expect(result.text).toBe("local dictation");
       });
     });
 
-    describe("sidecar failure → local fallback (replay)", () => {
-      it("should fallback to local when sidecar returns ok:false", async () => {
+    describe("sidecar failure → strict failure (no fallback blowout trap)", () => {
+      it("should throw instead of falling back to local when sidecar returns ok:false", async () => {
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({
               ok: true,
@@ -578,33 +579,23 @@ describe("Qwen3ASRDictationProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeDictation({
+        await expect(provider.transcribeDictation({
           chunkId: "test-fallback",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        });
+        })).rejects.toThrow("qwen3_sidecar_error:sidecar_unavailable");
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).toHaveBeenCalled();
-        expect(result.text).toBe("fallback dictation");
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
 
-      it("should fallback to local when sidecar throws network error", async () => {
+      it("should throw instead of falling back when sidecar throws network error", async () => {
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
-            exitCode: 0,
-            stdout: JSON.stringify({
-              ok: true,
-              text: "fallback dictation",
-              model: "qwen3-local",
-              device: "cuda",
-            }),
-            stderr: "",
-          }),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockRejectedValue(new Error("connection_refused")),
         };
 
@@ -614,33 +605,23 @@ describe("Qwen3ASRDictationProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeDictation({
+        await expect(provider.transcribeDictation({
           chunkId: "test-fallback-error",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        });
+        })).rejects.toThrow("qwen3_sidecar_error:connection_refused");
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).toHaveBeenCalled();
-        expect(result.text).toBe("fallback dictation");
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
 
-      it("should fallback to local when sidecar returns HTTP 503", async () => {
+      it("should throw instead of falling back when sidecar returns HTTP 503", async () => {
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
-            exitCode: 0,
-            stdout: JSON.stringify({
-              ok: true,
-              text: "fallback dictation",
-              model: "qwen3-local",
-              device: "cuda",
-            }),
-            stderr: "",
-          }),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockRejectedValue(new Error("sidecar_http_503: retryable")),
         };
 
@@ -650,15 +631,14 @@ describe("Qwen3ASRDictationProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeDictation({
+        await expect(provider.transcribeDictation({
           chunkId: "test-fallback-503",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        });
+        })).rejects.toThrow("qwen3_sidecar_error:sidecar_http_503");
 
         expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridge).toHaveBeenCalled();
-        expect(result.text).toBe("fallback dictation");
+        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
     });
 
@@ -670,7 +650,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn(),
+          runBridgeWithStdin: jest.fn(),
           postSidecarJson: jest.fn().mockResolvedValue({
             ok: true,
             text: "parsed dictation",
@@ -702,7 +682,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({ ok: true, text: "unused", model: "q", device: "cuda" }),
             stderr: "",
@@ -738,7 +718,7 @@ describe("Qwen3ASRDictationProvider", () => {
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridge: jest.fn().mockResolvedValue({
+          runBridgeWithStdin: jest.fn().mockResolvedValue({
             exitCode: 0,
             stdout: JSON.stringify({
               ok: false,
@@ -751,12 +731,12 @@ describe("Qwen3ASRDictationProvider", () => {
         };
 
         const provider = new Qwen3ASRDictationProvider(
-          SIDECAR_CONFIG,
+          TEST_CONFIG_VLLM,
           undefined,
           mockDeps
         );
 
-        // In local mode, endpoint_503 should trigger fallback
+        // In local mode, endpoint_503 should trigger wrapper exception
         await expect(
           provider.transcribeDictation({
             chunkId: "test-503",
