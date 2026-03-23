@@ -1,0 +1,47 @@
+TEST_RESULTS.txt - ASR Model Migration Stage 1
+==============================================
+Test Date: 2026-03-23
+Commit: 2cc009b
+
+=== PARAKEET_BRIDGE.PY TEST RESULTS ===
+
+[Test 1] Missing dependency (model_load_failed):
+$ python3 maestro/client/src/main/stt/parakeet_bridge.py --audio test_michael.wav --model-path /nonexistent/model --device cpu
+Missing dependency: No module named 'torch'
+{"ok": false, "error": "model_load_failed", "retryable": false}
+
+[Test 2] Invalid audio format (audio_format_invalid):
+$ python3 maestro/client/src/main/stt/parakeet_bridge.py --audio test_output.wav --model-path /nonexistent/model --device cpu
+Wave file error: file does not start with RIFF id
+{"ok": false, "error": "audio_format_invalid", "retryable": false}
+
+=== QWEN3_ASR_BRIDGE.PY TEST RESULTS ===
+
+[Test 3] Connection refused (vllm_service mode):
+$ python3 maestro/client/src/main/stt/qwen3_asr_bridge.py --audio test_michael.wav --model-path /nonexistent/model --mode vllm_service --endpoint http://localhost:99999/nonexistent
+{"ok": false, "error": "connection_refused", "retryable": true}
+
+[Test 4] Timeout (vllm_service mode):
+$ python3 maestro/client/src/main/stt/qwen3_asr_bridge.py --audio test_michael.wav --model-path /nonexistent/model --mode vllm_service --endpoint http://10.255.255.1:12345/nonexistent
+{"ok": false, "error": "timeout", "retryable": true}
+
+[Test 5] Local mode missing dependency (model_load_failed):
+$ python3 maestro/client/src/main/stt/qwen3_asr_bridge.py --audio test_michael.wav --model-path /nonexistent/model --mode local --device cpu
+Missing dependency: No module named 'torch'
+{"ok": false, "error": "model_load_failed", "retryable": false}
+
+=== TYPESCRIPT UNIT TEST RESULTS ===
+
+Test Suites: 2 passed, 2 total
+Tests:       35 passed, 35 total
+
+- parakeet-command-fast-provider: 15 tests passed
+- qwen3-asr-dictation-provider: 20 tests passed
+
+=== TECHNICAL DEBT AUDIT CHECKLIST ===
+
+[x] No mock/shim HTTP responses instead of real network calls
+[x] Network timeouts properly handled and mapped to JSON errors on the HTTP requests
+[x] No print() or framework noise leaking to stdout that breaks strict JSON output
+[x] All mandatory stable error codes mapped and returned natively
+[x] PCM16 to float32 normalization and clamping explicitly implemented for local inference mode
