@@ -79,6 +79,14 @@ interface ParakeetCommandFastProviderDeps {
     args: string[],
     timeoutMs: number
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
+  // NEW: Run bridge with stdin input (no temp file)
+  runBridgeWithStdin: (
+    pythonPath: string,
+    bridgeScriptPath: string,
+    args: string[],
+    stdinData: Buffer,
+    timeoutMs: number
+  ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
   // Sidecar HTTP client
   postSidecarJson: (
     urlString: string,
@@ -166,6 +174,8 @@ export default class ParakeetCommandFastProvider {
       rm: (targetPath) => fs.rm(targetPath, { recursive: true, force: true }),
       runBridge: (pythonPath, bridgeScriptPath, args, timeoutMs) =>
         this.defaultRunBridge(pythonPath, bridgeScriptPath, args, timeoutMs),
+      runBridgeWithStdin: (pythonPath, bridgeScriptPath, args, stdinData, timeoutMs) =>
+        this.defaultRunBridgeWithStdin(pythonPath, bridgeScriptPath, args, stdinData, timeoutMs),
       postSidecarJson: (urlString, body, timeoutMs) =>
         this.defaultPostSidecarJson(urlString, body, timeoutMs),
       ...deps,
@@ -277,6 +287,58 @@ export default class ParakeetCommandFastProvider {
           return;
         }
         resolve({ exitCode: code ?? 0, stdout, stderr });
+      });
+    });
+  }
+
+  /**
+   * Run bridge with stdin input (no temp file I/O).
+   */
+  private defaultRunBridgeWithStdin(
+    pythonPath: string,
+    bridgeScriptPath: string,
+    args: string[],
+    stdinData: Buffer,
+    timeoutMs: number
+  ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(pythonPath, [bridgeScriptPath, ...args], {
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      let stdout = "";
+      let stderr = "";
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        proc.kill("SIGKILL");
+      }, timeoutMs);
+
+      proc.stdout.on("data", (data) => {
+        stdout += data.toString();
+      });
+
+      proc.stderr.on("data", (data) => {
+        stderr += data.toString();
+      });
+
+      proc.on("error", (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+
+      proc.on("close", (code) => {
+        clearTimeout(timer);
+        if (timedOut) {
+          resolve({ exitCode: -1, stdout, stderr: `${stderr}\nparakeet_timeout` });
+          return;
+        }
+        resolve({ exitCode: code ?? 0, stdout, stderr });
+      });
+
+      // Write stdin data and close stdin
+      proc.stdin?.write(stdinData, () => {
+        proc.stdin?.end();
       });
     });
   }
@@ -400,30 +462,29 @@ export default class ParakeetCommandFastProvider {
   }
 
   /**
-   * Local mode: spawn Python bridge process (existing path).
+   * Local mode: spawn Python bridge process with stdin input (no temp files).
    */
   private async transcribeCommandLocal(input: ParakeetTranscriptionInput): Promise<ParakeetTranscriptionResult> {
     const start = Date.now();
-    const tempDir = await this.deps.mkdtemp(path.join(tmpdir(), "maestro-parakeet-"));
-    const inputWavPath = path.join(tempDir, `${input.chunkId}.wav`);
-
+    
     try {
+      // Build WAV buffer from PCM16 input
       const wavBuffer = this.buildWavFile(input.pcm16leAudio, input.sampleRateHz);
-      await this.deps.writeFile(inputWavPath, wavBuffer);
 
+      // Use stdin mode - no temp file I/O
       const args = [
-        "--audio",
-        inputWavPath,
+        "--stdin",
         "--model-path",
         this.config.modelPath,
         "--device",
         this.config.device,
       ];
 
-      const result = await this.deps.runBridge(
+      const result = await this.deps.runBridgeWithStdin(
         this.config.pythonPath,
         this.config.bridgeScriptPath,
         args,
+        wavBuffer,
         this.config.timeoutMs
       );
 
@@ -458,8 +519,9 @@ export default class ParakeetCommandFastProvider {
         latencyMs: Date.now() - start,
         provider: "parakeet",
       };
-    } finally {
-      await this.deps.rm(tempDir);
+    } catch (error) {
+      // Re-throw known errors
+      throw error;
     }
   }
 

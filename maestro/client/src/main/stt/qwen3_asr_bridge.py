@@ -32,7 +32,8 @@ ERROR_CODES = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Maestro Qwen3 ASR bridge")
-    parser.add_argument("--audio", required=True, help="Path to WAV audio file")
+    parser.add_argument("--audio", help="Path to WAV audio file")
+    parser.add_argument("--stdin", action="store_true", help="Accept raw PCM16 via stdin")
     parser.add_argument("--model-path", required=True, help="Path to Qwen3 ASR model directory")
     parser.add_argument("--mode", required=True, choices=["local", "vllm_service"], 
                         help="Inference mode: local or vllm_service")
