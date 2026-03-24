@@ -1,12 +1,7 @@
 import Log from "../log";
 import Settings from "../settings";
 import STTTracking from "./tracking";
-import {
-  KokoroTtsProvider,
-  PiperTtsProvider,
-  TtsPlaybackOptions,
-  TtsProvider,
-} from "./tts-providers";
+import { KokoroTtsProvider, TtsPlaybackOptions, TtsProvider } from "./tts-providers";
 
 export type TtsPersona =
   | "default_system"
@@ -41,7 +36,6 @@ interface ActivePlaybackState {
 
 interface BrokerProviders {
   kokoro: TtsProvider;
-  piper: TtsProvider;
 }
 
 const PRIORITY_ORDER: Record<TtsPriorityClass, number> = {
@@ -54,26 +48,23 @@ const PRIORITY_ORDER: Record<TtsPriorityClass, number> = {
 
 export default class TtsBroker {
   private kokoroProvider: TtsProvider;
-  private piperProvider: TtsProvider;
   private activePlayback: ActivePlaybackState | null = null;
 
   constructor(
     private log: Log,
     private tracking: STTTracking,
     private settings: Settings,
-    providers?: Partial<BrokerProviders>
+    providers?: Partial<BrokerProviders>,
   ) {
     this.kokoroProvider = providers?.kokoro || new KokoroTtsProvider(log, tracking, settings);
-    this.piperProvider = providers?.piper || new PiperTtsProvider(log, tracking, settings);
   }
 
   refreshProviders(): void {
     this.kokoroProvider = new KokoroTtsProvider(this.log, this.tracking, this.settings);
-    this.piperProvider = new PiperTtsProvider(this.log, this.tracking, this.settings);
   }
 
   getProviderSummary(): string {
-    return "kokoro_primary_piper_fallback";
+    return "kokoro_only";
   }
 
   async speak(request: TtsBrokerRequest): Promise<boolean> {
@@ -86,11 +77,11 @@ export default class TtsBroker {
         PRIORITY_ORDER[priority] < PRIORITY_ORDER[this.activePlayback.priority];
       if (incomingHigherPriority || this.activePlayback.interruptible) {
         this.interruptCurrentPlayback(
-          incomingHigherPriority ? "higher_priority_request" : "interruptible_preemption"
+          incomingHigherPriority ? "higher_priority_request" : "interruptible_preemption",
         );
       } else {
         this.log.logVerbose(
-          `[TtsBroker] Deferring non-interrupting request ${request.messageId}; active playback is higher priority`
+          `[TtsBroker] Deferring non-interrupting request ${request.messageId}; active playback is higher priority`,
         );
         this.tracking.logMetric("stt.tts.broker.deferred", {
           message_id: request.messageId,
@@ -120,7 +111,6 @@ export default class TtsBroker {
       persona,
       priority_class: priority,
       provider_primary: "kokoro",
-      provider_fallback: "piper",
     });
 
     try {
@@ -129,37 +119,19 @@ export default class TtsBroker {
         request.audioDataB64,
         request.format,
         request.transcript,
-        playbackOptions
+        playbackOptions,
       );
-      if (kokoroResult.success) {
-        return true;
-      }
 
-      if (!this.settings.getArqonTtsKokoroFallbackEnabled()) {
+      if (!kokoroResult.success) {
         this.tracking.logMetric("stt.tts.fail_closed", {
           message_id: request.messageId,
           provider: "kokoro",
           fallback_enabled: false,
           reason: kokoroResult.error || "kokoro_failure",
         });
-        return false;
       }
 
-      this.tracking.logMetric("stt.tts.broker.fallback", {
-        message_id: request.messageId,
-        from_provider: "kokoro",
-        to_provider: "piper",
-        reason: kokoroResult.error || "kokoro_failure",
-      });
-
-      const piperResult = await this.piperProvider.play(
-        request.messageId,
-        request.audioDataB64,
-        request.format,
-        request.transcript,
-        playbackOptions
-      );
-      return piperResult.success;
+      return kokoroResult.success;
     } finally {
       if (this.activePlayback?.messageId === request.messageId) {
         this.activePlayback = null;
@@ -168,9 +140,7 @@ export default class TtsBroker {
   }
 
   interruptCurrentPlayback(reason: string = "external_interrupt"): boolean {
-    const stoppedKokoro = this.kokoroProvider.stopCurrentPlayback(reason);
-    const stoppedPiper = this.piperProvider.stopCurrentPlayback(reason);
-    const interrupted = stoppedKokoro || stoppedPiper;
+    const interrupted = this.kokoroProvider.stopCurrentPlayback(reason);
     if (interrupted && this.activePlayback) {
       this.tracking.logMetric("stt.tts.playback_interrupted", {
         message_id: this.activePlayback.messageId,

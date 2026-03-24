@@ -14,7 +14,7 @@ export const shell = {
     };
   },
 
-  send(channel: string, data?: any) {
-    ipcRenderer.send(channel, data);
+  send(channel: string, ...args: any[]) {
+    ipcRenderer.send(channel, ...args);
   },
 };

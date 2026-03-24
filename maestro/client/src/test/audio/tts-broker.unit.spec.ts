@@ -59,10 +59,8 @@ describe("TtsBroker", () => {
   it("uses Kokoro as primary and routes warning persona voice override", async () => {
     const deps = createDeps();
     const kokoro = new FakeProvider("kokoro");
-    const piper = new FakeProvider("piper");
     const broker = new TtsBroker(deps.log, deps.tracking, createSettings(), {
       kokoro,
-      piper,
     });
 
     const ok = await broker.speak({
@@ -77,10 +75,9 @@ describe("TtsBroker", () => {
     expect(kokoro.calls).toHaveLength(1);
     expect(kokoro.calls[0].options?.persona).toBe("warning_sentinel");
     expect(kokoro.calls[0].options?.voiceOverride).toBe("af_bella");
-    expect(piper.calls).toHaveLength(0);
   });
 
-  it("falls back to Piper when Kokoro fails", async () => {
+  it("fails when Kokoro fails (no fallback)", async () => {
     const deps = createDeps();
     const kokoro = new FakeProvider("kokoro");
     kokoro.nextResult = {
@@ -89,15 +86,8 @@ describe("TtsBroker", () => {
       latencyMs: 2,
       error: "kokoro_down",
     };
-    const piper = new FakeProvider("piper");
-    piper.nextResult = {
-      success: true,
-      provider: "piper",
-      latencyMs: 3,
-    };
     const broker = new TtsBroker(deps.log, deps.tracking, createSettings(true), {
       kokoro,
-      piper,
     });
 
     const ok = await broker.speak({
@@ -107,9 +97,8 @@ describe("TtsBroker", () => {
       transcript: "ack",
     });
 
-    expect(ok).toBe(true);
+    expect(ok).toBe(false);
     expect(kokoro.calls).toHaveLength(1);
-    expect(piper.calls).toHaveLength(1);
   });
 
   it("interrupts active playback on higher-priority incoming request", async () => {
@@ -119,10 +108,8 @@ describe("TtsBroker", () => {
     kokoro.pending = new Promise<TtsPlaybackResult>((resolve) => {
       resolveFirst = resolve;
     });
-    const piper = new FakeProvider("piper");
     const broker = new TtsBroker(deps.log, deps.tracking, createSettings(), {
       kokoro,
-      piper,
     });
 
     const first = broker.speak({

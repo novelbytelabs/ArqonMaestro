@@ -48,7 +48,7 @@ export interface TtsProvider {
     audioDataB64: string,
     format: string,
     transcript: string,
-    options?: TtsPlaybackOptions
+    options?: TtsPlaybackOptions,
   ): Promise<TtsPlaybackResult>;
 
   stopCurrentPlayback(reason?: string): boolean;
@@ -99,7 +99,7 @@ abstract class BaseTtsProvider implements TtsProvider {
     audioDataB64: string,
     format: string,
     transcript: string,
-    options?: TtsPlaybackOptions
+    options?: TtsPlaybackOptions,
   ): Promise<TtsPlaybackResult>;
 
   stopCurrentPlayback(reason: string = "interrupted"): boolean {
@@ -114,7 +114,7 @@ abstract class BaseTtsProvider implements TtsProvider {
       return true;
     } catch (error: any) {
       this.log.logError(
-        `[${this.getType()}] Failed to stop active playback: ${error?.message || error}`
+        `[${this.getType()}] Failed to stop active playback: ${error?.message || error}`,
       );
       return false;
     }
@@ -132,260 +132,6 @@ abstract class BaseTtsProvider implements TtsProvider {
     proc.once("exit", clear);
   }
 }
-
-/**
- * Fallback TTS provider using aplay (existing implementation)
- */
-export class PiperTtsProvider extends BaseTtsProvider {
-  getType(): TtsProviderType {
-    return "piper";
-  }
-
-  async play(
-    messageId: string,
-    audioDataB64: string,
-    format: string,
-    transcript: string,
-    options?: TtsPlaybackOptions
-  ): Promise<TtsPlaybackResult> {
-    // Check for replay
-    if (!this.checkAndTrackReplay(messageId)) {
-      this.tracking.logMetric("stt.tts.replay_ignored", {
-        message_id: messageId,
-        provider: "piper",
-      });
-      return {
-        success: false,
-        provider: "piper",
-        latencyMs: 0,
-        error: "replay ignored",
-      };
-    }
-
-    const startMs = Date.now();
-
-    try {
-      // If we have pre-synthesized audio data, play it directly
-      if (audioDataB64 && audioDataB64.length > 0) {
-        const buffer = Buffer.from(audioDataB64, "base64");
-        this.log.logVerbose(
-          `[PiperTts] Playing pre-synthesized audio ${messageId} (${buffer.length} bytes): "${transcript.substring(0, 30)}..."`
-        );
-
-        const args = ["-q"]; // quiet
-        if (format === "raw" || format === "pcm") {
-          // Standard fallback audio is usually 16kHz
-          args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
-        }
-
-        return new Promise<TtsPlaybackResult>((resolve) => {
-          let resolved = false;
-          const resolveOnce = (result: TtsPlaybackResult) => {
-            if (!resolved) {
-              resolved = true;
-              resolve(result);
-            }
-          };
-
-          const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
-          this.trackPlaybackProcess(proc);
-
-          proc.once("spawn", () => {
-            this.tracking.logMetric("stt.tts.provider_selected", {
-              message_id: messageId,
-              provider: "piper",
-            });
-            this.tracking.logMetric("stt.tts.playback_started", {
-              message_id: messageId,
-              bytes: buffer.length,
-              provider: "piper",
-            });
-          });
-
-          proc.once("error", (err) => {
-            this.playedMessages.delete(messageId);
-            const latencyMs = Date.now() - startMs;
-            this.log.logError(`[PiperTts] Playback error for ${messageId}: ${err.message}`);
-            this.tracking.logMetric("stt.tts.playback_failed", {
-              message_id: messageId,
-              provider: "piper",
-              reason: err.message,
-            });
-            resolveOnce({
-              success: false,
-              provider: "piper",
-              latencyMs,
-              error: err.message,
-            });
-          });
-
-          proc.once("close", (code) => {
-            const latencyMs = Date.now() - startMs;
-            if (code !== 0) {
-              this.playedMessages.delete(messageId);
-              this.tracking.logMetric("stt.tts.playback_failed", {
-                message_id: messageId,
-                provider: "piper",
-                reason: `exit_${code}`,
-              });
-              resolveOnce({
-                success: false,
-                provider: "piper",
-                latencyMs,
-                error: `exit code ${code}`,
-              });
-            } else {
-              this.tracking.logMetric("stt.tts.playback_completed", {
-                message_id: messageId,
-                provider: "piper",
-                duration_ms: latencyMs,
-              });
-              resolveOnce({
-                success: true,
-                provider: "piper",
-                latencyMs,
-              });
-            }
-          });
-
-          if (proc.stdin) {
-            proc.stdin.end(buffer);
-          }
-        });
-      }
-
-      // No pre-synthesized audio, perform real-time synthesis via Piper CLI
-      if (!transcript || transcript.length === 0) {
-        throw new Error("No audio data and no transcript provided for Piper synthesis");
-      }
-
-      const modelPath = this.settings.getArqonTtsPiperModelPath();
-      const condaEnv = this.settings.getArqonTtsPiperCondaEnv();
-
-      this.log.logVerbose(
-        `[PiperTts] Real-time synthesis for ${messageId}: "${transcript.substring(0, 30)}..." using ${modelPath}`
-      );
-
-      // Piper medium models typically output at 22050Hz
-      const aplayArgs = ["-q", "-f", "S16_LE", "-r", "22050", "-c", "1", "-t", "raw"];
-      const piperArgs = [
-        "run",
-        "-n",
-        condaEnv,
-        "python3",
-        "-m",
-        "piper",
-        "--model",
-        modelPath,
-        "--output-raw",
-        transcript,
-      ];
-
-      return new Promise<TtsPlaybackResult>((resolve) => {
-        let resolved = false;
-        const resolveOnce = (result: TtsPlaybackResult) => {
-          if (!resolved) {
-            resolved = true;
-            resolve(result);
-          }
-        };
-
-        const aplayProc = spawn("aplay", aplayArgs, { stdio: ["pipe", "ignore", "ignore"] });
-        const piperProc = spawn("conda", piperArgs, { stdio: ["ignore", "pipe", "pipe"] });
-
-        this.trackPlaybackProcess(aplayProc);
-
-        aplayProc.once("spawn", () => {
-          this.tracking.logMetric("stt.tts.provider_selected", {
-            message_id: messageId,
-            provider: "piper",
-          });
-          this.tracking.logMetric("stt.tts.playback_started", {
-            message_id: messageId,
-            provider: "piper",
-            mechanism: "cli_synthesis",
-          });
-        });
-
-        // Pipe piper stdout to aplay stdin
-        if (piperProc.stdout && aplayProc.stdin) {
-          piperProc.stdout.pipe(aplayProc.stdin);
-        }
-
-        // Handle piper errors/logs
-        if (piperProc.stderr) {
-          let stderrOutput = "";
-          piperProc.stderr.on("data", (data) => {
-            stderrOutput += data.toString();
-          });
-          piperProc.once("close", (code) => {
-            if (code !== 0 && code !== null) {
-              this.log.logError(`[PiperTts] Piper CLI error (code ${code}): ${stderrOutput}`);
-            }
-          });
-        }
-
-        aplayProc.once("error", (err) => {
-          this.playedMessages.delete(messageId);
-          const latencyMs = Date.now() - startMs;
-          this.log.logError(`[PiperTts] aplay error for ${messageId}: ${err.message}`);
-          resolveOnce({
-            success: false,
-            provider: "piper",
-            latencyMs,
-            error: err.message,
-          });
-        });
-
-        aplayProc.once("close", (code) => {
-          const latencyMs = Date.now() - startMs;
-          if (code !== 0) {
-            this.playedMessages.delete(messageId);
-            resolveOnce({
-              success: false,
-              provider: "piper",
-              latencyMs,
-              error: `aplay_exit_${code}`,
-            });
-          } else {
-            this.tracking.logMetric("stt.tts.playback_completed", {
-              message_id: messageId,
-              provider: "piper",
-              duration_ms: latencyMs,
-            });
-            resolveOnce({
-              success: true,
-              provider: "piper",
-              latencyMs,
-            });
-          }
-        });
-
-        // Cleanup piper if aplay fails or is stopped
-        aplayProc.once("exit", () => {
-          if (!piperProc.killed) {
-            piperProc.kill();
-          }
-        });
-      });
-    } catch (e: any) {
-      this.playedMessages.delete(messageId);
-      const latencyMs = Date.now() - startMs;
-      this.log.logError(`[PiperTts] Failed to start Piper synthesis: ${e.message}`);
-      return {
-        success: false,
-        provider: "piper",
-        latencyMs,
-        error: e.message,
-      };
-    }
-  }
-}
-
-/**
- * Backward-compatible alias; migration prefers Piper naming.
- */
-export class FallbackTtsProvider extends PiperTtsProvider {}
 
 interface KokoroSynthesizeResponse {
   audio_data_b64?: string;
@@ -449,7 +195,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
               reject(new Error(`invalid_json: ${e.message}`));
             }
           });
-        }
+        },
       );
 
       req.setTimeout(timeoutMs, () => {
@@ -465,7 +211,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     urlString: string,
     body: any,
     timeoutMs: number,
-    onChunk: (chunk: KokoroStreamChunk) => void
+    onChunk: (chunk: KokoroStreamChunk) => void,
   ): Promise<void> {
     const parsedUrl = new URL(urlString);
     const client = parsedUrl.protocol === "https:" ? https : http;
@@ -541,7 +287,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
             }
             resolve();
           });
-        }
+        },
       );
 
       req.setTimeout(timeoutMs, () => {
@@ -560,7 +306,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     baseUrl: string,
     voice: string,
     timeoutMs: number,
-    startMs: number
+    startMs: number,
   ): Promise<TtsPlaybackResult> {
     const args = ["-q", "-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw"];
     const streamUrl = `${baseUrl.replace(/\/+$/, "")}/synthesize_stream`;
@@ -701,7 +447,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
           if (chunk.done === true && proc.stdin && !proc.stdin.destroyed) {
             proc.stdin.end();
           }
-        }
+        },
       )
         .then(() => {
           streamComplete = true;
@@ -738,7 +484,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     audioDataB64: string,
     format: string,
     transcript: string,
-    options?: TtsPlaybackOptions
+    options?: TtsPlaybackOptions,
   ): Promise<TtsPlaybackResult> {
     // Check for replay
     if (!this.checkAndTrackReplay(messageId)) {
@@ -777,9 +523,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
     }
 
     try {
-      this.log.logVerbose(
-        `[KokoroTts] Synthesizing speech request ${messageId} using ${baseUrl}`
-      );
+      this.log.logVerbose(`[KokoroTts] Synthesizing speech request ${messageId} using ${baseUrl}`);
 
       this.tracking.logMetric("stt.tts.provider_selected", {
         message_id: messageId,
@@ -799,7 +543,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
           baseUrl,
           voice,
           timeoutMs,
-          startMs
+          startMs,
         );
         if (streamingResult.success) {
           return streamingResult;
@@ -822,11 +566,10 @@ export class KokoroTtsProvider extends BaseTtsProvider {
           format,
           input_audio_b64: audioDataB64,
         },
-        timeoutMs
+        timeoutMs,
       )) as KokoroSynthesizeResponse;
 
-      const synthesizedAudioB64 =
-        response.audio_data_b64 || response.audio_b64 || response.audio;
+      const synthesizedAudioB64 = response.audio_data_b64 || response.audio_b64 || response.audio;
       const outputFormat = response.format || format;
 
       if (!synthesizedAudioB64 || typeof synthesizedAudioB64 !== "string") {
@@ -860,8 +603,8 @@ export class KokoroTtsProvider extends BaseTtsProvider {
           }
         };
 
-      const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
-      this.trackPlaybackProcess(proc);
+        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+        this.trackPlaybackProcess(proc);
         const buffer = Buffer.from(synthesizedAudioB64, "base64");
 
         proc.once("error", (err) => {
@@ -972,18 +715,7 @@ export class KokoroTtsProvider extends BaseTtsProvider {
 export function createTtsProvider(
   log: Log,
   tracking: STTTracking,
-  settings: Settings
+  settings: Settings,
 ): TtsProvider {
-  const provider = settings.getArqonTtsProvider();
-  
-  if (provider === "kokoro") {
-    return new KokoroTtsProvider(log, tracking, settings);
-  }
-  
-  // "fallback" remains accepted for migration compatibility and maps to Piper.
-  if (provider === "piper" || provider === "fallback") {
-    return new PiperTtsProvider(log, tracking, settings);
-  }
-
-  return new PiperTtsProvider(log, tracking, settings);
+  return new KokoroTtsProvider(log, tracking, settings);
 }

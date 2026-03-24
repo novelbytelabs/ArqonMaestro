@@ -29,6 +29,7 @@ import {
   getPhase3BReplayAuditSummary,
   resetPhase3BReplayAuditSnapshot,
 } from "./runtime/phase3b-replay-audit-harness";
+import type { PasskeyProviderVerificationOutcome } from "./runtime/passkey-bootstrap-service";
 
 export default class RendererProcessEventHandlers {
   constructor(
@@ -531,7 +532,7 @@ export default class RendererProcessEventHandlers {
     });
 
     ipcMain.on("securityReportPasskeyProviderOutcome", (_event: any, outcome: any) => {
-      const payload = {
+      const payload: PasskeyProviderVerificationOutcome = {
         provider: String(outcome?.provider || "").trim(),
         challengeId: String(outcome?.challengeId || "").trim(),
         verified: !!outcome?.verified,

@@ -964,19 +964,6 @@ export default class Settings {
   // ========================================================================
 
   /**
-   * Get TTS provider selection
-   * Options: "kokoro" | "piper" | "fallback" (legacy alias for piper)
-   * Default: "kokoro" (Wave D primary)
-   */
-  getArqonTtsProvider(): string {
-    return this.get("system", "arqon_tts_provider", "kokoro");
-  }
-
-  setArqonTtsProvider(provider: string) {
-    this.set("system", "arqon_tts_provider", provider);
-  }
-
-  /**
    * Get Kokoro sidecar base URL (Firecracker-hosted service).
    */
   getArqonTtsKokoroUrl(): string {
@@ -1010,18 +997,6 @@ export default class Settings {
   }
 
   /**
-   * Get whether fallback TTS is enabled when Kokoro fails.
-   * Fallback provider is Piper in Wave D.
-   */
-  getArqonTtsKokoroFallbackEnabled(): boolean {
-    return this.get("system", "arqon_tts_kokoro_fallback_enabled", true);
-  }
-
-  setArqonTtsKokoroFallbackEnabled(enabled: boolean) {
-    this.set("system", "arqon_tts_kokoro_fallback_enabled", enabled);
-  }
-
-  /**
    * Enable streamed Kokoro synthesis/playback path.
    * Falls back to non-streaming endpoint if stream endpoint is unavailable.
    */
@@ -1031,36 +1006,6 @@ export default class Settings {
 
   setArqonTtsKokoroStreamingEnabled(enabled: boolean) {
     this.set("system", "arqon_tts_kokoro_streaming_enabled", enabled);
-  }
-
-  // ========================================================================
-  // Piper TTS Configuration (Gate 6 Fallback)
-  // ========================================================================
-
-  /**
-   * Get Piper model path (ONNX).
-   */
-  getArqonTtsPiperModelPath(): string {
-    return this.get(
-      "system",
-      "arqon_tts_piper_model_path",
-      path.join(os.homedir(), "models/arqon/tts/piper/en_US-hfc_female-medium.onnx")
-    );
-  }
-
-  setArqonTtsPiperModelPath(modelPath: string) {
-    this.set("system", "arqon_tts_piper_model_path", modelPath);
-  }
-
-  /**
-   * Get Piper conda environment name.
-   */
-  getArqonTtsPiperCondaEnv(): string {
-    return this.get("system", "arqon_tts_piper_conda_env", "helios-gpu-118");
-  }
-
-  setArqonTtsPiperCondaEnv(env: string) {
-    this.set("system", "arqon_tts_piper_conda_env", env);
   }
 
   // ====== Sidecar ASR Configuration ======

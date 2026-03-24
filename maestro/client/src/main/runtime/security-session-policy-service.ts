@@ -32,6 +32,9 @@ export interface SecuritySessionAuthContext {
   graceValid: boolean;
   graceExpiresAt: string;
   reasonCode: string;
+  passkeyBootstrapRequired?: boolean;
+  passkeyBootstrapped?: boolean;
+  passkeyProviderReady?: boolean;
 }
 
 interface ActivationEvent {
