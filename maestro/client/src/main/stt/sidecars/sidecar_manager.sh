@@ -131,31 +131,19 @@ preflight_check() {
     return 0
 }
 
-# Warmup sidecar (load model, process dummy audio)
+# Warmup sidecar (lightweight readiness probe)
 warmup_sidecar() {
     local sidecar=$1
     local port=$2
-    local model_path=$3
-    
+
     log_info "Warming up ${sidecar} sidecar..."
-    
-    # Create dummy PCM16 audio (1 second of silence = 32000 bytes)
-    local dummy_audio="/tmp/warmup_${sidecar}.raw"
-    python3 -c "import sys; sys.stdout.buffer.write(b'\x00' * 32000)" > "$dummy_audio"
-    
-    # Send warmup request
-    log_info "Sending warmup request to port ${port}..."
-    if curl -s -f -X POST "http://localhost:${port}/transcribe" \
-        -H "Content-Type: application/octet-stream" \
-        --data-binary @"$dummy_audio" > /dev/null 2>&1; then
+    if curl -s -f "http://localhost:${port}/health" > /dev/null 2>&1; then
         log_info "✓ ${sidecar} warmup complete"
-        rm -f "$dummy_audio"
         return 0
-    else
-        log_warn "⚠ Warmup request failed (may be normal if model not loaded yet)"
-        rm -f "$dummy_audio"
-        return 1
     fi
+
+    log_warn "⚠ Warmup probe failed"
+    return 1
 }
 
 # Start Parakeet sidecar
@@ -341,8 +329,7 @@ health_check() {
     local name=$1
     local port=$2
     
-    if curl -s -f "http://localhost:${port}/transcribe" -X POST \
-        -H "Content-Length: 0" 2>/dev/null; then
+    if curl -s -f "http://localhost:${port}/health" > /dev/null 2>&1; then
         echo -e "${GREEN}${name} health: OK${NC}"
         return 0
     else

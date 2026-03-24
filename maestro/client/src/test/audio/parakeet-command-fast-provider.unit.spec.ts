@@ -345,23 +345,36 @@ describe("ParakeetCommandFastProvider", () => {
       timeoutMs: 5000,
       initialPrompt: "test prompt",
       mode: "sidecar" as const,
-      sidecarUrl: "http://127.0.0.1:7782/transcribe",
+      sidecarUrl: "ws://127.0.0.1:7782/transcribe_stream",
+    };
+
+    const createMockWebSocket = () => {
+      const handlers: any = {};
+      const ws = {
+        on: jest.fn((event, cb) => { handlers[event] = cb; }),
+        send: jest.fn(),
+        close: jest.fn(),
+        terminate: jest.fn(),
+        readyState: 1, // OPEN
+        __simulateOpen: () => handlers['open']?.(),
+        __simulateMessage: (data: string) => handlers['message']?.(Buffer.from(data)),
+        __simulateError: (err: Error) => handlers['error']?.(err),
+        __simulateClose: () => handlers['close']?.()
+      };
+      return ws;
     };
 
     describe("sidecar mode routing decision", () => {
       it("should route to sidecar when mode is 'sidecar' and url is configured", async () => {
+        const mockWs = createMockWebSocket();
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
           runBridgeWithStdin: jest.fn(),
-          postSidecarJson: jest.fn().mockResolvedValue({
-            ok: true,
-            text: "sidecar command",
-            model: "parakeet-sidecar",
-            device: "cuda",
-          }),
+          postSidecarJson: jest.fn(),
+          createWebSocket: jest.fn().mockReturnValue(mockWs)
         };
 
         const provider = new ParakeetCommandFastProvider(
@@ -370,18 +383,27 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeCommand({
+        const transcribePromise = provider.transcribeCommand({
           chunkId: "test-sidecar",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
         });
 
-        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        // Simulate successful websocket lifecycle
+        mockWs.__simulateOpen();
+        mockWs.__simulateMessage(JSON.stringify({
+          ok: true,
+          is_final: true,
+          text: "sidecar command"
+        }));
+
+        const result = await transcribePromise;
+
+        expect(mockDeps.createWebSocket).toHaveBeenCalledWith("ws://127.0.0.1:7782/transcribe_stream");
         expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
         expect(result.transcript).toBe("sidecar command");
         expect(result.provider).toBe("parakeet");
       });
-
 
       it("should route to local when mode is 'local' (default)", async () => {
         const LOCAL_CONFIG = {
@@ -411,8 +433,8 @@ describe("ParakeetCommandFastProvider", () => {
             stderr: "",
           }),
           postSidecarJson: jest.fn(),
+          createWebSocket: jest.fn()
         };
-
 
         const provider = new ParakeetCommandFastProvider(
           LOCAL_CONFIG,
@@ -427,33 +449,22 @@ describe("ParakeetCommandFastProvider", () => {
         });
 
         expect(mockDeps.runBridgeWithStdin).toHaveBeenCalled();
-        expect(mockDeps.postSidecarJson).not.toHaveBeenCalled();
+        expect(mockDeps.createWebSocket).not.toHaveBeenCalled();
         expect(result.transcript).toBe("local command");
       });
     });
 
-    describe("sidecar failure → strict failure (no fallback blowout trap)", () => {
+    describe("sidecar failure → strict failure", () => {
       it("should throw instead of falling back to local when sidecar returns ok:false", async () => {
+        const mockWs = createMockWebSocket();
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridgeWithStdin: jest.fn().mockResolvedValue({
-            exitCode: 0,
-            stdout: JSON.stringify({
-              ok: true,
-              text: "fallback command",
-              model: "parakeet-local",
-              device: "cuda",
-            }),
-            stderr: "",
-          }),
-          postSidecarJson: jest.fn().mockResolvedValue({
-            ok: false,
-            error: "sidecar_unavailable",
-            retryable: true,
-          }),
+          runBridgeWithStdin: jest.fn(),
+          postSidecarJson: jest.fn(),
+          createWebSocket: jest.fn().mockReturnValue(mockWs)
         };
 
         const provider = new ParakeetCommandFastProvider(
@@ -462,24 +473,33 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        await expect(provider.transcribeCommand({
+        const transcribePromise = provider.transcribeCommand({
           chunkId: "test-fallback",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        })).rejects.toThrow("parakeet_sidecar_error:sidecar_unavailable");
+        });
 
-        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        mockWs.__simulateOpen();
+        mockWs.__simulateMessage(JSON.stringify({
+          ok: false,
+          error: "sidecar_unavailable"
+        }));
+
+        await expect(transcribePromise).rejects.toThrow("parakeet_sidecar_error:sidecar_unavailable");
+        expect(mockDeps.createWebSocket).toHaveBeenCalled();
         expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
 
       it("should throw instead of falling back when sidecar throws network error", async () => {
+        const mockWs = createMockWebSocket();
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
           runBridgeWithStdin: jest.fn(),
-          postSidecarJson: jest.fn().mockRejectedValue(new Error("connection_refused")),
+          postSidecarJson: jest.fn(),
+          createWebSocket: jest.fn().mockReturnValue(mockWs)
         };
 
         const provider = new ParakeetCommandFastProvider(
@@ -488,57 +508,31 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        await expect(provider.transcribeCommand({
+        const transcribePromise = provider.transcribeCommand({
           chunkId: "test-fallback-error",
           pcm16leAudio: Buffer.from(new Array(100).fill(0)),
           sampleRateHz: 16000,
-        })).rejects.toThrow("parakeet_sidecar_error:connection_refused");
+        });
 
-        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
-        expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
-      });
+        mockWs.__simulateOpen();
+        mockWs.__simulateError(new Error("connection_refused"));
 
-      it("should throw instead of falling back when sidecar returns HTTP 503", async () => {
-        const mockDeps = {
-          fileExists: () => true,
-          mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
-          writeFile: jest.fn().mockResolvedValue(undefined),
-          rm: jest.fn().mockResolvedValue(undefined),
-          runBridgeWithStdin: jest.fn(),
-          postSidecarJson: jest.fn().mockRejectedValue(new Error("sidecar_http_503: retryable")),
-        };
-
-        const provider = new ParakeetCommandFastProvider(
-          SIDECAR_CONFIG,
-          undefined,
-          mockDeps
-        );
-
-        await expect(provider.transcribeCommand({
-          chunkId: "test-fallback-503",
-          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
-          sampleRateHz: 16000,
-        })).rejects.toThrow("parakeet_sidecar_error:sidecar_http_503");
-
-        expect(mockDeps.postSidecarJson).toHaveBeenCalled();
+        await expect(transcribePromise).rejects.toThrow("parakeet_sidecar_error:connection_refused");
         expect(mockDeps.runBridgeWithStdin).not.toHaveBeenCalled();
       });
     });
 
     describe("sidecar contract parsing", () => {
-      it("should parse valid sidecar JSON response", async () => {
+      it("should parse valid sidecar JSON response with partials", async () => {
+        const mockWs = createMockWebSocket();
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
           runBridgeWithStdin: jest.fn(),
-          postSidecarJson: jest.fn().mockResolvedValue({
-            ok: true,
-            text: "parsed command",
-            model: "parakeet-ctc-sidecar",
-            device: "cuda",
-          }),
+          postSidecarJson: jest.fn(),
+          createWebSocket: jest.fn().mockReturnValue(mockWs)
         };
 
         const provider = new ParakeetCommandFastProvider(
@@ -547,35 +541,46 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        const result = await provider.transcribeCommand({
-          chunkId: "test-parse",
-          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
-          sampleRateHz: 16000,
-        });
+        const onPartial = jest.fn();
+
+        const stream = provider.createStream("test-parse", onPartial);
+        const finalizePromise = stream.finalize();
+
+        mockWs.__simulateOpen();
+
+        // 1. Partial
+        mockWs.__simulateMessage(JSON.stringify({
+          ok: true,
+          is_final: false,
+          text: "parsed",
+        }));
+
+        expect(onPartial).toHaveBeenCalledWith("parsed");
+
+        // 2. Final
+        mockWs.__simulateMessage(JSON.stringify({
+          ok: true,
+          is_final: true,
+          text: "parsed command",
+        }));
+
+        const result = await finalizePromise;
 
         expect(result.transcript).toBe("parsed command");
-        expect(result.model).toBe("parakeet-ctc-sidecar");
+        expect(result.model).toBe("/fake/path/model");
         expect(result.device).toBe("cuda");
       });
 
-
       it("should throw for empty sidecar transcript", async () => {
+        const mockWs = createMockWebSocket();
         const mockDeps = {
           fileExists: () => true,
           mkdtemp: jest.fn().mockResolvedValue("/tmp/test"),
           writeFile: jest.fn().mockResolvedValue(undefined),
           rm: jest.fn().mockResolvedValue(undefined),
-          runBridgeWithStdin: jest.fn().mockResolvedValue({
-            exitCode: 0,
-            stdout: JSON.stringify({ ok: true, text: "unused", model: "p", device: "cuda" }),
-            stderr: "",
-          }),
-          postSidecarJson: jest.fn().mockResolvedValue({
-            ok: true,
-            text: "",
-            model: "parakeet",
-            device: "cuda",
-          }),
+          runBridgeWithStdin: jest.fn(),
+          postSidecarJson: jest.fn(),
+          createWebSocket: jest.fn().mockReturnValue(mockWs)
         };
 
         const provider = new ParakeetCommandFastProvider(
@@ -584,13 +589,20 @@ describe("ParakeetCommandFastProvider", () => {
           mockDeps
         );
 
-        await expect(
-          provider.transcribeCommand({
-            chunkId: "test-empty",
-            pcm16leAudio: Buffer.from(new Array(100).fill(0)),
-            sampleRateHz: 16000,
-          })
-        ).rejects.toThrow("parakeet_empty_transcript");
+        const transcribePromise = provider.transcribeCommand({
+          chunkId: "test-empty",
+          pcm16leAudio: Buffer.from(new Array(100).fill(0)),
+          sampleRateHz: 16000,
+        });
+
+        mockWs.__simulateOpen();
+        mockWs.__simulateMessage(JSON.stringify({
+          ok: true,
+          is_final: true,
+          text: "",
+        }));
+
+        await expect(transcribePromise).rejects.toThrow("parakeet_empty_transcript");
       });
     });
   });

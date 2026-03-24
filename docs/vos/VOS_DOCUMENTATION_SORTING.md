@@ -22,6 +22,7 @@ These define the actual implementation, architecture, and contracts:
 | [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md) | Voice identity security |
 | [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md) | Nexus protocol boundary |
 | [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md) | STT strategy by lane |
+| [`maestro-tts-multi-lane-architecture.md`](./maestro-tts-multi-lane-architecture.md) | Multi-lane TTS architecture |
 | [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md) | TTS persona & voice |
 | [`maestro-workflow-contract.md`](./maestro-workflow-contract.md) | Workflow contract |
 | [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md) | Workflow contract service |

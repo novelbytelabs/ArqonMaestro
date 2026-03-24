@@ -1,4 +1,4 @@
-# ASR Model Migration Execution Constitution (Parakeet + Qwen3)
+# ASR Model Migration Execution Constitution (Command Control Pivot + Qwen3)
 
 **Date:** 2026-03-23
 **Status:** PM-approved working constitution for Minimax Stage Execution
@@ -9,6 +9,25 @@
 - **[GOVERNANCE RULE]**: No runtime install scripts may be executed in frozen stages unless PM explicitly declares UNFREEZE.
 
 ---
+
+## Direction Update (2026-03-23) - Command Lane Pivot
+
+This constitution is superseded for command-lane architecture details by VOS-041.
+
+Updated command-lane target:
+- customization-first command STT
+- modern CTC acoustic model (`Conformer-CTC` / `Parakeet-CTC` class)
+- constrained decoding (`WFST` / Flashlight / equivalent)
+- custom lexicon, pronunciation, and command vocabulary controls
+- Maestro grammar/parser enforcement with deterministic command rejection
+
+Unchanged lane separation:
+- dictation lane remains `Qwen3-ASR` accuracy-first
+
+Important scope correction:
+- `Parakeet-TDT` is not the command-lane end-state architecture.
+- Whisper-family may remain optional general ASR fallback, but is not the preferred command-control fallback.
+
 
 ## 0. Source of Truth and Context Files
 
@@ -46,9 +65,9 @@ Governance rule: if this plan conflicts with roadmap sequencing, roadmap wins.
 
 ## 2. Architectural Decisions
 
-- **VOS-035:** Parakeet integration via Python bridge (`parakeet_bridge.py`) only.
+- **VOS-035 (superseded by VOS-041 for command lane):** Pure Parakeet-TDT command-lane target is no longer authoritative.
 - **VOS-036:** Qwen3-ASR dual mode: `local` and `vllm_service` (real HTTP path, no production shim).
-- **VOS-037:** Legacy whisper/faster-whisper remain available via manual engine selection.
+- **VOS-037:** Legacy engines may remain available as optional general fallbacks, but command-control fallback must preserve constrained decoding behavior.
 - **VOS-038:** Parallel routing state maps allowed, but only if all lifecycle touchpoints are updated.
 
 ---
@@ -152,7 +171,14 @@ Constraints:
 ## 8. Stage Readiness Gate (Go/No-Go)
 
 This migration is ready for Minimax **only if** all are true:
-- Command fallback replay fix is in scope from Stage 3 start.
+- Command fallback replay integrity is complete in Stage 2 execution and must remain regression-tested in Stage 2D/2E.
 - Failure matrix includes 503 dictation recovery behavior.
 - Metrics target `stt/tracking.ts` naming conventions.
 - PM supplies stage constitution + specs + source-of-truth file list in each kickoff.
+
+
+## 9. Stage Count Clarification
+
+- Active ASR migration execution is Stage 1 + Stage 2A/2B/2C/2D/2E.
+- There is no required Stage 3 in this constitution for hard-close readiness.
+- Any Stage 3 optimization track is optional and must be separately authorized after Stage 2E hard-close.

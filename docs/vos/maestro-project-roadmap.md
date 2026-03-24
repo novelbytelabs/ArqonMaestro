@@ -269,8 +269,8 @@ Wave A denoise direction note:
 
 #### Wave B: STT Lane Modernization (Prerequisite)
 
-- **command-fast** → whisper.cpp
-- **dictation-accurate** → faster-whisper
+- **command-fast** → customization-first CTC + constrained decoding (WFST/Flashlight class) + Maestro grammar/parser
+- **dictation-accurate** → Qwen3-ASR (accuracy-first lane)
 
 Status:
 

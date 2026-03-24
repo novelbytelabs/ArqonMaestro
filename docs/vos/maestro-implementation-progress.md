@@ -1399,17 +1399,19 @@ Explicit next step:
 
 ---
 
-## Program C ASR Modernization (Parakeet + Qwen3) - Execution Update
+## Program C ASR Modernization (Command Control Pivot + Qwen3) - Execution Update
 
 Date: 2026-03-23
 
-Status: **Planned and Approved**
+Status: **Direction Pivot Accepted; Re-planning Required**
+
+Architecture pivot note (2026-03-23): Command speech is a control system. Command-lane architecture now prioritizes constrained decoding and grammar control over generic ASR benchmark substitution.
 
 What's planned:
 
-* Migrate `command-fast` locally from `whisper.cpp` to `Parakeet-TDT-0.6B-v3`
-* Migrate `dictation-accurate` locally from `faster-whisper` to `Qwen3-ASR-1.7B`
-* Support Qwen3 in both local and `vllm_service` (streaming) modes without shims
+* Supersede prior command plan: do NOT treat `Parakeet-TDT` as command-lane end-state
+* Keep `dictation-accurate` as `Qwen3-ASR-1.7B` (accuracy-first lane)
+* Redesign `command-fast` around CTC + constrained decoding + custom lexicon/pronunciations + Maestro grammar/parser
 * Retain legacy engines as non-default manual fallbacks with parallel `chunk-manager.ts` routing maps
 * Strict Definition of Done (DoD) per stage requiring explicit evidence logs/packs
 

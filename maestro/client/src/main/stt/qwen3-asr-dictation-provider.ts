@@ -110,7 +110,7 @@ function resolveHomePath(value: string): string {
 
 function defaultPythonPath(): string {
   return resolveHomePath(
-    process.env.MAESTRO_QWEN3_PYTHON_PATH || "conda run -n helios-gpu-118 python"
+    process.env.MAESTRO_QWEN3_PYTHON_PATH || "~/miniconda3/envs/helios-gpu-118/bin/python"
   );
 }
 
@@ -126,7 +126,7 @@ function defaultBridgeScriptPath(): string {
 
 function defaultModelPath(): string {
   return resolveHomePath(
-    process.env.MAESTRO_QWEN3_MODEL_PATH || "~/Models/qwen3-asr"
+    process.env.MAESTRO_QWEN3_MODEL_PATH || "~/models/arqon/asr/qwen3-asr-1.7b"
   );
 }
 
@@ -196,6 +196,14 @@ export default class Qwen3ASRDictationProvider {
     if (!this.config.enabled) {
       this.ready = false;
       this.loadError = "provider_disabled";
+      return;
+    }
+
+    if (this.config.sidecarMode === "sidecar") {
+      this.ready = !!this.config.sidecarUrl;
+      if (!this.ready) {
+        this.loadError = "sidecar_url_missing";
+      }
       return;
     }
 

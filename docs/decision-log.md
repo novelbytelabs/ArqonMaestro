@@ -19,7 +19,7 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 ## ADM-001: Java Baseline = 17
 
 - **Date**: 2026-03-07
-- **Status**: Accepted
+- **Status**: Superseded for Maestro command lane by VOS-041
 - **Decision**: Arqon Maestro will target Java 17 as its control-plane baseline.
 - **Why**: The inherited Java 14 stack is historical, not strategic. Java 17 is a modern LTS target and matches the broader Arqon modernization direction.
 - **Consequences**:
@@ -587,14 +587,14 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
-## ADM-039: `whisper.cpp` Is The Near-Term Command-Lane STT Baseline
+## ADM-039: `whisper.cpp` Is The Near-Term Command-Lane STT Baseline (Superseded for Maestro command lane by VOS-041)
 
 - **Date**: 2026-03-13
 - **Status**: Accepted
 - **Decision**: Adopt `whisper.cpp` as the near-term default implementation target for Maestro's `command-fast` STT profile, while keeping `maestro-stt` as a provider contract and preserving an independent provider track for `dictation-accurate`.
 - **Why**: Maestro's hot operating path prioritizes local-first execution, predictable latency, portable deployment, and systems-friendly integration. `whisper.cpp` best fits those command-lane requirements without forcing a single engine across all speech modes.
 - **Consequences**:
-  - `command-fast` STT should target `whisper.cpp` first
+  - `command-fast` STT target is superseded by VOS-041 (customization-first constrained decoding)
   - `dictation-accurate` remains separately benchmarked and may use a different provider
   - STT architecture remains contract-first, not single-engine lock-in
   - routing keeps explicit mode/profile split (`command-fast` versus `dictation-accurate`)

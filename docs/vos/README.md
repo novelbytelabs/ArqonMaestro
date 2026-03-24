@@ -43,6 +43,7 @@ The better structure is:
 | [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md) | Speaker identity, verification, authorization, and voice security model |
 | [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md) | Boundary between Maestro operating control and Nexus assistant continuity |
 | [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md) | Lane-specific speech recognition strategy, locality, and benchmarking |
+| [`maestro-tts-multi-lane-architecture.md`](./maestro-tts-multi-lane-architecture.md) | Multi-lane TTS architecture, lane specialization, and routing policy |
 | [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md) | Persona-routed TTS, agent voice identity, and output arbitration |
 | [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md) | Shell host boundary, local services split, and Java/Rust ownership |
 | [`maestro-executor-architecture.md`](./maestro-executor-architecture.md) | Execution routing and realization model |
@@ -75,6 +76,7 @@ These documents together form the current language-spec core.
 | Voice identity and security | [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md) |
 | Maestro-Nexus boundary | [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md) |
 | STT lane strategy | [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md) |
+| TTS architecture & strategy | [`maestro-tts-multi-lane-architecture.md`](./maestro-tts-multi-lane-architecture.md) |
 | TTS persona and multi-agent voice | [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md) |
 | Shell/runtime decomposition | [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md) |
 | Execution routing | [`maestro-executor-architecture.md`](./maestro-executor-architecture.md) |

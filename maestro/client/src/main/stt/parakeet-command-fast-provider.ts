@@ -4,6 +4,7 @@ import { homedir, tmpdir } from "os";
 import path from "path";
 import http from "http";
 import https from "https";
+import WebSocket from "ws";
 import Log from "../log";
 import { buildWavFile } from "./audio-utils";
 
@@ -17,13 +18,27 @@ export interface ParakeetCommandFastProviderConfig {
   initialPrompt?: string;
   // Sidecar mode config
   mode?: "local" | "sidecar";
-  sidecarUrl?: string;
+  sidecarUrl?: string; // Should be ws:// for WebSocket sidecar
 }
 
 export interface ParakeetTranscriptionInput {
   chunkId: string;
   pcm16leAudio: Buffer;
   sampleRateHz: number;
+}
+
+export interface ParakeetTranscriptionResult {
+  transcript: string;
+  model: string;
+  device: string;
+  latencyMs: number;
+  provider: "parakeet";
+}
+
+export interface ParakeetStreamSession {
+  sendAudio(audio: Buffer): void;
+  finalize(): Promise<ParakeetTranscriptionResult>;
+  cancel(): void;
 }
 
 // Sidecar contract: HTTP request JSON
@@ -44,14 +59,6 @@ interface ParakeetSidecarResponse {
   device?: string;
   error?: string;
   retryable?: boolean;
-}
-
-export interface ParakeetTranscriptionResult {
-  transcript: string;
-  model: string;
-  device: string;
-  latencyMs: number;
-  provider: "parakeet";
 }
 
 interface BridgeSuccess {
@@ -88,12 +95,13 @@ interface ParakeetCommandFastProviderDeps {
     stdinData: Buffer,
     timeoutMs: number
   ) => Promise<{ exitCode: number; stdout: string; stderr: string }>;
-  // Sidecar HTTP client
+  // Sidecar HTTP client (still maintained for fallback logic strictly if needed, though we upgrade to WS)
   postSidecarJson: (
     urlString: string,
     body: ParakeetSidecarRequest,
     timeoutMs: number
   ) => Promise<ParakeetSidecarResponse>;
+  createWebSocket: (url: string) => WebSocket;
 }
 
 function resolveHomePath(value: string): string {
@@ -105,7 +113,7 @@ function resolveHomePath(value: string): string {
 
 function defaultPythonPath(): string {
   return resolveHomePath(
-    process.env.MAESTRO_PARAKEET_PYTHON_PATH || "conda run -n helios-gpu-118 python"
+    process.env.MAESTRO_PARAKEET_PYTHON_PATH || "~/miniconda3/envs/helios-gpu-118/bin/python"
   );
 }
 
@@ -121,7 +129,7 @@ function defaultBridgeScriptPath(): string {
 
 function defaultModelPath(): string {
   return resolveHomePath(
-    process.env.MAESTRO_PARAKEET_MODEL_PATH || "~/Models/parakeet-ctc"
+    process.env.MAESTRO_PARAKEET_MODEL_PATH || "~/models/arqon/asr/parakeet-tdt-0.6b-v3"
   );
 }
 
@@ -179,6 +187,7 @@ export default class ParakeetCommandFastProvider {
         this.defaultRunBridgeWithStdin(pythonPath, bridgeScriptPath, args, stdinData, timeoutMs),
       postSidecarJson: (urlString, body, timeoutMs) =>
         this.defaultPostSidecarJson(urlString, body, timeoutMs),
+      createWebSocket: (url) => new WebSocket(url),
       ...deps,
     };
 
@@ -189,6 +198,14 @@ export default class ParakeetCommandFastProvider {
     if (!this.config.enabled) {
       this.ready = false;
       this.loadError = "provider_disabled";
+      return;
+    }
+
+    if (this.config.mode === "sidecar") {
+      this.ready = !!this.config.sidecarUrl;
+      if (!this.ready) {
+        this.loadError = "sidecar_url_missing";
+      }
       return;
     }
 
@@ -429,9 +446,11 @@ export default class ParakeetCommandFastProvider {
       throw new Error("parakeet_empty_audio");
     }
 
-    // Route based on mode: "local" spawns Python bridge, "sidecar" calls HTTP proxy
-    if (this.config.mode === "sidecar" && this.config.sidecarUrl) {
-      return this.transcribeCommandSidecar(input);
+    // Route based on mode: "local" spawns Python bridge, "sidecar" uses WebSocket stream
+    if (this.isStreamingSupported()) {
+      const session = this.createStream(input.chunkId);
+      session.sendAudio(input.pcm16leAudio);
+      return session.finalize();
     }
 
     return this.transcribeCommandLocal(input);
@@ -501,55 +520,124 @@ export default class ParakeetCommandFastProvider {
     }
   }
 
-  /**
-   * Sidecar mode: POST to HTTP proxy endpoint.
-   * Falls back to local mode on sidecar failure (replay buffered audio).
-   */
-  private async transcribeCommandSidecar(input: ParakeetTranscriptionInput): Promise<ParakeetTranscriptionResult> {
-    const start = Date.now();
+  isStreamingSupported(): boolean {
+    return this.ready && this.config.mode === "sidecar" && !!this.config.sidecarUrl;
+  }
 
-    try {
-      const requestBody: ParakeetSidecarRequest = {
-        audio_b64: input.pcm16leAudio.toString("base64"),
-        sample_rate_hz: input.sampleRateHz,
-        chunk_id: input.chunkId,
-        model_path: this.config.modelPath,
-        device: this.config.device,
-        initial_prompt: this.config.initialPrompt,
-      };
-
-      const response = await this.deps.postSidecarJson(
-        this.config.sidecarUrl,
-        requestBody,
-        this.config.timeoutMs
-      );
-
-      if (!response.ok) {
-        const error = response.error || "sidecar_error";
-        this.log?.logVerbose(`[ParakeetCommandFastProvider] sidecar failed: ${error}`);
-        throw new Error(`parakeet_sidecar_error:${error}`);
-      }
-
-      const text = response.text?.trim() || "";
-      if (!text) {
-        throw new Error("parakeet_empty_transcript");
-      }
-
-      return {
-        transcript: text,
-        model: response.model || this.config.modelPath,
-        device: response.device || this.config.device,
-        latencyMs: Date.now() - start,
-        provider: "parakeet",
-      };
-    } catch (error) {
-      if (error instanceof Error && error.message.startsWith("parakeet_")) {
-        throw error;
-      }
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.log?.logVerbose(`[ParakeetCommandFastProvider] sidecar exception: ${errorMessage}`);
-      throw new Error(`parakeet_sidecar_error:${errorMessage}`);
+  createStream(chunkId: string, onPartial?: (text: string) => void): ParakeetStreamSession {
+    if (!this.isStreamingSupported()) {
+      throw new Error(`parakeet_streaming_unavailable`);
     }
+
+    return this.createWebSocketStream(chunkId, onPartial);
+  }
+
+  private createWebSocketStream(chunkId: string, onPartial?: (text: string) => void): ParakeetStreamSession {
+    const wsUrl = this.config.sidecarUrl.replace("http://", "ws://").replace("https://", "wss://");
+    const ws = this.deps.createWebSocket(wsUrl);
+    const start = Date.now();
+    let isConnected = false;
+    let settled = false;
+
+    const finalizePromise = new Promise<ParakeetTranscriptionResult>((resolve, reject) => {
+      const settleResolve = (value: ParakeetTranscriptionResult) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(initTimeout);
+        resolve(value);
+      };
+
+      const settleReject = (error: Error) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(initTimeout);
+        reject(error);
+      };
+
+      const initTimeout = setTimeout(() => {
+        if (!isConnected) {
+          ws.terminate();
+          settleReject(new Error("parakeet_sidecar_error:websocket_timeout"));
+        }
+      }, this.config.timeoutMs);
+
+      ws.on("open", () => {
+        isConnected = true;
+        ws.send(JSON.stringify({
+          chunk_id: chunkId,
+          model_path: this.config.modelPath,
+          sample_rate_hz: 16000,
+        }));
+      });
+
+      ws.on("message", (data) => {
+        try {
+          const response = JSON.parse(data.toString());
+          if (!response.ok) {
+            const errorMsg = response.error || "unknown_error";
+            throw new Error(`parakeet_sidecar_error:${errorMsg}`);
+          }
+
+          if (response.is_final) {
+            if (!response.text) {
+              settleReject(new Error("parakeet_empty_transcript"));
+              ws.terminate();
+              return;
+            }
+            settleResolve({
+              transcript: response.text,
+              model: this.config.modelPath,
+              device: this.config.device,
+              latencyMs: Date.now() - start,
+              provider: "parakeet",
+            });
+            ws.close();
+            return;
+          }
+
+          if (onPartial && response.text) {
+            onPartial(response.text);
+          }
+        } catch (err) {
+          settleReject(err instanceof Error ? err : new Error(String(err)));
+          ws.terminate();
+        }
+      });
+
+      ws.on("error", (err) => {
+        this.log?.logVerbose(`[ParakeetCommandFastProvider] WS error: ${err.message}`);
+        settleReject(new Error(`parakeet_sidecar_error:${err.message}`));
+      });
+
+      ws.on("close", () => {
+        if (!settled) {
+          settleReject(new Error("parakeet_sidecar_error:websocket_closed_prematurely"));
+        }
+      });
+    });
+
+    return {
+      sendAudio: (audio: Buffer) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(audio);
+        }
+      },
+      finalize: async () => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ eof: true }));
+        }
+        return finalizePromise;
+      },
+      cancel: () => {
+        if (!settled) {
+          ws.terminate();
+        }
+      },
+    };
   }
 
   logUnavailableOnce(): void {

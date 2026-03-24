@@ -145,7 +145,8 @@ export class PiperTtsProvider extends BaseTtsProvider {
     messageId: string,
     audioDataB64: string,
     format: string,
-    transcript: string
+    transcript: string,
+    options?: TtsPlaybackOptions
   ): Promise<TtsPlaybackResult> {
     // Check for replay
     if (!this.checkAndTrackReplay(messageId)) {
@@ -164,15 +165,121 @@ export class PiperTtsProvider extends BaseTtsProvider {
     const startMs = Date.now();
 
     try {
-      const buffer = Buffer.from(audioDataB64, "base64");
+      // If we have pre-synthesized audio data, play it directly
+      if (audioDataB64 && audioDataB64.length > 0) {
+        const buffer = Buffer.from(audioDataB64, "base64");
+        this.log.logVerbose(
+          `[PiperTts] Playing pre-synthesized audio ${messageId} (${buffer.length} bytes): "${transcript.substring(0, 30)}..."`
+        );
+
+        const args = ["-q"]; // quiet
+        if (format === "raw" || format === "pcm") {
+          // Standard fallback audio is usually 16kHz
+          args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
+        }
+
+        return new Promise<TtsPlaybackResult>((resolve) => {
+          let resolved = false;
+          const resolveOnce = (result: TtsPlaybackResult) => {
+            if (!resolved) {
+              resolved = true;
+              resolve(result);
+            }
+          };
+
+          const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
+          this.trackPlaybackProcess(proc);
+
+          proc.once("spawn", () => {
+            this.tracking.logMetric("stt.tts.provider_selected", {
+              message_id: messageId,
+              provider: "piper",
+            });
+            this.tracking.logMetric("stt.tts.playback_started", {
+              message_id: messageId,
+              bytes: buffer.length,
+              provider: "piper",
+            });
+          });
+
+          proc.once("error", (err) => {
+            this.playedMessages.delete(messageId);
+            const latencyMs = Date.now() - startMs;
+            this.log.logError(`[PiperTts] Playback error for ${messageId}: ${err.message}`);
+            this.tracking.logMetric("stt.tts.playback_failed", {
+              message_id: messageId,
+              provider: "piper",
+              reason: err.message,
+            });
+            resolveOnce({
+              success: false,
+              provider: "piper",
+              latencyMs,
+              error: err.message,
+            });
+          });
+
+          proc.once("close", (code) => {
+            const latencyMs = Date.now() - startMs;
+            if (code !== 0) {
+              this.playedMessages.delete(messageId);
+              this.tracking.logMetric("stt.tts.playback_failed", {
+                message_id: messageId,
+                provider: "piper",
+                reason: `exit_${code}`,
+              });
+              resolveOnce({
+                success: false,
+                provider: "piper",
+                latencyMs,
+                error: `exit code ${code}`,
+              });
+            } else {
+              this.tracking.logMetric("stt.tts.playback_completed", {
+                message_id: messageId,
+                provider: "piper",
+                duration_ms: latencyMs,
+              });
+              resolveOnce({
+                success: true,
+                provider: "piper",
+                latencyMs,
+              });
+            }
+          });
+
+          if (proc.stdin) {
+            proc.stdin.end(buffer);
+          }
+        });
+      }
+
+      // No pre-synthesized audio, perform real-time synthesis via Piper CLI
+      if (!transcript || transcript.length === 0) {
+        throw new Error("No audio data and no transcript provided for Piper synthesis");
+      }
+
+      const modelPath = this.settings.getArqonTtsPiperModelPath();
+      const condaEnv = this.settings.getArqonTtsPiperCondaEnv();
+
       this.log.logVerbose(
-        `[FallbackTts] Playing speech request ${messageId} (${buffer.length} bytes): "${transcript.substring(0, 30)}..."`
+        `[PiperTts] Real-time synthesis for ${messageId}: "${transcript.substring(0, 30)}..." using ${modelPath}`
       );
 
-      const args = ["-q"]; // quiet
-      if (format === "raw" || format === "pcm") {
-        args.push("-f", "S16_LE", "-r", "16000", "-c", "1", "-t", "raw");
-      }
+      // Piper medium models typically output at 22050Hz
+      const aplayArgs = ["-q", "-f", "S16_LE", "-r", "22050", "-c", "1", "-t", "raw"];
+      const piperArgs = [
+        "run",
+        "-n",
+        condaEnv,
+        "python3",
+        "-m",
+        "piper",
+        "--model",
+        modelPath,
+        "--output-raw",
+        transcript,
+      ];
 
       return new Promise<TtsPlaybackResult>((resolve) => {
         let resolved = false;
@@ -183,30 +290,45 @@ export class PiperTtsProvider extends BaseTtsProvider {
           }
         };
 
-        const proc = spawn("aplay", args, { stdio: ["pipe", "ignore", "ignore"] });
-        this.trackPlaybackProcess(proc);
+        const aplayProc = spawn("aplay", aplayArgs, { stdio: ["pipe", "ignore", "ignore"] });
+        const piperProc = spawn("conda", piperArgs, { stdio: ["ignore", "pipe", "pipe"] });
 
-        proc.once("spawn", () => {
+        this.trackPlaybackProcess(aplayProc);
+
+        aplayProc.once("spawn", () => {
           this.tracking.logMetric("stt.tts.provider_selected", {
             message_id: messageId,
             provider: "piper",
           });
           this.tracking.logMetric("stt.tts.playback_started", {
             message_id: messageId,
-            bytes: buffer.length,
             provider: "piper",
+            mechanism: "cli_synthesis",
           });
         });
 
-        proc.once("error", (err) => {
+        // Pipe piper stdout to aplay stdin
+        if (piperProc.stdout && aplayProc.stdin) {
+          piperProc.stdout.pipe(aplayProc.stdin);
+        }
+
+        // Handle piper errors/logs
+        if (piperProc.stderr) {
+          let stderrOutput = "";
+          piperProc.stderr.on("data", (data) => {
+            stderrOutput += data.toString();
+          });
+          piperProc.once("close", (code) => {
+            if (code !== 0 && code !== null) {
+              this.log.logError(`[PiperTts] Piper CLI error (code ${code}): ${stderrOutput}`);
+            }
+          });
+        }
+
+        aplayProc.once("error", (err) => {
           this.playedMessages.delete(messageId);
           const latencyMs = Date.now() - startMs;
-          this.log.logError(`[FallbackTts] Playback error for ${messageId}: ${err.message}`);
-          this.tracking.logMetric("stt.tts.playback_failed", {
-            message_id: messageId,
-            provider: "piper",
-            reason: err.message,
-          });
+          this.log.logError(`[PiperTts] aplay error for ${messageId}: ${err.message}`);
           resolveOnce({
             success: false,
             provider: "piper",
@@ -215,34 +337,21 @@ export class PiperTtsProvider extends BaseTtsProvider {
           });
         });
 
-        proc.once("close", (code) => {
+        aplayProc.once("close", (code) => {
           const latencyMs = Date.now() - startMs;
-          this.log.logVerbose(
-            `[FallbackTts] Playback finished for ${messageId} in ${latencyMs}ms (exit code ${code})`
-          );
           if (code !== 0) {
             this.playedMessages.delete(messageId);
-            this.tracking.logMetric("stt.tts.playback_failed", {
-              message_id: messageId,
-              provider: "piper",
-              reason: `exit_${code}`,
-            });
             resolveOnce({
               success: false,
               provider: "piper",
               latencyMs,
-              error: `exit code ${code}`,
+              error: `aplay_exit_${code}`,
             });
           } else {
             this.tracking.logMetric("stt.tts.playback_completed", {
               message_id: messageId,
               provider: "piper",
               duration_ms: latencyMs,
-            });
-            this.tracking.logMetric("stt.tts.latency_ms", {
-              message_id: messageId,
-              provider: "piper",
-              latency_ms: latencyMs,
             });
             resolveOnce({
               success: true,
@@ -252,52 +361,17 @@ export class PiperTtsProvider extends BaseTtsProvider {
           }
         });
 
-        if (!proc.stdin) {
-          this.playedMessages.delete(messageId);
-          const latencyMs = Date.now() - startMs;
-          this.log.logError(`[FallbackTts] Playback error for ${messageId}: missing stdin pipe`);
-          this.tracking.logMetric("stt.tts.playback_failed", {
-            message_id: messageId,
-            provider: "piper",
-            reason: "stdin_unavailable",
-          });
-          resolveOnce({
-            success: false,
-            provider: "piper",
-            latencyMs,
-            error: "stdin_unavailable",
-          });
-          return;
-        }
-
-        proc.stdin.once("error", (err) => {
-          this.playedMessages.delete(messageId);
-          const latencyMs = Date.now() - startMs;
-          this.log.logError(`[FallbackTts] stdin error for ${messageId}: ${err.message}`);
-          this.tracking.logMetric("stt.tts.playback_failed", {
-            message_id: messageId,
-            provider: "piper",
-            reason: err.message,
-          });
-          resolveOnce({
-            success: false,
-            provider: "piper",
-            latencyMs,
-            error: err.message,
-          });
+        // Cleanup piper if aplay fails or is stopped
+        aplayProc.once("exit", () => {
+          if (!piperProc.killed) {
+            piperProc.kill();
+          }
         });
-
-        proc.stdin.end(buffer);
       });
     } catch (e: any) {
       this.playedMessages.delete(messageId);
       const latencyMs = Date.now() - startMs;
-      this.log.logError(`[FallbackTts] Failed to start playback: ${e.message}`);
-      this.tracking.logMetric("stt.tts.playback_failed", {
-        message_id: messageId,
-        provider: "piper",
-        reason: e.message,
-      });
+      this.log.logError(`[PiperTts] Failed to start Piper synthesis: ${e.message}`);
       return {
         success: false,
         provider: "piper",

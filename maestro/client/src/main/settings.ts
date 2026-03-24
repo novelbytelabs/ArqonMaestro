@@ -1033,10 +1033,40 @@ export default class Settings {
     this.set("system", "arqon_tts_kokoro_streaming_enabled", enabled);
   }
 
+  // ========================================================================
+  // Piper TTS Configuration (Gate 6 Fallback)
+  // ========================================================================
+
+  /**
+   * Get Piper model path (ONNX).
+   */
+  getArqonTtsPiperModelPath(): string {
+    return this.get(
+      "system",
+      "arqon_tts_piper_model_path",
+      path.join(os.homedir(), "models/arqon/tts/piper/en_US-hfc_female-medium.onnx")
+    );
+  }
+
+  setArqonTtsPiperModelPath(modelPath: string) {
+    this.set("system", "arqon_tts_piper_model_path", modelPath);
+  }
+
+  /**
+   * Get Piper conda environment name.
+   */
+  getArqonTtsPiperCondaEnv(): string {
+    return this.get("system", "arqon_tts_piper_conda_env", "helios-gpu-118");
+  }
+
+  setArqonTtsPiperCondaEnv(env: string) {
+    this.set("system", "arqon_tts_piper_conda_env", env);
+  }
+
   // ====== Sidecar ASR Configuration ======
   // Parakeet command lane sidecar endpoint (HTTP proxy)
   getArqonAsrParakeetCommandUrl(): string {
-    return this.get("system", "arqon_asr_parakeet_command_url", "http://127.0.0.1:7782");
+    return this.get("system", "arqon_asr_parakeet_command_url", "ws://127.0.0.1:5001/transcribe_stream");
   }
 
   setArqonAsrParakeetCommandUrl(url: string) {
@@ -1045,7 +1075,7 @@ export default class Settings {
 
   // Qwen3 dictation lane sidecar endpoint (HTTP proxy)
   getArqonAsrQwen3DictationUrl(): string {
-    return this.get("system", "arqon_asr_qwen3_dictation_url", "http://127.0.0.1:7783");
+    return this.get("system", "arqon_asr_qwen3_dictation_url", "http://127.0.0.1:5002/transcribe");
   }
 
   setArqonAsrQwen3DictationUrl(url: string) {
@@ -1063,7 +1093,7 @@ export default class Settings {
 
   // Sidecar ASR mode: "local" (spawn Python bridge) or "sidecar" (HTTP proxy)
   getArqonAsrParakeetMode(): "local" | "sidecar" {
-    return this.get("system", "arqon_asr_parakeet_mode", "local");
+    return this.get("system", "arqon_asr_parakeet_mode", "sidecar");
   }
 
   setArqonAsrParakeetMode(mode: "local" | "sidecar") {
@@ -1071,7 +1101,7 @@ export default class Settings {
   }
 
   getArqonAsrQwen3Mode(): "local" | "sidecar" {
-    return this.get("system", "arqon_asr_qwen3_mode", "local");
+    return this.get("system", "arqon_asr_qwen3_mode", "sidecar");
   }
 
   setArqonAsrQwen3Mode(mode: "local" | "sidecar") {

@@ -127,6 +127,62 @@ Use this upgraded loop for every meaningful stage:
 This upgrade is intentional: the technical-debt audit step repeatedly exposed overstatement, placeholders, shims, and unfinished work that normal reporting did not surface.
 
 
+## Three-AI Operating Loop (PM + Minimax + Watchdog)
+
+Use this exact loop to reduce confusion and prevent overstatement:
+
+1. PM sends Minimax one stage-scoped `MODE: IMPLEMENT` packet.
+2. Minimax implements, runs required checks, runs technical debt audit, then enters `MODE: REPORT — FREEZE STATE`.
+3. User forwards Minimax REPORT packet to Watchdog.
+4. Watchdog returns verdict:
+- `GREEN`: stage evidence is acceptable.
+- `YELLOW` or `RED`: concrete deficits and required fixes.
+5. User forwards Watchdog findings back to Minimax for one bounded correction pass.
+6. Repeat steps 2-5 until Watchdog is `GREEN`.
+7. User forwards final GREEN packet to PM.
+8. PM performs independent audit and executes manual hard-close tail work if needed.
+9. Only PM can declare stage hard-close.
+
+**Non-negotiable:** no model may self-award acceptance; Watchdog is a gate, PM is final authority.
+
+## Continuous Improvement Protocol (Quality Ratchet)
+
+The PM must treat every stage as training data for better future stages.
+
+After each stage hard-close:
+
+1. Capture a short retrospective with:
+- what Minimax overstated
+- what Watchdog caught late
+- what PM had to hard-close manually
+
+2. Convert findings into concrete protocol upgrades:
+- strengthen next stage acceptance criteria
+- add missing tests/check commands to mandatory evidence
+- add explicit anti-placeholder/anti-shim checks when relevant
+
+3. Maintain a recurring defect taxonomy in project docs:
+- evidence mismatch
+- hidden env mutation
+- placeholder/shim path
+- incomplete failure-path handling
+- regression coverage gap
+
+4. Track stage quality metrics over time:
+- number of Watchdog RED/YELLOW loops before GREEN
+- PM hard-close delta size (target: shrinking)
+- reopened issues after "complete" claim (target: zero)
+
+5. Enforce quality ratchet rule:
+- once a failure mode is found, it must become a permanent gate in future stages unless PM explicitly removes it with rationale.
+
+6. Keep stage packets minimally ambiguous:
+- one scope
+- one DoD
+- one evidence manifest format
+- one explicit out-of-scope list
+
+This protocol is mandatory for improving Minimax reliability and reducing supervision overhead over time.
 
 ---
 
@@ -245,8 +301,8 @@ Current approved direction:
 
 - denoise: `ONNX denoiser integration` (primary; DTLN-class ONNX candidate), with WebRTC APM and RNNoise retained as benchmark/alternate candidates
 - VAD / turn: `Silero VAD` with optional fast first-pass gating
-- STT command-fast: `whisper.cpp`
-- STT dictation-accurate: `faster-whisper`
+- STT command-fast: customization-first CTC + constrained decoding (WFST/Flashlight class) + Maestro grammar/parser
+- STT dictation-accurate: `Qwen3-ASR`
 - speaker diarization: `pyannote.audio`
 - speaker verification: `WeSpeaker` **provisional**, pending bake-off
 - TTS primary: `Kokoro`
@@ -320,8 +376,8 @@ Includes:
 
 ## Wave B — STT Lane Modernization
 Includes:
-- `maestro-stt-fast` with `whisper.cpp`
-- `maestro-stt-accurate` with `faster-whisper`
+- `maestro-stt-fast` with customization-first CTC + constrained decoding + grammar/parser enforcement
+- `maestro-stt-accurate` with `Qwen3-ASR`
 - lane selection policy
 - transcript normalization
 

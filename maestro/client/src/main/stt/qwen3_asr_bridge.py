@@ -35,9 +35,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--audio", help="Path to WAV audio file")
     parser.add_argument("--stdin", action="store_true", help="Accept raw PCM16 via stdin")
     parser.add_argument("--model-path", required=True, help="Path to Qwen3 ASR model directory")
-    parser.add_argument("--mode", required=True, choices=["local"], 
-                        help="Inference mode: local")
+    parser.add_argument("--mode", required=True, choices=["local", "vllm_service"],
+                        help="Inference mode: local or vllm_service")
     parser.add_argument("--device", default="cuda", help="Device name (cpu/cuda) for local mode")
+    parser.add_argument("--endpoint", help="vLLM/OpenAI-compatible transcription endpoint URL")
     return parser.parse_args()
 
 
@@ -207,6 +208,67 @@ def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[s
 
 
 
+def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, model_path: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Run vLLM service inference using HTTP endpoint.
+    Returns: (transcript, error_code)
+    """
+    if not endpoint:
+        return None, "connection_refused"
+
+    try:
+        import base64
+        import urllib.error
+        import urllib.request
+
+        payload = {
+            "model": model_path,
+            "audio_b64": base64.b64encode(audio_bytes).decode("ascii"),
+            "sample_rate_hz": 16000,
+        }
+        req_data = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            endpoint,
+            data=req_data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8")
+
+        parsed = json.loads(body) if body else {}
+        text = ""
+        if isinstance(parsed, dict):
+            text = (parsed.get("text") or "").strip()
+            if not text:
+                choices = parsed.get("choices")
+                if isinstance(choices, list) and choices:
+                    c0 = choices[0] or {}
+                    if isinstance(c0, dict):
+                        text = (c0.get("text") or "").strip()
+                        if not text:
+                            msg = c0.get("message")
+                            if isinstance(msg, dict):
+                                text = (msg.get("content") or "").strip()
+
+        if not text:
+            return None, "empty_audio"
+        return text, None
+
+    except urllib.error.HTTPError as e:
+        if e.code == 503:
+            return None, "endpoint_503"
+        return None, "inference_failed"
+    except urllib.error.URLError:
+        return None, "connection_refused"
+    except TimeoutError:
+        return None, "timeout"
+    except Exception as e:
+        log_stderr(f"vLLM service error: {e}")
+        return None, "inference_failed"
+
+
 def load_qwen3_model(model_path: str, device: str):
     """
     Load Qwen3 ASR model from path using vllm multimodal LLM.
@@ -267,21 +329,21 @@ def main() -> int:
         # Load model
         try:
             model = load_qwen3_model(args.model_path, args.device)
-        except RuntimeError as e:
+        except RuntimeError:
             print_json({
                 "ok": False,
                 "error": "model_load_failed",
                 "retryable": False
             })
             return 1
-        except Exception as e:
+        except Exception:
             print_json({
                 "ok": False,
                 "error": "model_load_failed",
                 "retryable": False
             })
             return 1
-        
+
         # Run local inference
         text, error_code = transcribe_local(model, audio_float)
         if error_code:
@@ -292,8 +354,7 @@ def main() -> int:
                 "retryable": retryable
             })
             return 1
-        
-        # Success - output JSON to stdout
+
         print_json({
             "ok": True,
             "text": text,
@@ -301,7 +362,25 @@ def main() -> int:
             "device": args.device
         })
         return 0
-        
+
+    if args.mode == "vllm_service":
+        text, error_code = transcribe_vllm_service(audio_bytes, args.endpoint or "", args.model_path)
+        if error_code:
+            retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
+            print_json({
+                "ok": False,
+                "error": error_code,
+                "retryable": retryable
+            })
+            return 1
+
+        print_json({
+            "ok": True,
+            "text": text,
+            "model": args.model_path,
+            "device": "remote"
+        })
+        return 0
 
     print_json({
         "ok": False,

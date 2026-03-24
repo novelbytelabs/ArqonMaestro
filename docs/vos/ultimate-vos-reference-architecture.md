@@ -108,8 +108,8 @@ The following stack elements are explicitly selected as near-term defaults for M
 - **Wake word:** deferred / optional; explicit listening remains the default
 - **Denoise:** `DTLN-class ONNX denoiser` (primary, via onnxruntime-node), with `RNNoise` retained as a benchmark candidate. WebRTC APM retained as fallback for environments where ONNX is unavailable.
 - **VAD / turn detection:** `Silero VAD` with optional fast first-pass gating
-- **STT (`command-fast`):** `whisper.cpp`
-- **STT (`dictation-accurate`):** `faster-whisper`
+- **STT (`command-fast`):** customization-first CTC + constrained decoding (WFST/Flashlight class) + grammar/parser enforcement
+- **STT (`dictation-accurate`):** `Qwen3-ASR`
 - **Speaker diarization:** `pyannote.audio`
 - **Speaker verification / authentication:** `WeSpeaker`
 - **TTS:** `Kokoro` primary, `Piper` fallback
@@ -250,13 +250,13 @@ Future optional profiles:
 
 Near-term baseline:
 
-- `command-fast` should target `whisper.cpp`
-- `dictation-accurate` should target `faster-whisper`
+- `command-fast` should target customization-first CTC + constrained decoding + grammar/parser enforcement
+- `dictation-accurate` should target `Qwen3-ASR`
 
 **Explicit STT Lanes:**
 
-- `maestro-stt-fast` → `whisper.cpp`
-- `maestro-stt-accurate` → `faster-whisper`
+- `maestro-stt-fast` → CTC + constrained decoder + grammar/parser
+- `maestro-stt-accurate` → `Qwen3-ASR`
 
 Architectural rule:
 
@@ -929,8 +929,8 @@ The target system should preserve the following:
 
 ### Wave 2: Split STT Lanes
 
-- Deploy `maestro-stt-fast` → `whisper.cpp` for command-fast profile
-- Deploy `maestro-stt-accurate` → `faster-whisper` for dictation-accurate profile
+- Deploy `maestro-stt-fast` → CTC + constrained decoder + grammar/parser for command-fast profile
+- Deploy `maestro-stt-accurate` → `Qwen3-ASR` for dictation-accurate profile
 - Validate latency and accuracy benchmarks for each lane
 
 ### Wave 3: Add Identity as Secure Lane

@@ -80,8 +80,8 @@ Use these status labels consistently:
 | Audio capture                         | Native recorder addon and existing local microphone path | Preserve the concept, modernize the contract boundary                          | **REUSABLE**            | `maestro-audio`                      | P0       | Needs stable API boundary, timestamps, device handling, gain normalization review               | The shape is already right; the boundary is what needs modernization                            |
 | Noise reduction / enhancement         | No clearly first-class dedicated denoise contract        | `ONNX denoiser path` as primary (DTLN-class ONNX candidate); WebRTC APM and RNNoise as benchmark/alternate candidates | **ADD**                 | `maestro-audio`                      | P0       | Preserve 16 kHz-native hot path and align denoise runtime with the ONNX Runtime path already proven in Maestro | Real-time denoise is first-class, but whole-path coherence, cross-platform runtime consistency, and contract simplicity govern the default |
 | VAD / turn gating                     | Two-stage VAD pattern using WebRTC VAD + Silero VAD      | Preserve two-stage idea, center on `Silero VAD`, optional fast first-pass gate | **REUSABLE + UPGRADE**  | `maestro-turn`                       | P0       | Must align with barge-in, cancel, and dictation pause semantics                                 | Serenade already had the right pattern idea; Maestro needs a stronger contract around it        |
-| Command-fast STT                      | Older Kaldi/OpenFST-style local speech engine            | `whisper.cpp`                                                                  | **REPLACE**             | `maestro-stt-fast`                   | P0       | Must prove low-latency command performance on local hardware                                    | Best fit for local deterministic command lane                                                   |
-| Dictation-accurate STT                | Same older speech engine family                          | `faster-whisper`                                                               | **REPLACE**             | `maestro-stt-accurate`               | P0       | Must prove dictation quality and lane-switch correctness                                        | Better fit for heavier accurate lane than forcing one engine to do both jobs                    |
+| Command-fast STT                      | Older Kaldi/OpenFST-style local speech engine            | modern CTC + constrained decoding (`WFST`/Flashlight class) + Maestro grammar/parser | **MODERNIZE (PRESERVE CONTROL)** | `maestro-stt-fast`                   | P0       | Must prove grammar control, bounded rejection, lexicon/pronunciation customization, low latency | Preserves Kaldi-era controllability while modernizing acoustic front-end                       |
+| Dictation-accurate STT                | Same older speech engine family                          | `Qwen3-ASR`                                                                    | **REPLACE**             | `maestro-stt-accurate`               | P0       | Must prove dictation quality and lane-switch correctness                                        | Keep dictation accuracy lane separate from command-control lane                                  |
 | Partials / transcript envelope        | Existing Serenade protocol flow and transcript handling  | Preserve concept, enrich ingress metadata                                      | **REUSABLE + REFACTOR** | `maestro-voice-adapter`              | P0       | Needs explicit metadata contract for mode, timestamps, route hints, interruption, speaker state | Maestro requires structured ingress, not naked transcript text                                  |
 | Speaker diarization                   | No clear first-class public component in legacy baseline | `pyannote.audio`                                                               | **ADD**                 | `maestro-speaker-diarization`        | P1       | Should be isolated from hot reflex lane; secure/shared-room integration required                | Best dedicated fit for diarization contract                                                     |
 | Speaker verification / authentication | No clear first-class public component in legacy baseline | `WeSpeaker` (provisional default - requires bake-off against SpeechBrain ECAPA-TDNN and NVIDIA NeMo before lock-in) | **ADD**                 | `maestro-speaker-verification`       | P1       | Requires enrollment lifecycle, persistence, confidence thresholds, policy hooks; **provisional default - requires benchmark bake-off before treating as final**                 | Needed for real Phase 2A completion                                                             |
@@ -129,8 +129,8 @@ Replace legacy speech recognition assumptions with explicit modern STT lanes.
 
 Includes:
 
-* `maestro-stt-fast` using `whisper.cpp`
-* `maestro-stt-accurate` using `faster-whisper`
+* `maestro-stt-fast` using CTC + constrained decoding + grammar/parser enforcement
+* `maestro-stt-accurate` using `Qwen3-ASR`
 * lane-selection policy
 * transcript normalization alignment
 
@@ -187,8 +187,8 @@ Roadmap relationship:
 
 ### Wave B exit evidence
 
-* `whisper.cpp` command-fast lane is wired and exercised through the runtime
-* `faster-whisper` dictation-accurate lane is wired and exercised through the runtime
+* command-fast constrained-decoding lane is wired and exercised through the runtime
+* `Qwen3-ASR` dictation-accurate lane is wired and exercised through the runtime
 * lane selection logic is explicit, measurable, and benchmarkable
 * transcript normalization remains compatible with the hot-path command contract
 

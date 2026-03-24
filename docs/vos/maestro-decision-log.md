@@ -966,7 +966,7 @@ Consequences:
 ## VOS-040: ASR Model Migration to Parakeet and Qwen3
 
 * Date: 2026-03-23
-* Status: Accepted
+* Status: Superseded by VOS-041 (command lane)
 
 Decision:
 
@@ -981,3 +981,35 @@ Consequences:
 * explicit fallback toggles in `system` settings (no automatic silent fallback)
 * exact routing maps in `chunk-manager.ts` will use parallel state maps (e.g., `chunkUseCommandFastProvider`) rather than renaming legacy maps to avoid collision risk
 * Qwen3 integrates directly against vLLM streaming APIs, removing the need for intermediary shims
+
+---
+
+## VOS-041: Command Lane Pivot To Customization-First CTC + Constrained Decoding
+
+* Date: 2026-03-23
+* Status: Accepted
+
+Decision:
+
+Maestro command-lane STT is no longer modeled as a pure benchmark-ASR replacement problem. `Parakeet-TDT` and Whisper-family engines are no longer the architectural target for primary command-lane control. The command lane is now **customization-first** and must preserve Serenade/Kaldi-era controllability using:
+
+* modern CTC acoustic front end (`Conformer-CTC` or `Parakeet-CTC` class)
+* constrained decoder (`WFST` / Flashlight / equivalent constrained path)
+* custom lexicon + pronunciations
+* custom command vocabulary
+* Maestro grammar/parser layer for bounded command behavior and deterministic rejection
+
+Dictation lane remains separate and accuracy-first, with `Qwen3-ASR` as the current target.
+
+Why:
+
+Command speech in Maestro is a control system, not generic dictation. The previous direction optimized around broad ASR performance but did not preserve non-negotiable command-lane requirements: grammar control, lexical customization, pronunciation control, and deterministic rejection semantics.
+
+Consequences:
+
+* command-fast architecture is now constrained-decoding-first, not transcription-first
+* `whisper.cpp` is no longer the preferred command-control fallback when control/grammar guarantees are required
+* Whisper-family may remain as optional general ASR fallback, but not as the control-oriented command fallback
+* migration plans and roadmap language that treated `Parakeet-TDT` as command-lane end-state must be updated/superseded
+* PM/Minimax/Watchdog stage packets must encode command-lane controllability gates explicitly (grammar, bounded rejection, vocabulary/lexicon tests)
+

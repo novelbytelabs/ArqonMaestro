@@ -34,9 +34,11 @@ Core code paths:
 
 ## 2) Architecture Target
 
+Direction pivot note: command-lane target is now customization-first constrained decoding (VOS-041), not a pure Parakeet-TDT substitution.
+
 Maestro main process remains on pinned core env.
 ASR runs as sidecar service(s), accessed via strict bridge contract:
-- command lane: Parakeet sidecar
+- command lane: constrained-decoding command sidecar (CTC + WFST/Flashlight class)
 - dictation lane: Qwen3 via vLLM-compatible service
 
 Bridge contract:
@@ -91,6 +93,17 @@ DoD:
 - watchdog GREEN
 - PM hard-close approval
 
+### Stage 2E - Final Hard-Close Governance Gate
+
+Deliverables:
+- PM acceptance packet with explicit pass/fail against Stage 1/2A/2B/2C/2D criteria
+- watchdog GREEN confirmation attached to acceptance packet
+- final freeze-state manifest (commit hash, changed files, commands run, raw outputs)
+
+DoD:
+- no unresolved RED/YELLOW watchdog findings
+- PM issues explicit hard-close statement
+
 ## 4) Non-Negotiable Constraints
 
 - No environment mutation in core pinned env during implementation stages.
@@ -108,9 +121,9 @@ Watchdog must return RED if any of the following happen:
 - missing failure-matrix tests for sidecar outage/503 handling
 - REPORT without freeze-state evidence
 
-## 6) First Execution Packet to Start Now
+## 6) Current Execution Packet (Next)
 
-Start with **Stage 2A only**.
+Current restart point is **Stage 2D + 2E** after Stage 1/2A/2B/2C audit/hardening.
 
 Required from Minimax in MODE: REPORT:
 - commit hash
@@ -119,7 +132,16 @@ Required from Minimax in MODE: REPORT:
 - raw test/build outputs
 - technical debt audit output
 - unresolved risks
+- hard-close evidence manifest (watchdog-auditable)
 
 Success criterion to hand to PM:
-- watchdog GREEN on Stage 2A packet
+- watchdog GREEN on Stage 2D/2E packet
 - no env mutation violations
+- PM final hard-close statement
+
+
+## 7) Stage Count Clarification
+
+- Active rollout scope is Stage 2A, 2B, 2C, 2D, 2E.
+- There is no required Stage 3 in this rollout document.
+- Any Stage 3 optimization proposal must be treated as out-of-scope until Stage 2E is hard-closed.

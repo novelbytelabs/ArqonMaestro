@@ -142,15 +142,18 @@ This is the most important lane for VOS feel.
 
 ## Near-term baseline
 
-The current architectural baseline already points here:
+The command-fast baseline is now explicitly **customization-first**:
 
-* `whisper.cpp` is the leading local default for `command-fast`
+* modern CTC acoustic front end (`Conformer-CTC` or `Parakeet-CTC` class)
+* constrained decoding (`WFST` / Flashlight / equivalent)
+* custom lexicon + pronunciation controls
+* Maestro grammar/parser enforcement for bounded command behavior
 
-That aligns with:
+This aligns with Maestro's control-plane requirements:
 
-* the hot-path runtime contract
-* the ultimate VOS reference architecture
-* the command-lane latency target
+* deterministic command rejection
+* grammar-aware command interpretation
+* command vocabulary control without forcing dictation-oriented decoding behavior
 
 ## Success criteria
 

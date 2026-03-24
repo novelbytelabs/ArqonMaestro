@@ -6,216 +6,71 @@ Audio Contract:
 - Format: Mono, PCM16 LE, 16 kHz, 16-bit
 - Preprocessing: float32 = int16 / 32768.0, clamp [-1, 1]
 
-Input Modes:
-- --audio <wav_file>: File-based input (legacy)
-- --stdin: Accept raw PCM16 bytes via stdin for in-memory processing
-
-Output Contract:
-- Strict single-line JSON to stdout
-- All framework logs redirected to stderr
+WebSockets Contract:
+- Client connects to /transcribe_stream
+- Client sends JSON config first: {"sample_rate_hz": 16000, "chunk_id": "...", "model_path": "..."}
+- Client streams raw PCM16 bytes
+- Server streams back JSON: {"ok": True, "text": "partial...", "is_final": False}
+- Client sends {"eof": True} JSON to indicate end of stream
+- Server returns {"ok": True, "text": "final...", "is_final": True}
 """
 import argparse
 import json
+import logging
 import os
-import sys
-import wave
+import time
 from typing import Optional, Tuple
+import uvicorn
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-# Stable error codes
-ERROR_CODES = {
-    "empty_audio": (True, "Audio file is empty or contains no valid samples"),
-    "audio_format_invalid": (False, "Audio format not supported - expected PCM16 LE mono 16kHz"),
-    "model_load_failed": (False, "Failed to load Parakeet model"),
-    "inference_failed": (False, "ASR inference failed"),
-    "timeout": (True, "Inference timeout"),
-    "endpoint_503": (True, "Service unavailable"),
-    "connection_refused": (True, "Connection refused"),
-    "json_output_invalid": (False, "Invalid JSON output from model"),
-}
+# Set up logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
+app = FastAPI()
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Maestro Parakeet ASR bridge")
-    parser.add_argument("--audio", help="Path to WAV audio file")
-    parser.add_argument("--stdin", action="store_true", help="Accept raw PCM16 via stdin")
-    parser.add_argument("--model-path", required=True, help="Path to Parakeet model directory")
-    parser.add_argument("--device", required=True, choices=["cpu", "cuda"], help="Device name")
-    # Sidecar mode: HTTP server
-    parser.add_argument("--server", action="store_true", help="Run as HTTP sidecar server")
-    parser.add_argument("--port", type=int, default=5001, help="Server port")
-    parser.add_argument("--health-port", type=int, default=5001, help="Health check port (same as server port)")
-    return parser.parse_args()
-
-
-def print_json(payload: dict) -> None:
-    """Output strict single-line JSON to stdout."""
-    print(json.dumps(payload, ensure_ascii=True))
-
-
-def log_stderr(message: str) -> None:
-    """Log to stderr - all framework noise goes here."""
-    print(message, file=sys.stderr)
-
-
-def load_audio_pcm16(wav_path: str) -> Tuple[Optional[bytes], Optional[str]]:
-    """
-    Load audio file and validate PCM16 LE format.
-    
-    Returns:
-        Tuple of (audio_bytes, error_code) - error_code is None on success
-    """
-    if not os.path.exists(wav_path):
-        return None, "audio_format_invalid"
-    
-    file_size = os.path.getsize(wav_path)
-    if file_size == 0:
-        return None, "empty_audio"
-    
-    try:
-        with wave.open(wav_path, "rb") as wf:
-            # Validate wave format
-            n_channels = wf.getnchannels()
-            sampwidth = wf.getsampwidth()
-            framerate = wf.getframerate()
-            
-            # Check: Mono (1 channel), 16-bit (2 bytes), 16kHz
-            if n_channels != 1:
-                log_stderr(f"Warning: Expected mono, got {n_channels} channels")
-                return None, "audio_format_invalid"
-            
-            if sampwidth != 2:
-                log_stderr(f"Warning: Expected 16-bit (sampwidth=2), got {sampwidth}")
-                return None, "audio_format_invalid"
-            
-            if framerate != 16000:
-                log_stderr(f"Warning: Expected 16kHz, got {framerate}")
-                return None, "audio_format_invalid"
-            
-            # Read raw PCM16 LE data
-            audio_bytes = wf.readframes(wf.getnframes())
-            
-            if len(audio_bytes) == 0:
-                return None, "empty_audio"
-            
-            return audio_bytes, None
-            
-    except wave.Error as e:
-        log_stderr(f"Wave file error: {e}")
-        return None, "audio_format_invalid"
-    except Exception as e:
-        log_stderr(f"Unexpected error reading audio: {e}")
-        return None, "audio_format_invalid"
-
-
-def load_audio_from_stdin() -> Tuple[Optional[bytes], Optional[str]]:
-    """
-    Read raw PCM16 LE audio from stdin.
-    Expects: Mono, 16kHz, 16-bit Little Endian
-    
-    Returns:
-        Tuple of (audio_bytes, error_code)
-    """
-    try:
-        # Read all available data from stdin
-        audio_bytes = sys.stdin.buffer.read()
-        
-        if len(audio_bytes) == 0:
-            return None, "empty_audio"
-        
-        # Validate: must be even number of bytes (16-bit samples)
-        if len(audio_bytes) % 2 != 0:
-            log_stderr(f"Warning: Odd byte count {len(audio_bytes)} - truncated last byte")
-            audio_bytes = audio_bytes[:-1]
-        
-        if len(audio_bytes) == 0:
-            return None, "empty_audio"
-        
-        return audio_bytes, None
-        
-    except Exception as e:
-        log_stderr(f"Error reading stdin: {e}")
-        return None, "audio_format_invalid"
-
+# Global loaded model
+PARAKEET_MODEL = None
+PARAKEET_DEVICE = "cpu"
 
 def normalize_pcm16_to_float32(audio_bytes: bytes) -> Tuple[Optional[list], Optional[str]]:
-    """
-    Convert PCM16 LE bytes to normalized float32 array.
-    
-    Preprocessing: float32 = int16 / 32768.0, clamp [-1, 1]
-    """
     try:
         import numpy as np
-        
-        # Convert bytes to int16 array
         int16_data = np.frombuffer(audio_bytes, dtype=np.int16)
-        
         if len(int16_data) == 0:
             return None, "empty_audio"
-        
-        # Normalize: float32 = int16 / 32768.0
         float32_data = int16_data.astype(np.float32) / 32768.0
-        
-        # Clamp to [-1, 1]
         float32_data = np.clip(float32_data, -1.0, 1.0)
-        
         return float32_data.tolist(), None
-        
     except Exception as e:
-        log_stderr(f"Error normalizing audio: {e}")
+        logger.error(f"Error normalizing audio: {e}")
         return None, "audio_format_invalid"
 
-
 def load_parakeet_model(model_path: str, device: str):
-    """
-    Load Parakeet model from path using NVIDIA NeMo ASR.
-    """
     try:
-        # Import NeMo ASR
-        try:
-            import torch
-            import nemo.collections.asr as nemo_asr
-        except ImportError as e:
-            log_stderr(f"Missing dependency: {e}")
-            raise RuntimeError("nemo.collections.asr or torch not installed") from e
+        import torch
+        import nemo.collections.asr as nemo_asr
         
-        # Check if model path exists
-        if not os.path.isdir(model_path):
-            log_stderr(f"Model path does not exist: {model_path}")
+        if not os.path.exists(model_path):
+            logger.error(f"Model path does not exist: {model_path}")
             raise FileNotFoundError(f"Model directory not found: {model_path}")
-        
-        # Load Parakeet model using NeMo
-        # NeMo uses ASRModel for architecture-agnostic loading (works for TDT/RNNT)
+            
         model = nemo_asr.models.ASRModel.restore_from(model_path)
-        
-        # Move to specified device
         if device == "cuda" and torch.cuda.is_available():
             model = model.cuda()
         else:
             model = model.cpu()
-        
         return model
-        
-    except FileNotFoundError as e:
-        raise RuntimeError(f"model_load_failed: {e}") from e
     except Exception as e:
+        logger.error(f"Failed to load model: {e}")
         raise RuntimeError(f"model_load_failed: {e}") from e
 
-
-def transcribe_parakeet(model, audio_data: list) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Run inference on Parakeet model.
-    
-    Returns:
-        Tuple of (transcript, error_code)
-    """
+def transcribe_batch(model, audio_data: list) -> Tuple[Optional[str], Optional[str]]:
     try:
         import numpy as np
         import torch
         
-        # Convert list back to numpy array
         audio_np = np.array(audio_data, dtype=np.float32)
-        
-        # Run Parakeet inference using NVIDIA NeMo ASR
         with torch.no_grad():
             waveform = torch.tensor(audio_np).unsqueeze(0)
             results = model.transcribe_batch(waveform)
@@ -228,184 +83,140 @@ def transcribe_parakeet(model, audio_data: list) -> Tuple[Optional[str], Optiona
                 text = str(results) if results else ""
             
             text = text.strip()
-            
             if not text:
-                return None, "empty_audio"
-            
+                return "", None
             return text, None
-            
-    except TimeoutError as e:
-        return None, "timeout"
     except Exception as e:
-        log_stderr(f"Inference error: {e}")
+        logger.error(f"Inference error: {e}")
         return None, "inference_failed"
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "model": "parakeet", "streaming_enabled": True}
 
-def run_server(model, port: int) -> None:
-    """
-    Run as HTTP sidecar server.
-    Handles in-memory audio processing - no temp files.
-    """
-    from http.server import HTTPServer, BaseHTTPRequestHandler
-    import threading
+@app.websocket("/transcribe_stream")
+async def websocket_transcribe(websocket: WebSocket):
+    await websocket.accept()
+    logger.info("WebSocket connected")
     
-    class SidecarHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            if self.path == "/health":
-                # Health check endpoint
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.end_headers()
-                self.wfile.write(json.dumps({"status": "ok", "model": "parakeet"}).encode("utf-8"))
-            else:
-                self.send_error(404, "Not Found")
+    try:
+        # 1. Wait for config
+        config_text = await websocket.receive_text()
+        try:
+            config = json.loads(config_text)
+        except json.JSONDecodeError:
+            await websocket.send_json({"ok": False, "error": "invalid_config", "retryable": False})
+            await websocket.close()
+            return
+
+        chunk_id = config.get("chunk_id", "unknown")
+        sample_rate_hz = int(config.get("sample_rate_hz", 16000))
+        if sample_rate_hz != 16000:
+            await websocket.send_json({"ok": False, "error": "audio_format_invalid", "retryable": False})
+            return
+
+        if PARAKEET_MODEL is None:
+            await websocket.send_json({"ok": False, "error": "model_load_failed", "retryable": False})
+            return
+
+        logger.info(f"[{chunk_id}] Starting stream")
+
+        audio_buffer = bytearray()
+        last_partial_chars = 0
+        last_partial_at = 0.0
+        min_partial_bytes = 16000 * 2  # 1 second PCM16 mono at 16k
+
+        while True:
+            message = await websocket.receive()
+            if "bytes" in message:
+                frame_data = message["bytes"]
+                if not frame_data:
+                    continue
+                audio_buffer.extend(frame_data)
+
+                now = time.monotonic()
+                enough_audio = len(audio_buffer) >= min_partial_bytes
+                enough_time = (now - last_partial_at) >= 0.35
+                if enough_audio and enough_time:
+                    audio_float, err = normalize_pcm16_to_float32(bytes(audio_buffer))
+                    if not err and audio_float:
+                        partial_text, _ = transcribe_batch(PARAKEET_MODEL, audio_float)
+                        if partial_text and len(partial_text) > last_partial_chars:
+                            await websocket.send_json({
+                                "ok": True,
+                                "text": partial_text,
+                                "is_final": False,
+                            })
+                            last_partial_chars = len(partial_text)
+                            last_partial_at = now
+
+            elif "text" in message:
+                try:
+                    payload = json.loads(message["text"])
+                    if payload.get("eof"):
+                        logger.info(f"[{chunk_id}] EOF received. Generating final transcript...")
+                        break
+                except json.JSONDecodeError:
+                    pass
+
+        # 3. Final Transcription
+        if len(audio_buffer) == 0:
+            await websocket.send_json({"ok": False, "error": "empty_audio", "retryable": False})
+            return
+            
+        audio_float, error_code = normalize_pcm16_to_float32(bytes(audio_buffer))
+        if error_code:
+            await websocket.send_json({"ok": False, "error": error_code, "retryable": False})
+            return
+            
+        final_text, error_code = transcribe_batch(PARAKEET_MODEL, audio_float)
+        if error_code:
+            await websocket.send_json({"ok": False, "error": error_code, "retryable": True})
+            return
+            
+        await websocket.send_json({
+            "ok": True,
+            "text": final_text or "",
+            "is_final": True
+        })
+        logger.info(f"[{chunk_id}] Stream completed successfully. Final text: '{final_text}'")
         
-        def do_POST(self):
-            if self.path != "/transcribe":
-                self.send_error(404, "Not Found")
-                return
-            
-            import base64
-            
-            # Read JSON from request body
-            content_length = int(self.headers.get("Content-Length", 0))
-            body_bytes = self.rfile.read(content_length)
-            
-            try:
-                req_json = json.loads(body_bytes.decode("utf-8"))
-                audio_b64 = req_json.get("audio_b64", "")
-                if not audio_b64:
-                    self.send_error(400, "empty_audio")
-                    return
-                audio_bytes = base64.b64decode(audio_b64)
-            except Exception as e:
-                self.send_error(400, "audio_format_invalid")
-                return
-            
-            # Normalize and transcribe
-            audio_float, error_code = normalize_pcm16_to_float32(audio_bytes)
-            if error_code:
-                self.send_error(400, error_code)
-                return
-            
-            text, error_code = transcribe_parakeet(model, audio_float)
-            
-            # Send JSON response
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            
-            if error_code:
-                retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
-                response = {"ok": False, "error": error_code, "retryable": retryable}
-            else:
-                response = {"ok": True, "text": text}
-            
-            self.wfile.write(json.dumps(response).encode("utf-8"))
-        
-        def log_message(self, format, *args):
-            # Suppress HTTP server logs
+    except WebSocketDisconnect:
+        logger.info("WebSocket disconnected gracefully")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_json({"ok": False, "error": "internal_error", "retryable": False})
+        except Exception:
             pass
-    
-    # Run server
-    server = HTTPServer(("", port), SidecarHandler)
-    log_stderr(f"Parakeet sidecar server started on port {port}")
-    server.serve_forever()
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Maestro Parakeet ASR WebSocket Sidecar")
+    parser.add_argument("--model-path", required=True, help="Path to Parakeet model directory")
+    parser.add_argument("--device", required=True, choices=["cpu", "cuda"], help="Device name")
+    parser.add_argument("--server", action="store_true", help="Run as FastAPI WebSocket Sidecar (always True now)")
+    parser.add_argument("--port", type=int, default=5001, help="Server port")
+    parser.add_argument("--health-port", type=int, default=5001, help="Health check port")
+    return parser.parse_args()
 
-def main() -> int:
+def main():
     args = parse_args()
     
-    # Validate input mode
-    if args.stdin and args.audio:
-        print_json({
-            "ok": False,
-            "error": "json_output_invalid",
-            "retryable": False
-        })
-        return 1
+    global PARAKEET_MODEL
+    global PARAKEET_DEVICE
+    PARAKEET_DEVICE = args.device
     
-    # If server mode, start HTTP server
-    if args.server:
-        # Load model first (preload at boot)
-        try:
-            model = load_parakeet_model(args.model_path, args.device)
-            log_stderr(f"Model loaded: {args.model_path}")
-        except RuntimeError as e:
-            print_json({
-                "ok": False,
-                "error": "model_load_failed",
-                "retryable": False
-            })
-            return 1
-        
-        run_server(model, args.port)
-        return 0
-    
-    # Step 1: Load audio based on input mode
-    if args.stdin:
-        audio_bytes, error_code = load_audio_from_stdin()
-    else:
-        if not args.audio:
-            print_json({
-                "ok": False,
-                "error": "audio_format_invalid",
-                "retryable": False
-            })
-            return 1
-        audio_bytes, error_code = load_audio_pcm16(args.audio)
-    
-    if error_code:
-        retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
-        print_json({
-            "ok": False,
-            "error": error_code,
-            "retryable": retryable
-        })
-        return 1
-    
-    # Step 2: Normalize PCM16 to float32
-    audio_float, error_code = normalize_pcm16_to_float32(audio_bytes)
-    if error_code:
-        retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
-        print_json({
-            "ok": False,
-            "error": error_code,
-            "retryable": retryable
-        })
-        return 1
-    
-    # Step 3: Load model
+    logger.info(f"Loading Parakeet model from {args.model_path} onto {args.device}...")
     try:
-        model = load_parakeet_model(args.model_path, args.device)
-    except RuntimeError as e:
-        print_json({
-            "ok": False,
-            "error": "model_load_failed",
-            "retryable": False
-        })
-        return 1
+        PARAKEET_MODEL = load_parakeet_model(args.model_path, args.device)
+        logger.info("Model loaded successfully.")
+    except Exception as e:
+        logger.error(f"Failed to load model natively: {e}")
+        # We start the server anyway so the `/health` endpoint responds, but streams will fail.
+        # This allows upstream connection polling to work.
     
-    # Step 4: Run inference
-    text, error_code = transcribe_parakeet(model, audio_float)
-    if error_code:
-        retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
-        print_json({
-            "ok": False,
-            "error": error_code,
-            "retryable": retryable
-        })
-        return 1
-    
-    # Step 5: Success - output JSON to stdout
-    print_json({
-        "ok": True,
-        "text": text,
-        "model": args.model_path,
-        "device": args.device
-    })
-    return 0
-
+    logger.info(f"Starting FastAPI WebSocket sidecar on port {args.port}...")
+    uvicorn.run(app, host="0.0.0.0", port=args.port, log_level="warning")
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
