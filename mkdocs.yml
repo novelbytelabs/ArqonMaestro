@@ -104,6 +104,7 @@ nav:
       - Maestro Local Runbook: operations/maestro-local-runbook.md
       - Port Reference: operations/port-reference.md
       - Gate 6 Kokoro Plan: operations/gate-6-kokoro-plan.md
+      - Speech Stabilization Master Plan (2026-03-24): plans/maestro-speech-stabilization-master-plan-2026-03-24.md
       - Configuration: operations/configuration.md
       - Gotcha Registry: operations/gotcha-registry.md
       - Rebrand Program: operations/rebrand-program.md
