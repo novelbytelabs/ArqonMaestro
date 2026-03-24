@@ -3,6 +3,8 @@
 Date: 2026-03-23
 Status: Ready to execute
 
+> Historical context notice (2026-03-24): This packet is a Stage 2B execution artifact from the pre-`VOS-042` lock period. Use `docs/vos/maestro-decision-log.md` (`VOS-041`, `VOS-042`) and `docs/vos/maestro-stt-strategy-by-lane.md` as authoritative for current command-lane architecture. References here to Whisper-family degraded fallback are historical operational guidance, not command-lane foundation doctrine.
+
 ## Why this restart is required
 - Stage 2B was blocked by Watchdog RED due to core env mutation risk.
 - Sidecar launch path previously referenced frozen env `helios-gpu-118`.

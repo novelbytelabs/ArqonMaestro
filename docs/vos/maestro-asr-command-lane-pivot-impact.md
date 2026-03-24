@@ -4,6 +4,8 @@
 **Decision Reference:** `VOS-041`
 **Summary:** Command lane pivots from Parakeet-TDT/Whisper-baseline assumptions to customization-first CTC + constrained decoding + grammar/parser enforcement. Dictation lane remains Qwen3-ASR.
 
+> 2026-03-24 refinement: `VOS-042` locks lane-split architecture and freezes `Parakeet-CTC` as first acoustic candidate sequencing inside the command-control stack.
+
 ## A. Canonical Docs Updated In This Pass
 
 - `docs/vos/maestro-decision-log.md`
@@ -18,7 +20,7 @@
 
 ## B. Specs/Docs Impacted (Follow-Up Required)
 
-These files still contain historical assumptions and should be reconciled in the next doc-hardening pass:
+These files still contain historical assumptions and remain in bounded backlog:
 
 - `docs/architecture/ultimate-vos-reference-architecture.md` (duplicate architecture copy; keep synchronized)
 - `docs/vos/asr-stage-2b-restart-packet.md`
@@ -27,7 +29,17 @@ These files still contain historical assumptions and should be reconciled in the
 - `plans/asr-stage1-2abc-hard-close-audit.md` (historical snapshot against previous target)
 - `docs/decision-log.md` (updated with supersession note; keep synchronized with VOS decision log)
 
-## C. New Non-Negotiable Command-Lane Acceptance Gates
+## C. Reconciled In 2026-03-24 Hardening Pass
+
+- `docs/vos/maestro-decision-log.md` (`VOS-042` added, `VOS-040` supersession wording updated)
+- `docs/decision-log.md` (synced ADM mirror for `VOS-042`)
+- `docs/vos/maestro-stt-strategy-by-lane.md` (control-first command-lane acceptance and Parakeet-CTC sequencing wording)
+- `docs/vos/maestro-project-roadmap.md` (Wave B lane language clarified as control-stack architecture)
+- `docs/vos/maestro-implementation-progress.md` (execution wording aligned with `VOS-042`)
+- `docs/vos/asr-stage-2b-restart-packet.md` (historical-context notice added)
+- `docs/operations/asr-modernization-setup.sh` (deprecation/safety notice; isolated sidecar flow is canonical)
+
+## D. New Non-Negotiable Command-Lane Acceptance Gates
 
 1. Grammar control works under constrained decoding.
 2. Custom vocabulary and custom pronunciations are testable and deterministic.
@@ -35,7 +47,7 @@ These files still contain historical assumptions and should be reconciled in the
 4. Command lane is not evaluated solely by generic WER; control-behavior metrics are required.
 5. Command fallback path must preserve constrained-decoding control characteristics.
 
-## D. PM/Watchdog Enforcement Update
+## E. PM/Watchdog Enforcement Update
 
 PM and Watchdog should reject any stage claim that:
 

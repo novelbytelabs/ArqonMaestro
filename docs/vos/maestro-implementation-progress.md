@@ -1406,14 +1406,16 @@ Date: 2026-03-23
 Status: **Direction Pivot Accepted; Re-planning Required**
 
 Architecture pivot note (2026-03-23): Command speech is a control system. Command-lane architecture now prioritizes constrained decoding and grammar control over generic ASR benchmark substitution.
+Direction lock note (2026-03-24): `VOS-042` freezes lane split and clarifies that `Parakeet-CTC` is first acoustic candidate sequencing inside the command-control stack, not architecture ownership by a single model.
 
 What's planned:
 
 * Supersede prior command plan: do NOT treat `Parakeet-TDT` as command-lane end-state
 * Keep `dictation-accurate` as `Qwen3-ASR-1.7B` (accuracy-first lane)
-* Redesign `command-fast` around CTC + constrained decoding + custom lexicon/pronunciations + Maestro grammar/parser
+* Redesign `command-fast` around CTC + constrained decoding + custom lexicon/pronunciations + Maestro grammar/parser + deterministic rejection gates
+* Test `Parakeet-CTC` first as command-lane acoustic candidate within this stack
 * Retain legacy engines as non-default manual fallbacks with parallel `chunk-manager.ts` routing maps
-* Strict Definition of Done (DoD) per stage requiring explicit evidence logs/packs
+* Strict Definition of Done (DoD) per stage requiring explicit control-behavior evidence logs/packs (not generic ASR metrics only)
 
 Current stage: Stage 1 (Python Bridge Strict Contracts) - **HARD-CLOSED (Resolved via Sidecar Pivot)**
 - Initial run rejected due to env mutation.

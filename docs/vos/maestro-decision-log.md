@@ -966,7 +966,7 @@ Consequences:
 ## VOS-040: ASR Model Migration to Parakeet and Qwen3
 
 * Date: 2026-03-23
-* Status: Superseded by VOS-041 (command lane)
+* Status: Superseded by VOS-041 and refined by VOS-042 (command lane)
 
 Decision:
 
@@ -1013,3 +1013,46 @@ Consequences:
 * migration plans and roadmap language that treated `Parakeet-TDT` as command-lane end-state must be updated/superseded
 * PM/Minimax/Watchdog stage packets must encode command-lane controllability gates explicitly (grammar, bounded rejection, vocabulary/lexicon tests)
 
+---
+
+## VOS-042: Lane-Split Architecture Lock + Parakeet-CTC First Candidate Sequencing
+
+* Date: 2026-03-24
+* Status: Accepted
+
+Decision:
+
+Freeze Maestro speech direction as a lane-split architecture with distinct ownership:
+
+* command lane = customization-first control system
+* dictation lane = separate long-form text lane
+
+Freeze command-lane architecture as the full command-control stack, not a model-only choice:
+
+* CTC acoustic model
+* constrained decoder (`WFST` / Flashlight / equivalent)
+* custom vocabulary + custom pronunciations
+* Maestro grammar/parser enforcement
+* deterministic bounded rejection and control-safe normalization
+
+Freeze candidate sequencing:
+
+* `Parakeet-CTC` is the first acoustic candidate tested inside this architecture.
+* This does **not** mean Parakeet alone is the command-lane architecture.
+
+Negative decisions (command-lane foundation):
+
+* `Qwen3-ASR` is not the command-lane foundation.
+* `Parakeet-TDT` is not the command-lane foundation.
+* `whisper.cpp` is not the command-lane control-equivalent foundation.
+
+Why:
+
+Command speech in Maestro must preserve Serenade/Kaldi-era controllability (grammar/lexicon/pronunciation/rejection guarantees). General ASR benchmark strength alone is insufficient for command-lane architecture ownership.
+
+Consequences:
+
+* command-lane acceptance gates must prioritize control metrics over generic transcription metrics
+* dictation-lane model choices cannot be used to infer command-lane architecture choices
+* planning/evidence language must describe command lane as a control stack
+* repo-level decision log should mirror this refinement for synchronization with `VOS-041`

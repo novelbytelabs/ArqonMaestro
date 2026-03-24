@@ -783,6 +783,20 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-053: Maestro Command-Lane Speech Direction Is A Control-Stack Architecture (Synced With VOS-042)
+
+- **Date**: 2026-03-24
+- **Status**: Accepted
+- **Decision**: Synchronize repo-level architecture direction with `docs/vos/maestro-decision-log.md` (`VOS-042`): Maestro speech is lane-split by design, and command-lane architecture is the full control stack (`CTC acoustic + constrained decoder + lexicon/pronunciation control + Maestro grammar/parser + deterministic rejection`). `Parakeet-CTC` is the first acoustic candidate within this stack, not the architecture by itself.
+- **Why**: Prior command-lane framing drifted toward model-centric ASR evaluation. Maestro command speech is a control system and requires explicit decoder/lexicon/grammar-time control guarantees.
+- **Consequences**:
+  - preserves supersession chain: `ADM-039` (historical) -> `VOS-041` (pivot) -> `VOS-042` (refinement lock)
+  - command-lane success criteria must include grammar compatibility, pronunciation/vocabulary control, bounded rejection, and low-latency command usability
+  - `Qwen3-ASR`, `Parakeet-TDT`, and `whisper.cpp` are not command-lane architectural foundations
+  - dictation lane remains separate and independently benchmarked
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

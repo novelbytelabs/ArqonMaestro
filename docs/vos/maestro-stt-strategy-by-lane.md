@@ -149,6 +149,11 @@ The command-fast baseline is now explicitly **customization-first**:
 * custom lexicon + pronunciation controls
 * Maestro grammar/parser enforcement for bounded command behavior
 
+Candidate sequencing in this architecture:
+
+* `Parakeet-CTC` is the first acoustic candidate to test.
+* This is candidate order only, not architecture ownership by one model.
+
 This aligns with Maestro's control-plane requirements:
 
 * deterministic command rejection
@@ -161,6 +166,10 @@ This aligns with Maestro's control-plane requirements:
 * canonical verbs and objects survive common STT errors
 * chooser and repair loops stay responsive
 * latency is more important than dictation-perfect prose output
+* grammar compatibility is verified against Maestro command language
+* out-of-grammar speech is rejected deterministically
+* custom vocabulary and custom pronunciation controls are testable
+* outputs remain bounded and command-safe after normalization
 
 ---
 
@@ -187,6 +196,7 @@ In dictation mode, ambiguous speech should prefer text over command execution un
 This lane should remain benchmark-driven and provider-flexible for now.
 
 Do not freeze one engine just because it is the command-fast baseline.
+Dictation-lane provider choices do not own or redefine command-lane architecture.
 
 ---
 

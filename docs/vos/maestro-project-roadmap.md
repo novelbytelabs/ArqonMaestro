@@ -269,12 +269,21 @@ Wave A denoise direction note:
 
 #### Wave B: STT Lane Modernization (Prerequisite)
 
-- **command-fast** → customization-first CTC + constrained decoding (WFST/Flashlight class) + Maestro grammar/parser
+- **command-fast** → customization-first control stack:
+  - CTC acoustic candidate path (`Parakeet-CTC` tested first)
+  - constrained decoding (WFST/Flashlight class)
+  - lexicon/pronunciation control
+  - Maestro grammar/parser with deterministic rejection
 - **dictation-accurate** → Qwen3-ASR (accuracy-first lane)
+- command lane and dictation lane remain separate ownership tracks
 
 Status:
 
 * **COMPLETE - HARD CLOSED** (Wave B complete)
+
+Wave B command-lane evaluation note:
+
+- command-lane acceptance is control-first (grammar compatibility, bounded rejection, lexicon/pronunciation behavior, low-latency command usability), not generic ASR leaderboard quality alone
 
 #### Wave C: Speaker Identity Stack (Prerequisite for Phase 2A)
 
