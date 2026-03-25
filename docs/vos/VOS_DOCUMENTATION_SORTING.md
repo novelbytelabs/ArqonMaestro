@@ -1,135 +1,80 @@
 # VOS Documentation Sorting
 
-> **Date:** 2026-03-17
+> **Date:** 2026-03-25
 
-This document categorizes the documentation in `docs/vos/` into **Core** and **Planning** categories.
+This file classifies `docs/vos/` documents into canonical implementation specs, planning/governance docs, and historical context.
 
----
+## Direction Lock
 
-## CORE Documents (Technical Specifications)
+Use this alignment when categorizing or updating docs:
 
-These define the actual implementation, architecture, and contracts:
+- Maestro is a Voice Operating System
+- command lane is the primary governed control lane
+- dictation lane is a separate transcription lane
+- command semantics remain Maestro-owned, engine-adapter driven
 
-| Document | Purpose |
-|----------|---------|
-| [`maestro-executor-architecture.md`](./maestro-executor-architecture.md) | Executor architecture |
-| [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md) | Runtime command contract |
-| [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md) | Hot path runtime contract |
-| [`maestro-actuation-policy-engine.md`](./maestro-actuation-policy-engine.md) | Actuation policy engine |
-| [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md) | Capability registry adapter |
-| [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md) | Shell/runtime decomposition |
-| [`maestro-talon-integration-strategy.md`](./maestro-talon-integration-strategy.md) | Talon integration strategy |
-| [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md) | Voice identity security |
-| [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md) | Nexus protocol boundary |
-| [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md) | STT strategy by lane |
-| [`maestro-tts-multi-lane-architecture.md`](./maestro-tts-multi-lane-architecture.md) | Multi-lane TTS architecture |
-| [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md) | TTS persona & voice |
-| [`maestro-workflow-contract.md`](./maestro-workflow-contract.md) | Workflow contract |
-| [`maestro-workflow-contract-service.md`](./maestro-workflow-contract-service.md) | Workflow contract service |
-| [`maestro-authorization-service.md`](./maestro-authorization-service.md) | Authorization service |
-| [`maestro-identity-gateway-service.md`](./maestro-identity-gateway-service.md) | Identity gateway service |
-| [`maestro-core-command-set.md`](./maestro-core-command-set.md) | Core command set |
+Cross-reference:
 
-### Language & Grammar (Core)
-
-| Document | Purpose |
-|----------|---------|
-| [`maestro_spoken_command_grammar.md`](./maestro_spoken_command_grammar.md) | Spoken command grammar |
-| [`maestro-language-constitution.md`](./maestro-language-constitution.md) | Language constitution |
-| [`maestro-syntax-specification.md`](./maestro-syntax-specification.md) | Syntax specification |
-| [`maestro-lexicon.md`](./maestro-lexicon.md) | Lexicon |
-| [`maestro-verb-system.md`](./maestro-verb-system.md) | Verb system |
-| [`maestro-object-system.md`](./maestro-object-system.md) | Object system |
-| [`maestro-surface-model.md`](./maestro-surface-model.md) | Surface model |
-| [`maestro-reference-system.md`](./maestro-reference-system.md) | Reference system |
-| [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md) | Verb-object matrix |
-| [`maestro-command-families.md`](./maestro-command-families.md) | Command families |
-
-### Supporting Technical (Core)
-
-| Document | Purpose |
-|----------|---------|
-| [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md) | Ambiguity policy |
-| [`maestro-chooser-ux.md`](./maestro-chooser-ux.md) | Chooser UX |
-| [`maestro-interpretation-engine.md`](./maestro-interpretation-engine.md) | Interpretation engine |
-| [`maestro-intent-routing-v0.1.md`](./maestro-intent-routing-v0.1.md) | Intent routing v0.1 |
-| [`maestro-modes-state-machine.md`](./maestro-modes-state-machine.md) | Modes state machine |
-| [`maestro-preference-model.md`](./maestro-preference-model.md) | Preference model |
-| [`maestro-macro-system.md`](./maestro-macro-system.md) | Macro system |
-| [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md) | Error recovery |
-| [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md) | Phonetic hazard audit |
-| [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md) | Phonetic robustness |
+- [`../speech/command-lane-architecture-memo.md`](../speech/command-lane-architecture-memo.md)
+- [`../vision/voice-operating-system.md`](../vision/voice-operating-system.md)
 
 ---
 
-## PLANNING Documents
+## Core Specs (Implementation Contracts)
 
-These track progress, governance, and future plans:
+- [`maestro-runtime-command-contract.md`](./maestro-runtime-command-contract.md)
+- [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
+- [`maestro-workflow-contract.md`](./maestro-workflow-contract.md)
+- [`maestro-actuation-policy-engine.md`](./maestro-actuation-policy-engine.md)
+- [`maestro-executor-architecture.md`](./maestro-executor-architecture.md)
+- [`maestro-capability-registry-adapter-contract.md`](./maestro-capability-registry-adapter-contract.md)
+- [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md)
+- [`maestro-stt-strategy-by-lane.md`](./maestro-stt-strategy-by-lane.md)
+- [`maestro-tts-architecture.md`](./maestro-tts-architecture.md)
+- [`maestro-tts-persona-multi-agent-voice.md`](./maestro-tts-persona-multi-agent-voice.md)
+- [`maestro-voice-identity-security-architecture.md`](./maestro-voice-identity-security-architecture.md)
+- [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
+- [`maestro-talon-integration-strategy.md`](./maestro-talon-integration-strategy.md)
 
-| Document | Purpose |
-|----------|---------|
-| [`maestro-master-plan.md`](./maestro-master-plan.md) | **Master strategic plan** - live control document |
-| [`maestro-project-roadmap.md`](./maestro-project-roadmap.md) | **High-level roadmap** - historical execution tracking |
-| [`maestro-implementation-progress.md`](./maestro-implementation-progress.md) | Live execution snapshot, current status |
-| [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md) | Focus gap analysis |
-| [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md) | Component migration matrix |
-| [`maestro-decision-log.md`](./maestro-decision-log.md) | VOS-local architectural decisions |
-| [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md) | Sticky traps and verification caveats |
+## Language/Command Specs (Core)
 
-### Background/Reference (Planning)
+- [`maestro-language-constitution.md`](./maestro-language-constitution.md)
+- [`maestro-spoken-command-grammar.md`](./maestro-spoken-command-grammar.md)
+- [`maestro-syntax-specification.md`](./maestro-syntax-specification.md)
+- [`maestro-interpretation-engine.md`](./maestro-interpretation-engine.md)
+- [`maestro-lexicon.md`](./maestro-lexicon.md)
+- [`maestro-verb-system.md`](./maestro-verb-system.md)
+- [`maestro-object-system.md`](./maestro-object-system.md)
+- [`maestro-verb-object-matrix.md`](./maestro-verb-object-matrix.md)
+- [`maestro-command-families.md`](./maestro-command-families.md)
+- [`maestro-core-command-set.md`](./maestro-core-command-set.md)
+- [`maestro-ambiguity-policy.md`](./maestro-ambiguity-policy.md)
+- [`maestro-error-recovery-misrecognition-handling.md`](./maestro-error-recovery-misrecognition-handling.md)
+- [`maestro-phonetic-robustness.md`](./maestro-phonetic-robustness.md)
+- [`maestro-phonetic-hazard-audit.md`](./maestro-phonetic-hazard-audit.md)
 
-| Document | Purpose |
-|----------|---------|
-| [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md) | Reference architecture |
-| [`maestro-overview.md`](./maestro-overview.md) | Background synthesis |
-| [`maestro-vos-plan.md`](./maestro-vos-plan.md) | Background VOS plan |
-| [`maestro-focus-architecture-current.md`](./maestro-focus-architecture-current.md) | Current Focus arch reference |
-| [`maestro-focus-architecture-proposed.md`](./maestro-focus-architecture-proposed.md) | Proposed Focus arch reference |
-| [`maestro-phase-1b-hard-close-handoff.md`](./maestro-phase-1b-hard-close-handoff.md) | Phase 1B handoff summary |
-| [`maestro-phase-1c-hard-close-handoff.md`](./maestro-phase-1c-hard-close-handoff.md) | Phase 1C handoff summary |
+## Planning and Governance Docs
 
----
+- [`maestro-master-plan.md`](./maestro-master-plan.md)
+- [`maestro-project-roadmap.md`](./maestro-project-roadmap.md)
+- [`maestro-implementation-progress.md`](./maestro-implementation-progress.md)
+- [`maestro-decision-log.md`](./maestro-decision-log.md)
+- [`maestro-gotcha-registry.md`](./maestro-gotcha-registry.md)
+- [`maestro-voice-component-migration-matrix.md`](./maestro-voice-component-migration-matrix.md)
+- [`maestro-focus-gap-analysis.md`](./maestro-focus-gap-analysis.md)
 
-## FOCUS Subdirectory
+## Historical/Reference Context
 
-The `focus/` subdirectory contains Focus-specific documentation:
+- [`maestro-overview.md`](./maestro-overview.md)
+- [`maestro-vos-plan.md`](./maestro-vos-plan.md)
+- [`asr-stage-2b-restart-packet.md`](./asr-stage-2b-restart-packet.md)
+- [`maestro-watchdog-audit-log.md`](./maestro-watchdog-audit-log.md)
+- [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
 
-| Document | Purpose |
-|----------|---------|
-| [`focus/focus-project-charter.md`](./focus/focus-project-charter.md) | Focus governance & acceptance criteria |
-| [`focus/focus-plan.md`](./focus/focus-plan.md) | Focus execution plan |
-| [`focus/focus-technote.md`](./focus/focus-technote.md) | Core focus implementation files |
-| [`focus/focus-recovery-technical-documentation.md`](./focus/focus-recovery-technical-documentation.md) | Recovery architecture |
-| [`focus/maestro-focus-recovery-plan.md`](./focus/maestro-focus-recovery-plan.md) | Recovery implementation |
-| [`focus/maestro-focus-recovery-v0.1.md`](./focus/maestro-focus-recovery-v0.1.md) | Recovery v0.1 spec |
-| [`focus/maestro-referential-intent-v0.1.md`](./focus/maestro-referential-intent-v0.1.md) | Phase 4A: Referential Intent |
-| [`focus/maestro-modal-awareness-v0.1.md`](./focus/maestro-modal-awareness-v0.1.md) | Phase 4B: Modal Awareness |
-| [`focus/maestro-surface-expansion-v0.1.md`](./focus/maestro-surface-expansion-v0.1.md) | Phase 4C: Surface Expansion |
-| [`focus/maestro-language-system-integration-v0.1.md`](./focus/maestro-language-system-integration-v0.1.md) | Phase 4D: Language Integration |
-| [`focus/maestro-focus-precision-v0.1.md`](./focus/maestro-focus-precision-v0.1.md) | Precision focus spec |
-| [`focus/maestro-focus-test-plan.md`](./focus/maestro-focus-test-plan.md) | Focus testing plan |
-| [`focus/recovery-truthfulness-test-sheet.md`](./focus/recovery-truthfulness-test-sheet.md) | Test evidence |
-| [`focus/focus-project-validation-note-fp1-fp2.md`](./focus/focus-project-validation-note-fp1-fp2.md) | Validation evidence |
-| [`focus/maestro-focus-phase-handoff.md`](./focus/maestro-focus-phase-handoff.md) | Focus handoff summary |
+## Focus Subdirectory
 
----
-
-## Directory Structure Summary
-
-```
-docs/vos/
-├── CORE (Technical Specifications)
-│   ├── Architecture & Contracts
-│   ├── Language & Grammar
-│   └── Supporting Technical
-├── PLANNING
-│   ├── Governance & Tracking
-│   └── Background/Reference
-├── README.md
-└── focus/
-    └── Focus-specific docs
-```
+The `focus/` subdirectory contains focus-specific planning and implementation artifacts.
 
 ---
 
-*Last Updated: 2026-03-17*
+*Last Updated: 2026-03-25*
