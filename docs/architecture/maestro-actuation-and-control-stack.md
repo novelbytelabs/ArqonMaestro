@@ -24,6 +24,11 @@ Maestro and Nexus are separate sibling AGOs:
 
 Nexus must not absorb Maestro's operating control boundary.
 
+ArqonMCP is the orchestration substrate between intent and capability execution:
+
+- `ArqonMCP` owns workflow orchestration, capability routing, and tool composition
+- Maestro invokes and supervises ArqonMCP execution paths
+
 ## Why A Multi-Layer Stack
 
 No single automation technology can reliably cover:
@@ -42,7 +47,7 @@ The stack is intentionally layered so each layer is used for what it is best at.
 Use deterministic semantic control whenever available:
 
 - explicit command grammars
-- MCP-routed skill execution
+- ArqonMCP-routed skill/workflow execution
 - app/tool APIs and structured selectors
 
 This is the default lane for trustworthy operating behavior.
@@ -81,7 +86,7 @@ Use when:
 
 Actuation should follow this order:
 
-1. native/semantic control
+1. native/semantic control through ArqonMCP capability routing
 2. structured browser automation (`Playwright`)
 3. global desktop control (`Talon`) when semantic routes are unavailable
 4. visual/OCR fallback (`UI.Vision`) only when higher-confidence paths fail
@@ -90,6 +95,7 @@ Architectural rule:
 
 - prefer native/semantic control before visual fallback
 - do not bypass higher-confidence layers without explicit reason
+- keep workflow orchestration ownership in ArqonMCP, not Maestro
 
 ## Security And Identity
 

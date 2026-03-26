@@ -47,6 +47,7 @@ Maestro should own:
 - spoken operating grammar
 - dictation versus command mode separation
 - handoff into the governed Arqon execution substrate
+- live supervision and intervention over ArqonMCP-executed workflows
 
 Maestro should not try to become a generic personal assistant.
 
@@ -67,6 +68,7 @@ The healthiest relationship is:
 
 - Maestro owns the voice-operating hot path
 - Nexus owns long-horizon assistance, personal context, and agentic guidance
+- ArqonMCP owns workflow orchestration, capability routing, and tool composition
 - both ride the Arqon Bus as co-processors
 - both expose and consume capability through ArqonMCP
 
@@ -112,6 +114,7 @@ Maestro should dominate:
 - spoken coding commands
 - direct app and tool control
 - low-latency execution
+- workflow invocation and supervision (not orchestration ownership)
 
 Nexus should dominate:
 
@@ -123,9 +126,16 @@ Nexus should dominate:
 - coaching and summarization
 - proactive suggestions
 
+ArqonMCP should dominate:
+
+- workflow orchestration and chaining
+- skill recall and capability routing
+- cross-tool dispatch and reusable procedure execution
+- prompt/resource/tool binding and execution substrate control
+
 The clean rule is:
 
-`Nexus proposes. Maestro executes when the action is voice, OS, or tool facing.`
+`Nexus shapes intent. ArqonMCP decides how it is done. Maestro lets the human drive it in real time.`
 
 ## Why This Is Strategic
 

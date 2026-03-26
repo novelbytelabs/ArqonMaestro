@@ -17,7 +17,7 @@ Arqon Maestro should not evolve into a generic voice assistant.
 It should evolve into a voice-native operating substrate with:
 
 - a deterministic reflex lane for fast, validated commands
-- a cognitive lane for agentic reasoning and multi-step orchestration
+- a cognitive lane for agentic reasoning that delegates workflow orchestration
 - ArqonMCP as the centralized command fabric and policy core
 - constitutive integrity gates before high-impact execution
 - a swappable shell, speech, and voice-output stack
@@ -86,6 +86,11 @@ The clean division is:
 
 `Maestro speaks, hears, commands, and operates.`
 `Nexus knows, assists, remembers, and guides.`
+`ArqonMCP routes, composes, and executes workflows and capabilities.`
+
+Canonical boundary technote:
+
+- `docs/architecture/nexus-maestro-arqonmcp-boundary.md`
 
 ## Current Anchors
 
@@ -154,8 +159,15 @@ ArqonMCP should be treated as:
 - the governance boundary
 - the skill and version registry
 - the provenance and rollback spine
+- the workflow orchestration substrate
 
 Voice is therefore a front-end plane feeding a governed execution kernel.
+
+Boundary rule:
+
+- Maestro invokes and mediates workflows
+- ArqonMCP orchestrates workflows
+- Nexus refines intent and planning
 
 ## Top-Level Runtime
 

@@ -48,7 +48,7 @@ Operator customizations compile into engine-specific artifacts through Maestro-o
 | command alias | decoder vocabulary + parser rules | lexicon + grammar graph updates |
 | pronunciation | lexicon mapping | lexicon/FST updates |
 | grammar template | bounded parser structures | composed grammar graph |
-| workflow intent | runtime command contract | policy/routing constraints |
+| workflow intent | runtime command contract | ArqonMCP orchestration request + policy/routing constraints |
 
 ## 5. Strategic Rule
 

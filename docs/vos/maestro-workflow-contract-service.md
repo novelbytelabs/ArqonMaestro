@@ -6,14 +6,15 @@
 
 ## Overview
 
-The Workflow Contract Service manages multi-step command workflows with governance, pause/cancel semantics, and delegation support. It is part of FP-2B (Workflow and Delegation).
+The Workflow Contract Service manages workflow contract lifecycle and integration with ArqonMCP orchestration. It is part of FP-2B (Workflow and Delegation).
 
 ## Purpose
 
-1. Compile lawful multi-step workflow contracts into execution plans
+1. Compile lawful multi-step workflow contracts into orchestrator-ready execution requests
 2. Manage workflow lifecycle (pause, resume, cancel)
 3. Handle step failure policies
 4. Support Nexus delegation proposals
+5. Hand off orchestration ownership to ArqonMCP while preserving Maestro governance boundaries
 
 ## Key Concepts
 
@@ -78,8 +79,8 @@ const result = await workflowService.executeWorkflow(
 
 ## TODO
 
-- [ ] Integrate workflow execution into command pipeline
+- [ ] Integrate workflow handoff into ArqonMCP command pipeline
 - [ ] Add persistence for workflow state
 - [ ] Connect Nexus boundary for proposals
 - [ ] Add unit tests for state machine
-- [ ] Add integration tests for Nexus boundary
+- [ ] Add integration tests for Nexus/ArqonMCP boundary

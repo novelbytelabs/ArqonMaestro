@@ -18,6 +18,13 @@ Cross-reference:
 - [`../vision/voice-operating-system.md`](../vision/voice-operating-system.md)
 - [`../speech/command-lane-architecture-memo.md`](../speech/command-lane-architecture-memo.md)
 - [`../vision/ai-customization-wizard.md`](../vision/ai-customization-wizard.md)
+- [`../architecture/nexus-maestro-arqonmcp-boundary.md`](../architecture/nexus-maestro-arqonmcp-boundary.md)
+
+Boundary lock:
+
+- Maestro = interaction + actuation surface
+- ArqonMCP = workflow/capability orchestration substrate
+- Nexus = deliberative intent companion
 
 ## Canonical Entry Docs
 

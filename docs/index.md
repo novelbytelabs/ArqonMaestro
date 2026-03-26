@@ -9,7 +9,7 @@ Maestro spans the full voice spectrum, with clear hierarchy.
 Primary value:
 
 - command-and-control
-- orchestration across tools and infrastructure
+- invocation and supervision of orchestrated workflows via ArqonMCP
 - approvals, escalation, and interrupt authority
 - software talk-back and operational reporting
 
@@ -26,6 +26,9 @@ Keyboard and mouse are augmented, not replaced.
 - command lane and dictation lane are separate tracks
 - command lane is bounded, grammar/policy governed, and deterministic
 - dictation lane is unconstrained and accuracy-oriented
+- Maestro is the human-facing voice shell and actuation surface
+- ArqonMCP is the workflow/capability orchestration substrate
+- Nexus is the deliberative intent companion
 - runtime is source-of-truth across surfaces
 - desktop is current primary console; mobile is planned as a future operator console
 

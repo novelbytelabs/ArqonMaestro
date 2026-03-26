@@ -10,7 +10,7 @@ Maestro is not primarily:
 - code-by-voice only
 - dictation software
 
-Its center of gravity is command authority, orchestration, operational presence, and customization.
+Its center of gravity is command authority, operational presence, and customization, with workflow orchestration mediated through ArqonMCP.
 
 ## 2. Product Hierarchy
 
@@ -19,7 +19,7 @@ Maestro covers the full spectrum of voice interaction, but with clear priority.
 ### 2.1 Primary Value
 
 - command-and-control
-- workflow orchestration across substrates
+- real-time invocation and supervision of orchestrated workflows
 - approvals and escalation
 - interrupt authority
 - software talk-back and operational reporting
@@ -67,7 +67,17 @@ Maestro is a Voice Operating System for operators.
 The moat is:
 
 - command platform ownership
-- cross-app and cross-system orchestration
+- cross-app and cross-system workflow control via ArqonMCP orchestration
 - software talk-back and approval loops
 - operator-grade governance
 - customization made radically easier
+
+## 8. Ecosystem Boundary
+
+Clean ownership model:
+
+- `Nexus` shapes and refines intent
+- `ArqonMCP` orchestrates capability and workflows
+- `Maestro` mediates spoken interaction and governed actuation
+
+Maestro should not become the primary workflow orchestration layer.

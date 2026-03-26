@@ -33,9 +33,10 @@ Core laws:
 * hot-path behavior stays local, fast, interruptible, and inspectable
 * Maestro interprets, gates, routes, and executes
 * Nexus proposes, remembers, and guides
+* ArqonMCP orchestrates workflows and capability composition
 * runtime decisions must be deterministic, policy-aware, and auditable
 * the language remains sovereign; adapters and executors only declare realization power
-* workflows are first-class runtime objects, not just command lists
+* workflows are first-class runtime objects routed through ArqonMCP orchestration
 * shell concerns and runtime concerns must remain explicitly separated
 * voice output is brokered by persona and policy, not raw provider voice IDs
 * STT quality is lane-relative, not absolute
@@ -79,6 +80,7 @@ Primary governing specs:
 
 * [`ultimate-vos-reference-architecture.md`](./ultimate-vos-reference-architecture.md)
 * [`maestro-nexus-protocol-boundary.md`](./maestro-nexus-protocol-boundary.md)
+* [`../architecture/nexus-maestro-arqonmcp-boundary.md`](../architecture/nexus-maestro-arqonmcp-boundary.md)
 * [`maestro-shell-runtime-decomposition.md`](./maestro-shell-runtime-decomposition.md)
 * [`maestro-hot-path-runtime-contract.md`](./maestro-hot-path-runtime-contract.md)
 * [`../architecture/maestro-computational-fabric.md`](../architecture/maestro-computational-fabric.md)

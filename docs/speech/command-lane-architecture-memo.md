@@ -56,6 +56,14 @@ The Rust hot-path orchestrator bridges neural acoustics and symbolic control pla
 
 `Qwen3-ASR` remains dictation-lane candidate work. It is not command-lane foundation architecture.
 
+## 6.1 Orchestration Boundary
+
+Command-lane speech does not make Maestro the workflow orchestrator.
+
+- Maestro parses and mediates command interaction
+- ArqonMCP owns workflow/capability orchestration
+- Nexus may refine intent before/around orchestration
+
 ## 7. Acceptance Gates (Non-Negotiable)
 
 1. grammar compatibility with command corpus

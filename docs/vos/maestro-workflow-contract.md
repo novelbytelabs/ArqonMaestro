@@ -4,7 +4,7 @@
 
 The **Command Contract** defines one lawful action.
 The **Macro System** defines how multiple commands become a workflow.
-The **Workflow Contract** defines the exact runtime object that carries that workflow through planning, policy, execution, recovery, and result reporting.
+The **Workflow Contract** defines the exact runtime object that carries that workflow through planning, policy, ArqonMCP orchestration, execution, recovery, and result reporting.
 
 This is the object the runtime should execute when Maestro hears something like:
 
@@ -52,7 +52,7 @@ It is the **execution-time object** for multi-step work.
 
 # 2. Relationship to other Maestro artifacts
 
-The Workflow Contract sits between the parser and the executor stack.
+The Workflow Contract sits between Maestro parsing and ArqonMCP orchestration.
 
 Flow:
 
@@ -61,17 +61,23 @@ speech
 → parse
 → command contracts
 → workflow contract
+→ ArqonMCP routing/orchestration
 → executor router
 → policy gate
-→ planner
 → execution
 → aggregated workflow result
 
 So:
 
 * **language** produces step intents
-* **workflow contract** organizes them
-* **executor architecture** realizes them
+* **workflow contract** organizes them into a typed execution object
+* **ArqonMCP** composes/routes execution strategy
+* **executor architecture** realizes bounded actuation
+
+Boundary rule:
+
+* Maestro invokes and supervises workflows
+* ArqonMCP orchestrates workflows
 
 ---
 

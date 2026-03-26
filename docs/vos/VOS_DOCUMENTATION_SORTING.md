@@ -17,6 +17,13 @@ Cross-reference:
 
 - [`../speech/command-lane-architecture-memo.md`](../speech/command-lane-architecture-memo.md)
 - [`../vision/voice-operating-system.md`](../vision/voice-operating-system.md)
+- [`../architecture/nexus-maestro-arqonmcp-boundary.md`](../architecture/nexus-maestro-arqonmcp-boundary.md)
+
+Boundary lock:
+
+- Maestro mediates interaction and actuation
+- ArqonMCP orchestrates workflows and capability routing
+- Nexus handles deliberation and intent shaping
 
 ---
 

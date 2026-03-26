@@ -797,6 +797,20 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-054: ArqonMCP Owns Workflow Orchestration; Maestro Invokes And Mediates
+
+- **Date**: 2026-03-26
+- **Status**: Accepted
+- **Decision**: Workflow orchestration and capability routing are owned by ArqonMCP. Maestro remains the voice-native interaction and actuation surface that invokes and supervises workflow execution. Nexus remains the deliberative intent companion.
+- **Why**: Keeping orchestration out of Maestro preserves product legibility, reduces runtime coupling, and aligns ownership with ArqonMCP's speed ladder, skill memory, routing substrate, and MCP capability abstractions.
+- **Consequences**:
+  - Maestro docs and contracts must not position Maestro as primary workflow orchestrator
+  - workflow objects/requests in Maestro are handed off to ArqonMCP orchestration paths
+  - boundary language is locked as: `Nexus shapes intent` -> `ArqonMCP orchestrates capability` -> `Maestro mediates interaction/actuation`
+  - see: `docs/architecture/nexus-maestro-arqonmcp-boundary.md`
+
+---
+
 ## Template for Future Decisions
 
 ```markdown
