@@ -75,46 +75,7 @@ For more information, check out the ArqonMaestro API documentation: https://nove
     }
   }
 
-  static async create(settings: Settings): Promise<Custom> {
-    const instance = new Custom(settings);
-    await instance.install();
-    return instance;
-  }
-
-  clearKeepAliveTimeout() {
-    if (this.keepAliveTimeout) {
-      clearTimeout(this.keepAliveTimeout);
-      this.keepAliveTimeout = undefined;
-    }
-  }
-
-  connect(socket: PluginTransport) {
-    if (this.socket) {
-      return;
-    }
-
-    this.socket = socket;
-    if (this.resolveStart) {
-      this.resolveStart();
-      this.resolveStart = undefined;
-    }
-  }
-
-  execute(id: string, matches: any) {
-    this.send("execute", { id, matches });
-  }
-
-  async install() {
-    await fs.mkdirp(path.join(this.settings.path(), "scripts"));
-    const customCommandsFile = path.join(this.settings.path(), "scripts", "custom.js");
-    if (
-      !(await fs.pathExists(customCommandsFile)) ||
-      (await fs.readFile(customCommandsFile, "utf8")) == ""
-    ) {
-      await fs.writeFile(customCommandsFile, this.defaultCustomCommandsFile);
-    }
-
-    const server = path.join(this.settings.path(), "ipc");
+  private async installServerAt(server: string): Promise<void> {
     await fs.remove(server);
     await fs.mkdirp(server);
     await fs.copy(
@@ -166,6 +127,54 @@ For more information, check out the ArqonMaestro API documentation: https://nove
     }
   }
 
+  static async create(settings: Settings): Promise<Custom> {
+    const instance = new Custom(settings);
+    await instance.install();
+    return instance;
+  }
+
+  clearKeepAliveTimeout() {
+    if (this.keepAliveTimeout) {
+      clearTimeout(this.keepAliveTimeout);
+      this.keepAliveTimeout = undefined;
+    }
+  }
+
+  connect(socket: PluginTransport) {
+    if (this.socket) {
+      return;
+    }
+
+    this.socket = socket;
+    if (this.resolveStart) {
+      this.resolveStart();
+      this.resolveStart = undefined;
+    }
+  }
+
+  execute(id: string, matches: any) {
+    this.send("execute", { id, matches });
+  }
+
+  async install() {
+    await fs.mkdirp(path.join(this.settings.path(), "scripts"));
+    const customCommandsFile = path.join(this.settings.path(), "scripts", "custom.js");
+    if (
+      !(await fs.pathExists(customCommandsFile)) ||
+      (await fs.readFile(customCommandsFile, "utf8")) == ""
+    ) {
+      await fs.writeFile(customCommandsFile, this.defaultCustomCommandsFile);
+    }
+
+    const primaryServer = path.join(this.settings.path(), "ipc");
+    await this.installServerAt(primaryServer);
+
+    // Compatibility guard: if any legacy sidecar path still boots, keep it healthy too.
+    // This prevents hard startup regressions when stale launchers still point to ~/.serenade/ipc.
+    const legacyServer = path.join(os.homedir(), ".serenade", "ipc");
+    await this.installServerAt(legacyServer);
+  }
+
   reload() {
     this.send("reload", {});
   }
@@ -210,6 +219,12 @@ For more information, check out the ArqonMaestro API documentation: https://nove
       const nodePath = [...nodeModuleCandidates, existingNodePath]
         .filter((e) => e)
         .join(path.delimiter);
+      stream.write(
+        `[custom-server-start] cwd=${path.join(
+          this.settings.path(),
+          "ipc"
+        )} server=${this.primaryServerFilename}\n`
+      );
       this.process = child_process.fork(this.primaryServerFilename, [], {
         cwd: path.join(this.settings.path(), "ipc"),
         stdio: "pipe",
