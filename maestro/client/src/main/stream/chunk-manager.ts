@@ -107,6 +107,7 @@ export default class ChunkManager {
   private dictationPreflightLastReason = "";
   private dictationPreflightLastAtMs = 0;
   private dictationProviderPreference: DictationProviderPreference = "qwen3";
+  private dictationWarmupInFlight?: Promise<void>;
 
   listening: boolean = false;
 
@@ -273,13 +274,50 @@ export default class ChunkManager {
   }
 
   setDictationProviderPreference(preference: DictationProviderPreference): void {
+    if (this.dictationProviderPreference === preference) {
+      return;
+    }
     this.dictationProviderPreference = preference;
     this.dictationPreflightLastOk = false;
     this.dictationPreflightLastReason = "";
     this.dictationPreflightLastAtMs = 0;
+    this.dictationWarmupInFlight = undefined;
     if (preference !== "qwen3") {
       this.clearDictationFailureState();
     }
+  }
+
+  private scheduleQwen3WarmupPreflight(): void {
+    if (this.dictationWarmupInFlight) {
+      return;
+    }
+
+    this.dictationWarmupInFlight = (async () => {
+      try {
+        const smoke = Buffer.alloc(16000 / 4 * 2, 0);
+        await this.qwen3AsrDictationProvider.transcribeDictation({
+          chunkId: "dictation_preflight",
+          pcm16leAudio: smoke,
+          sampleRateHz: 16000,
+        });
+        this.dictationPreflightLastOk = true;
+        this.dictationPreflightLastReason = "qwen3_preflight_ok";
+        this.dictationPreflightLastAtMs = Date.now();
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        if (reason.includes("qwen3_empty_audio") || reason.includes("qwen3_empty_transcript")) {
+          this.dictationPreflightLastOk = true;
+          this.dictationPreflightLastReason = "qwen3_preflight_ok_silence";
+          this.dictationPreflightLastAtMs = Date.now();
+          return;
+        }
+        this.dictationPreflightLastOk = false;
+        this.dictationPreflightLastReason = reason;
+        this.dictationPreflightLastAtMs = Date.now();
+      } finally {
+        this.dictationWarmupInFlight = undefined;
+      }
+    })();
   }
 
   enableLegacyDictationFallback(): void {
@@ -341,32 +379,14 @@ export default class ChunkManager {
       return { ok: true, reason: "qwen3_sidecar_configured" };
     }
 
-    try {
-      // 250ms of mono PCM16 silence at 16k. If this can run through bridge/model,
-      // the dictation lane is healthy enough to enter dictate mode.
-      const smoke = Buffer.alloc(16000 / 4 * 2, 0);
-      await this.qwen3AsrDictationProvider.transcribeDictation({
-        chunkId: "dictation_preflight",
-        pcm16leAudio: smoke,
-        sampleRateHz: 16000,
-      });
-      this.dictationPreflightLastOk = true;
-      this.dictationPreflightLastReason = "qwen3_preflight_ok";
-      this.dictationPreflightLastAtMs = Date.now();
-      return { ok: true, reason: "qwen3_preflight_ok" };
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      if (reason.includes("qwen3_empty_audio") || reason.includes("qwen3_empty_transcript")) {
-        this.dictationPreflightLastOk = true;
-        this.dictationPreflightLastReason = "qwen3_preflight_ok_silence";
-        this.dictationPreflightLastAtMs = Date.now();
-        return { ok: true, reason: "qwen3_preflight_ok_silence" };
-      }
-      this.dictationPreflightLastOk = false;
-      this.dictationPreflightLastReason = reason;
-      this.dictationPreflightLastAtMs = Date.now();
-      return { ok: false, reason };
-    }
+    // Do not block mode-switch UX on model warmup/transcribe smoke checks.
+    // Treat provider readiness as sufficient for immediate lane entry and run
+    // deep warmup preflight asynchronously.
+    this.dictationPreflightLastOk = true;
+    this.dictationPreflightLastReason = "qwen3_provider_ready";
+    this.dictationPreflightLastAtMs = Date.now();
+    this.scheduleQwen3WarmupPreflight();
+    return { ok: true, reason: "qwen3_provider_ready" };
   }
 
   /**
