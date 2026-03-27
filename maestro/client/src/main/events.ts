@@ -144,6 +144,10 @@ export default class RendererProcessEventHandlers {
       this.stream.sendTextRequest(data.text, data.includeAlternatives);
     });
 
+    ipcMain.on("dictationUseLegacyFallback", () => {
+      this.chunkManager.enableLegacyDictationFallback();
+    });
+
     ipcMain.on("setLanguage", (_event: any, data: { language: core.Language; name: string }) => {
       this.active.languageSwitcherLanguage = data.language;
       this.active.languageSwitcherName = data.name;

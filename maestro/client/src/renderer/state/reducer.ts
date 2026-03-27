@@ -7,6 +7,8 @@ const initialState = {
   app: "",
   autocomplete: [],
   backendIssue: "",
+  backendIssueAction: "",
+  backendIssueActionLabel: "",
   chunkSilenceThreshold: 0.1,
   chunkSpeechThreshold: 0.3,
   continueRunningInTray: false,

@@ -57,6 +57,8 @@ export default class ListeningStateService {
     this.deps.bridge.setState(
       {
         backendIssue: "",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
         listening,
         partial: false,
         speakingVolume: 0,
@@ -72,6 +74,8 @@ export default class ListeningStateService {
     this.deps.bridge.setState(
       {
         backendIssue: error,
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
         listening: false,
         speaking: false,
         statusText: "Paused",

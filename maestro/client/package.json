@@ -87,7 +87,10 @@
     "package:distunsigned": "electron-builder -c.mac.identity=null",
     "release": "npm-run-all build release:publish",
     "release:publish": "electron-builder --publish always",
-    "start:electron": "electron ."
+    "start:electron": "cross-env NODE_ENV=production ../scripts/with_clean_electron_env.sh electron . --no-sandbox --disable-gpu",
+    "test": "jest --config jest.config.js",
+    "test:regression": "jest --config jest.config.js --runInBand src/test/audio/voice-*.unit.spec.ts",
+    "test:qwen3-smoke": "./scripts/qwen3_smoke.sh"
   },
   "electronWebpack": {
     "whiteListedModules": [

@@ -102,7 +102,7 @@ type SecurityOperatorMode = "pilot" | "assist" | "observe" | "locked";
 export default class Executor {
   private chainFinishedPromise = Promise.resolve();
   private lastEndpointId: string = "";
-  private miniModeHideTimeout?: NodeJS.Timeout;
+  private miniModeHideTimeout?: ReturnType<typeof global.setTimeout>;
   private pending?: core.ICommandsResponse;
   private resolveChainFinished = () => {};
 
@@ -156,9 +156,15 @@ export default class Executor {
   private passkeyBootstrapService: PasskeyBootstrapService;
   private interactionSequence = 0;
   private previousTrustState: SecurityTrustState = "unknown";
-  private readonly maxIdentityEvidenceAgeMs = 3000;
+  private readonly maxIdentityEvidenceAgeMs = (() => {
+    const raw = Number(process.env.ARQON_IDENTITY_EVIDENCE_MAX_AGE_MS || "60000");
+    if (!Number.isFinite(raw)) {
+      return 60000;
+    }
+    return Math.max(1000, Math.floor(raw));
+  })();
   private readonly completionEvidenceTimeoutMs = 3000;
-  private completionEvidenceTimeout?: NodeJS.Timeout;
+  private completionEvidenceTimeout?: ReturnType<typeof global.setTimeout>;
   private activeCompletionInteractionId?: number;
   private securityPolicyModeByApp: Record<string, SecurityOperatorMode> = {};
 
@@ -424,6 +430,20 @@ export default class Executor {
   private async handleFocusCommand(command: core.ICommand): Promise<boolean> {
     if (!command.text) {
       return false;
+    }
+    const simpleFocusMode = process.env.ARQON_SIMPLE_FOCUS_MODE !== "0";
+    if (simpleFocusMode) {
+      try {
+        const commandType = commandTypeToString(command.type!);
+        if (!(commandType in this.commandHandler())) {
+          return false;
+        }
+        await this.commandHandler()[commandType](command);
+        return true;
+      } catch (error) {
+        this.log.logVerbose(`[EXECUTOR] Simple focus mode failed: ${error}`);
+        return false;
+      }
     }
 
     const originalText = command.text;
@@ -1182,7 +1202,7 @@ export default class Executor {
       this.publishSecuritySessionBridgeState();
       this.setLifecycleRendererState(alternativeIndex, "stale_or_failed");
       this.clearCompletionEvidenceTimeout();
-    }, this.completionEvidenceTimeoutMs);
+    }, this.completionEvidenceTimeoutMs) as any;
   }
 
   private finalizeCompletionEvidence(
@@ -1305,6 +1325,17 @@ export default class Executor {
       }
     }
 
+    // Focus is handled through the local focus stack and should never wait on
+    // plugin response before execution, otherwise activation can stall.
+    if (
+      forwardToPlugin &&
+      response.execute &&
+      response.execute.commands &&
+      response.execute.commands.some((command) => command.type === core.CommandType.COMMAND_TYPE_FOCUS)
+    ) {
+      forwardToPlugin = false;
+    }
+
     let pluginResponse;
     let executionOutcome: CommandCompletionOutcome = "unknown";
     if (forwardToPlugin) {
@@ -1325,9 +1356,22 @@ export default class Executor {
 
           // Dedicated focus command path
           if (command.type == core.CommandType.COMMAND_TYPE_FOCUS) {
-            const focusConfirmed = await this.handleFocusCommand(command);
-            if (!focusConfirmed) {
+            const focusTimeoutRaw = Number(process.env.ARQON_FOCUS_COMMAND_TIMEOUT_MS || "4500");
+            const focusTimeoutMs = Number.isFinite(focusTimeoutRaw)
+              ? Math.max(1000, Math.floor(focusTimeoutRaw))
+              : 4500;
+            try {
+              const focusConfirmed = await this.withTimeout(
+                this.handleFocusCommand(command),
+                focusTimeoutMs,
+                "focus_command"
+              );
+              if (!focusConfirmed) {
+                allCommandsConfirmed = false;
+              }
+            } catch (error) {
               allCommandsConfirmed = false;
+              this.log.logVerbose(`[EXECUTOR] Focus command timed out/failed: ${error}`);
             }
             continue;
           }
@@ -1480,7 +1524,7 @@ export default class Executor {
             alternatives: [],
           }
         );
-      }, Math.max(1, 1000 * this.settings.getMiniModeHideTimeout()));
+      }, Math.max(1, 1000 * this.settings.getMiniModeHideTimeout())) as any;
     }
 
     setTimeout(() => {
@@ -1503,6 +1547,22 @@ export default class Executor {
         }
       })
       .catch(() => {});
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+    let timer: ReturnType<typeof global.setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`${label}_timeout_${timeoutMs}ms`)), timeoutMs) as any;
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
   }
 
   truncateAlternativesIfNeeded(response: core.ICommandsResponse): core.ICommandsResponse {
@@ -2198,11 +2258,11 @@ export default class Executor {
     if (!evidence.ready) {
       return "provider_degraded";
     }
-    if (!evidenceFresh) {
-      return "unknown";
-    }
     if (context.isVerified) {
       return "verified";
+    }
+    if (!evidenceFresh) {
+      return "unknown";
     }
     return "unknown";
   }
@@ -2388,7 +2448,15 @@ export default class Executor {
       // Map command type to family and risk level
       this.syncSecurityPolicyModeToFocusedApp();
       const commandType = commandTypeToString(command.type!);
-      const { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
+      let { commandFamily, riskLevel } = this.mapCommandToRisk(commandType, command.text || "");
+      const currentInteractionMode = this.identityGateway.getIdentityContext().interactionMode;
+      if (
+        currentInteractionMode === InteractionMode.DICTATION &&
+        command.type === core.CommandType.COMMAND_TYPE_INSERT
+      ) {
+        commandFamily = "dictation";
+        riskLevel = CommandRiskLevel.LOW;
+      }
       const commandVerb = command.text || commandType;
       const appBoundaryJump = this.syncSecurityContextJumpBoundary();
       const modalBoundaryJump = this.syncSecurityModalBoundary();

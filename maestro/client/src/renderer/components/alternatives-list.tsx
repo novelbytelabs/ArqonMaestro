@@ -234,6 +234,8 @@ const AlternativesListComponent: React.FC<{
   alternatives: any;
   alternativesSpinner: number[];
   backendIssue: string;
+  backendIssueAction: string;
+  backendIssueActionLabel: string;
   highlighted: number[];
   executedSuccess: number[];
   staleOrFailed: number[];
@@ -253,6 +255,8 @@ const AlternativesListComponent: React.FC<{
   alternatives,
   alternativesSpinner,
   backendIssue,
+  backendIssueAction,
+  backendIssueActionLabel,
   highlighted,
   executedSuccess,
   staleOrFailed,
@@ -404,6 +408,20 @@ const AlternativesListComponent: React.FC<{
   );
 
   const backendIssueSection = backendIssue ? (
+    (() => {
+      // Defensive fallback:
+      // Some legacy/main-process paths may set only backendIssue text without
+      // backendIssueAction fields. If the issue is a Qwen3 dictation failure,
+      // still expose the explicit legacy/Kaldi fallback action in the UI.
+      const isQwen3DictationFailure =
+        backendIssue.toLowerCase().includes("qwen3 dictation failed") ||
+        backendIssue.toLowerCase().includes("qwen3 dictation preflight failed");
+      const effectiveBackendIssueAction =
+        backendIssueAction || (isQwen3DictationFailure ? "dictationUseLegacyFallback" : "");
+      const effectiveBackendIssueActionLabel =
+        backendIssueActionLabel || (isQwen3DictationFailure ? "Fallback to Kaldi/Legacy" : "");
+
+      return (
     <div
       id="backend-issue"
       className={classNames("rounded-md p-3 text-sm bg-white dark:bg-slate-800", {
@@ -417,7 +435,17 @@ const AlternativesListComponent: React.FC<{
         <h4 className="font-bold pl-2">Voice Backend Issue</h4>
       </div>
       <div className="pt-1 break-words">{backendIssue}</div>
+      {!effectiveBackendIssueAction || !effectiveBackendIssueActionLabel ? null : (
+        <button
+          className="primary-button mt-3 block text-center w-full"
+          onClick={() => shell.send(effectiveBackendIssueAction)}
+        >
+          {effectiveBackendIssueActionLabel}
+        </button>
+      )}
     </div>
+      );
+    })()
   ) : null;
 
   // these spacer elements exist to avoid the rounded window border on mac, which we can't change
@@ -463,6 +491,8 @@ export const AlternativesList = connect((state: any) => ({
   alternatives: state.alternatives,
   alternativesSpinner: state.alternativesSpinner,
   backendIssue: state.backendIssue,
+  backendIssueAction: state.backendIssueAction || "",
+  backendIssueActionLabel: state.backendIssueActionLabel || "",
   highlighted: state.highlighted,
   executedSuccess: state.executedSuccess || [],
   staleOrFailed: state.staleOrFailed || [],

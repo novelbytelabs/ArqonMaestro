@@ -8,6 +8,7 @@ import { PluginTransport } from "./plugin-manager";
 export default class Custom {
   private primaryServerFilename = "arqon-maestro-custom-commands-server.js";
   private legacyServerFilename = "serenade-custom-commands-server.min.js";
+  private requiredModuleNames = ["chokidar", "glob", "ws", "serenade-driver"];
   private defaultCustomCommandsFile: string = `/* ArqonMaestro Custom Commands
 
 In this file, you can define your own custom commands with the ArqonMaestro API.
@@ -40,6 +41,39 @@ For more information, check out the ArqonMaestro API documentation: https://nove
   public socket?: PluginTransport;
 
   constructor(private settings: Settings) {}
+
+  private hasRequiredModules(modulesDir: string): boolean {
+    return this.requiredModuleNames.every((name) => fs.existsSync(path.join(modulesDir, name)));
+  }
+
+  private runNpmInstall(serverDir: string): void {
+    const npmExecutable = os.platform() === "win32" ? "npm.cmd" : "npm";
+    const installArgs = ["ci", "--omit=dev", "--no-audit", "--no-fund"];
+    const installResult = child_process.spawnSync(npmExecutable, installArgs, {
+      cwd: serverDir,
+      stdio: "pipe",
+      env: process.env,
+    });
+
+    if (installResult.status === 0) {
+      return;
+    }
+
+    const fallbackArgs = ["install", "--omit=dev", "--no-audit", "--no-fund"];
+    const fallbackResult = child_process.spawnSync(npmExecutable, fallbackArgs, {
+      cwd: serverDir,
+      stdio: "pipe",
+      env: process.env,
+    });
+
+    if (fallbackResult.status !== 0) {
+      const stderr =
+        (installResult.stderr?.toString() || "") + "\n" + (fallbackResult.stderr?.toString() || "");
+      throw new Error(
+        `custom_commands_dependency_install_failed: ${stderr.trim() || "unknown npm failure"}`
+      );
+    }
+  }
 
   static async create(settings: Settings): Promise<Custom> {
     const instance = new Custom(settings);
@@ -84,6 +118,14 @@ For more information, check out the ArqonMaestro API documentation: https://nove
     await fs.remove(server);
     await fs.mkdirp(server);
     await fs.copy(
+      path.join(__dirname, "..", "static", "custom-commands-server", "package.json"),
+      path.join(server, "package.json")
+    );
+    await fs.copy(
+      path.join(__dirname, "..", "static", "custom-commands-server", "package-lock.json"),
+      path.join(server, "package-lock.json")
+    );
+    await fs.copy(
       path.join(
         __dirname,
         "..",
@@ -111,6 +153,17 @@ For more information, check out the ArqonMaestro API documentation: https://nove
       path.join(__dirname, "static", "custom-commands-server-modules"),
       `${server}/node_modules`
     );
+
+    const modulesDir = path.join(server, "node_modules");
+    if (!this.hasRequiredModules(modulesDir)) {
+      this.runNpmInstall(server);
+    }
+
+    if (!this.hasRequiredModules(modulesDir)) {
+      throw new Error(
+        "custom_commands_dependencies_missing_after_install: " + this.requiredModuleNames.join(",")
+      );
+    }
   }
 
   reload() {
@@ -168,6 +221,9 @@ For more information, check out the ArqonMaestro API documentation: https://nove
 
       this.process.stdout!.pipe(stream);
       this.process.stderr!.pipe(stream);
+      this.process.on("error", (error) => {
+        stream.write(`[custom-server-error] ${String(error)}\n`);
+      });
       this.process.on("exit", () => {
         resolveOnce();
         this.process = undefined;

@@ -185,20 +185,51 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_START_DICTATE(_data: any): Promise<any> {
+    this.chunkManager.setDictationProviderPreference("qwen3");
+    const preflight = await this.chunkManager.verifyDictationReady();
+    if (!preflight.ok) {
+      const reason = (preflight.reason || "qwen3_dictation_not_ready").replace(/^qwen3_/, "");
+      const message =
+        "Dictation unavailable: Qwen3 model failed preflight (" + reason + ").";
+      this.active.dictateMode = false;
+      this.bridge.setState(
+        {
+          dictateMode: false,
+          statusText: "Dictation unavailable",
+          alternatives: [{ description: message }],
+          highlighted: [0],
+          executedSuccess: [],
+          staleOrFailed: [0],
+          backendIssue: "Qwen3 dictation preflight failed: " + reason,
+          backendIssueAction: "dictationUseLegacyFallback",
+          backendIssueActionLabel: "Fallback to Kaldi/Legacy",
+        },
+        [this.mainWindow]
+      );
+      return;
+    }
+
     this.active.dictateMode = true;
     this.bridge.setState(
       {
         dictateMode: true,
+        backendIssue: "",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
       },
       [this.mainWindow]
     );
   }
 
   async COMMAND_TYPE_STOP_DICTATE(_data: any): Promise<any> {
+    this.chunkManager.setDictationProviderPreference("qwen3");
     this.active.dictateMode = false;
     this.bridge.setState(
       {
         dictateMode: false,
+        backendIssue: "",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
       },
       [this.mainWindow]
     );

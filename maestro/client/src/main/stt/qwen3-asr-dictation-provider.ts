@@ -4,6 +4,7 @@ import { homedir, tmpdir } from "os";
 import path from "path";
 import http from "http";
 import https from "https";
+import fsSync from "fs";
 import Log from "../log";
 import { buildWavFile } from "./audio-utils";
 
@@ -12,6 +13,10 @@ export interface Qwen3ASRDictationProviderConfig {
   pythonPath?: string;
   bridgeScriptPath?: string;
   modelPath?: string;
+  modelSize?: "0.6b" | "1.7b";
+  useAdapter?: boolean;
+  adapterPath?: string;
+  projectRoot?: string;
   device?: "cpu" | "cuda";
   mode?: "local" | "vllm_service";
   vllmEndpoint?: string;
@@ -125,9 +130,54 @@ function defaultBridgeScriptPath(): string {
 }
 
 function defaultModelPath(): string {
-  return resolveHomePath(
-    process.env.MAESTRO_QWEN3_MODEL_PATH || "~/models/arqon/asr/qwen3-asr-1.7b"
-  );
+  const envPath = process.env.MAESTRO_QWEN3_MODEL_PATH;
+  if (envPath) {
+    return resolveHomePath(envPath);
+  }
+
+  const candidates = [
+    "~/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-0.6B",
+    "~/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-1.7B",
+    "~/models/arqon/asr/qwen3-asr-1.7b",
+  ].map(resolveHomePath);
+
+  const existing = candidates.find((candidate) => {
+    try {
+      return fsSync.existsSync(candidate);
+    } catch (_error) {
+      return false;
+    }
+  });
+
+  return existing || candidates[0];
+}
+
+function defaultProjectRoot(): string {
+  const envRoot = process.env.MAESTRO_QWEN3_PROJECT_ROOT;
+  if (envRoot) {
+    return resolveHomePath(envRoot);
+  }
+
+  const candidates = [
+    "~/Projects/arqon/arqon-maestro-asr",
+  ].map(resolveHomePath);
+  const existing = candidates.find((candidate) => {
+    try {
+      return fsSync.existsSync(candidate);
+    } catch (_error) {
+      return false;
+    }
+  });
+
+  return existing || candidates[0];
+}
+
+function inferDefaultModelSize(modelPath: string): "0.6b" | "1.7b" {
+  const normalized = modelPath.toLowerCase();
+  if (normalized.includes("0.6b") || normalized.includes("0_6b")) {
+    return "0.6b";
+  }
+  return "1.7b";
 }
 
 export type Qwen3FailureReason =
@@ -163,6 +213,16 @@ export default class Qwen3ASRDictationProvider {
       pythonPath: resolveHomePath(config.pythonPath || defaultPythonPath()),
       bridgeScriptPath: resolveHomePath(config.bridgeScriptPath || defaultBridgeScriptPath()),
       modelPath: resolveHomePath(config.modelPath || defaultModelPath()),
+      modelSize:
+        config.modelSize ||
+        (process.env.MAESTRO_QWEN3_MODEL_SIZE as "0.6b" | "1.7b") ||
+        inferDefaultModelSize(resolveHomePath(config.modelPath || defaultModelPath())),
+      useAdapter:
+        config.useAdapter !== undefined
+          ? config.useAdapter
+          : process.env.MAESTRO_QWEN3_USE_ADAPTER !== "0",
+      adapterPath: resolveHomePath(process.env.MAESTRO_QWEN3_ADAPTER_PATH || (config.adapterPath || "")),
+      projectRoot: resolveHomePath(config.projectRoot || defaultProjectRoot()),
       device: config.device || (process.env.MAESTRO_QWEN3_DEVICE as "cpu" | "cuda") || "cuda",
       mode: config.mode || (process.env.MAESTRO_QWEN3_MODE as "local" | "vllm_service") || "local",
       vllmEndpoint: config.vllmEndpoint || process.env.MAESTRO_QWEN3_VLLM_ENDPOINT || "",
@@ -230,14 +290,16 @@ export default class Qwen3ASRDictationProvider {
     try {
       const pythonExists = this.deps.fileExists(this.config.pythonPath);
       const bridgeExists = this.deps.fileExists(this.config.bridgeScriptPath);
-      const modelExists = this.deps.fileExists(this.config.modelPath);
+      const modelExists = this.config.projectRoot
+        ? this.deps.fileExists(this.config.projectRoot)
+        : this.deps.fileExists(this.config.modelPath);
 
       this.ready = pythonExists && bridgeExists && modelExists;
       if (!this.ready) {
         const missing: string[] = [];
         if (!pythonExists) missing.push("python");
         if (!bridgeExists) missing.push("bridge");
-        if (!modelExists) missing.push("model");
+        if (!modelExists) missing.push(this.config.projectRoot ? "project_root" : "model");
         this.loadError = `python_or_bridge_or_model_missing:${missing.join(",")}`;
       }
     } catch (error) {
@@ -481,11 +543,23 @@ export default class Qwen3ASRDictationProvider {
         "--stdin",
         "--model-path",
         this.config.modelPath,
+        "--model-size",
+        this.config.modelSize,
         "--mode",
         this.config.mode,
         "--device",
         this.config.device,
       ];
+
+      if (this.config.useAdapter) {
+        args.push("--use-adapter");
+      }
+      if (this.config.adapterPath) {
+        args.push("--adapter-path", this.config.adapterPath);
+      }
+      if (this.config.projectRoot) {
+        args.push("--project-root", this.config.projectRoot);
+      }
 
       // Add endpoint for vllm_service mode
       if (this.config.mode === "vllm_service" && this.config.vllmEndpoint) {
@@ -500,8 +574,31 @@ export default class Qwen3ASRDictationProvider {
         this.config.timeoutMs
       );
 
-      // Exit code 1 / malformed JSON -> structured failure
+      // Bridge may return non-zero even with a structured JSON payload.
+      // Parse stdout first so stable error codes (e.g. empty_audio on silence
+      // preflight) are preserved instead of being flattened into stderr text.
       if (result.exitCode !== 0) {
+        let parsedFromNonZero: BridgeResponse | null = null;
+        try {
+          parsedFromNonZero = this.parseBridgeResponse(result.stdout.trim());
+        } catch (_parsedError) {
+          parsedFromNonZero = null;
+        }
+        if (parsedFromNonZero && !parsedFromNonZero.ok) {
+          const errorMap: Record<string, Qwen3FailureReason> = {
+            empty_audio: "empty_audio",
+            audio_format_invalid: "audio_format_invalid",
+            model_load_failed: "model_load_failed",
+            inference_failed: "inference_failed",
+            timeout: "timeout",
+            endpoint_503: "endpoint_503",
+            connection_refused: "connection_refused",
+            json_output_invalid: "json_parse_failed",
+          };
+          const reason = errorMap[parsedFromNonZero.error] || "inference_failed";
+          throw new Error(`qwen3_${reason}:${parsedFromNonZero.error}`);
+        }
+
         const stderrLower = result.stderr.toLowerCase();
         if (stderrLower.includes("json")) {
           throw new Error("qwen3_json_parse_failed");

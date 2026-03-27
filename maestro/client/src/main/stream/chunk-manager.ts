@@ -35,6 +35,13 @@ import ParakeetCommandFastProvider, {
 import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-provider";
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 
+const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
+const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE === "1";
+const ENABLE_FASTER_WHISPER_DICTATION_FALLBACK =
+  process.env.MAESTRO_ENABLE_FASTER_WHISPER_DICTATION_FALLBACK === "1";
+
+type DictationProviderPreference = "qwen3" | "legacy" | "faster_whisper";
+
 interface Request {
   requestType: "audio" | "editor" | "endpoint" | "initialize";
   audio?: Buffer;
@@ -72,6 +79,7 @@ export default class ChunkManager {
   private sessionStartTime: number = 0;
   private audioSequenceNumber: number = 0;
   private lastTurnEventPartialRequestAt = 0;
+  private forcedDisconnectHandled = false;
   private executionTrace?: ExecutionTrace;
   private listeningSessionService: ListeningSessionService;
   private listeningStateService: ListeningStateService;
@@ -95,6 +103,10 @@ export default class ChunkManager {
   private loggedWhisperUnavailable = false;
   private loggedFasterWhisperUnavailable = false;
   private loggedQwen3Unavailable = false;
+  private dictationPreflightLastOk = false;
+  private dictationPreflightLastReason = "";
+  private dictationPreflightLastAtMs = 0;
+  private dictationProviderPreference: DictationProviderPreference = "qwen3";
 
   listening: boolean = false;
 
@@ -170,8 +182,12 @@ export default class ChunkManager {
       settings,
       tracking,
     });
-    this.whisperCommandFastProvider = new WhisperCommandFastProvider({}, log);
+    this.whisperCommandFastProvider = new WhisperCommandFastProvider(
+      { enabled: ENABLE_WHISPER_COMMAND_LANE },
+      log
+    );
     this.parakeetCommandFastProvider = new ParakeetCommandFastProvider({
+      enabled: ENABLE_PARAKEET_COMMAND_LANE,
       mode: this.settings.getArqonAsrParakeetMode(),
       sidecarUrl: this.settings.getArqonAsrParakeetCommandUrl(),
       timeoutMs: this.settings.getArqonAsrSidecarTimeoutMs(),
@@ -179,9 +195,12 @@ export default class ChunkManager {
     this.qwen3AsrDictationProvider = new Qwen3ASRDictationProvider({
       sidecarMode: this.settings.getArqonAsrQwen3Mode(),
       sidecarUrl: this.settings.getArqonAsrQwen3DictationUrl(),
-      timeoutMs: this.settings.getArqonAsrSidecarTimeoutMs(),
+      timeoutMs: this.settings.getArqonAsrQwen3TimeoutMs(),
     }, log);
-    this.fasterWhisperDictationProvider = new FasterWhisperDictationProvider({}, log);
+    this.fasterWhisperDictationProvider = new FasterWhisperDictationProvider(
+      { enabled: ENABLE_FASTER_WHISPER_DICTATION_FALLBACK },
+      log
+    );
   }
 
   /**
@@ -215,6 +234,139 @@ export default class ChunkManager {
   setExecutionTrace(executionTrace: ExecutionTrace) {
     this.executionTrace = executionTrace;
     this.sttRoutingService.setExecutionTrace(executionTrace);
+  }
+
+  private clearDictationFailureState(): void {
+    this.bridge.setState(
+      {
+        backendIssue: "",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
+      },
+      [this.mainWindow, this.miniModeWindow]
+    );
+  }
+
+  private setDictationFailureState(reason: string): void {
+    this.active.dictateMode = false;
+    this.dictationProviderPreference = "qwen3";
+    this.bridge.setState(
+      {
+        dictateMode: false,
+        statusText: "Dictation unavailable",
+        alternatives: [
+          {
+            description:
+              "Dictation unavailable: Qwen3 adapter path failed hard. Review details below or fall back to the Kaldi/legacy dictation lane.",
+          },
+        ],
+        highlighted: [0],
+        executedSuccess: [],
+        staleOrFailed: [0],
+        backendIssue: "Qwen3 dictation failed: " + reason,
+        backendIssueAction: "dictationUseLegacyFallback",
+        backendIssueActionLabel: "Fallback to Kaldi/Legacy",
+      },
+      [this.mainWindow, this.miniModeWindow]
+    );
+    this.mainWindow.updateTray();
+  }
+
+  setDictationProviderPreference(preference: DictationProviderPreference): void {
+    this.dictationProviderPreference = preference;
+    this.dictationPreflightLastOk = false;
+    this.dictationPreflightLastReason = "";
+    this.dictationPreflightLastAtMs = 0;
+    if (preference !== "qwen3") {
+      this.clearDictationFailureState();
+    }
+  }
+
+  enableLegacyDictationFallback(): void {
+    this.setDictationProviderPreference("legacy");
+    this.active.dictateMode = true;
+    this.bridge.setState(
+      {
+        dictateMode: true,
+        statusText: "Listening",
+        alternatives: [],
+        highlighted: [],
+        executedSuccess: [],
+        staleOrFailed: [],
+      },
+      [this.mainWindow, this.miniModeWindow]
+    );
+    this.mainWindow.updateTray();
+  }
+
+  async verifyDictationReady(): Promise<{ ok: boolean; reason: string }> {
+    if (this.dictationProviderPreference === "legacy") {
+      return { ok: true, reason: "legacy_dictation_selected" };
+    }
+
+    if (this.dictationProviderPreference === "faster_whisper") {
+      if (!this.fasterWhisperDictationProvider.isReady()) {
+        const reason =
+          this.fasterWhisperDictationProvider.getLoadError() || "faster_whisper_provider_not_ready";
+        return { ok: false, reason };
+      }
+      return { ok: true, reason: "faster_whisper_ready" };
+    }
+
+    const now = Date.now();
+    const recentSuccess =
+      this.dictationPreflightLastOk && now - this.dictationPreflightLastAtMs < 5 * 60 * 1000;
+    const recentFailure =
+      !this.dictationPreflightLastOk && now - this.dictationPreflightLastAtMs < 10 * 1000;
+    if (recentSuccess || recentFailure) {
+      return {
+        ok: this.dictationPreflightLastOk,
+        reason: this.dictationPreflightLastReason || "dictation_preflight_cached",
+      };
+    }
+
+    if (!this.qwen3AsrDictationProvider.isReady()) {
+      const reason = this.qwen3AsrDictationProvider.getLoadError() || "qwen3_provider_not_ready";
+      this.dictationPreflightLastOk = false;
+      this.dictationPreflightLastReason = reason;
+      this.dictationPreflightLastAtMs = now;
+      return { ok: false, reason };
+    }
+
+    const cfg = this.qwen3AsrDictationProvider.getConfig();
+    if (cfg.sidecarMode === "sidecar") {
+      this.dictationPreflightLastOk = true;
+      this.dictationPreflightLastReason = "qwen3_sidecar_configured";
+      this.dictationPreflightLastAtMs = now;
+      return { ok: true, reason: "qwen3_sidecar_configured" };
+    }
+
+    try {
+      // 250ms of mono PCM16 silence at 16k. If this can run through bridge/model,
+      // the dictation lane is healthy enough to enter dictate mode.
+      const smoke = Buffer.alloc(16000 / 4 * 2, 0);
+      await this.qwen3AsrDictationProvider.transcribeDictation({
+        chunkId: "dictation_preflight",
+        pcm16leAudio: smoke,
+        sampleRateHz: 16000,
+      });
+      this.dictationPreflightLastOk = true;
+      this.dictationPreflightLastReason = "qwen3_preflight_ok";
+      this.dictationPreflightLastAtMs = Date.now();
+      return { ok: true, reason: "qwen3_preflight_ok" };
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (reason.includes("qwen3_empty_audio") || reason.includes("qwen3_empty_transcript")) {
+        this.dictationPreflightLastOk = true;
+        this.dictationPreflightLastReason = "qwen3_preflight_ok_silence";
+        this.dictationPreflightLastAtMs = Date.now();
+        return { ok: true, reason: "qwen3_preflight_ok_silence" };
+      }
+      this.dictationPreflightLastOk = false;
+      this.dictationPreflightLastReason = reason;
+      this.dictationPreflightLastAtMs = Date.now();
+      return { ok: false, reason };
+    }
   }
 
   /**
@@ -380,7 +532,9 @@ export default class ChunkManager {
         if (request.finalize) {
           const handled = await this.handleQwen3DictationFinalize(request.chunkId);
           if (!handled) {
-            const fallbackHandled = await this.handleFasterWhisperDictationFinalize(request.chunkId);
+            const fallbackHandled = this.chunkUseFasterWhisperDictation.get(request.chunkId)
+              ? await this.handleFasterWhisperDictationFinalize(request.chunkId)
+              : false;
             if (!fallbackHandled) {
               await this.replayBufferedAudioAndFallbackToEndpoint(request.chunkId, request.finalize!);
             }
@@ -402,6 +556,10 @@ export default class ChunkManager {
   }
 
   private shouldUseWhisperForCurrentChunk(): boolean {
+    if (!ENABLE_WHISPER_COMMAND_LANE) {
+      return false;
+    }
+
     if (this.active.dictateMode) {
       return false;
     }
@@ -422,6 +580,10 @@ export default class ChunkManager {
    * Parakeet takes precedence over whisper.cpp when available.
    */
   private shouldUseParakeetForCurrentChunk(): boolean {
+    if (!ENABLE_PARAKEET_COMMAND_LANE) {
+      return false;
+    }
+
     if (this.active.dictateMode) {
       return false;
     }
@@ -438,6 +600,10 @@ export default class ChunkManager {
       return false;
     }
 
+    if (this.dictationProviderPreference !== "qwen3") {
+      return false;
+    }
+
     if (!this.qwen3AsrDictationProvider.isReady()) {
       if (!this.loggedQwen3Unavailable) {
         this.loggedQwen3Unavailable = true;
@@ -450,7 +616,15 @@ export default class ChunkManager {
   }
 
   private shouldUseFasterWhisperForCurrentChunk(): boolean {
+    if (!ENABLE_FASTER_WHISPER_DICTATION_FALLBACK) {
+      return false;
+    }
+
     if (!this.active.dictateMode) {
+      return false;
+    }
+
+    if (this.dictationProviderPreference !== "faster_whisper") {
       return false;
     }
 
@@ -695,22 +869,15 @@ export default class ChunkManager {
       return true;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      const hit503 = /endpoint_503|503/.test(reason);
-      this.log.logVerbose("[Chunk] qwen3 dictation failed for " + chunkId + "; fallback engaged: " + reason);
+      this.log.logVerbose("[Chunk] qwen3 dictation failed for " + chunkId + "; hard failure: " + reason);
       this.tracking.logQwen3Failure({
         chunk_id: chunkId,
         error_code: reason,
-        retryable: hit503,
+        retryable: false,
       });
-      if (hit503) {
-        this.tracking.logVLLM503Recovery({
-          chunk_id: chunkId,
-          recovery_success: false,
-          fallback_used: true,
-        });
-      }
       this.chunkUseQwen3AsrDictation.delete(chunkId);
-      return false;
+      this.setDictationFailureState(reason);
+      return true;
     } finally {
       this.chunkTranscriptionInFlight.delete(chunkId);
     }
@@ -978,6 +1145,21 @@ export default class ChunkManager {
   }
 
   onAudio(audio: any, silence: number) {
+    if (!this.stream.connected()) {
+      if (!this.forcedDisconnectHandled) {
+        this.forcedDisconnectHandled = true;
+        this.log.logVerbose("[Chunk] Stream disconnected during listening; forcing listening off");
+        this.listeningStateService.handleConnectionFailure(
+          "Speech stream disconnected. Toggle listening on to reconnect."
+        );
+        setTimeout(() => {
+          this.toggle(false);
+        }, 0);
+      }
+      return;
+    }
+    this.forcedDisconnectHandled = false;
+
     const current = this.chunkQueue.getIndex(0);
     if (!current) {
       return;
@@ -1090,6 +1272,21 @@ export default class ChunkManager {
   }
 
   async onChunkStart(audio: any) {
+    if (!this.stream.connected()) {
+      if (!this.forcedDisconnectHandled) {
+        this.forcedDisconnectHandled = true;
+        this.log.logVerbose("[Chunk] Chunk start while stream disconnected; forcing listening off");
+        this.listeningStateService.handleConnectionFailure(
+          "Speech stream disconnected. Toggle listening on to reconnect."
+        );
+        setTimeout(() => {
+          this.toggle(false);
+        }, 0);
+      }
+      return;
+    }
+    this.forcedDisconnectHandled = false;
+
     const id = uuid();
     this.chunkQueue.add(id);
     this.log.logVerbose(`Chunk start for ${id}`);
