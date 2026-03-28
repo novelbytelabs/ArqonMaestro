@@ -331,7 +331,23 @@ export default class Qwen3ASRDictationProvider {
     return { ...this.config };
   }
 
+  private buildBridgeEnv(): NodeJS.ProcessEnv {
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    const existingPythonPath = env.PYTHONPATH ? env.PYTHONPATH.split(path.delimiter) : [];
+    const candidatePythonPaths = [
+      this.config.projectRoot ? path.join(this.config.projectRoot, "src") : "",
+      this.config.projectRoot || "",
+      path.dirname(path.dirname(path.dirname(this.config.bridgeScriptPath))),
+    ].filter((entry) => !!entry);
 
+    const merged = [...candidatePythonPaths, ...existingPythonPath]
+      .filter((entry, index, all) => all.indexOf(entry) === index)
+      .join(path.delimiter);
+    if (merged) {
+      env.PYTHONPATH = merged;
+    }
+    return env;
+  }
 
   private defaultRunBridge(
     pythonPath: string,
@@ -340,8 +356,10 @@ export default class Qwen3ASRDictationProvider {
     timeoutMs: number
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
+      const env = this.buildBridgeEnv();
       const proc = spawn(pythonPath, [bridgeScriptPath, ...args], {
         stdio: ["ignore", "pipe", "pipe"],
+        env,
       });
 
       let stdout = "";
@@ -384,8 +402,10 @@ export default class Qwen3ASRDictationProvider {
     timeoutMs: number
   ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
+      const env = this.buildBridgeEnv();
       const proc = spawn(pythonPath, [bridgeScriptPath, ...args], {
         stdio: ["pipe", "pipe", "pipe"],
+        env,
       });
 
       let stdout = "";

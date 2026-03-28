@@ -102,6 +102,7 @@ export default class ChunkManager {
   private chunkUseParakeetCommandFast = new Map<string, boolean>();
   private chunkParakeetStream = new Map<string, ParakeetStreamSession>();
   private chunkFinalizationRequested = new Set<string>();
+  private chunkFinalizeWatchdogs = new Map<string, NodeJS.Timeout>();
   private chunkTranscriptionInFlight = new Set<string>();
   private loggedWhisperUnavailable = false;
   private loggedFasterWhisperUnavailable = false;
@@ -958,7 +959,52 @@ export default class ChunkManager {
       chunkId,
       stage: "finalize_requested",
     });
+    this.armLegacyFinalizeWatchdog(chunkId);
     this.enqueue({ requestType: "endpoint", chunkId, finalize: true });
+  }
+
+  private armLegacyFinalizeWatchdog(chunkId: string): void {
+    if (!this.active.dictateMode || this.dictationProviderPreference !== "legacy") {
+      return;
+    }
+    this.clearFinalizeWatchdog(chunkId);
+    const timer = setTimeout(() => {
+      if (!this.chunkFinalizationRequested.has(chunkId)) {
+        return;
+      }
+      const chunk = this.chunkQueue.getChunk(chunkId);
+      const finalResponse = chunk ? this.getResponse(chunk) : undefined;
+      if (finalResponse && finalResponse.final) {
+        return;
+      }
+      this.updateDictationRuntimeStatus({
+        provider: "kaldi-legacy",
+        sidecarHealth: "not_applicable",
+        warmupStatus: "not_applicable",
+        chunkId,
+        stage: "legacy_finalize_timeout",
+        errorCode: "legacy_finalize_timeout",
+      });
+      this.bridge.setState(
+        {
+          backendIssue:
+            "Kaldi/legacy finalize timed out without a transcript response. Check ~/.arqon/core.log and ~/.arqon/speech-engine.log.",
+          backendIssueAction: "",
+          backendIssueActionLabel: "",
+        },
+        [this.mainWindow, this.miniModeWindow]
+      );
+      this.log.logVerbose(`[Chunk] legacy finalize timeout for ${chunkId}`);
+    }, 12000);
+    this.chunkFinalizeWatchdogs.set(chunkId, timer);
+  }
+
+  private clearFinalizeWatchdog(chunkId: string): void {
+    const existing = this.chunkFinalizeWatchdogs.get(chunkId);
+    if (existing) {
+      clearTimeout(existing);
+      this.chunkFinalizeWatchdogs.delete(chunkId);
+    }
   }
 
   private async handleParakeetFinalize(chunkId: string): Promise<boolean> {
@@ -1118,6 +1164,7 @@ export default class ChunkManager {
         this.chunkAudioFrames.delete(chunkId);
         this.chunkUseWhisperCommandFast.delete(chunkId);
         this.chunkFinalizationRequested.delete(chunkId);
+        this.clearFinalizeWatchdog(chunkId);
       }
       this.chunkTranscriptionInFlight.delete(chunkId);
     }
@@ -1225,6 +1272,7 @@ export default class ChunkManager {
       this.chunkAudioFrames.delete(chunkId);
       this.chunkUseQwen3AsrDictation.delete(chunkId);
       this.chunkFinalizationRequested.delete(chunkId);
+      this.clearFinalizeWatchdog(chunkId);
       return true;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
@@ -1261,6 +1309,7 @@ export default class ChunkManager {
         this.chunkAudioFrames.delete(chunkId);
         this.chunkUseQwen3AsrDictation.delete(chunkId);
         this.chunkFinalizationRequested.delete(chunkId);
+        this.clearFinalizeWatchdog(chunkId);
         return true;
       }
       this.chunkUseQwen3AsrDictation.delete(chunkId);
@@ -1370,6 +1419,7 @@ export default class ChunkManager {
         this.chunkAudioFrames.delete(chunkId);
         this.chunkUseFasterWhisperDictation.delete(chunkId);
         this.chunkFinalizationRequested.delete(chunkId);
+        this.clearFinalizeWatchdog(chunkId);
       }
       this.chunkTranscriptionInFlight.delete(chunkId);
     }
@@ -1531,6 +1581,7 @@ export default class ChunkManager {
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
+      this.clearFinalizeWatchdog(chunk.id);
       this.chunkTranscriptionInFlight.delete(chunk.id);
     }
   }
@@ -1812,6 +1863,8 @@ export default class ChunkManager {
     this.chunkParakeetStream.forEach((stream) => stream.cancel());
     this.chunkParakeetStream.clear();
     this.chunkFinalizationRequested.clear();
+    this.chunkFinalizeWatchdogs.forEach((timer) => clearTimeout(timer));
+    this.chunkFinalizeWatchdogs.clear();
     this.chunkTranscriptionInFlight.clear();
   }
 
