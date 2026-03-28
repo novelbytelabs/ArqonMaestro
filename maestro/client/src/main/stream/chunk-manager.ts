@@ -1640,6 +1640,30 @@ export default class ChunkManager {
         return;
       }
 
+      // Dictation robustness guard:
+      // if the microphone chunk_end callback is missed, force finalize after
+      // sustained silence so the utterance cannot stall indefinitely.
+      if (
+        this.active.dictateMode &&
+        current.audioSize > 0 &&
+        current.silence >= 10 &&
+        !current.forceFinalized &&
+        !this.chunkFinalizationRequested.has(current.id)
+      ) {
+        current.forceFinalized = true;
+        this.speaking = false;
+        this.log.logVerbose(
+          `[Chunk] Dictation silence fallback finalize ${current.id} silenceFrames=${current.silence}`
+        );
+        this.updateDictationRuntimeStatus({
+          chunkId: current.id,
+          stage: "chunk_end_fallback_finalize",
+        });
+        this.enqueue({ requestType: "editor" }, false);
+        this.enqueueFinalEndpointOnce(current.id);
+        return;
+      }
+
       // we want to send non-final endpoint requests (aka partials) every so often when it seems like a long
       // command is being spoken, but we're not near the end of it (at which point an endpoint request
       // will be sent anyway), in order to trade off a responsive UI with not overloading the server
