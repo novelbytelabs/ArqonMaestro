@@ -594,6 +594,23 @@ export default class STTTracking {
     });
   }
 
+  logDictationRuntimeStage(data: {
+    chunk_id: string;
+    stage: string;
+    provider?: string;
+    sidecar_health?: string;
+    error_code?: string;
+    latency_ms?: number;
+  }): void {
+    this.api.logEvent("stt.dictation.runtime_stage", {
+      dt: Date.now(),
+      data: {
+        ...data,
+        session_id: this.currentSession?.session_id,
+      },
+    });
+  }
+
   /**
    * Log vLLM 503 recovery event for dictation.
    * Metric: stt.dictation.vllm_503_recovery

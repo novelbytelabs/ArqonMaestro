@@ -1,3 +1,6 @@
+import * as child_process from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 import { v4 as uuid } from "uuid";
 import Active from "../active";
 import API from "../api";
@@ -108,6 +111,8 @@ export default class ChunkManager {
   private dictationPreflightLastAtMs = 0;
   private dictationProviderPreference: DictationProviderPreference = "qwen3";
   private dictationWarmupInFlight?: Promise<void>;
+  private dictationProviderStartAtMs = new Map<string, number>();
+  private dictationRuntimeLastStage = "idle";
 
   listening: boolean = false;
 
@@ -202,6 +207,189 @@ export default class ChunkManager {
       { enabled: ENABLE_FASTER_WHISPER_DICTATION_FALLBACK },
       log
     );
+    setTimeout(() => {
+      this.bootstrapQwen3SidecarIfNeeded().catch(() => {});
+    }, 0);
+  }
+
+  private updateDictationRuntimeStatus(update: {
+    provider?: string;
+    sidecarHealth?: string;
+    warmupStatus?: string;
+    chunkId?: string;
+    stage?: string;
+    errorCode?: string;
+    latencyMs?: number;
+    emitMetric?: boolean;
+  }): void {
+    const stage = update.stage || this.dictationRuntimeLastStage;
+    if (update.stage) {
+      this.dictationRuntimeLastStage = update.stage;
+    }
+
+    if (update.emitMetric !== false) {
+      this.tracking.logDictationRuntimeStage({
+        chunk_id: update.chunkId || "",
+        stage,
+        provider: update.provider,
+        sidecar_health: update.sidecarHealth,
+        error_code: update.errorCode,
+        latency_ms: update.latencyMs,
+      });
+    }
+
+    this.executor.updateDictationRuntimeStatus({
+      provider: update.provider,
+      sidecarHealth: update.sidecarHealth,
+      warmupStatus: update.warmupStatus,
+      chunkId: update.chunkId,
+      stage,
+      errorCode: update.errorCode,
+      latencyMs: update.latencyMs,
+    });
+  }
+
+  private getQwen3SidecarHealthUrl(): string {
+    const sidecarUrl = this.settings.getArqonAsrQwen3DictationUrl();
+    try {
+      const parsed = new URL(sidecarUrl);
+      parsed.pathname = "/health";
+      parsed.search = "";
+      parsed.hash = "";
+      return parsed.toString();
+    } catch (_error) {
+      return "http://127.0.0.1:5002/health";
+    }
+  }
+
+  private async probeQwen3SidecarHealth(timeoutMs: number = 1500): Promise<boolean> {
+    const url = this.getQwen3SidecarHealthUrl();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(ok);
+      };
+
+      try {
+        const req = require("http")
+          .get(url, (res: any) => {
+            const status = Number(res.statusCode || 0);
+            finish(status >= 200 && status < 300);
+            res.resume();
+          })
+          .on("error", () => finish(false));
+        req.setTimeout(timeoutMs, () => {
+          req.destroy();
+          finish(false);
+        });
+      } catch (_error) {
+        finish(false);
+      }
+    });
+  }
+
+  private sidecarManagerCandidates(): string[] {
+    return [
+      path.resolve(process.cwd(), "src/main/stt/sidecars/sidecar_manager.sh"),
+      path.resolve(__dirname, "..", "stt", "sidecars", "sidecar_manager.sh"),
+      path.resolve(__dirname, "..", "..", "src", "main", "stt", "sidecars", "sidecar_manager.sh"),
+    ];
+  }
+
+  private resolveSidecarManagerScript(): string | undefined {
+    return this.sidecarManagerCandidates().find((candidate) => fs.existsSync(candidate));
+  }
+
+  private runSidecarManager(args: string[], timeoutMs: number): Promise<boolean> {
+    const script = this.resolveSidecarManagerScript();
+    if (!script) {
+      return Promise.resolve(false);
+    }
+    return new Promise((resolve) => {
+      const child = child_process.spawn("bash", [script, ...args], {
+        stdio: "ignore",
+        env: process.env,
+      });
+      let settled = false;
+      const done = (ok: boolean) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(ok);
+      };
+      const timer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch (_error) {}
+        done(false);
+      }, Math.max(1000, timeoutMs));
+      child.once("error", () => {
+        clearTimeout(timer);
+        done(false);
+      });
+      child.once("close", (code) => {
+        clearTimeout(timer);
+        done(code === 0);
+      });
+    });
+  }
+
+  private async bootstrapQwen3SidecarIfNeeded(): Promise<void> {
+    const cfg = this.qwen3AsrDictationProvider.getConfig();
+    if (cfg.sidecarMode !== "sidecar") {
+      this.updateDictationRuntimeStatus({
+        provider: "qwen3-local-bridge",
+        sidecarHealth: "not_applicable",
+        warmupStatus: "not_applicable",
+        emitMetric: false,
+      });
+      return;
+    }
+
+    this.updateDictationRuntimeStatus({
+      provider: "qwen3-sidecar",
+      sidecarHealth: "probing",
+      warmupStatus: "pending",
+      stage: "sidecar_bootstrap",
+    });
+
+    const healthy = await this.probeQwen3SidecarHealth(1500);
+    if (healthy) {
+      this.updateDictationRuntimeStatus({
+        provider: "qwen3-sidecar",
+        sidecarHealth: "healthy",
+        warmupStatus: "ready",
+        stage: "sidecar_ready",
+      });
+      return;
+    }
+
+    const started = await this.runSidecarManager(["start", "qwen3"], 90000);
+    if (!started) {
+      this.updateDictationRuntimeStatus({
+        provider: "qwen3-sidecar",
+        sidecarHealth: "unreachable",
+        warmupStatus: "failed",
+        stage: "sidecar_bootstrap_failed",
+        errorCode: "sidecar_start_failed",
+      });
+      return;
+    }
+
+    const warmed = await this.runSidecarManager(["warmup", "qwen3"], 30000);
+    const healthyAfterStart = await this.probeQwen3SidecarHealth(3000);
+    this.updateDictationRuntimeStatus({
+      provider: "qwen3-sidecar",
+      sidecarHealth: healthyAfterStart ? "healthy" : "unreachable",
+      warmupStatus: warmed ? "ready" : "failed",
+      stage: healthyAfterStart ? "sidecar_ready" : "sidecar_warmup_failed",
+      errorCode: healthyAfterStart ? "" : "sidecar_unreachable",
+    });
   }
 
   /**
@@ -270,6 +458,19 @@ export default class ChunkManager {
       },
       [this.mainWindow, this.miniModeWindow]
     );
+    this.updateDictationRuntimeStatus({
+      provider:
+        this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
+          ? "qwen3-sidecar"
+          : "qwen3-local-bridge",
+      sidecarHealth:
+        this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
+          ? "unreachable"
+          : "not_applicable",
+      warmupStatus: "failed",
+      stage: "dictation_failed",
+      errorCode: reason || "unknown_dictation_failure",
+    });
     this.mainWindow.updateTray();
   }
 
@@ -373,9 +574,29 @@ export default class ChunkManager {
 
     const cfg = this.qwen3AsrDictationProvider.getConfig();
     if (cfg.sidecarMode === "sidecar") {
+      const healthy = await this.probeQwen3SidecarHealth(1500);
+      if (!healthy) {
+        this.dictationPreflightLastOk = false;
+        this.dictationPreflightLastReason = "qwen3_sidecar_unreachable";
+        this.dictationPreflightLastAtMs = now;
+        this.updateDictationRuntimeStatus({
+          provider: "qwen3-sidecar",
+          sidecarHealth: "unreachable",
+          warmupStatus: "failed",
+          stage: "sidecar_health_failed",
+          errorCode: "sidecar_unreachable",
+        });
+        return { ok: false, reason: "qwen3_sidecar_unreachable" };
+      }
       this.dictationPreflightLastOk = true;
       this.dictationPreflightLastReason = "qwen3_sidecar_configured";
       this.dictationPreflightLastAtMs = now;
+      this.updateDictationRuntimeStatus({
+        provider: "qwen3-sidecar",
+        sidecarHealth: "healthy",
+        warmupStatus: "ready",
+        stage: "sidecar_health_ok",
+      });
       return { ok: true, reason: "qwen3_sidecar_configured" };
     }
 
@@ -385,6 +606,12 @@ export default class ChunkManager {
     this.dictationPreflightLastOk = true;
     this.dictationPreflightLastReason = "qwen3_provider_ready";
     this.dictationPreflightLastAtMs = Date.now();
+    this.updateDictationRuntimeStatus({
+      provider: "qwen3-local-bridge",
+      sidecarHealth: "not_applicable",
+      warmupStatus: "ready",
+      stage: "provider_ready",
+    });
     this.scheduleQwen3WarmupPreflight();
     return { ok: true, reason: "qwen3_provider_ready" };
   }
@@ -670,6 +897,10 @@ export default class ChunkManager {
     }
 
     this.chunkFinalizationRequested.add(chunkId);
+    this.updateDictationRuntimeStatus({
+      chunkId,
+      stage: "finalize_requested",
+    });
     this.enqueue({ requestType: "endpoint", chunkId, finalize: true });
   }
 
@@ -840,25 +1071,70 @@ export default class ChunkManager {
   private async handleQwen3DictationFinalize(chunkId: string): Promise<boolean> {
     if (this.chunkTranscriptionInFlight.has(chunkId)) {
       this.log.logVerbose("[Chunk] qwen3 dictation deduped while in-flight for " + chunkId);
+      this.updateDictationRuntimeStatus({
+        provider: "qwen3-sidecar",
+        chunkId,
+        stage: "inflight_deduped",
+        errorCode: "inflight_deduped",
+      });
       return true;
     }
 
     const frames = this.chunkAudioFrames.get(chunkId) || [];
     const audio = frames.length > 0 ? Buffer.concat(frames) : Buffer.alloc(0);
-    if (audio.length === 0) {
+    if (audio.length < 640) {
       this.log.logVerbose("[Chunk] qwen3 dictation finalize skipped for " + chunkId + ": empty audio");
+      this.updateDictationRuntimeStatus({
+        provider: "qwen3-sidecar",
+        chunkId,
+        stage: "provider_skipped_empty",
+        errorCode: "empty_or_too_short_audio",
+      });
       return false;
     }
 
     this.chunkTranscriptionInFlight.add(chunkId);
+    const providerName =
+      this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
+        ? "qwen3-sidecar"
+        : "qwen3-local-bridge";
+    this.updateDictationRuntimeStatus({
+      provider: providerName,
+      chunkId,
+      stage: "provider_started",
+    });
+    this.dictationProviderStartAtMs.set(chunkId, Date.now());
     try {
-      const result = await this.qwen3AsrDictationProvider.transcribeDictation({
+      const sidecarMode = this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar";
+      const sidecarTimeoutMs = Math.max(1000, this.settings.getArqonAsrQwen3SidecarTimeoutMs());
+      const transcriptionPromise = this.qwen3AsrDictationProvider.transcribeDictation({
         chunkId,
         pcm16leAudio: audio,
         sampleRateHz: 16000,
       });
+      const result = sidecarMode
+        ? await Promise.race([
+            transcriptionPromise,
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error(`qwen3_timeout:sidecar_timeout_${sidecarTimeoutMs}ms`)),
+                sidecarTimeoutMs
+              )
+            ),
+          ])
+        : await transcriptionPromise;
 
       this.log.logVerbose("[Chunk] qwen3 dictation transcript " + chunkId + ': "' + result.text + '" (' + result.latencyMs + 'ms)');
+      const providerLatencyMs = Math.max(
+        0,
+        Date.now() - (this.dictationProviderStartAtMs.get(chunkId) || Date.now())
+      );
+      this.updateDictationRuntimeStatus({
+        provider: providerName,
+        chunkId,
+        stage: "provider_finished",
+        latencyMs: providerLatencyMs,
+      });
       this.tracking.logQwen3Success({
         chunk_id: chunkId,
         latency_ms: result.latencyMs,
@@ -882,6 +1158,12 @@ export default class ChunkManager {
         "qwen3-asr/" + result.model + "/" + result.device
       );
 
+      this.updateDictationRuntimeStatus({
+        provider: providerName,
+        chunkId,
+        stage: "text_request_sent",
+        latencyMs: result.latencyMs,
+      });
       await this.stream.sendTextRequest(result.text, true);
       this.chunkAudioFrames.delete(chunkId);
       this.chunkUseQwen3AsrDictation.delete(chunkId);
@@ -890,15 +1172,32 @@ export default class ChunkManager {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       this.log.logVerbose("[Chunk] qwen3 dictation failed for " + chunkId + "; hard failure: " + reason);
+      let errorCode = reason;
+      if (reason.includes("sidecar_timeout")) {
+        errorCode = "model_warmup_timeout";
+      } else if (reason.includes("qwen3_sidecar_error")) {
+        errorCode = "sidecar_unreachable";
+      } else if (reason.includes("qwen3_empty_transcript")) {
+        errorCode = "empty_transcript";
+      } else if (reason.includes("qwen3_timeout")) {
+        errorCode = "model_warmup_timeout";
+      }
       this.tracking.logQwen3Failure({
         chunk_id: chunkId,
-        error_code: reason,
+        error_code: errorCode,
         retryable: false,
+      });
+      this.updateDictationRuntimeStatus({
+        provider: providerName,
+        chunkId,
+        stage: "provider_failed",
+        errorCode,
       });
       this.chunkUseQwen3AsrDictation.delete(chunkId);
       this.setDictationFailureState(reason);
       return true;
     } finally {
+      this.dictationProviderStartAtMs.delete(chunkId);
       this.chunkTranscriptionInFlight.delete(chunkId);
     }
   }
@@ -1172,6 +1471,10 @@ export default class ChunkManager {
         this.listeningStateService.handleConnectionFailure(
           "Speech stream disconnected. Toggle listening on to reconnect."
         );
+        this.updateDictationRuntimeStatus({
+          stage: "stream_disconnected",
+          errorCode: "stream_disconnected",
+        });
         setTimeout(() => {
           this.toggle(false);
         }, 0);
@@ -1187,6 +1490,12 @@ export default class ChunkManager {
     current.silence = silence;
     if (this.speaking) {
       current.audioSize++;
+      if (this.active.dictateMode && current.audioSize === 1) {
+        this.updateDictationRuntimeStatus({
+          chunkId: current.id,
+          stage: "audio_buffered",
+        });
+      }
       const frameBuffer = Buffer.from(audio.buffer, audio.byteOffset || 0, audio.byteLength);
       this.chunkAudioFrames.get(current.id)?.push(frameBuffer);
       this.enqueue({ requestType: "audio", audio: frameBuffer, chunkId: current.id });
@@ -1299,6 +1608,10 @@ export default class ChunkManager {
         this.listeningStateService.handleConnectionFailure(
           "Speech stream disconnected. Toggle listening on to reconnect."
         );
+        this.updateDictationRuntimeStatus({
+          stage: "stream_disconnected",
+          errorCode: "stream_disconnected",
+        });
         setTimeout(() => {
           this.toggle(false);
         }, 0);
@@ -1334,6 +1647,20 @@ export default class ChunkManager {
     this.chunkUseParakeetCommandFast.set(id, useParakeetCommandFast);
     this.chunkUseQwen3AsrDictation.set(id, useQwen3Dictation);
     this.chunkUseFasterWhisperDictation.set(id, useFasterWhisperDictation);
+    if (useQwen3Dictation) {
+      this.updateDictationRuntimeStatus({
+        provider:
+          this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
+            ? "qwen3-sidecar"
+            : "qwen3-local-bridge",
+        sidecarHealth:
+          this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
+            ? "healthy"
+            : "not_applicable",
+        chunkId: id,
+        stage: "chunk_started",
+      });
+    }
 
     if (useParakeetCommandFast && this.parakeetCommandFastProvider.isStreamingSupported()) {
       try {
@@ -1437,6 +1764,10 @@ export default class ChunkManager {
         this.resetListeningBuffers();
         this.listening = false;
         this.listeningStateService.handleConnectionFailure(error);
+        this.updateDictationRuntimeStatus({
+          stage: "stream_disconnected",
+          errorCode: "stream_disconnected",
+        });
       },
     });
   }
@@ -1492,6 +1823,34 @@ export default class ChunkManager {
 
       this.mainWindow.updateTray();
       if (requestedListening) {
+        if (
+          this.active.dictateMode &&
+          this.dictationProviderPreference === "qwen3" &&
+          this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
+        ) {
+          const healthy = await this.probeQwen3SidecarHealth(1500);
+          if (!healthy) {
+            this.listening = false;
+            this.listeningStateService.showListeningState(false);
+            this.listeningStateService.handleConnectionFailure(
+              "Dictation sidecar unreachable on :5002. Start/warmup Qwen3 sidecar (`sidecar_manager.sh start qwen3`) and retry."
+            );
+            this.updateDictationRuntimeStatus({
+              provider: "qwen3-sidecar",
+              sidecarHealth: "unreachable",
+              warmupStatus: "failed",
+              stage: "sidecar_health_failed",
+              errorCode: "sidecar_unreachable",
+            });
+            return;
+          }
+          this.updateDictationRuntimeStatus({
+            provider: "qwen3-sidecar",
+            sidecarHealth: "healthy",
+            warmupStatus: "ready",
+            stage: "listening_started",
+          });
+        }
         const started = await this.startListeningSession(generation);
         if (!started) {
           return;

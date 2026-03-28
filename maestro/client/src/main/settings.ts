@@ -1036,6 +1036,16 @@ export default class Settings {
     this.set("system", "arqon_asr_sidecar_timeout_ms", timeout);
   }
 
+  // Qwen3 dictation timeout (ms) for local model load + inference.
+  // Kept separate from sidecar timeout because local adapter boot can be slower.
+  getArqonAsrQwen3TimeoutMs(): number {
+    return this.get("system", "arqon_asr_qwen3_timeout_ms", 90000);
+  }
+
+  setArqonAsrQwen3TimeoutMs(timeout: number) {
+    this.set("system", "arqon_asr_qwen3_timeout_ms", timeout);
+  }
+
   // Sidecar ASR mode: "local" (spawn Python bridge) or "sidecar" (HTTP proxy)
   getArqonAsrParakeetMode(): "local" | "sidecar" {
     return this.get("system", "arqon_asr_parakeet_mode", "sidecar");
@@ -1051,5 +1061,21 @@ export default class Settings {
 
   setArqonAsrQwen3Mode(mode: "local" | "sidecar") {
     this.set("system", "arqon_asr_qwen3_mode", mode);
+  }
+
+  getArqonAsrQwen3SidecarTimeoutMs(): number {
+    return this.get("system", "arqon_asr_qwen3_sidecar_timeout_ms", 8000);
+  }
+
+  setArqonAsrQwen3SidecarTimeoutMs(timeout: number) {
+    this.set("system", "arqon_asr_qwen3_sidecar_timeout_ms", timeout);
+  }
+
+  getArqonFocusSimpleModeEnabled(): boolean {
+    return this.get("system", "arqon_focus_simple_mode_enabled", true);
+  }
+
+  setArqonFocusSimpleModeEnabled(enabled: boolean) {
+    this.set("system", "arqon_focus_simple_mode_enabled", enabled);
   }
 }

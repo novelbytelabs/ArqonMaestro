@@ -152,6 +152,14 @@ export default class Executor {
   private lastAuthorizationStepUpType: string = "none";
   private lastAuthorizationFactorDecision: string = "";
   private lastAuthorizationFactorReasonCode: string = "";
+  private dictationRuntimeProvider: string = "qwen3-sidecar";
+  private dictationRuntimeSidecarHealth: string = "unknown";
+  private dictationRuntimeWarmupStatus: string = "idle";
+  private dictationRuntimeLastChunkId: string = "";
+  private dictationRuntimeLastStage: string = "idle";
+  private dictationRuntimeLastErrorCode: string = "";
+  private dictationRuntimeLastLatencyMs: number = 0;
+  private dictationRuntimeLastUpdatedAt: string = "";
   private securitySessionPolicyService: SecuritySessionPolicyService;
   private passkeyBootstrapService: PasskeyBootstrapService;
   private interactionSequence = 0;
@@ -431,7 +439,11 @@ export default class Executor {
     if (!command.text) {
       return false;
     }
-    const simpleFocusMode = process.env.ARQON_SIMPLE_FOCUS_MODE !== "0";
+    const envFocusMode = process.env.ARQON_SIMPLE_FOCUS_MODE;
+    const simpleFocusMode =
+      envFocusMode !== undefined
+        ? envFocusMode !== "0"
+        : this.settings.getArqonFocusSimpleModeEnabled();
     if (simpleFocusMode) {
       try {
         const commandType = commandTypeToString(command.type!);
@@ -2405,9 +2417,51 @@ export default class Executor {
         securityReplayTotalRecords: replaySummary.totalRecords,
         securityReplaySessionEventCount: replaySummary.recordsByCategory.security_session_event,
         securityReplayLastSequence: replaySummary.lastSequence,
+        dictationRuntimeProvider: this.dictationRuntimeProvider,
+        dictationRuntimeSidecarHealth: this.dictationRuntimeSidecarHealth,
+        dictationRuntimeWarmupStatus: this.dictationRuntimeWarmupStatus,
+        dictationRuntimeLastChunkId: this.dictationRuntimeLastChunkId,
+        dictationRuntimeLastStage: this.dictationRuntimeLastStage,
+        dictationRuntimeLastErrorCode: this.dictationRuntimeLastErrorCode,
+        dictationRuntimeLastLatencyMs: this.dictationRuntimeLastLatencyMs,
+        dictationRuntimeLastUpdatedAt: this.dictationRuntimeLastUpdatedAt,
       },
       [this.mainWindow, this.miniModeWindow, this.settingsWindow()]
     );
+  }
+
+  updateDictationRuntimeStatus(update: {
+    provider?: string;
+    sidecarHealth?: string;
+    warmupStatus?: string;
+    chunkId?: string;
+    stage?: string;
+    errorCode?: string;
+    latencyMs?: number;
+  }): void {
+    if (typeof update.provider === "string") {
+      this.dictationRuntimeProvider = update.provider;
+    }
+    if (typeof update.sidecarHealth === "string") {
+      this.dictationRuntimeSidecarHealth = update.sidecarHealth;
+    }
+    if (typeof update.warmupStatus === "string") {
+      this.dictationRuntimeWarmupStatus = update.warmupStatus;
+    }
+    if (typeof update.chunkId === "string") {
+      this.dictationRuntimeLastChunkId = update.chunkId;
+    }
+    if (typeof update.stage === "string") {
+      this.dictationRuntimeLastStage = update.stage;
+    }
+    if (typeof update.errorCode === "string") {
+      this.dictationRuntimeLastErrorCode = update.errorCode;
+    }
+    if (typeof update.latencyMs === "number" && Number.isFinite(update.latencyMs)) {
+      this.dictationRuntimeLastLatencyMs = Math.max(0, Math.floor(update.latencyMs));
+    }
+    this.dictationRuntimeLastUpdatedAt = new Date().toISOString();
+    this.publishSecuritySessionBridgeState();
   }
 
   private recordSecuritySessionEvent(
@@ -2661,6 +2715,14 @@ export default class Executor {
     securityPasskeyLastProviderOutcome: string;
     securityPasskeyLastProviderReasonCode: string;
     securityPasskeyLastProviderOutcomeAt: string;
+    dictationRuntimeProvider: string;
+    dictationRuntimeSidecarHealth: string;
+    dictationRuntimeWarmupStatus: string;
+    dictationRuntimeLastChunkId: string;
+    dictationRuntimeLastStage: string;
+    dictationRuntimeLastErrorCode: string;
+    dictationRuntimeLastLatencyMs: number;
+    dictationRuntimeLastUpdatedAt: string;
   } {
     const snapshot = this.securitySessionPolicyService.getSnapshot();
     const passkeySnapshot = this.passkeyBootstrapService.getSnapshot();
@@ -2704,6 +2766,14 @@ export default class Executor {
       securityPasskeyLastProviderOutcome: passkeySnapshot.lastProviderOutcome,
       securityPasskeyLastProviderReasonCode: passkeySnapshot.lastProviderReasonCode,
       securityPasskeyLastProviderOutcomeAt: passkeySnapshot.lastProviderOutcomeAt,
+      dictationRuntimeProvider: this.dictationRuntimeProvider,
+      dictationRuntimeSidecarHealth: this.dictationRuntimeSidecarHealth,
+      dictationRuntimeWarmupStatus: this.dictationRuntimeWarmupStatus,
+      dictationRuntimeLastChunkId: this.dictationRuntimeLastChunkId,
+      dictationRuntimeLastStage: this.dictationRuntimeLastStage,
+      dictationRuntimeLastErrorCode: this.dictationRuntimeLastErrorCode,
+      dictationRuntimeLastLatencyMs: this.dictationRuntimeLastLatencyMs,
+      dictationRuntimeLastUpdatedAt: this.dictationRuntimeLastUpdatedAt,
     };
   }
 

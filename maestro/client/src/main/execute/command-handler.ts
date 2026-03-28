@@ -189,9 +189,15 @@ export default class CommandHandler {
     const preflight = await this.chunkManager.verifyDictationReady();
     if (!preflight.ok) {
       const reason = (preflight.reason || "qwen3_dictation_not_ready").replace(/^qwen3_/, "");
-      const message =
-        "Dictation unavailable: Qwen3 model failed preflight (" + reason + ").";
+      const isSidecarIssue = reason.includes("sidecar");
+      const message = isSidecarIssue
+        ? "Dictation unavailable: Qwen3 sidecar is unreachable. Start/warmup the sidecar and retry."
+        : "Dictation unavailable: Qwen3 model failed preflight (" + reason + ").";
       this.active.dictateMode = false;
+      this.executor.updateDictationRuntimeStatus({
+        stage: "dictate_mode_denied",
+        errorCode: isSidecarIssue ? "sidecar_unreachable" : reason,
+      });
       this.bridge.setState(
         {
           dictateMode: false,
@@ -200,7 +206,10 @@ export default class CommandHandler {
           highlighted: [0],
           executedSuccess: [],
           staleOrFailed: [0],
-          backendIssue: "Qwen3 dictation preflight failed: " + reason,
+          backendIssue:
+            (isSidecarIssue
+              ? "Qwen3 dictation sidecar unreachable. Ensure :5002 is healthy, then retry."
+              : "Qwen3 dictation preflight failed: " + reason),
           backendIssueAction: "dictationUseLegacyFallback",
           backendIssueActionLabel: "Fallback to Kaldi/Legacy",
         },
@@ -210,6 +219,10 @@ export default class CommandHandler {
     }
 
     this.active.dictateMode = true;
+    this.executor.updateDictationRuntimeStatus({
+      stage: "dictate_mode_active",
+      errorCode: "",
+    });
     this.bridge.setState(
       {
         dictateMode: true,

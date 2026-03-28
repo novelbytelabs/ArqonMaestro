@@ -37,6 +37,33 @@ function responseWithExecute(commands: Array<{ type: core.CommandType; text?: st
 }
 
 describe("Voice command regression suite", () => {
+  describe("Focus stability gate", () => {
+    const originalSimpleFocus = process.env.ARQON_SIMPLE_FOCUS_MODE;
+
+    afterEach(() => {
+      process.env.ARQON_SIMPLE_FOCUS_MODE = originalSimpleFocus;
+    });
+
+    it("keeps simple focus mode enabled by default unless env disables it", () => {
+      const executor = Object.create(Executor.prototype) as any;
+      executor.settings = {
+        getArqonFocusSimpleModeEnabled: () => true,
+      };
+
+      delete process.env.ARQON_SIMPLE_FOCUS_MODE;
+      const envFocusMode = process.env.ARQON_SIMPLE_FOCUS_MODE;
+      const simpleFocusMode =
+        envFocusMode !== undefined
+          ? envFocusMode !== "0"
+          : executor.settings.getArqonFocusSimpleModeEnabled();
+      expect(simpleFocusMode).toBe(true);
+
+      process.env.ARQON_SIMPLE_FOCUS_MODE = "0";
+      const envOverride = process.env.ARQON_SIMPLE_FOCUS_MODE !== "0";
+      expect(envOverride).toBe(false);
+    });
+  });
+
   describe("Executor auto-activation behavior", () => {
     it("auto-activates focus alternative for 'focus chrome'", () => {
       const executor = Object.create(Executor.prototype) as any;

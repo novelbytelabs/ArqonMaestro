@@ -111,6 +111,12 @@ export default class App {
     const insertHistory = new InsertHistory();
     const metadata = new Metadata();
     const settings = (instance.settings = new Settings());
+    if (
+      process.env.ARQON_QWEN3_SIDECAR_FIRST !== "0" &&
+      settings.getArqonAsrQwen3Mode() !== "sidecar"
+    ) {
+      settings.setArqonAsrQwen3Mode("sidecar");
+    }
     const bridge = (instance.bridge = new RendererBridge(settings));
     const system = new System(settings);
     const log = (instance.log = new Log(settings));
@@ -664,6 +670,14 @@ export default class App {
         securityPasskeyLastProviderOutcome: "none",
         securityPasskeyLastProviderReasonCode: "",
         securityPasskeyLastProviderOutcomeAt: "",
+        dictationRuntimeProvider: "qwen3-sidecar",
+        dictationRuntimeSidecarHealth: "unknown",
+        dictationRuntimeWarmupStatus: "idle",
+        dictationRuntimeLastChunkId: "",
+        dictationRuntimeLastStage: "idle",
+        dictationRuntimeLastErrorCode: "",
+        dictationRuntimeLastLatencyMs: 0,
+        dictationRuntimeLastUpdatedAt: "",
       };
     }
 
@@ -747,6 +761,14 @@ export default class App {
       securityPasskeyLastProviderOutcome: status?.securityPasskeyLastProviderOutcome || "none",
       securityPasskeyLastProviderReasonCode: status?.securityPasskeyLastProviderReasonCode || "",
       securityPasskeyLastProviderOutcomeAt: status?.securityPasskeyLastProviderOutcomeAt || "",
+      dictationRuntimeProvider: status?.dictationRuntimeProvider || "qwen3-sidecar",
+      dictationRuntimeSidecarHealth: status?.dictationRuntimeSidecarHealth || "unknown",
+      dictationRuntimeWarmupStatus: status?.dictationRuntimeWarmupStatus || "idle",
+      dictationRuntimeLastChunkId: status?.dictationRuntimeLastChunkId || "",
+      dictationRuntimeLastStage: status?.dictationRuntimeLastStage || "idle",
+      dictationRuntimeLastErrorCode: status?.dictationRuntimeLastErrorCode || "",
+      dictationRuntimeLastLatencyMs: status?.dictationRuntimeLastLatencyMs || 0,
+      dictationRuntimeLastUpdatedAt: status?.dictationRuntimeLastUpdatedAt || "",
     };
   }
 

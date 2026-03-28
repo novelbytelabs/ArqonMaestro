@@ -253,9 +253,17 @@ export default class Stream {
     executor: Executor,
     response: core.ICommandsResponse
   ) {
+    executor.updateDictationRuntimeStatus({
+      chunkId: response.chunkId || "",
+      stage: "text_response_received",
+    });
     response = await executor.postProcessResponse(response);
     if (!this.runtimeCommandDispatcher) {
       await executor.execute(response);
+      executor.updateDictationRuntimeStatus({
+        chunkId: response.chunkId || "",
+        stage: "insert_dispatched",
+      });
       custom.send("callback", {
         transcript: response.execute?.transcript,
       });
@@ -274,6 +282,10 @@ export default class Stream {
       targetSurface: policyContext.targetSurface,
       surfaceContext: policyContext.surfaceContext,
       modalContext: policyContext.modalContext,
+    });
+    executor.updateDictationRuntimeStatus({
+      chunkId: response.chunkId || "",
+      stage: "insert_dispatched",
     });
     this.runtimeCommandDispatcher.sendTextCallback(response);
   }

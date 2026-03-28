@@ -90,6 +90,14 @@ const SecurityComponent: React.FC<{
   securityPasskeyLastProviderOutcome: string;
   securityPasskeyLastProviderReasonCode: string;
   securityPasskeyLastProviderOutcomeAt: string;
+  dictationRuntimeProvider: string;
+  dictationRuntimeSidecarHealth: string;
+  dictationRuntimeWarmupStatus: string;
+  dictationRuntimeLastChunkId: string;
+  dictationRuntimeLastStage: string;
+  dictationRuntimeLastErrorCode: string;
+  dictationRuntimeLastLatencyMs: number;
+  dictationRuntimeLastUpdatedAt: string;
 }> = ({
   securityMode,
   securityInteractionMode,
@@ -137,6 +145,14 @@ const SecurityComponent: React.FC<{
   securityPasskeyLastProviderOutcome,
   securityPasskeyLastProviderReasonCode,
   securityPasskeyLastProviderOutcomeAt,
+  dictationRuntimeProvider,
+  dictationRuntimeSidecarHealth,
+  dictationRuntimeWarmupStatus,
+  dictationRuntimeLastChunkId,
+  dictationRuntimeLastStage,
+  dictationRuntimeLastErrorCode,
+  dictationRuntimeLastLatencyMs,
+  dictationRuntimeLastUpdatedAt,
 }) => {
   const [displayName, setDisplayName] = useState(securityEnrollmentName || "Primary User");
   const [replaySnapshot, setReplaySnapshot] = useState<ReplaySnapshotPayload | null>(null);
@@ -229,6 +245,38 @@ const SecurityComponent: React.FC<{
           </div>
           <div>
             Contaminated: <span className="text-white">{securityContaminated ? "Yes" : "No"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-white/10 bg-white/5 p-3 mb-3">
+        <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400/80 mb-2">
+          Dictation Runtime
+        </h2>
+        <div className="grid grid-cols-2 gap-2 text-xs text-white/80">
+          <div>
+            Provider: <span className="text-white">{dictationRuntimeProvider || "n/a"}</span>
+          </div>
+          <div>
+            Sidecar health: <span className="text-white">{dictationRuntimeSidecarHealth || "unknown"}</span>
+          </div>
+          <div>
+            Warmup: <span className="text-white">{dictationRuntimeWarmupStatus || "idle"}</span>
+          </div>
+          <div>
+            Last stage: <span className="text-white">{dictationRuntimeLastStage || "idle"}</span>
+          </div>
+          <div>
+            Last chunk: <span className="text-white">{dictationRuntimeLastChunkId || "n/a"}</span>
+          </div>
+          <div>
+            Last latency: <span className="text-white">{dictationRuntimeLastLatencyMs || 0} ms</span>
+          </div>
+          <div>
+            Last error: <span className="text-white">{dictationRuntimeLastErrorCode || "none"}</span>
+          </div>
+          <div>
+            Updated: <span className="text-white">{dictationRuntimeLastUpdatedAt || "n/a"}</span>
           </div>
         </div>
       </div>
@@ -508,4 +556,12 @@ export const Security = connect((state: any) => ({
   securityPasskeyLastProviderOutcome: state.securityPasskeyLastProviderOutcome || "none",
   securityPasskeyLastProviderReasonCode: state.securityPasskeyLastProviderReasonCode || "",
   securityPasskeyLastProviderOutcomeAt: state.securityPasskeyLastProviderOutcomeAt || "",
+  dictationRuntimeProvider: state.dictationRuntimeProvider || "qwen3-sidecar",
+  dictationRuntimeSidecarHealth: state.dictationRuntimeSidecarHealth || "unknown",
+  dictationRuntimeWarmupStatus: state.dictationRuntimeWarmupStatus || "idle",
+  dictationRuntimeLastChunkId: state.dictationRuntimeLastChunkId || "",
+  dictationRuntimeLastStage: state.dictationRuntimeLastStage || "idle",
+  dictationRuntimeLastErrorCode: state.dictationRuntimeLastErrorCode || "",
+  dictationRuntimeLastLatencyMs: state.dictationRuntimeLastLatencyMs || 0,
+  dictationRuntimeLastUpdatedAt: state.dictationRuntimeLastUpdatedAt || "",
 }))(SecurityComponent);
