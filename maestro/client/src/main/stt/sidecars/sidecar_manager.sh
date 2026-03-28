@@ -17,11 +17,21 @@ set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISOLATED_ENV="helios-asr-isolated"
+ISOLATED_ENV="${MAESTRO_QWEN3_SIDECAR_ENV:-helios-gpu-118}"
 PARAKEET_PORT=5001
 QWEN3_PORT=5002
 PARAKEET_MODEL_PATH="${HOME}/models/arqon/asr/parakeet-tdt-0.6b-v3"
-QWEN3_MODEL_PATH="${HOME}/models/arqon/asr/qwen3-asr-1.7b"
+if [ -n "${MAESTRO_QWEN3_MODEL_PATH:-}" ]; then
+    QWEN3_MODEL_PATH="${MAESTRO_QWEN3_MODEL_PATH}"
+elif [ -d "${HOME}/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-0.6B" ]; then
+    QWEN3_MODEL_PATH="${HOME}/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-0.6B"
+elif [ -d "${HOME}/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-1.7B" ]; then
+    QWEN3_MODEL_PATH="${HOME}/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-1.7B"
+else
+    QWEN3_MODEL_PATH="${HOME}/models/arqon/asr/qwen3-asr-1.7b"
+fi
+QWEN3_DEVICE="${MAESTRO_QWEN3_DEVICE:-cuda}"
+SIDECAR_PYTHON_PATH="${MAESTRO_QWEN3_PYTHON_PATH:-}"
 PARAKEET_PID_FILE="/tmp/parakeet_sidecar.pid"
 QWEN3_PID_FILE="/tmp/qwen3_sidecar.pid"
 
@@ -34,6 +44,14 @@ NC='\033[0m'
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+run_in_sidecar_python() {
+    if [ -n "${SIDECAR_PYTHON_PATH}" ] && [ -x "${SIDECAR_PYTHON_PATH}" ]; then
+        "${SIDECAR_PYTHON_PATH}" "$@"
+        return $?
+    fi
+    conda run -n "${ISOLATED_ENV}" python "$@"
+}
 
 # Check if a process is running
 is_running() {
@@ -70,19 +88,29 @@ preflight_check() {
     
     log_info "Running preflight checks for ${sidecar}..."
     
-    # Check isolated env exists
-    log_info "Checking conda environment '${ISOLATED_ENV}'..."
-    if ! conda env list | grep -q "^${ISOLATED_ENV} "; then
-        log_error "Conda environment '${ISOLATED_ENV}' not found"
-        log_info "Run: ./setup_isolated_env.sh all"
-        ((errors++))
+    if [ -n "${SIDECAR_PYTHON_PATH}" ]; then
+        log_info "Checking explicit sidecar python path..."
+        if [ -x "${SIDECAR_PYTHON_PATH}" ]; then
+            log_info "✓ Using MAESTRO_QWEN3_PYTHON_PATH: ${SIDECAR_PYTHON_PATH}"
+        else
+            log_error "✗ MAESTRO_QWEN3_PYTHON_PATH is not executable: ${SIDECAR_PYTHON_PATH}"
+            ((errors++))
+        fi
     else
-        log_info "✓ Environment '${ISOLATED_ENV}' exists"
+        # Check isolated env exists
+        log_info "Checking conda environment '${ISOLATED_ENV}'..."
+        if ! conda env list | grep -q "^${ISOLATED_ENV} "; then
+            log_error "Conda environment '${ISOLATED_ENV}' not found"
+            log_info "Set MAESTRO_QWEN3_PYTHON_PATH or run: ./setup_isolated_env.sh all"
+            ((errors++))
+        else
+            log_info "✓ Environment '${ISOLATED_ENV}' exists"
+        fi
     fi
     
     # Check CUDA visibility
     log_info "Checking CUDA visibility..."
-    if conda run -n "${ISOLATED_ENV}" python -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; then
+    if run_in_sidecar_python -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; then
         log_info "✓ CUDA available"
     else
         log_warn "⚠ CUDA not available (will run on CPU)"
@@ -90,18 +118,19 @@ preflight_check() {
     
     # Check required imports
     log_info "Checking Python imports..."
-    if [ "$sidecar" = "parakeet" ]; then
-        if conda run -n "${ISOLATED_ENV}" python -c "import nemo" 2>/dev/null; then
+        if [ "$sidecar" = "parakeet" ]; then
+        if run_in_sidecar_python -c "import nemo" 2>/dev/null; then
             log_info "✓ nemo available"
         else
             log_error "✗ nemo not available"
             ((errors++))
         fi
     elif [ "$sidecar" = "qwen3" ]; then
-        if conda run -n "${ISOLATED_ENV}" python -c "import vllm" 2>/dev/null; then
+        if run_in_sidecar_python -c "import vllm" 2>/dev/null; then
             log_info "✓ vllm available"
         else
-            log_warn "⚠ vllm not available"
+            log_error "✗ vllm not available (required for qwen3 sidecar)"
+            ((errors++))
         fi
     fi
     
@@ -174,12 +203,21 @@ start_parakeet() {
     fi
     
     # Start sidecar in isolated environment
-    nohup conda run -n "${ISOLATED_ENV}" python "${SCRIPT_DIR}/parakeet_sidecar.py" \
-        --server \
-        --model-path "$PARAKEET_MODEL_PATH" \
-        --device cuda \
-        --port "$PARAKEET_PORT" \
-        > /tmp/parakeet_sidecar.log 2>&1 &
+    if [ -n "${SIDECAR_PYTHON_PATH}" ] && [ -x "${SIDECAR_PYTHON_PATH}" ]; then
+        nohup "${SIDECAR_PYTHON_PATH}" "${SCRIPT_DIR}/parakeet_sidecar.py" \
+            --server \
+            --model-path "$PARAKEET_MODEL_PATH" \
+            --device cuda \
+            --port "$PARAKEET_PORT" \
+            > /tmp/parakeet_sidecar.log 2>&1 &
+    else
+        nohup conda run -n "${ISOLATED_ENV}" python "${SCRIPT_DIR}/parakeet_sidecar.py" \
+            --server \
+            --model-path "$PARAKEET_MODEL_PATH" \
+            --device cuda \
+            --port "$PARAKEET_PORT" \
+            > /tmp/parakeet_sidecar.log 2>&1 &
+    fi
     
     local pid=$!
     echo $pid > "$PARAKEET_PID_FILE"
@@ -229,12 +267,21 @@ start_qwen3() {
     fi
     
     # Start sidecar in isolated environment
-    nohup conda run -n "${ISOLATED_ENV}" python "${SCRIPT_DIR}/qwen3_sidecar.py" \
-        --server \
-        --model-path "$QWEN3_MODEL_PATH" \
-        --device cuda \
-        --port "$QWEN3_PORT" \
-        > /tmp/qwen3_sidecar.log 2>&1 &
+    if [ -n "${SIDECAR_PYTHON_PATH}" ] && [ -x "${SIDECAR_PYTHON_PATH}" ]; then
+        nohup "${SIDECAR_PYTHON_PATH}" "${SCRIPT_DIR}/qwen3_sidecar.py" \
+            --server \
+            --model-path "$QWEN3_MODEL_PATH" \
+            --device "${QWEN3_DEVICE}" \
+            --port "$QWEN3_PORT" \
+            > /tmp/qwen3_sidecar.log 2>&1 &
+    else
+        nohup conda run -n "${ISOLATED_ENV}" python "${SCRIPT_DIR}/qwen3_sidecar.py" \
+            --server \
+            --model-path "$QWEN3_MODEL_PATH" \
+            --device "${QWEN3_DEVICE}" \
+            --port "$QWEN3_PORT" \
+            > /tmp/qwen3_sidecar.log 2>&1 &
+    fi
     
     local pid=$!
     echo $pid > "$QWEN3_PID_FILE"
