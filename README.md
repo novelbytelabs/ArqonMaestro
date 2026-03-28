@@ -87,6 +87,39 @@ Related docs:
 - [TRAINING.md](./TRAINING.md)
 - [LEGACY_INTERNAL_RENAME_TODO.md](./LEGACY_INTERNAL_RENAME_TODO.md)
 
+## Runbook: Qwen3 Dictation Sidecar + Legacy Fallback
+
+Use this when dictation shows `sidecar_unreachable` or warmup failures.
+
+### 1) Check / start / warm Qwen3 sidecar
+
+```bash
+cd ~/Projects/arqon/ArqonMaestro/maestro/client/src/main/stt/sidecars
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh preflight qwen3
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh start qwen3
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh warmup qwen3
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh status
+```
+
+If startup fails, inspect:
+
+```bash
+tail -n 120 /tmp/qwen3_sidecar.log
+```
+
+### 2) If sidecar is down, use hard fallback immediately
+
+In the app, click `Fallback to Kaldi/Legacy`.
+
+Expected behavior now:
+- switches dictation provider to legacy
+- clears backend issue banner
+- keeps/starts listening for dictation
+
+### 3) Common blocker
+
+If logs show `No module named 'vllm'`, install `vllm` in the same Python environment used by `MAESTRO_QWEN3_PYTHON_PATH`.
+
 ## Supported Operation Modes
 
 ### Cloud-backed mode
