@@ -1306,11 +1306,16 @@ export default class ChunkManager {
         errorCode,
       });
       if (isBenignEmptyChunk) {
-        this.chunkAudioFrames.delete(chunkId);
+        // Do not consume this utterance as handled. Keep buffered audio and
+        // let endpoint/legacy fallback attempt transcription for this chunk.
         this.chunkUseQwen3AsrDictation.delete(chunkId);
-        this.chunkFinalizationRequested.delete(chunkId);
-        this.clearFinalizeWatchdog(chunkId);
-        return true;
+        this.updateDictationRuntimeStatus({
+          provider: providerName,
+          chunkId,
+          stage: "provider_skipped_empty_fallback",
+          errorCode,
+        });
+        return false;
       }
       this.chunkUseQwen3AsrDictation.delete(chunkId);
       this.setDictationFailureState(reason);
