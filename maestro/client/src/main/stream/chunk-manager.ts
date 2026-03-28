@@ -517,6 +517,8 @@ export default class ChunkManager {
   enableLegacyDictationFallback(): void {
     this.setDictationProviderPreference("legacy");
     this.active.dictateMode = true;
+    this.app.syncSecurityInteractionModeFromRuntime(true);
+    this.active.update(true);
     this.updateDictationRuntimeStatus({
       provider: "kaldi-legacy",
       sidecarHealth: "not_applicable",

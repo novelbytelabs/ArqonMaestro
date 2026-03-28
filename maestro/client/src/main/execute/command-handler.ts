@@ -194,6 +194,8 @@ export default class CommandHandler {
         ? "Dictation unavailable: Qwen3 sidecar is unreachable. Start/warmup the sidecar and retry."
         : "Dictation unavailable: Qwen3 model failed preflight (" + reason + ").";
       this.active.dictateMode = false;
+      this.app.syncSecurityInteractionModeFromRuntime(false);
+      this.active.update(true);
       this.executor.updateDictationRuntimeStatus({
         stage: "dictate_mode_denied",
         errorCode: isSidecarIssue ? "sidecar_unreachable" : reason,
@@ -219,6 +221,8 @@ export default class CommandHandler {
     }
 
     this.active.dictateMode = true;
+    this.app.syncSecurityInteractionModeFromRuntime(true);
+    this.active.update(true);
     this.executor.updateDictationRuntimeStatus({
       stage: "dictate_mode_active",
       errorCode: "",
@@ -237,6 +241,8 @@ export default class CommandHandler {
   async COMMAND_TYPE_STOP_DICTATE(_data: any): Promise<any> {
     this.chunkManager.setDictationProviderPreference("qwen3");
     this.active.dictateMode = false;
+    this.app.syncSecurityInteractionModeFromRuntime(false);
+    this.active.update(true);
     this.bridge.setState(
       {
         dictateMode: false,
