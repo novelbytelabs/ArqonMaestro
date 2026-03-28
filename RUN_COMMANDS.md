@@ -52,6 +52,18 @@ PY
 
 ## Running the Application
 
+### Done-State Verification (always run before saying "done")
+
+```bash
+cd ~/Projects/arqon/ArqonMaestro
+./maestro/scripts/verify_done_state.sh
+```
+
+This enforces three checks in one command:
+- local branch SHA equals tracked upstream SHA
+- Electron client production build succeeds
+- backend install step succeeds (`:core:installDist` + `client:installServer`)
+
 ### Which command should I use?
 
 Use this matrix:
