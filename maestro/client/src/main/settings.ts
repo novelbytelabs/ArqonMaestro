@@ -1056,7 +1056,7 @@ export default class Settings {
   }
 
   getArqonAsrQwen3Mode(): "local" | "sidecar" {
-    return this.get("system", "arqon_asr_qwen3_mode", "sidecar");
+    return this.get("system", "arqon_asr_qwen3_mode", "local");
   }
 
   setArqonAsrQwen3Mode(mode: "local" | "sidecar") {

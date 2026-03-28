@@ -111,12 +111,6 @@ export default class App {
     const insertHistory = new InsertHistory();
     const metadata = new Metadata();
     const settings = (instance.settings = new Settings());
-    if (
-      process.env.ARQON_QWEN3_SIDECAR_FIRST !== "0" &&
-      settings.getArqonAsrQwen3Mode() !== "sidecar"
-    ) {
-      settings.setArqonAsrQwen3Mode("sidecar");
-    }
     const bridge = (instance.bridge = new RendererBridge(settings));
     const system = new System(settings);
     const log = (instance.log = new Log(settings));
