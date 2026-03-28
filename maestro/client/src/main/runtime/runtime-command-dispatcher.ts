@@ -530,6 +530,11 @@ export default class RuntimeCommandDispatcher {
     if (policyDecision.decision === "block_route") {
       recordRouteDecision(false);
       recordDispatchTotal();
+      console.warn(
+        `[RuntimeCommandDispatcher] POLICY_BLOCK route=${plan.route} reason=${policyDecision.explanation.summary} interactionMode=${interactionMode} commandTypes=${plan.commands
+          .map((command) => command.type)
+          .join(",")}`
+      );
       this.log.logVerbose(
         `[RuntimeCommandDispatcher] Route ${plan.route} blocked by policy: ${policyDecision.explanation.summary}`
       );

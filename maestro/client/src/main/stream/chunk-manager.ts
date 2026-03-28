@@ -436,6 +436,55 @@ export default class ChunkManager {
     );
   }
 
+  private updateLegacyDictationDiagnostics(chunk: Chunk): void {
+    if (!this.active.dictateMode || this.dictationProviderPreference !== "legacy") {
+      return;
+    }
+
+    const finalResponse = this.getResponse(chunk);
+    if (!finalResponse || !finalResponse.final) {
+      return;
+    }
+
+    const alternatives = Array.isArray(finalResponse.alternatives) ? finalResponse.alternatives : [];
+    const hasExecute = !!finalResponse.execute;
+    const likelySpeechChunk = chunk.audioSize >= 3;
+
+    if (!hasExecute && alternatives.length === 0 && likelySpeechChunk) {
+      this.updateDictationRuntimeStatus({
+        provider: "kaldi-legacy",
+        sidecarHealth: "not_applicable",
+        warmupStatus: "not_applicable",
+        chunkId: chunk.id,
+        stage: "legacy_no_transcript",
+        errorCode: "legacy_no_transcript",
+      });
+      this.bridge.setState(
+        {
+          backendIssue:
+            "Kaldi/legacy dictation produced no transcript. Check ~/.arqon/speech-engine.log and ~/.arqon/core.log for this chunk.",
+          backendIssueAction: "",
+          backendIssueActionLabel: "",
+        },
+        [this.mainWindow, this.miniModeWindow]
+      );
+      this.log.logVerbose(`[Chunk] legacy dictation no transcript for ${chunk.id}`);
+      return;
+    }
+
+    if (hasExecute || alternatives.length > 0) {
+      this.updateDictationRuntimeStatus({
+        provider: "kaldi-legacy",
+        sidecarHealth: "not_applicable",
+        warmupStatus: "not_applicable",
+        chunkId: chunk.id,
+        stage: "legacy_response_received",
+        errorCode: "",
+      });
+      this.clearDictationFailureState();
+    }
+  }
+
   private setDictationFailureState(reason: string): void {
     // Fail-open for operator continuity: on hard Qwen3 errors, immediately
     // pivot to legacy dictation instead of dropping out of dictate mode.
@@ -1470,6 +1519,8 @@ export default class ChunkManager {
       response,
       shouldAppendToPrevious: (candidate) => this.shouldAppendToPrevious(candidate),
     });
+
+    this.updateLegacyDictationDiagnostics(chunk);
 
     if (response.final) {
       this.chunkAudioFrames.delete(chunk.id);

@@ -132,6 +132,14 @@ export interface PolicyDecision {
  * - Block routes that violate policy constraints
  */
 export default class ActuationPolicyService {
+  private static readonly DICTATION_TEXT_ENTRY_COMMANDS = new Set<string>([
+    "COMMAND_TYPE_INSERT",
+    "COMMAND_TYPE_PASTE",
+    "COMMAND_TYPE_PRESS",
+    "COMMAND_TYPE_CLIPBOARD",
+    "COMMAND_TYPE_COPY",
+  ]);
+
   private log: Log;
 
   constructor(log: Log) {
@@ -480,13 +488,15 @@ export default class ActuationPolicyService {
   ): string | null {
     // Dictation mode is not an operating-command execution lane.
     // Reflex remains available for safety.
-    // Exception: allow pure insert flows so dictated text can be committed.
+    // Exception: allow text-entry editing flows so dictated text can be committed.
     if (context.interactionMode === "dictation" && dispatchRoute !== "reflex_local") {
       const commandTypes = Array.isArray(context.commandTypes) ? context.commandTypes : [];
-      const pureInsertFlow =
+      const dictationTextEntryFlow =
         commandTypes.length > 0 &&
-        commandTypes.every((type) => String(type).toUpperCase() === "COMMAND_TYPE_INSERT");
-      if (pureInsertFlow) {
+        commandTypes.every((type) =>
+          ActuationPolicyService.DICTATION_TEXT_ENTRY_COMMANDS.has(String(type).toUpperCase())
+        );
+      if (dictationTextEntryFlow) {
         return null;
       }
       return "non_reflex_route_blocked_in_dictation_mode";
