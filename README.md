@@ -120,6 +120,28 @@ Expected behavior now:
 
 If logs show `No module named 'vllm'`, install `vllm` in the same Python environment used by `MAESTRO_QWEN3_PYTHON_PATH`.
 
+## Runbook: Qwen3 Bridge Mode Hardening (No Sidecar)
+
+Use this to validate the local bridge contract (`sidecarMode=local`) before live dictation sessions.
+
+```bash
+cd ~/Projects/arqon/ArqonMaestro/maestro/client
+export MAESTRO_QWEN3_BRIDGE_PATH=~/Projects/arqon/arqon-maestro-asr/scripts/maestro_qwen3_bridge.py
+export MAESTRO_QWEN3_PROJECT_ROOT=~/Projects/arqon/arqon-maestro-asr
+export MAESTRO_QWEN3_MODEL_PATH=~/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-0.6B
+export MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python
+./scripts/qwen3_bridge_hardening.sh
+```
+
+What this checks:
+- bridge `--help` contract
+- empty stdin -> structured `{"ok": false, "error": "empty_audio"}`
+- malformed WAV stdin -> structured `audio_format_invalid`
+- missing model path -> structured failure JSON
+- sequential/parallel schema stability checks
+
+If this script fails, treat it as a gate failure for Qwen3 bridge-mode dictation until fixed.
+
 ## Supported Operation Modes
 
 ### Cloud-backed mode

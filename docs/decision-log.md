@@ -840,6 +840,20 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-057: Qwen3 Dictation Bridge-Mode Contract Is Canonical Baseline (No Sidecar Required)
+
+- **Date**: 2026-03-28
+- **Status**: Accepted
+- **Decision**: For Qwen3 dictation stabilization, the canonical baseline is local bridge mode (`arqon_asr_qwen3_mode=local`) using the external bridge script in `arqon-maestro-asr` when available. Sidecar mode remains optional and non-baseline for this hardening cycle.
+- **Why**: The sidecar path introduced additional startup/warmup and operability risk while bridge contract correctness remained the critical blocker. A bridge-first baseline gives deterministic subprocess contract validation and faster incident isolation.
+- **Consequences**:
+  - bridge resolution order is locked: `MAESTRO_QWEN3_BRIDGE_PATH` -> `~/Projects/arqon/arqon-maestro-asr/scripts/maestro_qwen3_bridge.py` -> client-local fallback bridge script
+  - bridge contract hardening is now an explicit gate with schema/error determinism checks
+  - `maestro/client/scripts/qwen3_bridge_hardening.sh` is the runbook automation entrypoint for quick contract and reliability probes
+  - sidecar mode may still be used for experimentation, but failures in sidecar mode do not redefine the baseline contract
+
+---
+
 ## Template for Future Decisions
 
 ```markdown
