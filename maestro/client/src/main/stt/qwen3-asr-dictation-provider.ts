@@ -123,10 +123,21 @@ function defaultBridgeScriptPath(): string {
   if (process.env.MAESTRO_QWEN3_BRIDGE_PATH) {
     return resolveHomePath(process.env.MAESTRO_QWEN3_BRIDGE_PATH);
   }
-  return path.resolve(
-    process.cwd(),
-    "src/main/stt/qwen3_asr_bridge.py"
-  );
+
+  const candidates = [
+    "~/Projects/arqon/arqon-maestro-asr/scripts/maestro_qwen3_bridge.py",
+    path.resolve(process.cwd(), "src/main/stt/qwen3_asr_bridge.py"),
+  ].map(resolveHomePath);
+
+  const existing = candidates.find((candidate) => {
+    try {
+      return fsSync.existsSync(candidate);
+    } catch (_error) {
+      return false;
+    }
+  });
+
+  return existing || candidates[0];
 }
 
 function defaultModelPath(): string {
