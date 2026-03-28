@@ -18,14 +18,23 @@
  * - Rust-based driver implementation
  */
 
-import { spawnSync, execSync } from "child_process";
+import { spawn, spawnSync, execSync } from "child_process";
 import * as os from "os";
+
+function syncTimeoutMs(): number {
+  const raw = Number(process.env.ARQON_DRIVER_SYNC_TIMEOUT_MS || "700");
+  if (!Number.isFinite(raw)) {
+    return 700;
+  }
+  return Math.max(250, Math.floor(raw));
+}
 
 function xprop(args: string[]): string {
   try {
     const result = spawnSync("xprop", args, {
       encoding: "utf8",
       env: process.env,
+      timeout: syncTimeoutMs(),
     });
     if (result.status === 0) {
       return result.stdout.trim();
@@ -166,7 +175,44 @@ export function getEditorState(): Promise<any> {
   return Promise.resolve({});
 }
 
-export function focusApplication(name: string, aliases?: { [key: string]: string }): void {
+function runProcessWithTimeout(
+  command: string,
+  args: string[],
+  timeoutMs: number,
+  env?: NodeJS.ProcessEnv
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      env: env || process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve(ok);
+    };
+
+    const timer = setTimeout(() => {
+      try {
+        child.kill("SIGKILL");
+      } catch (_error) {}
+      finish(false);
+    }, Math.max(250, timeoutMs));
+
+    child.once("error", () => finish(false));
+    child.once("close", (code) => finish(code === 0));
+  });
+}
+
+export async function focusApplication(
+  name: string,
+  aliases?: { [key: string]: string }
+): Promise<void> {
   const platform = os.platform();
   
   // Resolve alias if provided
@@ -199,33 +245,40 @@ export function focusApplication(name: string, aliases?: { [key: string]: string
   if (platform === "linux") {
     try {
       console.log("[arqon-driver] focusApplication called:", target, "class:", windowClass, "display:", display);
-      // Use the CHAINED command format - this is more reliable!
-      // xdotool search --class <name> windowactivate
-      // This runs search, then immediately activates the first match
-      const result = spawnSync("xdotool", ["search", "--onlyvisible", "--class", windowClass, "windowactivate"], { 
-        encoding: "utf8",
-        env: { ...process.env, DISPLAY: display }
-      });
-      
-      if (result.status === 0) {
+      const env = { ...process.env, DISPLAY: display };
+      const timeoutMs = Number(process.env.ARQON_DRIVER_FOCUS_PROC_TIMEOUT_MS || "1200");
+
+      const byClass = await runProcessWithTimeout(
+        "xdotool",
+        ["search", "--onlyvisible", "--class", windowClass, "windowactivate"],
+        timeoutMs,
+        env
+      );
+
+      if (byClass) {
         console.log("[arqon-driver] Focused window via xdotool class:", windowClass);
         return;
       }
       
-      // Try window name as fallback
-      const nameResult = spawnSync("xdotool", ["search", "--onlyvisible", "--name", target, "windowactivate"], { 
-        encoding: "utf8",
-        env: { ...process.env, DISPLAY: display }
-      });
-      
-      if (nameResult.status === 0) {
+      const byName = await runProcessWithTimeout(
+        "xdotool",
+        ["search", "--onlyvisible", "--name", target, "windowactivate"],
+        timeoutMs,
+        env
+      );
+
+      if (byName) {
         console.log("[arqon-driver] Focused window via xdotool name:", target);
         return;
       }
       
-      // Last resort: try wmctrl
-      const wmctrlResult = spawnSync("wmctrl", ["-a", target], { encoding: "utf8" });
-      if (wmctrlResult.status === 0) {
+      const byWmctrl = await runProcessWithTimeout(
+        "wmctrl",
+        ["-a", target],
+        timeoutMs,
+        env
+      );
+      if (byWmctrl) {
         console.log("[arqon-driver] Focused window via wmctrl:", target);
         return;
       }
@@ -292,7 +345,8 @@ export function getRunningApplications(): Promise<string[]> {
     try {
       // Use xdotool to get the class name of all visible windows
       const result = spawnSync("xdotool", ["search", "--onlyvisible", "--class", ".*"], { 
-        encoding: "utf8" 
+        encoding: "utf8",
+        timeout: syncTimeoutMs(),
       });
       
       if (result.status === 0 && result.stdout) {
@@ -304,7 +358,8 @@ export function getRunningApplications(): Promise<string[]> {
         for (const windowId of windowIds) {
           try {
             const classResult = spawnSync("xdotool", ["getwindowprop", "--shell", windowId, "WM_CLASS"], {
-              encoding: "utf8"
+              encoding: "utf8",
+              timeout: syncTimeoutMs(),
             });
             if (classResult.status === 0 && classResult.stdout) {
               // WM_CLASS returns lines like: WM_CLASS(STRING) = "gnome-terminal-server", "Gnome-terminal"

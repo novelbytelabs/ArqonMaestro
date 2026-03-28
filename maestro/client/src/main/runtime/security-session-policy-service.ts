@@ -298,6 +298,10 @@ export default class SecuritySessionPolicyService {
   }
 
   private applyUnknownRateGuard(nowMs: number): void {
+    if (process.env.ARQON_SECURITY_UNKNOWN_RATE_GUARD_DISABLED === "1") {
+      return;
+    }
+
     if (nowMs - this.lastManualModeSetAtMs < MANUAL_MODE_RATE_GUARD_COOLDOWN_MS) {
       return;
     }

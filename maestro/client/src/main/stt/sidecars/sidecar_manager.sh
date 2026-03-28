@@ -164,14 +164,20 @@ preflight_check() {
 warmup_sidecar() {
     local sidecar=$1
     local port=$2
+    local attempts=${3:-24}
+    local sleep_seconds=${4:-5}
 
     log_info "Warming up ${sidecar} sidecar..."
-    if curl -s -f "http://localhost:${port}/health" > /dev/null 2>&1; then
-        log_info "✓ ${sidecar} warmup complete"
-        return 0
-    fi
+    local i
+    for ((i=1; i<=attempts; i++)); do
+        if curl -s -f "http://localhost:${port}/health" > /dev/null 2>&1; then
+            log_info "✓ ${sidecar} warmup complete"
+            return 0
+        fi
+        sleep "${sleep_seconds}"
+    done
 
-    log_warn "⚠ Warmup probe failed"
+    log_warn "⚠ Warmup probe failed after ${attempts} attempts"
     return 1
 }
 
@@ -231,7 +237,9 @@ start_parakeet() {
         log_info "Log: /tmp/parakeet_sidecar.log"
         
         # Run warmup
-        warmup_sidecar "parakeet" "$PARAKEET_PORT" "$PARAKEET_MODEL_PATH"
+        if ! warmup_sidecar "parakeet" "$PARAKEET_PORT"; then
+            log_warn "Parakeet started but is not healthy yet; check /tmp/parakeet_sidecar.log"
+        fi
     else
         log_error "Failed to start Parakeet sidecar"
         log_error "Check /tmp/parakeet_sidecar.log for details"
@@ -295,7 +303,9 @@ start_qwen3() {
         log_info "Log: /tmp/qwen3_sidecar.log"
         
         # Run warmup
-        warmup_sidecar "qwen3" "$QWEN3_PORT" "$QWEN3_MODEL_PATH"
+        if ! warmup_sidecar "qwen3" "$QWEN3_PORT"; then
+            log_warn "Qwen3 started but is not healthy yet; check /tmp/qwen3_sidecar.log"
+        fi
     else
         log_error "Failed to start Qwen3 sidecar"
         log_error "Check /tmp/qwen3_sidecar.log for details"

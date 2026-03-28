@@ -40,6 +40,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--stdin", action="store_true", help="Accept raw PCM16 via stdin")
     parser.add_argument("--model-path", required=True, help="Path to Qwen3 ASR model directory")
     parser.add_argument("--device", default="cuda", help="Device name (cpu/cuda) for local mode")
+    parser.add_argument(
+        "--gpu-memory-utilization",
+        type=float,
+        default=float(os.environ.get("MAESTRO_QWEN3_GPU_MEMORY_UTILIZATION", "0.6")),
+        help="vLLM GPU memory utilization target (0.0-1.0)",
+    )
+    parser.add_argument(
+        "--max-model-len",
+        type=int,
+        default=int(os.environ.get("MAESTRO_QWEN3_MAX_MODEL_LEN", "8192")),
+        help="vLLM max model length to reduce memory footprint on smaller GPUs",
+    )
     # Sidecar mode: HTTP server
     parser.add_argument("--server", action="store_true", help="Run as HTTP sidecar server")
     parser.add_argument("--port", type=int, default=5002, help="Server port")
@@ -204,7 +216,12 @@ def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[s
         return None, "inference_failed"
 
 
-def load_qwen3_model(model_path: str, device: str):
+def load_qwen3_model(
+    model_path: str,
+    device: str,
+    gpu_memory_utilization: float,
+    max_model_len: int,
+):
     """
     Load Qwen3 ASR model from path using natively configured vllm multimodal LLM.
     """
@@ -221,8 +238,14 @@ def load_qwen3_model(model_path: str, device: str):
             log_stderr(f"Model path does not exist: {model_path}")
             raise FileNotFoundError(f"Model directory not found: {model_path}")
         
-        # Load Qwen3 ASR model using vllm
-        model = LLM(model=model_path, trust_remote_code=True)
+        llm_kwargs = {
+            "model": model_path,
+            "trust_remote_code": True,
+        }
+        if device == "cuda":
+            llm_kwargs["gpu_memory_utilization"] = gpu_memory_utilization
+            llm_kwargs["max_model_len"] = max_model_len
+        model = LLM(**llm_kwargs)
         return model
         
     except FileNotFoundError as e:
@@ -318,7 +341,12 @@ def main() -> int:
     if args.server:
         # Load model first (preload at boot)
         try:
-            model = load_qwen3_model(args.model_path, args.device)
+            model = load_qwen3_model(
+                args.model_path,
+                args.device,
+                args.gpu_memory_utilization,
+                args.max_model_len,
+            )
             log_stderr(f"Model loaded: {args.model_path}")
         except RuntimeError as e:
             print_json({
@@ -366,7 +394,12 @@ def main() -> int:
     
     # Step 3: Load model
     try:
-        model = load_qwen3_model(args.model_path, args.device)
+        model = load_qwen3_model(
+            args.model_path,
+            args.device,
+            args.gpu_memory_utilization,
+            args.max_model_len,
+        )
     except RuntimeError as e:
         print_json({
             "ok": False,

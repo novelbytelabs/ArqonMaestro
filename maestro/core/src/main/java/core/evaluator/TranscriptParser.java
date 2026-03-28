@@ -40,9 +40,11 @@ public class TranscriptParser {
   private Logger logger = LoggerFactory.getLogger(TranscriptParser.class);
   private static Pattern reparseDictatePattern = Pattern.compile(
     "^(" +
-    "(stop (insert|dictate|type)( mode)?)|" +
+    "(dictate mode)|" +
+    "(dictation mode)|" +
+    "(ditation mode)|" +
+    "(start dictate)|(start dictation)|" +
     "((insert|dictate|type) mode off)|" +
-    "(stop dictating)|" +
     "(normal mode)|" +
     "(command mode)|" +
     "(pause)|(stop listening)|" +

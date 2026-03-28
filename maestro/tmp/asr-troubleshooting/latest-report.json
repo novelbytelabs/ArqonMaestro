@@ -1,0 +1,31 @@
+{
+  "paths": {
+    "python": "/home/irbsurfer/miniconda3/envs/helios-gpu-118/bin/python",
+    "bridge": "/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/stt/qwen3_asr_bridge.py",
+    "base_model": "/home/irbsurfer/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-0.6B",
+    "adapter": "/home/irbsurfer/Projects/arqon/arqon-maestro-asr/models/adapters/arqon-maestro-asr-0.6b-lora",
+    "test_audio": "/home/irbsurfer/Projects/arqon/arqon-maestro-asr/benchmarks/test_audio/test_michael.wav"
+  },
+  "exists": {
+    "python": true,
+    "bridge": true,
+    "base_model": true,
+    "adapter": true,
+    "test_audio": true
+  },
+  "bridge_silence_preflight": {
+    "exit_code": 1,
+    "stdout": "{\"ok\": false, \"error\": \"empty_audio\", \"retryable\": true}",
+    "stderr": "The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.\nApplying adapter: /home/irbsurfer/Projects/arqon/arqon-maestro-asr/models/adapters/arqon-maestro-asr-0.6b-lora\nSetting `pad_token_id` to `eos_token_id`:151645 for open-end generation."
+  },
+  "bridge_real_audio": {
+    "exit_code": 0,
+    "stdout": "{\"ok\": true, \"text\": \"Hello. This is a test.\", \"model\": \"/home/irbsurfer/Projects/arqon/arqon-maestro-asr/models/upstream/Qwen3-ASR-0.6B\", \"device\": \"cuda\"}",
+    "stderr": "The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.\nApplying adapter: /home/irbsurfer/Projects/arqon/arqon-maestro-asr/models/adapters/arqon-maestro-asr-0.6b-lora\nSetting `pad_token_id` to `eos_token_id`:151645 for open-end generation."
+  },
+  "direct_adapter_load": {
+    "exit_code": 0,
+    "stdout": "{\"device\": \"cuda\", \"result_count\": 1, \"text\": \"Hello. This is a test.\"}",
+    "stderr": "The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.\nSetting `pad_token_id` to `eos_token_id`:151645 for open-end generation."
+  }
+}

@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import wave
 from typing import Optional, Tuple
 
@@ -35,6 +36,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--audio", help="Path to WAV audio file")
     parser.add_argument("--stdin", action="store_true", help="Accept raw PCM16 via stdin")
     parser.add_argument("--model-path", required=True, help="Path to Qwen3 ASR model directory")
+    parser.add_argument("--model-size", choices=["0.6b", "1.7b"], default="1.7b",
+                        help="Model size profile for adapter-based loading")
+    parser.add_argument("--use-adapter", action="store_true",
+                        help="Load LoRA adapter for Maestro dictation model when available")
+    parser.add_argument("--adapter-path", default="", help="Optional explicit adapter directory path")
+    parser.add_argument("--project-root", default="",
+                        help="Optional Arqon Maestro ASR project root for resolving model/adapter paths")
     parser.add_argument("--mode", required=True, choices=["local", "vllm_service"],
                         help="Inference mode: local or vllm_service")
     parser.add_argument("--device", default="cuda", help="Device name (cpu/cuda) for local mode")
@@ -167,7 +175,7 @@ def normalize_pcm16_to_float32(audio_bytes: bytes) -> Tuple[Optional[list], Opti
         return None, "audio_format_invalid"
 
 
-def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[str]]:
+def transcribe_local(model, audio_data: list, backend: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Run local inference on Qwen3 model using vLLM.
     
@@ -176,30 +184,49 @@ def transcribe_local(model, audio_data: list) -> Tuple[Optional[str], Optional[s
     """
     try:
         import numpy as np
-        
+
         # Convert list back to numpy array
         audio_np = np.array(audio_data, dtype=np.float32)
-        
-        # Run the model - Qwen3 ASR using vllm LLM multimodal interface
-        outputs = model.generate({
-            "prompt": "<|audio|>\ntranscribe",
-            "multi_modal_data": {
-                "audio": (audio_np, 16000)
-            }
-        })
-        
-        if outputs and len(outputs) > 0:
-            text = outputs[0].outputs[0].text
+
+        if backend == "qwen_asr":
+            # qwen-asr path expects audio files; materialize a short-lived wav.
+            pcm = np.clip(audio_np, -1.0, 1.0)
+            pcm = (pcm * 32767.0).astype(np.int16)
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
+                temp_path = temp_wav.name
+            try:
+                with wave.open(temp_path, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(16000)
+                    wf.writeframes(pcm.tobytes())
+                results = model.transcribe(audio=temp_path)
+                text = ""
+                if results and len(results) > 0:
+                    first = results[0]
+                    text = getattr(first, "text", "") or ""
+            finally:
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
         else:
-            text = ""
-            
+            # vLLM multimodal inference path
+            outputs = model.generate({
+                "prompt": "<|audio|>\ntranscribe",
+                "multi_modal_data": {
+                    "audio": (audio_np, 16000)
+                }
+            })
+            if outputs and len(outputs) > 0:
+                text = outputs[0].outputs[0].text
+            else:
+                text = ""
+
         text = text.strip()
-        
         if not text:
             return None, "empty_audio"
-        
         return text, None
-        
     except TimeoutError as e:
         return None, "timeout"
     except Exception as e:
@@ -269,35 +296,70 @@ def transcribe_vllm_service(audio_bytes: bytes, endpoint: str, model_path: str) 
         return None, "inference_failed"
 
 
-def load_qwen3_model(model_path: str, device: str):
+def resolve_maestro_paths(args: argparse.Namespace) -> Tuple[str, Optional[str]]:
+    model_path = args.model_path
+    adapter_path = args.adapter_path or None
+    if not args.project_root:
+        return model_path, adapter_path
+
+    root = args.project_root
+    size = args.model_size
+    base_dir = os.path.join(root, "models", "upstream", f"Qwen3-ASR-{size.upper()}")
+    derived_adapter = os.path.join(root, "models", "adapters", f"arqon-maestro-asr-{size}-lora")
+    if os.path.isdir(base_dir):
+        model_path = base_dir
+    if args.use_adapter and not adapter_path and os.path.isdir(derived_adapter):
+        adapter_path = derived_adapter
+    return model_path, adapter_path
+
+
+def load_qwen3_model(model_path: str, device: str, use_adapter: bool = False, adapter_path: Optional[str] = None):
     """
     Load Qwen3 ASR model from path using vllm multimodal LLM.
     """
-    try:
-        # Import vllm LLM
+    if not os.path.isdir(model_path):
+        log_stderr(f"Model path does not exist: {model_path}")
+        raise RuntimeError(f"model_load_failed: Model directory not found: {model_path}")
+
+    # Adapter-aware path using qwen-asr + peft.
+    if use_adapter or adapter_path:
         try:
-            from vllm import LLM
-        except ImportError as e:
-            log_stderr(f"Missing dependency: {e}")
-            raise RuntimeError("vllm not installed") from e
-        
-        # Check if model path exists
-        if not os.path.isdir(model_path):
-            log_stderr(f"Model path does not exist: {model_path}")
-            raise FileNotFoundError(f"Model directory not found: {model_path}")
-        
-        # Load Qwen3 model using native vLLM
+            import torch
+            from peft import PeftModel
+            from qwen_asr import Qwen3ASRModel
+
+            dtype = torch.float16 if device == "cuda" else torch.float32
+            model = Qwen3ASRModel.from_pretrained(
+                model_path,
+                device_map=device,
+                dtype=dtype,
+                max_inference_batch_size=1,
+                max_new_tokens=256
+            )
+
+            if use_adapter and adapter_path:
+                if os.path.isdir(adapter_path):
+                    log_stderr(f"Applying adapter: {adapter_path}")
+                    model.model.thinker = PeftModel.from_pretrained(model.model.thinker, adapter_path)
+                else:
+                    log_stderr(f"Adapter requested but not found: {adapter_path}")
+            model.model.eval()
+            return model, "qwen_asr"
+        except Exception as e:
+            raise RuntimeError(f"model_load_failed: {e}") from e
+
+    # Default path using vLLM multimodal.
+    try:
+        from vllm import LLM
         model = LLM(model=model_path, trust_remote_code=True)
-        return model
-        
-    except FileNotFoundError as e:
-        raise RuntimeError(f"model_load_failed: {e}") from e
+        return model, "vllm"
     except Exception as e:
         raise RuntimeError(f"model_load_failed: {e}") from e
 
 
 def main() -> int:
     args = parse_args()
+    resolved_model_path, resolved_adapter_path = resolve_maestro_paths(args)
     
 
     # Step 1: Load and validate audio
@@ -328,7 +390,12 @@ def main() -> int:
     if args.mode == "local":
         # Load model
         try:
-            model = load_qwen3_model(args.model_path, args.device)
+            model, backend = load_qwen3_model(
+                resolved_model_path,
+                args.device,
+                use_adapter=args.use_adapter,
+                adapter_path=resolved_adapter_path,
+            )
         except RuntimeError:
             print_json({
                 "ok": False,
@@ -345,7 +412,7 @@ def main() -> int:
             return 1
 
         # Run local inference
-        text, error_code = transcribe_local(model, audio_float)
+        text, error_code = transcribe_local(model, audio_float, backend)
         if error_code:
             retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
             print_json({
@@ -358,13 +425,13 @@ def main() -> int:
         print_json({
             "ok": True,
             "text": text,
-            "model": args.model_path,
+            "model": resolved_model_path,
             "device": args.device
         })
         return 0
 
     if args.mode == "vllm_service":
-        text, error_code = transcribe_vllm_service(audio_bytes, args.endpoint or "", args.model_path)
+        text, error_code = transcribe_vllm_service(audio_bytes, args.endpoint or "", resolved_model_path)
         if error_code:
             retryable, _ = ERROR_CODES.get(error_code, (False, "Unknown error"))
             print_json({
@@ -377,7 +444,7 @@ def main() -> int:
         print_json({
             "ok": True,
             "text": text,
-            "model": args.model_path,
+            "model": resolved_model_path,
             "device": "remote"
         })
         return 0

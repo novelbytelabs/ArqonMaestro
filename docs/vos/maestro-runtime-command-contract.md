@@ -113,11 +113,13 @@ Possible values:
 
 | Lane      | Meaning                 |
 | --------- | ----------------------- |
-| command   | deterministic command   |
-| dictation | free text input         |
-| cognition | AI reasoning            |
-| chooser   | disambiguation overlay  |
-| repair    | correction commands     |
+| command   | deterministic command execution |
+| dictation | free text input |
+| conversation | recipient-targeted cognitive dialogue |
+| translation | multilingual transform workflows |
+| search_explore | structured retrieval/navigation |
+| chooser   | disambiguation overlay |
+| repair    | correction commands |
 | system    | internal system control |
 
 Example:
@@ -126,7 +128,38 @@ Example:
 "lane": "command"
 ```
 
-Most Maestro operations run in the **command lane**.
+Most operating actions run in the **command lane**.
+
+---
+
+# 4A. Recipient Field (Conversation/Search Extension)
+
+For conversation and search/explore turns, the runtime contract may include recipient targeting.
+
+Example:
+
+```
+"recipient": {
+  "raw": "@oracle",
+  "resolved_id": "oracle",
+  "class": "oracle"
+}
+```
+
+Recipient classes:
+
+| Class | Meaning |
+| ----- | ------- |
+| nexus | Nexus assistant recipient |
+| oracle | Reflex + Continuum memory/retrieval profile |
+| local_llm | local model endpoint |
+| remote_llm | hosted model endpoint |
+| agent | named/role agent endpoint |
+
+Important boundary:
+
+* recipient does not grant execution authority
+* command-lane commands still own mode switching, recipient switching, and actuation triggers
 
 ---
 
@@ -562,6 +595,87 @@ Contract:
   "confirmation_required": false,
   "reversible": true,
   "executor_candidates": ["filesystem_executor"]
+}
+```
+
+---
+
+### Example 3 (Conversation Recipient Turn)
+
+Speech:
+
+```
+at nexus what do you think of this strategy
+```
+
+Contract:
+
+```
+{
+  "lane": "conversation",
+  "recipient": {
+    "raw": "@nexus",
+    "resolved_id": "nexus",
+    "class": "nexus"
+  },
+  "verb": "ask",
+  "object": {
+    "type": "prompt",
+    "name": "strategy_review"
+  },
+  "binding": {
+    "strategy": "recipient_router",
+    "resolved_id": "recipient.nexus"
+  },
+  "scope": null,
+  "modifiers": [],
+  "postfix": [],
+  "confidence": 0.93,
+  "confirmation_required": false,
+  "reversible": false,
+  "executor_candidates": ["conversation_router"]
+}
+```
+
+---
+
+### Example 4 (Search/Explore Recipient Turn)
+
+Speech:
+
+```
+at oracle find the name of our calculator function
+```
+
+Contract:
+
+```
+{
+  "lane": "search_explore",
+  "recipient": {
+    "raw": "@oracle",
+    "resolved_id": "oracle",
+    "class": "oracle"
+  },
+  "verb": "find",
+  "object": {
+    "type": "entity",
+    "name": "calculator function name"
+  },
+  "binding": {
+    "strategy": "retrieval",
+    "resolved_id": "retrieval.reflex_oracle"
+  },
+  "scope": {
+    "type": "workspace",
+    "value": "project"
+  },
+  "modifiers": [],
+  "postfix": [],
+  "confidence": 0.89,
+  "confirmation_required": false,
+  "reversible": false,
+  "executor_candidates": ["search_explore_router"]
 }
 ```
 

@@ -9,8 +9,16 @@ The objective is to stabilize first, then remove obsolete software, then integra
 ## Direction Lock (Non-Negotiable)
 
 - Maestro speech is lane-split by design.
+- Canonical interaction lanes are:
+  - command lane
+  - dictation lane
+  - conversation lane
+  - translation lane
+  - search/explore lane
 - Command lane is a control system, not a generic transcription path.
 - Dictation lane is a separate text-entry system.
+- Conversation lane v1 is cascaded: `ASR -> Nexus -> TTS` (transcript-first/audit-first).
+- Search/explore lane is structured intent + tool driven, not freeform command expansion.
 - Command-lane architecture is full-stack:
   - CTC acoustic model
   - constrained decoder (`WFST` / Flashlight / equivalent)
@@ -19,6 +27,16 @@ The objective is to stabilize first, then remove obsolete software, then integra
   - deterministic bounded rejection
 - `Parakeet-CTC` is the first command-lane acoustic candidate inside this stack.
 - `Qwen3-ASR` remains a dictation-lane candidate subject to local performance/usability validation.
+
+## Planning Addendum (2026-03-27)
+
+This plan remains the command/dictation stabilization track. It now explicitly feeds a broader lane model:
+
+- command and dictation stabilization are still the immediate execution priority
+- conversation lane must launch first as cascaded `Qwen3-ASR -> Nexus -> TTS`
+- translation lane should be implemented as explicit translate workflows, not implicit command behavior
+- search/explore lane should be implemented as strict structured verbs routed to ArqonMCP/retrieval tools
+- speech-native conversation model experiments (for example `Qwen3-Omni`) are deferred until cascaded conversation lane stability is proven
 
 ## Environment and Safety Policy
 

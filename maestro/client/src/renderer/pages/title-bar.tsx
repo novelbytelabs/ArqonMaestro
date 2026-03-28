@@ -21,14 +21,17 @@ const TitleBarComponent: React.FC<{
 }) => {
   const [maximized, setMaximized] = useState(false);
   const titleText = useMemo(() => {
-    const activeInteraction = listening && securityLastLifecyclePhase === "activated";
-    if (!activeInteraction) {
+    const displayName = (securityIdentityDisplayName || "").trim();
+    if (!listening) {
       return "Arqon Maestro";
     }
-    if (securityIdentityState === "verified_primary" || securityIdentityState === "verified_secondary") {
-      return securityIdentityDisplayName || "Unknown";
+    if (displayName) {
+      return displayName;
     }
-    return "Unknown";
+    if (securityLastLifecyclePhase === "activated") {
+      return "Unknown";
+    }
+    return "Arqon Maestro";
   }, [listening, securityIdentityDisplayName, securityIdentityState, securityLastLifecyclePhase]);
 
   const minimize = (e: React.MouseEvent) => {

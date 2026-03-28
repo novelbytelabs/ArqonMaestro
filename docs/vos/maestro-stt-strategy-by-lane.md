@@ -1,4 +1,4 @@
-# Maestro STT Strategy By Lane v0.1
+# Maestro STT Strategy By Lane v0.2
 
 ## Purpose
 
@@ -9,12 +9,14 @@ A Voice Operating System has multiple speech jobs with different success criteri
 * reflex interruption
 * deterministic command recognition
 * accurate dictation
-* speaker-aware secure operation
+* spoken conversation
+* translation
+* structured search/exploration
 * degraded-mode survivability
 
 This document defines:
 
-* the STT lanes Maestro should support
+* the lane model Maestro should support
 * what each lane optimizes for
 * which lanes must remain local
 * how lane routing interacts with the hot path
@@ -35,17 +37,18 @@ Examples:
 
 * the best engine for `stop` is the one that is fastest and safest
 * the best engine for `enter dictation` is not necessarily the best engine for writing a paragraph
-* the best engine for secure execution may need stronger speaker-aware metadata even if it is not the fastest
+* the best engine for conversation should preserve clear transcript and boundary control
+* search/explore quality depends on structured tool intent precision, not transcript prose quality alone
 
 So Maestro should optimize speech recognition by lane, not by one global leaderboard.
 
 ---
 
-# 2. Lane model
+# 2. Canonical lane model (v0.2)
 
-For v0.1, Maestro should support at least three explicit STT lanes and one optional degraded sub-lane.
+Maestro uses five canonical interaction lanes and one optional degraded command sub-lane.
 
-## A. `command_fast`
+## A. `command_lane`
 
 Purpose:
 
@@ -61,7 +64,7 @@ Optimizes for:
 * low ambiguity
 * hot-path compatibility
 
-## B. `dictation_accurate`
+## B. `dictation_lane`
 
 Purpose:
 
@@ -76,38 +79,82 @@ Optimizes for:
 * longer utterance handling
 * lower false command rate
 
-## C. `secure_speaker_aware`
+## C. `conversation_lane`
 
 Purpose:
 
-* medium/high-impact commands in secure or shared-room modes
-* cases where speaker-aware metadata is materially important
+* spoken back-and-forth with Nexus
+* contextual Q&A, planning, and explanation
+* natural turn-by-turn voice interaction
 
-Optimizes for:
+v1 architecture lock:
 
-* identity-aware signal quality
-* lower false-positive command acceptance
-* conservative gating behavior
+* `speech in -> ASR -> Nexus -> TTS`
+* first hearing candidate: `Qwen3-ASR`
+* reasoning authority remains with Nexus
 
-## D. `degraded_command`
+Near-term experiment track (not v1 default):
+
+* evaluate speech-native realtime models (for example `Qwen3-Omni`) only after cascaded lane stability is proven
+
+## D. `translation_lane`
 
 Purpose:
 
-* emergency or fallback command path when primary command STT is unavailable or over budget
+* speech-to-text translation and text-to-text translation workflows
+* multilingual dictation transfer
+* bounded translate-and-confirm loops
 
 Optimizes for:
 
-* a small, reliable control vocabulary
+* translation faithfulness
+* language identification confidence
+* low ambiguity between "translate" and "execute" intents
+
+## E. `search_explore_lane`
+
+Purpose:
+
+* retrieval and exploration tasks over docs, web, code, and system state
+* multi-step evidence gathering without conflating with execution commands
+
+Optimizes for:
+
+* structured exploration intents
+* strict tool routing and provenance
+* deterministic action boundaries
+
+Canonical verbs:
+
+* search
+* find
+* open
+* filter
+* compare
+* summarize
+* expand
+* follow
+* inspect
+
+## Optional degraded sub-lane: `degraded_command`
+
+Purpose:
+
+* emergency fallback when the primary command lane is unavailable or over budget
+
+Optimizes for:
+
+* a tiny, reliable control vocabulary
 * minimal dependency footprint
 
 This is not a full-feature lane.
-It is a survivability lane.
+It is a survivability sub-lane for command continuity.
 
 ---
 
 # 3. The lane-routing rule
 
-Maestro should decide STT lane from:
+Maestro should decide lane from:
 
 * current interaction mode
 * security mode
@@ -118,17 +165,19 @@ Maestro should decide STT lane from:
 
 ## Typical routing
 
-* command mode -> `command_fast`
-* chooser mode -> `command_fast`
-* repair lane -> `command_fast`
-* dictation mode -> `dictation_accurate`
-* secure/shared-room + sensitive action path -> `secure_speaker_aware`
+* command mode -> `command_lane`
+* chooser mode -> `command_lane`
+* repair lane -> `command_lane`
+* dictation mode -> `dictation_lane`
+* conversational turn mode -> `conversation_lane`
+* translation workflows -> `translation_lane`
+* retrieval/exploration workflows -> `search_explore_lane`
 
 If uncertainty remains, Maestro should prefer a safer lane rather than a more permissive one.
 
 ---
 
-# 4. Command-fast lane
+# 4. Command lane
 
 This is the most important lane for VOS feel.
 
@@ -142,7 +191,7 @@ This is the most important lane for VOS feel.
 
 ## Near-term baseline
 
-The command-fast baseline is now explicitly **customization-first**:
+The command lane baseline is customization-first:
 
 * modern CTC acoustic front end (`Conformer-CTC` or `Parakeet-CTC` class)
 * constrained decoding (`WFST` / Flashlight / equivalent)
@@ -153,12 +202,6 @@ Candidate sequencing in this architecture:
 
 * `Parakeet-CTC` is the first acoustic candidate to test.
 * This is candidate order only, not architecture ownership by one model.
-
-This aligns with Maestro's control-plane requirements:
-
-* deterministic command rejection
-* grammar-aware command interpretation
-* command vocabulary control without forcing dictation-oriented decoding behavior
 
 ## Success criteria
 
@@ -173,7 +216,7 @@ This aligns with Maestro's control-plane requirements:
 
 ---
 
-# 5. Dictation-accurate lane
+# 5. Dictation lane
 
 Dictation should not be forced through the command lane.
 
@@ -195,39 +238,74 @@ In dictation mode, ambiguous speech should prefer text over command execution un
 
 This lane should remain benchmark-driven and provider-flexible for now.
 
-Do not freeze one engine just because it is the command-fast baseline.
+Do not freeze one engine just because it is the command baseline.
 Dictation-lane provider choices do not own or redefine command-lane architecture.
 
 ---
 
-# 6. Secure speaker-aware lane
+# 6. Conversation lane
 
-This lane exists because security-sensitive voice control has different constraints than ordinary command recognition.
+The conversation lane is spoken interaction, not command-lane replacement.
 
-## Requirements
+## v1 architecture
 
-* integrates with speaker verification state
-* is conservative under contamination
-* supports stronger confidence thresholds
-* produces metadata useful for identity gating
+* `speech in -> ASR -> Nexus -> TTS`
+* transcript-first and audit-first by default
+* use the same policy and telemetry envelope shape as other lanes
 
-## Important boundary
+## Why cascaded first
 
-This lane does not replace authorization.
+* preserves transcript auditability
+* keeps reasoning boundaries explicit (`Nexus` remains the reasoning authority)
+* avoids hidden speech-native interpretation drift in early runtime hardening
 
-It improves the speech-side evidence used by authorization and policy.
+## Later experiment track
 
-## Use cases
-
-* secure mode with medium/high-risk actions
-* shared-room mode when the command would otherwise be allowed
-* elevated confirmation flows
+After v1 stability gates pass, evaluate speech-native realtime models as an additive experiment path.
 
 ---
 
-# 7. Degraded command lane
+# 7. Translation lane
 
-If Maestro loses its main command STT path, it should not become completely voiceless.
+Translation is a first-class interaction lane rather than a dictation side-effect.
+
+## Requirements
+
+* explicit source and target language handling
+* bounded "translate vs execute" disambiguation
+* safe handoff to dictation insertion or conversational response paths
+
+## Important boundary
+
+Translation output is text/cognitive output by default.
+It must not directly execute operating commands unless explicitly routed into command interpretation.
+
+---
+
+# 8. Search/explore lane
+
+Search/explore should be structured-action-driven, not generic freeform command expansion.
+
+## Runtime shape
+
+`speech in -> ASR/conversation understanding -> structured explore intent -> ArqonMCP/retrieval tools`
+
+## Requirements
+
+* intent normalization into explicit exploration verbs
+* tool-first execution with provenance
+* policy-aware boundaries between "explore" and "actuate"
+
+## Important boundary
+
+This lane should not start as a separate ASR-model project.
+The lane authority is its structured grammar and tool contract.
+
+---
+
+# 9. Degraded command lane
+
+If Maestro loses its main command lane path, it should not become completely voiceless.
 
 The degraded lane should support a very small safe vocabulary:
 
@@ -255,14 +333,14 @@ The goal is survivability, not full operation.
 
 ---
 
-# 8. Local-only vs hosted-optional policy
+# 10. Local-only vs hosted-optional policy
 
 ## Must remain local
 
-The following must stay local for v0.1:
+The following must stay local for v0.2:
 
 * reflex recognition
-* command-fast lane
+* command lane
 * degraded command lane
 * lane selection needed for hot-path control
 
@@ -277,9 +355,11 @@ Why:
 
 The following may use hosted or heavier providers if bounded by policy:
 
-* dictation-accurate enhancement
+* dictation lane enhancement
 * post-hoc transcript improvement
 * offline transcript cleanup
+* translation quality enhancement
+* search/explore summarization enrichment
 
 ## Important rule
 
@@ -287,18 +367,19 @@ No remote dependency should be required to recognize core operating commands or 
 
 ---
 
-# 9. Interaction with the hot path
+# 11. Interaction with the hot path
 
 The hot-path runtime contract already freezes the runtime shape.
 
-For STT specifically, that implies:
+For lane behavior, that implies:
 
-* `command_fast` must fit the hot-path latency budget
-* `secure_speaker_aware` must use local or cached identity state for gating
-* `dictation_accurate` may be slower because it is not the universal hot path
+* `command_lane` must fit the hot-path latency budget
+* `dictation_lane` may be slower because it is not the universal hot path
+* `conversation_lane` v1 should preserve transcript-first observability before speech-native optimization
+* `search_explore_lane` must keep tool calls explicit and auditable
 * lane switching must not stall command acceptance
 
-If a chosen STT path cannot meet the hot-path budget, Maestro should:
+If a chosen path cannot meet the hot-path budget, Maestro should:
 
 * degrade
 * narrow the command set
@@ -308,9 +389,9 @@ It should not silently wait forever.
 
 ---
 
-# 10. Phonetic hardening
+# 12. Phonetic hardening
 
-STT strategy must inherit the phonetic laws already established elsewhere.
+Lane strategy must inherit the phonetic laws already established elsewhere.
 
 That means:
 
@@ -320,15 +401,15 @@ That means:
 * alias tables may act as phonetic shields
 * dictation grammar must not inherit command-lane assumptions blindly
 
-The STT lane strategy and phonetic strategy are separate documents, but they must align tightly.
+The lane strategy and phonetic strategy are separate documents, but they must align tightly.
 
 ---
 
-# 11. Error recovery policy by lane
+# 13. Error recovery policy by lane
 
 Each lane should recover differently.
 
-## Command-fast
+## Command lane
 
 Preferred recovery:
 
@@ -340,7 +421,7 @@ Avoid:
 
 * freeform conversational clarification
 
-## Dictation-accurate
+## Dictation lane
 
 Preferred recovery:
 
@@ -348,21 +429,17 @@ Preferred recovery:
 * limited dictation-control interpretation
 * offer correction tools after the fact
 
-## Secure speaker-aware
+## Conversation lane
 
 Preferred recovery:
 
-* confirmation
-* stronger refusal
-* higher threshold for auto-correction
-
-Why:
-
-When security matters, recovery should become more conservative.
+* explicit clarification turns
+* preserve transcript and intent trace
+* bounded handoff to command lane only after explicit confirmation
 
 ---
 
-# 12. Benchmark dimensions
+# 14. Benchmark dimensions
 
 The benchmarking plan should compare providers and configurations across at least these dimensions:
 
@@ -371,16 +448,18 @@ The benchmarking plan should compare providers and configurations across at leas
 * command exact-match rate
 * dangerous-command false-positive rate
 * dictation word error rate
+* conversation turn-completion latency
+* translation adequacy/fluency scores
+* search/explore tool-call precision and provenance completeness
 * phonetic hazard resilience
 * chooser-trigger rate
 * repair success rate
-* speaker-aware metadata quality where applicable
 
 No provider should be judged on a single metric only.
 
 ---
 
-# 13. Benchmark corpora
+# 15. Benchmark corpora
 
 Maestro should benchmark with separate corpora per lane.
 
@@ -415,34 +494,52 @@ Examples:
 * code comments
 * mixed punctuation
 
-## E. Secure speaker corpus
+## E. Conversation corpus
 
 Examples:
 
-* enrolled speaker samples
-* contamination/noise cases
-* shared-room simulations
+* spoken Q&A turns
+* explanation and follow-up turns
+* command-vs-conversation ambiguity cases
+
+## F. Translation corpus
+
+Examples:
+
+* short imperative sentences across language pairs
+* mixed technical vocabulary
+* code-adjacent phrases requiring literal preservation
+
+## G. Search/explore corpus
+
+Examples:
+
+* query + filter + compare sequences
+* open/summarize/follow chains
+* ambiguous "search vs execute" edge cases
 
 This avoids optimizing only for one kind of speech.
 
 ---
 
-# 14. Provider selection stance
+# 16. Provider selection stance
 
-For v0.1, the right stance is:
+For v0.2, the right stance is:
 
-* freeze `command_fast` around the strongest local low-latency path
-* keep `dictation_accurate` benchmark-selectable
-* treat `secure_speaker_aware` as a policy-driven lane with stronger metadata needs
+* freeze `command_lane` around the strongest local low-latency path
+* keep `dictation_lane` benchmark-selectable
+* lock `conversation_lane` v1 to cascaded `ASR -> Nexus -> TTS`
+* treat `translation_lane` as explicit multilingual text pipeline
+* treat `search_explore_lane` as structured-intent + tool-contract lane
 * keep all lane boundaries behind provider contracts
 
 That means Maestro stays modular even while choosing concrete near-term defaults.
 
 ---
 
-# 15. Fallback and failover behavior
+# 17. Fallback and failover behavior
 
-## If `command_fast` fails
+## If `command_lane` fails
 
 Allowed:
 
@@ -454,7 +551,7 @@ Forbidden:
 
 * silently routing command control through a slow remote dictation path
 
-## If `dictation_accurate` fails
+## If `dictation_lane` fails
 
 Allowed:
 
@@ -462,21 +559,27 @@ Allowed:
 * offer fallback provider if policy permits
 * preserve raw audio/transcript chunk for retry if allowed
 
-## If `secure_speaker_aware` fails
+## If `conversation_lane` fails
 
 Allowed:
 
-* gate sensitive commands
-* downgrade to confirmation-required flows
-* block privileged actions
+* fall back to text-first interaction with explicit transcript display
+* continue using command/dictation lanes independently
+* disable speech-native experiment tracks
 
-Identity-sensitive failure should increase caution, not lower it.
+## If `search_explore_lane` fails
+
+Allowed:
+
+* return explicit tool-error trace
+* keep command lane available
+* narrow to basic `search` and `open` intents while degraded
 
 ---
 
-# 16. Suggested runtime metadata
+# 18. Suggested runtime metadata
 
-Every STT result handed into interpretation should include:
+Every speech result handed into interpretation should include:
 
 * transcript
 * partials if available
@@ -489,15 +592,15 @@ Every STT result handed into interpretation should include:
 * elapsed_ms
 * degraded_state flag
 
-This keeps the interpreter and policy layers grounded in actual speech conditions.
+This keeps interpretation and policy layers grounded in actual speech conditions.
 
 ---
 
-# 17. Laws to freeze
+# 19. Laws to freeze
 
 ## Law 1
 
-Maestro uses multiple STT lanes because different speech tasks have different correctness criteria.
+Maestro uses multiple interaction lanes because different speech tasks have different correctness criteria.
 
 ## Law 2
 
@@ -509,34 +612,16 @@ Dictation accuracy should not be purchased by weakening deterministic command sa
 
 ## Law 4
 
-Speaker-aware secure operation strengthens policy evidence but does not replace authorization.
+Search/explore is grammar-and-tool driven, not freeform command overreach.
 
 ## Law 5
 
-If the primary command STT path degrades, Maestro should narrow capability explicitly rather than silently improvise.
+Conversation lane v1 is cascaded (`ASR -> Nexus -> TTS`) to preserve transcript auditability and boundary control.
 
 ## Law 6
 
-Phonetic survivability is part of STT strategy, not a separate afterthought.
+If the primary command path degrades, Maestro should narrow capability explicitly rather than silently improvise.
 
 ## Law 7
 
-Providers sit behind lane contracts; no single engine owns Maestro’s future permanently.
-
-## Law 8
-
-STT evaluation must be lane-specific and benchmarked against real VOS tasks, not generic transcription scores alone.
-
----
-
-# 18. What this unlocks
-
-Once this strategy is frozen, Maestro can implement:
-
-* a fast command path
-* a distinct dictation path
-* stronger secure-mode speech handling
-* explicit degraded operation behavior
-* benchmark-driven provider selection without architectural drift
-
-That is how speech recognition becomes a governed subsystem of the VOS instead of a blob hidden behind one API call.
+Phonetic survivability is part of lane strategy, not a separate afterthought.

@@ -342,6 +342,13 @@ export default class Local {
         return;
       }
 
+      const serviceHealthUrl =
+        service == "speech-engine"
+          ? "http://localhost:17202/api/status"
+          : service == "code-engine"
+            ? "http://localhost:17203/api/status"
+            : "http://localhost:17200/api/status";
+
       // Some run-pro launchers can exit 0 after handing off to the actual service binary.
       // In that case, poll service health for a bounded warm-up window before failing startup.
       if ((service == "speech-engine" || service == "code-engine") && code === 0) {
@@ -350,11 +357,7 @@ export default class Local {
             return;
           }
 
-          const url =
-            service == "speech-engine"
-              ? "http://localhost:17202/api/status"
-              : "http://localhost:17203/api/status";
-          const healthy = await this.waitForServiceHealthy(url, 12000);
+          const healthy = await this.waitForServiceHealthy(serviceHealthUrl, 12000);
           if (healthy) {
             this.log.logVerbose(
               `${service} launcher exited with code 0 after successful startup handoff.`
@@ -365,6 +368,28 @@ export default class Local {
           this.failStartup(
             `${service} exited before local startup completed (exit code 0) and health check failed.`
           );
+        }, 500);
+        return;
+      }
+
+      // Some local wrappers can receive transient signals while the actual
+      // service keeps (or quickly becomes) healthy. Confirm health before fail-close.
+      if ((service == "speech-engine" || service == "code-engine" || service == "core") && signal) {
+        global.setTimeout(async () => {
+          if (!this.started || !this.pollingInterval) {
+            return;
+          }
+
+          const healthy = await this.waitForServiceHealthy(serviceHealthUrl, 12000);
+          if (healthy) {
+            this.log.logVerbose(
+              `${service} launcher exited with signal ${signal} after successful startup handoff.`
+            );
+            return;
+          }
+
+          const exitDetail = `signal ${signal}`;
+          this.failStartup(`${service} exited before local startup completed (${exitDetail}).`);
         }, 500);
         return;
       }

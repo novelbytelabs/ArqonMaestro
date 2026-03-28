@@ -1,6 +1,6 @@
 # Command Modes
 
-Arqon Maestro is not a single flat interaction mode. It has multiple operating modes and bridge surfaces depending on whether you want structured commands, free dictation, exact text, or an intermediate editor.
+Arqon Maestro is not a single flat interaction mode. It has multiple operating modes and bridge surfaces depending on whether you want structured commands, free dictation, conversational turns, structured search/exploration, exact text, or an intermediate editor.
 
 > Video placeholder: switching between command mode, dictate mode, and bridge surfaces.
 
@@ -8,6 +8,8 @@ Arqon Maestro is not a single flat interaction mode. It has multiple operating m
 
 - `Command mode`
 - `Dictate mode`
+- `Conversation mode`
+- `Search/Explore mode`
 - `Type command workflow`
 - `Revision box`
 - `Text input`
@@ -31,6 +33,32 @@ Use it when:
 - filling text fields
 - working in apps without deep structural integration
 
+## Conversation Mode
+
+Conversation mode supports recipient-targeted dialogue turns while preserving lane safety boundaries.
+
+Examples:
+
+- `at nexus what do you think of this strategy`
+- `at oracle what is the name of our calculator function`
+
+Notes:
+
+- conversation turns can target `Nexus`, local/remote LLMs, agents, or Oracle-style memory services
+- conversation mode does not directly execute operating commands
+- explicit control utterances still route through command mode (`switch mode`, `set recipient`, `execute`, `cancel`)
+
+## Search/Explore Mode
+
+Search/Explore mode is for finding and browsing with structured verbs, not direct actuation.
+
+Examples:
+
+- `search architecture docs for command lane`
+- `find decision about conversation lane`
+- `open the latest lane strategy doc`
+- `compare this plan with the previous version`
+
 ## `type` As A Lower-Level Escape Hatch
 
 Even in command mode, you can force exact output with `type`.
@@ -51,6 +79,8 @@ When the target app is not a full plugin-aware editor, Maestro can still work th
 flowchart TD
   M[Arqon Maestro] --> C[Command mode]
   M --> D[Dictate mode]
+  M --> V[Conversation mode]
+  M --> S[Search/Explore mode]
   M --> T[Type command]
   M --> R[Revision box]
   M --> X[Text input]

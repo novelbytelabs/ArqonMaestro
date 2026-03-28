@@ -1056,3 +1056,88 @@ Consequences:
 * dictation-lane model choices cannot be used to infer command-lane architecture choices
 * planning/evidence language must describe command lane as a control stack
 * repo-level decision log should mirror this refinement for synchronization with `VOS-041`
+
+---
+
+## VOS-043: Canonical Five-Lane Model; Conversation Starts Cascaded; Search/Explore Is Structured-Tool First
+
+* Date: 2026-03-27
+* Status: Accepted
+
+Decision:
+
+Freeze Maestro interaction lanes as:
+
+* command lane
+* dictation lane
+* conversation lane
+* translation lane
+* search/explore lane
+
+Freeze conversation lane v1 architecture as cascaded:
+
+* `speech in -> ASR -> Nexus -> TTS`
+* `Qwen3-ASR` is the first hearing candidate for this lane
+* Nexus remains reasoning authority
+
+Freeze search/explore lane architecture as structured-intent + tool routing:
+
+* exploration verbs (`search`, `find`, `open`, `filter`, `compare`, `summarize`, `expand`, `follow`, `inspect`) are canonical
+* lane authority is grammar/intent normalization and tool contracts (`ArqonMCP`/retrieval), not a special ASR model lane
+
+Experiment track (deferred from v1 baseline):
+
+* speech-native conversation models (for example `Qwen3-Omni`) may be evaluated only after cascaded conversation lane stability is proven
+* cloud voice-agent lanes (`gpt-realtime`, `Gemini Live`) remain optional additive tracks, not baseline architecture
+
+Why:
+
+Maestro needs transcript auditability, deterministic boundaries, and explicit ownership between hearing, reasoning, and actuation. A cascaded conversation lane preserves those guarantees while the shell stabilizes. Search/explore quality depends on structured action/tool precision more than model-centric ASR specialization.
+
+Consequences:
+
+* `maestro-stt-strategy-by-lane.md` must define the five-lane model and routing rules explicitly
+* planning docs must treat command/dictation stabilization as immediate priority while conversation/search/translation lanes are integrated as bounded tracks
+* conversation-lane claims should default to transcript-first telemetry and replayability
+* search/explore implementation must remain strict-intent + tool-provenance driven
+* repo-level decision log should mirror this decision for global synchronization
+
+---
+
+## VOS-044: Conversation Lane Uses Recipient Routing; Oracle Is A Recipient Profile, Not A Separate Lane
+
+* Date: 2026-03-27
+* Status: Accepted
+
+Decision:
+
+Conversation lane is expanded to support explicit recipient routing and voice addressing.
+
+Canonical recipient classes:
+
+* `nexus`
+* `oracle` (Reflex + Continuum memory/retrieval profile)
+* `local_llm`
+* `remote_llm`
+* `agent:<id|role>`
+
+Addressing forms such as `at nexus ...` and `at oracle ...` are accepted and normalized into recipient mentions.
+
+Oracle is treated as a recipient profile and routing target, not as a new lane.
+
+Lane boundary lock:
+
+* conversation lane = recipient-targeted cognitive turns
+* search/explore lane = structured retrieval/navigation verbs
+* command lane = mode changes, recipient-control commands, and all execution authority
+
+Why:
+
+This preserves lane clarity while enabling multi-participant conversational UX. It also avoids lane sprawl and keeps Reflex/Continuum represented as backend capabilities and recipient profiles rather than a second cognitive lane.
+
+Consequences:
+
+* runtime and routing contracts should carry recipient fields for conversation/search turns
+* voice UX should support addressable recipient patterns (`at nexus`, `at oracle`, `at agent ...`)
+* mixed utterances must prioritize explicit control verbs into command lane
+* documentation should describe Oracle as a recipient profile (Reflex + Continuum), not a distinct lane

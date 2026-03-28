@@ -71,6 +71,13 @@ public class TranscriptNormalizer {
     // Digits and symbols should be converted to their text representation.
     transcript = fillerWords.strip(transcript.toLowerCase().trim());
 
+    // Canonicalize dictation mode aliases so grammar consistently resolves
+    // to start/stop dictate control commands.
+    transcript = transcript.replaceAll("\\bdictation mode\\b", "dictate mode");
+    transcript = transcript.replaceAll("\\bditation mode\\b", "dictate mode");
+    transcript = transcript.replaceAll("\\bstart dictation\\b", "dictate mode");
+    transcript = transcript.replaceAll("\\bstop dictation\\b", "stop dictating");
+
     // We need to replace digits in the transcripts since the model is not trained on them.
     transcript =
       tokenize(transcript)

@@ -347,6 +347,64 @@ Validate approved routed actions against compatible targets:
 - "AI decides what user meant" behavior
 - Routing that bypasses safety/precision/recovery
 
+## Recipient Routing Extension (Conversation/Search vNext)
+
+The current FP-6 routing slice focuses on surface/action targets.
+For conversation and search/explore lanes, Maestro also needs recipient routing.
+
+### Recipient Model
+
+Recipient routing resolves who should receive a non-actuation turn.
+
+Canonical recipient classes:
+
+- `nexus`
+- `oracle` (Reflex + Continuum memory/retrieval profile)
+- `local_llm`
+- `remote_llm`
+- `agent:<id|role>`
+
+### Voice Addressing Pattern
+
+Supported addressing forms should include:
+
+- `at nexus ...`
+- `at oracle ...`
+- `at agent reviewer ...`
+
+Runtime normalization may convert voice forms into symbolic mentions:
+
+- `@nexus`
+- `@oracle`
+- `@agent:reviewer`
+
+### Routing Law
+
+- Recipient routing is lane-aware.
+- Conversation lane handles recipient-targeted cognitive turns.
+- Search/explore lane handles structured retrieval verbs, even when a recipient is present.
+- Command lane remains the only lane for execution authority and mode/recipient control commands.
+
+### Mixed Utterance Rule
+
+If an utterance contains both recipient text and control intent:
+
+- explicit control verbs (`switch mode`, `set recipient`, `execute`, `cancel`) route to command lane
+- remaining natural-language content routes to conversation or search/explore based on intent class
+
+### Telemetry Additions (vNext)
+
+Future routing telemetry should include:
+
+```typescript
+interface RecipientRoutingTelemetry {
+  rawRecipient?: string;
+  resolvedRecipient?: string;
+  recipientClass?: "nexus" | "oracle" | "local_llm" | "remote_llm" | "agent";
+  recipientResolutionSource?: "explicit_address" | "active_default" | "policy_default" | "failed";
+}
+```
+
 ## Acceptance Criteria (FP-6A + FP-6B)
 
 ### FP-6A Criteria

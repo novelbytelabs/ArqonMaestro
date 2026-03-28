@@ -480,7 +480,15 @@ export default class ActuationPolicyService {
   ): string | null {
     // Dictation mode is not an operating-command execution lane.
     // Reflex remains available for safety.
+    // Exception: allow pure insert flows so dictated text can be committed.
     if (context.interactionMode === "dictation" && dispatchRoute !== "reflex_local") {
+      const commandTypes = Array.isArray(context.commandTypes) ? context.commandTypes : [];
+      const pureInsertFlow =
+        commandTypes.length > 0 &&
+        commandTypes.every((type) => String(type).toUpperCase() === "COMMAND_TYPE_INSERT");
+      if (pureInsertFlow) {
+        return null;
+      }
       return "non_reflex_route_blocked_in_dictation_mode";
     }
 

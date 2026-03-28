@@ -178,6 +178,20 @@ const ALWAYS_AVAILABLE_COMMANDS = [
   "stop",
   "cancel",
   "pause",
+  "start dictate",
+  "start_dictate",
+  "dictate mode",
+  "dictate_mode",
+  "start dictation",
+  "start_dictation",
+  "command mode",
+  "command_mode",
+  "dictation mode",
+  "dictation_mode",
+  "command_type_start_dictate",
+  "command_type_stop_dictate",
+  "command_type_cancel",
+  "command_type_pause",
 ];
 
 /**
@@ -259,6 +273,18 @@ export default class AuthorizationService {
     // Interaction mode is an execution-gating axis.
     // Dictation mode should not silently run operating commands.
     if (interactionMode === InteractionMode.DICTATION) {
+      if (commandFamily === "dictation") {
+        return {
+          decision: AuthorizationDecision.ALLOW,
+          reason: "Dictation mode: dictation text command allowed",
+          riskLevel,
+          isFallback: false,
+          metadata: {
+            interactionMode,
+            commandFamily,
+          },
+        };
+      }
       if (riskLevel === CommandRiskLevel.LOW) {
         return {
           decision: AuthorizationDecision.CONFIRM,
@@ -588,8 +614,24 @@ export default class AuthorizationService {
    * Check if command is always available
    */
   private isAlwaysAvailable(commandVerb: string): boolean {
-    const normalized = commandVerb.toLowerCase();
+    const normalized = commandVerb.toLowerCase().trim();
     if (ALWAYS_AVAILABLE_COMMANDS.includes(normalized)) {
+      return true;
+    }
+    // Defensive matching for command labels emitted by different parsers/bridges.
+    if (normalized.includes("start_dictate") || normalized.includes("start dictate")) {
+      return true;
+    }
+    if (normalized.includes("dictate mode") || normalized.includes("dictation mode")) {
+      return true;
+    }
+    if (normalized.includes("start_dictation") || normalized.includes("start dictation")) {
+      return true;
+    }
+    if (normalized.includes("command_type_cancel") || normalized === "cancel") {
+      return true;
+    }
+    if (normalized.includes("command_type_pause") || normalized === "pause") {
       return true;
     }
     return false;

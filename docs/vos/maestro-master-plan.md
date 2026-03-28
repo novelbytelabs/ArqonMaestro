@@ -353,7 +353,10 @@ Maestro now has accepted foundational capability in the following areas.
 
 * hot-path audio ingress and interruption behavior
 * bounded turn detection and interruption-safe control flow
-* command-fast and dictation-accurate STT lane separation
+* canonical lane set is now explicit: command, dictation, conversation, translation, search/explore
+* command-fast and dictation-accurate STT lane separation remain the immediate stabilization baseline
+* conversation lane v1 is cascaded (`ASR -> Nexus -> TTS`) for transcript/audit continuity
+* search/explore lane is structured-intent + tool orchestration, not freeform command expansion
 * local deterministic routing into the runtime
 * bounded intent-routing foundations are implemented and accepted
 * the voice migration sequence is explicitly documented and partially landed through accepted bounded slices

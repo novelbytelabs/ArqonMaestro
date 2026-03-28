@@ -811,6 +811,35 @@ Do not put transient debugging discoveries here. Those belong in the gotcha regi
 
 ---
 
+## ADM-055: Canonical Five-Lane Interaction Model With Cascaded Conversation v1 (Synced With VOS-043)
+
+- **Date**: 2026-03-27
+- **Status**: Accepted
+- **Decision**: Synchronize repo-level architecture with `VOS-043`: Maestro interaction lanes are `command`, `dictation`, `conversation`, `translation`, and `search/explore`. Conversation lane v1 is locked to cascaded `ASR -> Nexus -> TTS` (transcript-first/audit-first). Search/explore lane is locked to structured exploration intents plus explicit tool routing/provenance, not a model-centric ASR lane.
+- **Why**: Maestro needs strict architectural boundaries, replayability, and auditability while expanding beyond command/dictation. Cascaded conversation preserves transcript and reasoning control boundaries. Search/explore reliability depends on explicit grammar/tool contracts more than standalone ASR model specialization.
+- **Consequences**:
+  - `docs/vos/maestro-stt-strategy-by-lane.md` must encode five-lane routing and lane boundaries
+  - speech stabilization plans remain command/dictation-first, but conversation/search/translation integration must be documented as bounded next tracks
+  - speech-native conversation models (for example `Qwen3-Omni`) are deferred experiments until cascaded lane stability is proven
+  - cloud voice-agent lanes (`gpt-realtime`, `Gemini Live`) remain optional additive tracks, not baseline architecture
+  - search/explore implementation must stay structured-intent + tool-provenance driven
+
+---
+
+## ADM-056: Recipient-Routed Conversation Model; Oracle Is A Profile, Not A Lane (Synced With VOS-044)
+
+- **Date**: 2026-03-27
+- **Status**: Accepted
+- **Decision**: Conversation lane supports explicit recipient routing (`nexus`, `oracle`, `local_llm`, `remote_llm`, `agent:<id|role>`) and voice addressing forms (`at nexus ...`, `at oracle ...`). Oracle is locked as a Reflex+Continuum recipient profile and routing target, not as a separate lane.
+- **Why**: This enables multi-participant conversational UX without collapsing lane boundaries or introducing lane sprawl. Reflex/Continuum fit as backend capability and memory/orchestration profiles, while command/search boundaries remain deterministic.
+- **Consequences**:
+  - conversation/search runtime envelopes should carry recipient metadata
+  - command lane remains sole authority for mode switching, recipient-control commands, and execution triggers
+  - mixed utterances must route explicit control verbs to command lane before conversational content
+  - docs should describe Oracle as recipient profile terminology, not independent lane terminology
+
+---
+
 ## Template for Future Decisions
 
 ```markdown

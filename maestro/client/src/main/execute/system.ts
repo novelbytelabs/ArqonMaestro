@@ -181,10 +181,19 @@ export default class System {
 
   async focus(application: string) {
     console.log("[SYSTEM] focus() called with:", application);
+    const timeoutRaw = Number(process.env.ARQON_FOCUS_TIMEOUT_MS || "2500");
+    const timeoutMs = Number.isFinite(timeoutRaw) ? Math.max(500, Math.floor(timeoutRaw)) : 2500;
     try {
-      await driver.focusApplication(application, this.aliases);
+      await Promise.race([
+        driver.focusApplication(application, this.aliases),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`focus_timeout_${timeoutMs}ms`)), timeoutMs)
+        ),
+      ]);
       await this.delay(300);
-    } catch (e) {}
+    } catch (e) {
+      console.log("[SYSTEM] focus() failed:", e);
+    }
   }
 
   installedApplications() {
