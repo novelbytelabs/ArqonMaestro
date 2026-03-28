@@ -437,39 +437,32 @@ export default class ChunkManager {
   }
 
   private setDictationFailureState(reason: string): void {
-    this.active.dictateMode = false;
-    this.dictationProviderPreference = "qwen3";
+    // Fail-open for operator continuity: on hard Qwen3 errors, immediately
+    // pivot to legacy dictation instead of dropping out of dictate mode.
+    this.enableLegacyDictationFallback();
     this.bridge.setState(
       {
-        dictateMode: false,
-        statusText: "Dictation unavailable",
         alternatives: [
           {
             description:
-              "Dictation unavailable: Qwen3 adapter path failed hard. Review details below or fall back to the Kaldi/legacy dictation lane.",
+              "Qwen3 dictation failed hard for this utterance. Switched to Kaldi/legacy dictation to keep typing live.",
           },
         ],
         highlighted: [0],
         executedSuccess: [],
         staleOrFailed: [0],
-        backendIssue: "Qwen3 dictation failed: " + reason,
-        backendIssueAction: "dictationUseLegacyFallback",
-        backendIssueActionLabel: "Fallback to Kaldi/Legacy",
+        backendIssue: "Qwen3 dictation failed: " + reason + " (auto-fell back to Kaldi/Legacy)",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
       },
       [this.mainWindow, this.miniModeWindow]
     );
     this.updateDictationRuntimeStatus({
-      provider:
-        this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
-          ? "qwen3-sidecar"
-          : "qwen3-local-bridge",
-      sidecarHealth:
-        this.qwen3AsrDictationProvider.getConfig().sidecarMode === "sidecar"
-          ? "unreachable"
-          : "not_applicable",
-      warmupStatus: "failed",
-      stage: "dictation_failed",
-      errorCode: reason || "unknown_dictation_failure",
+      provider: "kaldi-legacy",
+      sidecarHealth: "not_applicable",
+      warmupStatus: "not_applicable",
+      stage: "legacy_fallback_active",
+      errorCode: "",
     });
     this.mainWindow.updateTray();
   }
