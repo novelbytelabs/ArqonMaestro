@@ -1184,7 +1184,14 @@ export default class ChunkManager {
       return true;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      this.log.logVerbose("[Chunk] qwen3 dictation failed for " + chunkId + "; hard failure: " + reason);
+      const isBenignEmptyChunk =
+        reason.includes("qwen3_empty_audio") || reason.includes("qwen3_empty_transcript");
+      this.log.logVerbose(
+        "[Chunk] qwen3 dictation failed for " +
+          chunkId +
+          (isBenignEmptyChunk ? "; benign empty chunk: " : "; hard failure: ") +
+          reason
+      );
       let errorCode = reason;
       if (reason.includes("sidecar_timeout")) {
         errorCode = "model_warmup_timeout";
@@ -1203,9 +1210,15 @@ export default class ChunkManager {
       this.updateDictationRuntimeStatus({
         provider: providerName,
         chunkId,
-        stage: "provider_failed",
+        stage: isBenignEmptyChunk ? "provider_skipped_empty" : "provider_failed",
         errorCode,
       });
+      if (isBenignEmptyChunk) {
+        this.chunkAudioFrames.delete(chunkId);
+        this.chunkUseQwen3AsrDictation.delete(chunkId);
+        this.chunkFinalizationRequested.delete(chunkId);
+        return true;
+      }
       this.chunkUseQwen3AsrDictation.delete(chunkId);
       this.setDictationFailureState(reason);
       return true;
