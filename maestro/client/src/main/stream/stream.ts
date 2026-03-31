@@ -186,6 +186,16 @@ export default class Stream {
         });
 
         if (response.commandsResponse) {
+          const responseMeta = response.commandsResponse;
+          const isTextResponse = !!responseMeta.textResponse;
+          const alternatives = responseMeta.alternatives || [];
+          const firstTranscript =
+            (alternatives.length > 0 ? alternatives[0]?.transcript : "") ||
+            responseMeta.execute?.transcript ||
+            "";
+          console.log(
+            `[STREAM_TRACE] inbound_commands_response chunkId="${responseMeta.chunkId || ""}" final=${!!responseMeta.final} textResponse=${isTextResponse} alternatives=${alternatives.length} firstTranscript="${firstTranscript}"`
+          );
           this.lastActivity = Date.now();
           if (response.commandsResponse.textResponse) {
             if (!response.commandsResponse.chunkId) {
@@ -194,8 +204,14 @@ export default class Stream {
                 response.commandsResponse.chunkId = pendingId;
               }
             }
+            console.log(
+              `[STREAM_TRACE] routing_text_response chunkId="${response.commandsResponse.chunkId || ""}" final=${!!response.commandsResponse.final}`
+            );
             this.onTextCommandsResponse(custom, executor, response.commandsResponse);
           } else {
+            console.log(
+              `[STREAM_TRACE] routing_chunk_manager_response chunkId="${response.commandsResponse.chunkId || ""}" final=${!!response.commandsResponse.final}`
+            );
             this.onCommandsResponse(chunkManager, response.commandsResponse);
           }
         } else if (response.keepAliveResponse) {
@@ -260,13 +276,25 @@ export default class Stream {
     executor: Executor,
     response: core.ICommandsResponse
   ) {
+    console.log(
+      `[STREAM_TRACE] onTextCommandsResponse_enter chunkId="${response.chunkId || ""}" final=${!!response.final} executePresent=${!!response.execute} alternatives=${(response.alternatives || []).length} transcript="${response.execute?.transcript || response.alternatives?.[0]?.transcript || ""}"`
+    );
     executor.updateDictationRuntimeStatus({
       chunkId: response.chunkId || "",
       stage: "text_response_received",
     });
     response = await executor.postProcessResponse(response);
+    console.log(
+      `[STREAM_TRACE] onTextCommandsResponse_postProcess chunkId="${response.chunkId || ""}" executePresent=${!!response.execute} executeCount=${(response.execute?.commands || []).length} transcript="${response.execute?.transcript || response.alternatives?.[0]?.transcript || ""}"`
+    );
     if (!this.runtimeCommandDispatcher) {
+      console.log(
+        `[STREAM_TRACE] onTextCommandsResponse_dispatch_executor chunkId="${response.chunkId || ""}" executeCount=${(response.execute?.commands || []).length}`
+      );
       await executor.execute(response);
+      console.log(
+        `[STREAM_TRACE] onTextCommandsResponse_dispatch_executor_done chunkId="${response.chunkId || ""}"`
+      );
       executor.updateDictationRuntimeStatus({
         chunkId: response.chunkId || "",
         stage: "insert_dispatched",
@@ -290,6 +318,9 @@ export default class Stream {
       surfaceContext: policyContext.surfaceContext,
       modalContext: policyContext.modalContext,
     });
+    console.log(
+      `[STREAM_TRACE] onTextCommandsResponse_dispatch_runtime_done chunkId="${response.chunkId || ""}"`
+    );
     executor.updateDictationRuntimeStatus({
       chunkId: response.chunkId || "",
       stage: "insert_dispatched",
