@@ -1513,12 +1513,18 @@ export default class Executor {
     console.log(
       `[EXEC_TRACE] post_auth_allow chunkId="${response.chunkId || ""}" transcript="${response.execute?.transcript || ""}" interactionId="${authorizationResult.interactionId || ""}" trustState="${authorizationResult.trustState || ""}"`
     );
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_post_auth_allow"`
+    );
 
     // H2.3: Observe and Gate
     const chunkId = response.chunkId || "";
     this.log?.logVerbose(`[Executor] executing response for chunkId: "${chunkId}"`);
     
     const h23Decision = h23Recorder.getLatestDecision(chunkId);
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_h23_lookup" hardGateNumeric=${process.env.H23_HARD_GATE_NUMERIC === "true"} h23DecisionPresent=${!!h23Decision}`
+    );
     
     let shouldBlock = false;
     const hardGateNumeric = process.env.H23_HARD_GATE_NUMERIC === "true";
@@ -1549,11 +1555,23 @@ export default class Executor {
       this.newChainFinishedPromise();
       return;
     }
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_h23_block_check" shouldBlock=${shouldBlock}`
+    );
 
     const trustState = authorizationResult.trustState || "unknown";
     const interactionId = authorizationResult.interactionId;
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="before_lifecycle_activate" altIndex=${selectedAlternativeIndex}`
+    );
     this.setLifecycleRendererState(selectedAlternativeIndex, "activated");
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_lifecycle_activate" altIndex=${selectedAlternativeIndex}`
+    );
     this.beginCompletionEvidenceWindow(interactionId, trustState, selectedAlternativeIndex);
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_begin_completion_window" interactionId="${interactionId || ""}" trustState="${trustState}"`
+    );
 
     if (
       (this.active.app == "jetbrains" && this.active.filename == "jetbrains-modal") ||
@@ -1561,6 +1579,9 @@ export default class Executor {
     ) {
       forwardToPlugin = false;
     }
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_modal_checks" forwardToPlugin=${forwardToPlugin} activeApp="${this.active.app || ""}"`
+    );
     if (
       forwardToPlugin &&
       !this.settings.getNuxCompleted() &&
@@ -1573,6 +1594,9 @@ export default class Executor {
         }
       }
     }
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_nux_checks" forwardToPlugin=${forwardToPlugin}`
+    );
 
     // Focus is handled through the local focus stack and should never wait on
     // plugin response before execution, otherwise activation can stall.
@@ -1584,6 +1608,9 @@ export default class Executor {
     ) {
       forwardToPlugin = false;
     }
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_focus_local_check" forwardToPlugin=${forwardToPlugin}`
+    );
 
     // Navigation/editing keystroke chains (e.g., "go to line fifty two") are
     // executed locally via PRESS/INSERT handlers and should never block on plugin RPC.
@@ -1603,6 +1630,9 @@ export default class Executor {
       );
       forwardToPlugin = false;
     }
+    console.log(
+      `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_press_insert_check" forwardToPlugin=${forwardToPlugin}`
+    );
 
     let pluginResponse;
     let executionOutcome: CommandCompletionOutcome = "unknown";
