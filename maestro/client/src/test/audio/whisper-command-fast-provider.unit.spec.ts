@@ -39,10 +39,8 @@ describe("WhisperCommandFastProvider", () => {
   });
 
   it("writes wav and returns transcript for command-fast lane", async () => {
-    const writes = new Map<string, Buffer>();
-    const reads = new Map<string, string>();
-    let removedPath = "";
     let capturedArgs: string[] = [];
+    let capturedStdin: Buffer | undefined;
 
     const provider = new WhisperCommandFastProvider(
       {
@@ -54,22 +52,12 @@ describe("WhisperCommandFastProvider", () => {
       undefined,
       {
         fileExists: () => true,
-        mkdtemp: async () => "/tmp/maestro-whisper-test",
-        writeFile: async (targetPath, data) => {
-          writes.set(targetPath, data);
-        },
-        readFile: async (targetPath) => reads.get(targetPath) || "",
-        rm: async (targetPath) => {
-          removedPath = targetPath;
-        },
-        runWhisper: async (_binaryPath, args, _timeoutMs) => {
+        runWhisperWithStdin: async (_binaryPath, args, stdinBuffer, _timeoutMs) => {
           capturedArgs = args;
-          const outputIndex = args.indexOf("-of");
-          const outputBase = outputIndex >= 0 ? args[outputIndex + 1] : "";
-          reads.set(`${outputBase}.txt`, "focus terminal");
+          capturedStdin = stdinBuffer;
           return {
             exitCode: 0,
-            stdout: "",
+            stdout: "focus terminal",
             stderr: "",
           };
         },
@@ -86,13 +74,8 @@ describe("WhisperCommandFastProvider", () => {
     expect(result.transcript).toBe("focus terminal");
     expect(result.latencyMs).toBeGreaterThanOrEqual(0);
     expect(capturedArgs).toContain("-nt");
-    expect(capturedArgs).toContain("-otxt");
-    expect(removedPath).toBe("/tmp/maestro-whisper-test");
-
-    const wavPath = "/tmp/maestro-whisper-test/chunk-success.wav";
-    const wavData = writes.get(wavPath);
-    expect(wavData).toBeDefined();
-    expect(wavData!.subarray(0, 4).toString("ascii")).toBe("RIFF");
-    expect(wavData!.subarray(8, 12).toString("ascii")).toBe("WAVE");
+    expect(capturedStdin).toBeDefined();
+    expect(capturedStdin!.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(capturedStdin!.subarray(8, 12).toString("ascii")).toBe("WAVE");
   });
 });

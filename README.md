@@ -87,6 +87,41 @@ Related docs:
 - [TRAINING.md](./TRAINING.md)
 - [LEGACY_INTERNAL_RENAME_TODO.md](./LEGACY_INTERNAL_RENAME_TODO.md)
 
+## Critical: Command Lane Provider Toggles
+
+The command lane provider path is controlled by environment flags in the client runtime.
+
+- `MAESTRO_ENABLE_PARAKEET_COMMAND_LANE`
+  - Default: enabled.
+  - Set to `0` to disable Parakeet command-fast provider.
+- `MAESTRO_ENABLE_WHISPER_COMMAND_LANE=1`
+  - Default: disabled.
+  - Set to `1` to enable whisper.cpp command-fast provider.
+- `MAESTRO_FORCE_LEGACY_COMMAND_LANE=1`
+  - Force command lane to bypass command-fast providers and route directly to legacy endpoint path.
+
+If these are disabled, command chunks fall back to the legacy endpoint path (Kaldi/legacy continuity path).
+
+### Current Team Policy
+
+- Do not use whisper.cpp in command path.
+- Use Parakeet as the command model.
+- Keep Kaldi/legacy as backup path.
+
+Recommended shell profile for this policy:
+
+```bash
+export MAESTRO_ENABLE_PARAKEET_COMMAND_LANE=1
+export MAESTRO_ENABLE_WHISPER_COMMAND_LANE=0
+export MAESTRO_FORCE_LEGACY_COMMAND_LANE=0
+```
+
+Notes:
+
+- If `MAESTRO_ENABLE_PARAKEET_COMMAND_LANE` is not enabled, command lane can silently run through legacy endpoint behavior.
+- `MAESTRO_FORCE_LEGACY_COMMAND_LANE=1` is the explicit emergency rollback switch for command lane routing.
+- Dictation provider fallback (`Fallback to Kaldi/Legacy` in UI) is dictation-specific and separate from command-lane provider toggles.
+
 ## Runbook: Qwen3 Dictation Sidecar + Legacy Fallback
 
 Use this when dictation shows `sidecar_unreachable` or warmup failures.

@@ -39,7 +39,8 @@ import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-prov
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
-const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE === "1";
+const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
+const FORCE_LEGACY_COMMAND_LANE = process.env.MAESTRO_FORCE_LEGACY_COMMAND_LANE === "1";
 const ENABLE_FASTER_WHISPER_DICTATION_FALLBACK =
   process.env.MAESTRO_ENABLE_FASTER_WHISPER_DICTATION_FALLBACK === "1";
 
@@ -105,6 +106,7 @@ export default class ChunkManager {
   private chunkFinalizeWatchdogs = new Map<string, NodeJS.Timeout>();
   private chunkTranscriptionInFlight = new Set<string>();
   private loggedWhisperUnavailable = false;
+  private loggedForceLegacyCommandLane = false;
   private loggedFasterWhisperUnavailable = false;
   private loggedQwen3Unavailable = false;
   private dictationPreflightLastOk = false;
@@ -861,6 +863,16 @@ export default class ChunkManager {
   }
 
   private shouldUseWhisperForCurrentChunk(): boolean {
+    if (FORCE_LEGACY_COMMAND_LANE) {
+      if (!this.loggedForceLegacyCommandLane) {
+        this.loggedForceLegacyCommandLane = true;
+        this.log.logVerbose(
+          "[Chunk] command lane forced to legacy endpoint via MAESTRO_FORCE_LEGACY_COMMAND_LANE=1"
+        );
+      }
+      return false;
+    }
+
     if (!ENABLE_WHISPER_COMMAND_LANE) {
       return false;
     }
@@ -885,6 +897,16 @@ export default class ChunkManager {
    * Parakeet takes precedence over whisper.cpp when available.
    */
   private shouldUseParakeetForCurrentChunk(): boolean {
+    if (FORCE_LEGACY_COMMAND_LANE) {
+      if (!this.loggedForceLegacyCommandLane) {
+        this.loggedForceLegacyCommandLane = true;
+        this.log.logVerbose(
+          "[Chunk] command lane forced to legacy endpoint via MAESTRO_FORCE_LEGACY_COMMAND_LANE=1"
+        );
+      }
+      return false;
+    }
+
     if (!ENABLE_PARAKEET_COMMAND_LANE) {
       return false;
     }

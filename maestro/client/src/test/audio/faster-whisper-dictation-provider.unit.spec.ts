@@ -39,9 +39,8 @@ describe("FasterWhisperDictationProvider", () => {
   });
 
   it("writes wav and returns bridge transcript for dictation lane", async () => {
-    const writes = new Map<string, Buffer>();
-    let removedPath = "";
     let capturedArgs: string[] = [];
+    let capturedStdin: Buffer | undefined;
 
     const provider = new FasterWhisperDictationProvider(
       {
@@ -55,15 +54,9 @@ describe("FasterWhisperDictationProvider", () => {
       undefined,
       {
         fileExists: () => true,
-        mkdtemp: async () => "/tmp/maestro-faster-whisper-test",
-        writeFile: async (targetPath, data) => {
-          writes.set(targetPath, data);
-        },
-        rm: async (targetPath) => {
-          removedPath = targetPath;
-        },
-        runBridge: async (_pythonPath, _bridgeScriptPath, args, _timeoutMs) => {
+        runBridgeWithStdin: async (_pythonPath, _bridgeScriptPath, args, stdinBuffer, _timeoutMs) => {
           capturedArgs = args;
+          capturedStdin = stdinBuffer;
           return {
             exitCode: 0,
             stdout: JSON.stringify({
@@ -91,15 +84,11 @@ describe("FasterWhisperDictationProvider", () => {
     expect(result.model).toBe("small");
     expect(result.device).toBe("cuda");
     expect(result.latencyMs).toBeGreaterThanOrEqual(0);
-    expect(capturedArgs).toContain("--audio");
+    expect(capturedArgs).toContain("--stdin");
     expect(capturedArgs).toContain("--compute-type");
-    expect(removedPath).toBe("/tmp/maestro-faster-whisper-test");
-
-    const wavPath = "/tmp/maestro-faster-whisper-test/chunk-success.wav";
-    const wavData = writes.get(wavPath);
-    expect(wavData).toBeDefined();
-    expect(wavData!.subarray(0, 4).toString("ascii")).toBe("RIFF");
-    expect(wavData!.subarray(8, 12).toString("ascii")).toBe("WAVE");
+    expect(capturedStdin).toBeDefined();
+    expect(capturedStdin!.subarray(0, 4).toString("ascii")).toBe("RIFF");
+    expect(capturedStdin!.subarray(8, 12).toString("ascii")).toBe("WAVE");
   });
 
   it("throws when bridge returns failure payload", async () => {
@@ -112,10 +101,7 @@ describe("FasterWhisperDictationProvider", () => {
       undefined,
       {
         fileExists: () => true,
-        mkdtemp: async () => "/tmp/maestro-faster-whisper-test-fail",
-        writeFile: async () => {},
-        rm: async () => {},
-        runBridge: async () => ({
+        runBridgeWithStdin: async () => ({
           exitCode: 0,
           stdout: JSON.stringify({ ok: false, error: "gpu_not_available" }),
           stderr: "",

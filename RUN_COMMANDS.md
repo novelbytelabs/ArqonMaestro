@@ -149,6 +149,9 @@ Legacy compatibility note:
 | CORE_PORT | 17200 | Server port |
 | ARQON_MAESTRO_SOURCE_ROOT | ~/Projects/arqon/ArqonMaestro/maestro | Engine source tree |
 | ARQON_MAESTRO_LIBRARY_ROOT | ~/libserenade (recommended default) | Models and native dependencies |
+| MAESTRO_ENABLE_PARAKEET_COMMAND_LANE | `1` by default (`0` disables) | Command lane Parakeet provider toggle |
+| MAESTRO_ENABLE_WHISPER_COMMAND_LANE | `0` by default (`1` enables) | Optional whisper command-fast override |
+| MAESTRO_FORCE_LEGACY_COMMAND_LANE | `0` by default (`1` forces legacy) | Emergency rollback to legacy command path |
 
 Legacy compatibility:
 
