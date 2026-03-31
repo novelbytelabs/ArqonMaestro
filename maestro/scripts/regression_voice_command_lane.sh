@@ -10,7 +10,10 @@ echo "root: ${ROOT_DIR}"
 cd "${CLIENT_DIR}"
 
 npx jest --config jest.config.js --runInBand \
-  src/test/audio/parakeet-command-fast-provider.unit.spec.ts \
+  src/test/audio/h23-command-governor.unit.spec.ts \
+  src/test/audio/parakeet-command-fast-provider.unit.spec.ts
+
+npx jest --config jest.config.js --runInBand \
   src/test/audio/chunk-manager-command-lane-routing.unit.spec.ts \
   src/test/audio/voice-command-regression.unit.spec.ts
 

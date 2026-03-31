@@ -99,6 +99,44 @@ describe("Voice command regression suite", () => {
       expect(output.execute).toBeDefined();
       expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_START_DICTATE);
     });
+
+    it("auto-activates goto-line fallback alternative for 'go to line fifty two'", () => {
+      const executor = Object.create(Executor.prototype) as any;
+      const response = responseWithAlternatives("go to line fifty two", [
+        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "g" },
+        { type: core.CommandType.COMMAND_TYPE_INSERT, text: "52" },
+        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "enter" },
+      ]);
+
+      const output = executor.setExecuteToFirstAlternativeIfNeeded(response);
+      expect(output.execute).toBeDefined();
+      expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_PRESS);
+      expect(output.execute.commands[1].type).toBe(core.CommandType.COMMAND_TYPE_INSERT);
+      expect(output.execute.commands[2].text).toBe("enter");
+    });
+
+    it("auto-activates tab creation alternative for 'new tab'", () => {
+      const executor = Object.create(Executor.prototype) as any;
+      const response = responseWithAlternatives("new tab", [
+        { type: core.CommandType.COMMAND_TYPE_CREATE_TAB },
+      ]);
+
+      const output = executor.setExecuteToFirstAlternativeIfNeeded(response);
+      expect(output.execute).toBeDefined();
+      expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_CREATE_TAB);
+    });
+
+    it("auto-activates endpoint navigation fallback for 'go to end'", () => {
+      const executor = Object.create(Executor.prototype) as any;
+      const response = responseWithAlternatives("go to end", [
+        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "end" },
+      ]);
+
+      const output = executor.setExecuteToFirstAlternativeIfNeeded(response);
+      expect(output.execute).toBeDefined();
+      expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_PRESS);
+      expect(output.execute.commands[0].text).toBe("end");
+    });
   });
 
   describe("Runtime route classification", () => {

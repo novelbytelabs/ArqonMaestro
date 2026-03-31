@@ -1078,6 +1078,8 @@ export default class Executor {
       core.CommandType.COMMAND_TYPE_SHOW_REVISION_BOX,
       core.CommandType.COMMAND_TYPE_HIDE_REVISION_BOX,
       core.CommandType.COMMAND_TYPE_FOCUS,
+      core.CommandType.COMMAND_TYPE_CREATE_TAB,
+      core.CommandType.COMMAND_TYPE_CLOSE_TAB,
     ];
 
     const executeKeys: string[] = [
@@ -1105,6 +1107,11 @@ export default class Executor {
     }
 
     if (valid[0].transcript.startsWith("focus")) {
+      response.execute = valid[0];
+      return response;
+    }
+
+    if (valid[0].transcript.startsWith("go to line")) {
       response.execute = valid[0];
       return response;
     }
@@ -1319,23 +1326,35 @@ export default class Executor {
     this.log?.logVerbose(`[Executor] executing response for chunkId: "${chunkId}"`);
     
     const h23Decision = h23Recorder.getLatestDecision(chunkId);
+    
+    let shouldBlock = false;
+    const hardGateNumeric = process.env.H23_HARD_GATE_NUMERIC === "true";
+    
     if (h23Decision) {
       this.log.logVerbose(`[H23 decision] chunkId=${h23Decision.chunkId} commandClass=${h23Decision.commandClass} granted=${h23Decision.granted} reason=${h23Decision.reason}`);
-      
-      const hardGateNumeric = process.env.H23_HARD_GATE_NUMERIC === "true";
-      const shouldBlock = 
+      shouldBlock = 
         hardGateNumeric &&
         h23Decision.commandClass === "parameterized" &&
         h23Decision.numericEndpointRequired === true &&
         h23Decision.granted !== true;
-
-      if (shouldBlock) {
-        this.log?.logVerbose(`[H23 gate] blocking execution for chunkId=${chunkId} reason=${h23Decision.reason}`);
-        this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
-        this.resolveChainFinished();
-        this.newChainFinishedPromise();
-        return;
+    } else if (hardGateNumeric) {
+      // FAIL-CLOSED: If gating is enabled but we have no decision for this chunkId,
+      // we check if the transcript looks like a numeric command via heuristics.
+      const transcript = response.execute?.transcript?.toLowerCase() || "";
+      const looksNumeric = transcript.includes("line") || transcript.includes("tab") || transcript.split(" ").some(w => !isNaN(parseInt(w, 10)));
+      
+      if (looksNumeric) {
+        this.log?.logVerbose(`[H23 gate] BLOCKING - No decision found for numeric-looking command in hard-gate mode. chunkId=${chunkId}`);
+        shouldBlock = true;
       }
+    }
+
+    if (shouldBlock) {
+      this.log?.logVerbose(`[H23 gate] blocking execution for chunkId=${chunkId} reason=${h23Decision?.reason ?? "missing_decision"}`);
+      this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
+      this.resolveChainFinished();
+      this.newChainFinishedPromise();
+      return;
     }
 
     const trustState = authorizationResult.trustState || "unknown";

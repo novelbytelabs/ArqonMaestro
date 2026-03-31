@@ -335,6 +335,22 @@ export default class CommandHandler {
     }
   }
 
+  async COMMAND_TYPE_CREATE_TAB(_data: core.ICommand): Promise<any> {
+    if (os.platform() == "darwin") {
+      await this.system.pressKey("t", ["command"]);
+    } else {
+      await this.system.pressKey("t", ["control"]);
+    }
+  }
+
+  async COMMAND_TYPE_CLOSE_TAB(_data: core.ICommand): Promise<any> {
+    if (os.platform() == "darwin") {
+      await this.system.pressKey("w", ["command"]);
+    } else {
+      await this.system.pressKey("w", ["control"]);
+    }
+  }
+
   async COMMAND_TYPE_USE(data: core.ICommand): Promise<any> {
     const state = await this.active.getEditorState();
     if (this.nativeCommands.useNeedsUndo) {

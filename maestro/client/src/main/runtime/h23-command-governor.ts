@@ -104,7 +104,13 @@ export default class H23CommandGovernor {
     const slotSignature = this.slotSignatureFromSlots(slots);
 
     const structuralRun = this.consecutiveTailMatchCount([...state.prefixHistory, structuralPrefix]);
-    const structurallyStable = structuralRun >= this.requiredStructuralMatches(commandClass);
+    const structuralStabilizedOnFinal =
+      input.isFinalStep &&
+      commandClass === "parameterized" &&
+      slotClosed &&
+      this.numericPhraseNonExpandableHint(slots);
+    const structurallyStable =
+      structuralRun >= this.requiredStructuralMatches(commandClass) || structuralStabilizedOnFinal;
 
     const slotRun = slotSignature
       ? this.consecutiveTailMatchCount([...state.slotHistory, slotSignature])
@@ -210,7 +216,11 @@ export default class H23CommandGovernor {
     if (["focus terminal", "delete previous token", "focus editor", "delete previous word"].includes(t)) {
       return "closed_structure";
     }
-    if (t.startsWith("go to line ") || t.startsWith("switch tab ") || t.startsWith("scroll down ")) {
+    if (
+      t.startsWith("go to line") ||
+      t.startsWith("switch tab") ||
+      t.startsWith("scroll down")
+    ) {
       return "parameterized";
     }
     return "unknown";
@@ -227,18 +237,18 @@ export default class H23CommandGovernor {
   }
 
   private extractSlots(t: string): Record<string, unknown> {
-    if (t.startsWith("go to line ")) {
-      const raw = t.slice("go to line ".length).trim();
+    if (t.startsWith("go to line")) {
+      const raw = t.slice("go to line".length).trim();
       const value = this.wordsToInt(raw);
       return { command_family: "goto_line", line_number_raw: raw, line_number: value, required_slots_present: value !== null };
     }
-    if (t.startsWith("switch tab ")) {
-      const raw = t.slice("switch tab ".length).trim();
+    if (t.startsWith("switch tab")) {
+      const raw = t.slice("switch tab".length).trim();
       const value = this.wordsToInt(raw);
       return { command_family: "switch_tab", tab_number_raw: raw, tab_number: value, required_slots_present: value !== null };
     }
-    if (t.startsWith("scroll down ")) {
-      const raw = t.slice("scroll down ".length).trim();
+    if (t.startsWith("scroll down")) {
+      const raw = t.slice("scroll down".length).trim();
       const matched = raw.match(/(.+?)\s+lines?$/);
       const numberPhrase = matched?.[1] ?? raw;
       const value = this.wordsToInt(numberPhrase);

@@ -15,6 +15,17 @@ function normalizeCase(input: any): ReplayCase[] {
   if (Array.isArray(input)) {
     return input;
   }
+  
+  // Handle full trace JSON from H23LiveTraceRecorder
+  if (input.steps && Array.isArray(input.steps)) {
+    return [{
+      utterance_id: input.chunkId || "unknown",
+      expected_final: input.steps[input.steps.length - 1]?.transcript || "",
+      partials: input.steps.map((s: any) => s.transcript),
+    }];
+  }
+
+  // Fallback/Legacy handling for synthetic traces
   if (input.events && Array.isArray(input.events)) {
     const chunkId = input.events.find((e: any) => e.type === "chunk_start")?.chunk_id || "unknown";
     const traceName = input.trace_name || "";
@@ -26,7 +37,7 @@ function normalizeCase(input: any): ReplayCase[] {
 
     const partialEvents = input.events.filter((e: any) => e.type === "partial_update");
     
-    // Simulate incremental growth for the replay
+    // Simulate incremental growth for the replay only if we don't have real transcripts
     const partials = partialEvents.map((_: any, i: number) => {
       const words = transcript.split(" ");
       const take = Math.min(words.length, Math.floor(((i + 1) / partialEvents.length) * words.length) + 1);

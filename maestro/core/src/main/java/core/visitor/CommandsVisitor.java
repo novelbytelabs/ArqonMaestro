@@ -368,6 +368,15 @@ public class CommandsVisitor
     return isApp(context, "hyper") || isApp(context, "term");
   }
 
+  private boolean isEditorLike(CommandsVisitorContext context) {
+    return (
+      isApp(context, "vscode") ||
+      isApp(context, "code") ||
+      isApp(context, "cursor") ||
+      isApp(context, "jetbrains")
+    );
+  }
+
   private CompletableFuture<List<CommandsResponseAlternativeWithMetadata>> navigateTo(
     CommandsVisitorContext context,
     ParseTree node,
@@ -1350,6 +1359,71 @@ public class CommandsVisitor
     CommandsVisitorContext context
   ) {
     if (!canGetState(context)) {
+      Selection fallbackSelection;
+      if (node.getChild("positionSelection").isPresent()) {
+        fallbackSelection =
+          treeConverter.convertPositionSelection(node.getChild("positionSelection").get());
+      } else {
+        fallbackSelection =
+          treeConverter.convertNavigationPositionSelection(
+            node.getChild("navigationPositionSelection").get()
+          );
+      }
+
+      // VS Code fallback when editor source is temporarily unavailable:
+      // trigger native "Go to Line" and type the target.
+      if (isEditorLike(context) && fallbackSelection.object == ObjectType.LINE) {
+        if (fallbackSelection.count.isPresent()) {
+          String line = Integer.toString(fallbackSelection.count.get());
+          List<Command> commands = Arrays.asList(
+            Command
+              .newBuilder()
+              .setType(CommandType.COMMAND_TYPE_PRESS)
+              .setText("g")
+              .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
+              .build(),
+            Command.newBuilder().setType(CommandType.COMMAND_TYPE_INSERT).setText(line).build(),
+            Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("enter").build()
+          );
+          return wrap(context, commands);
+        }
+
+        String transcript = context.parsed.transcript().toLowerCase();
+        if (
+          fallbackSelection.endpoint == SelectionEndpoint.START ||
+          transcript.contains("first line") ||
+          transcript.equals("go to top") ||
+          transcript.equals("go to beginning")
+        ) {
+          return wrap(
+            context,
+            Command
+              .newBuilder()
+              .setType(CommandType.COMMAND_TYPE_PRESS)
+              .setText("home")
+              .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
+              .build()
+          );
+        }
+
+        if (
+          fallbackSelection.endpoint == SelectionEndpoint.END ||
+          transcript.equals("go to end") ||
+          transcript.contains("end of file") ||
+          transcript.equals("go to last line")
+        ) {
+          return wrap(
+            context,
+            Command
+              .newBuilder()
+              .setType(CommandType.COMMAND_TYPE_PRESS)
+              .setText("end")
+              .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
+              .build()
+          );
+        }
+      }
+
       return requiresSource(context);
     }
 
