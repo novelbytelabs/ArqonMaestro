@@ -358,6 +358,19 @@ export default class RuntimeCommandEmitter {
       }
     );
 
+    if (
+      commands.length === 0 &&
+      (response.alternatives || []).length > 0
+    ) {
+      const firstAlt = response.alternatives?.[0];
+      const firstAltTypes = (firstAlt?.commands || []).map((command) =>
+        commandTypeToString(command.type || core.CommandType.COMMAND_TYPE_NONE)
+      );
+      console.log(
+        `[STREAM_TRACE] runtime_emitter_zero_commands chunkId="${chunkId || ""}" reason="empty_execute_commands" alternatives=${(response.alternatives || []).length} firstAltTranscript="${firstAlt?.transcript || ""}" firstAltCommandTypes="${firstAltTypes.join(",")}"`
+      );
+    }
+
     if (commands.length > 0) {
       this.log.logVerbose(`[RuntimeCommandEmitter] ${JSON.stringify(commands)}`);
     }

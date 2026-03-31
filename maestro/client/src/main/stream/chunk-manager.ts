@@ -1585,9 +1585,16 @@ export default class ChunkManager {
           return;
         }
 
+        console.log(
+          `[STREAM_TRACE] chunk_manager_final_ready chunkId="${finalResponse.chunkId}" sessionId="${sessionId || ""}" executePresent=${!!finalResponse.execute} executeCount=${(finalResponse.execute?.commands || []).length} alternatives=${(finalResponse.alternatives || []).length} transcript="${finalResponse.execute?.transcript || finalResponse.alternatives?.[0]?.transcript || ""}"`
+        );
+
         const emittedCount = this.runtimeCommandDispatcher.emitNormalizedCommands(
           finalResponse,
           sessionId
+        );
+        console.log(
+          `[STREAM_TRACE] chunk_manager_emit_normalized chunkId="${finalResponse.chunkId}" emittedCount=${emittedCount} executeCount=${(finalResponse.execute?.commands || []).length} alternatives=${(finalResponse.alternatives || []).length}`
         );
         this.executionTrace?.recordNormalizedCommands(
           finalResponse.chunkId,

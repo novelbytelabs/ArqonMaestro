@@ -36,14 +36,26 @@ export default class CommandResponseService {
       params;
     let { response } = params;
 
+    console.log(
+      `[STREAM_TRACE] command_response_apply_enter chunkId="${response.chunkId || chunk.id}" final=${!!response.final} executePresent=${!!response.execute} executeCount=${(response.execute?.commands || []).length} alternatives=${(response.alternatives || []).length} transcript="${response.execute?.transcript || response.alternatives?.[0]?.transcript || ""}"`
+    );
+
     if (response.final) {
+      const beforeExecuteCount = (response.execute?.commands || []).length;
+      const beforeAlternatives = (response.alternatives || []).length;
       response = await this.deps.executor.postProcessResponse(response);
+      console.log(
+        `[STREAM_TRACE] command_response_post_process chunkId="${response.chunkId || chunk.id}" executeBefore=${beforeExecuteCount} alternativesBefore=${beforeAlternatives} executeAfter=${(response.execute?.commands || []).length} alternativesAfter=${(response.alternatives || []).length} transcript="${response.execute?.transcript || response.alternatives?.[0]?.transcript || ""}"`
+      );
       if (chunk.reverted) {
         chunk.revertedResponse = response;
       } else {
         chunk.response = response;
       }
 
+      console.log(
+        `[STREAM_TRACE] command_response_final_ready chunkId="${response.chunkId || chunk.id}" executePresent=${!!response.execute} executeCount=${(response.execute?.commands || []).length} alternatives=${(response.alternatives || []).length}`
+      );
       params.onFinalResponseReady(response, params.getSessionId());
     }
 
@@ -71,6 +83,9 @@ export default class CommandResponseService {
 
     await logResponse(response);
     if (response.final) {
+      console.log(
+        `[STREAM_TRACE] command_response_attempt_evaluate chunkId="${response.chunkId || chunk.id}" executePresent=${!!response.execute} executeCount=${(response.execute?.commands || []).length} alternatives=${(response.alternatives || []).length}`
+      );
       await attemptToEvaluateChunk(chunk);
     }
   }
