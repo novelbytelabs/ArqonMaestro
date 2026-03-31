@@ -99,3 +99,7 @@ maestro/tree-sitter/java-tree-sitter/tree-sitter/libtree-sitter.so.*
 maestro_integrity_layer_*/
 maestro_pm_reset_bundle_*/
 .codebuddy
+
+# Local runtime debugging artifacts (generated)
+maestro/client/artifacts/
+tmp/h23_audit/
