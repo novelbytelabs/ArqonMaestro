@@ -107,8 +107,34 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_FOCUS(data: core.ICommand): Promise<any> {
+    const trace = (data as any).__execTrace || {};
+    console.log(
+      "[HANDLER_TRACE] enter",
+      JSON.stringify({
+        handler: "COMMAND_TYPE_FOCUS",
+        chunkId: trace.chunkId || "",
+        transcript: trace.transcript || "",
+        seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+        commandType: "COMMAND_TYPE_FOCUS",
+        text: data.text || "",
+        invoked: true,
+      })
+    );
     console.log("[COMMAND_HANDLER] COMMAND_TYPE_FOCUS called with:", data.text);
     await this.system.focus(data.text!);
+    console.log(
+      "[HANDLER_TRACE] exit",
+      JSON.stringify({
+        handler: "COMMAND_TYPE_FOCUS",
+        chunkId: trace.chunkId || "",
+        transcript: trace.transcript || "",
+        seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+        commandType: "COMMAND_TYPE_FOCUS",
+        success: true,
+        returnValue: "void",
+        nextQueued: !!trace.nextQueued,
+      })
+    );
   }
 
   async COMMAND_TYPE_HIDE_REVISION_BOX(data: any): Promise<any> {
@@ -116,7 +142,33 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_INSERT(data: core.ICommand): Promise<any> {
+    const trace = (data as any).__execTrace || {};
+    console.log(
+      "[HANDLER_TRACE] enter",
+      JSON.stringify({
+        handler: "COMMAND_TYPE_INSERT",
+        chunkId: trace.chunkId || "",
+        transcript: trace.transcript || "",
+        seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+        commandType: "COMMAND_TYPE_INSERT",
+        text: data.text || data.source || "",
+        invoked: true,
+      })
+    );
     await this.nativeCommands.applyInsert(data.source || data.text || "");
+    console.log(
+      "[HANDLER_TRACE] exit",
+      JSON.stringify({
+        handler: "COMMAND_TYPE_INSERT",
+        chunkId: trace.chunkId || "",
+        transcript: trace.transcript || "",
+        seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+        commandType: "COMMAND_TYPE_INSERT",
+        success: true,
+        returnValue: "void",
+        nextQueued: !!trace.nextQueued,
+      })
+    );
   }
 
   async COMMAND_TYPE_LANGUAGE_MODE(data: core.ICommand): Promise<any> {
@@ -143,16 +195,44 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_PRESS(data: core.ICommand): Promise<any> {
+    const trace = (data as any).__execTrace || {};
     const forceSystemPress = process.env.ARQON_FORCE_SYSTEM_PRESS !== "0";
     const key = (data.text || "").trim();
     const modifiers = data.modifiers || [];
     const count = Math.max(1, data.index || 0);
+    console.log(
+      "[HANDLER_TRACE] enter",
+      JSON.stringify({
+        handler: "COMMAND_TYPE_PRESS",
+        chunkId: trace.chunkId || "",
+        transcript: trace.transcript || "",
+        seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+        commandType: "COMMAND_TYPE_PRESS",
+        key,
+        modifiers,
+        count,
+        invoked: true,
+      })
+    );
     console.log(
       "[COMMAND_HANDLER] COMMAND_TYPE_PRESS called with:",
       JSON.stringify({ key, modifiers, count, forceSystemPress })
     );
     if (!key) {
       console.warn("[COMMAND_HANDLER] COMMAND_TYPE_PRESS skipped: empty key");
+      console.log(
+        "[HANDLER_TRACE] exit",
+        JSON.stringify({
+          handler: "COMMAND_TYPE_PRESS",
+          chunkId: trace.chunkId || "",
+          transcript: trace.transcript || "",
+          seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+          commandType: "COMMAND_TYPE_PRESS",
+          success: false,
+          returnValue: "skipped_empty_key",
+          nextQueued: !!trace.nextQueued,
+        })
+      );
       return;
     }
     if (!forceSystemPress && this.revisionBoxWindow.shown()) {
@@ -160,6 +240,19 @@ export default class CommandHandler {
     } else {
       await this.system.pressKey(key, modifiers, count);
     }
+    console.log(
+      "[HANDLER_TRACE] exit",
+      JSON.stringify({
+        handler: "COMMAND_TYPE_PRESS",
+        chunkId: trace.chunkId || "",
+        transcript: trace.transcript || "",
+        seq: trace.index && trace.total ? `${trace.index}/${trace.total}` : "",
+        commandType: "COMMAND_TYPE_PRESS",
+        success: true,
+        returnValue: "void",
+        nextQueued: !!trace.nextQueued,
+      })
+    );
   }
 
   async COMMAND_TYPE_REDO(_data: core.ICommand): Promise<any> {

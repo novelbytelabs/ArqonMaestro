@@ -1510,6 +1510,9 @@ export default class Executor {
       this.newChainFinishedPromise();
       return;
     }
+    this.log.logVerbose(
+      `[EXEC_TRACE] post_auth_allow chunkId="${response.chunkId || ""}" transcript="${response.execute?.transcript || ""}" interactionId="${authorizationResult.interactionId || ""}" trustState="${authorizationResult.trustState || ""}"`
+    );
 
     // H2.3: Observe and Gate
     const chunkId = response.chunkId || "";
@@ -1594,11 +1597,39 @@ export default class Executor {
 
     try {
       if (response.execute && response.execute.commands) {
+        const commandCount = response.execute.commands.length;
+        const commandSequence = response.execute.commands
+          .map((command, index) => {
+            const type = commandTypeToString(command.type!);
+            const text = command.text || command.path || command.source || "";
+            return `${index + 1}/${commandCount}:${type}:${text}`;
+          })
+          .join(" | ");
+        this.log.logVerbose(
+          `[EXEC_TRACE] expanded_sequence chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" total=${commandCount} sequence="${commandSequence}"`
+        );
+
         let allCommandsConfirmed = true;
         let hasExecutableCommands = false;
-        for (const command of response.execute.commands) {
+        for (let index = 0; index < response.execute.commands.length; index++) {
+          const command = response.execute.commands[index];
           const commandType = commandTypeToString(command.type!);
+          const nextQueued = index < response.execute.commands.length - 1;
+          const handlerName = commandType;
           hasExecutableCommands = true;
+
+          (command as any).__execTrace = {
+            chunkId: response.chunkId || "",
+            transcript: response.execute.transcript || "",
+            index: index + 1,
+            total: response.execute.commands.length,
+            handlerName,
+            nextQueued,
+          };
+
+          this.log.logVerbose(
+            `[EXEC_TRACE] pre_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} enteringDispatch=true handler="${handlerName}" handlerInvoked=${commandType in this.commandHandler()} nextQueued=${nextQueued}`
+          );
 
           // Dedicated focus command path
           if (command.type == core.CommandType.COMMAND_TYPE_FOCUS) {
@@ -1612,12 +1643,20 @@ export default class Executor {
                 focusTimeoutMs,
                 "focus_command"
               );
+              this.log.logVerbose(
+                `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=${focusConfirmed} handlerReturn="${focusConfirmed}" nextQueued=${nextQueued}`
+              );
               if (!focusConfirmed) {
                 allCommandsConfirmed = false;
               }
             } catch (error) {
               allCommandsConfirmed = false;
               this.log.logVerbose(`[EXECUTOR] Focus command timed out/failed: ${error}`);
+              this.log.logVerbose(
+                `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=false handlerReturn="error:${String(
+                  error
+                )}" nextQueued=${nextQueued}`
+              );
             }
             continue;
           }
@@ -1631,7 +1670,24 @@ export default class Executor {
               this.insertHistory.clear();
             }
 
-            await this.commandHandler()[commandType](command);
+            let handlerReturn: any = undefined;
+            let handlerSuccess = true;
+            try {
+              handlerReturn = await this.commandHandler()[commandType](command);
+            } catch (error) {
+              handlerSuccess = false;
+              this.log.logVerbose(
+                `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=false handlerReturn="error:${String(
+                  error
+                )}" nextQueued=${nextQueued}`
+              );
+              throw error;
+            }
+            this.log.logVerbose(
+              `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=${handlerSuccess} handlerReturn="${String(
+                handlerReturn
+              )}" nextQueued=${nextQueued}`
+            );
 
             if (
               command.type == core.CommandType.COMMAND_TYPE_RUN ||
@@ -1641,6 +1697,9 @@ export default class Executor {
             }
           } else {
             allCommandsConfirmed = false;
+            this.log.logVerbose(
+              `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=false handlerSuccess=false handlerReturn="missing_handler" nextQueued=${nextQueued}`
+            );
           }
         }
         if (hasExecutableCommands) {
