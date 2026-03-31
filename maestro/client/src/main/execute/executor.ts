@@ -1537,19 +1537,26 @@ export default class Executor {
         h23Decision.numericEndpointRequired === true &&
         h23Decision.granted !== true;
     } else if (hardGateNumeric) {
-      // FAIL-CLOSED: If gating is enabled but we have no decision for this chunkId,
-      // we check if the transcript looks like a numeric command via heuristics.
+      // Missing H2.3 decision for a finalized utterance should not dead-stop local
+      // execution. Keep this observe-only and emit an explicit trace for diagnosis.
       const transcript = response.execute?.transcript?.toLowerCase() || "";
-      const looksNumeric = transcript.includes("line") || transcript.includes("tab") || transcript.split(" ").some(w => !isNaN(parseInt(w, 10)));
-      
+      const looksNumeric =
+        transcript.includes("line") ||
+        transcript.includes("tab") ||
+        transcript.split(" ").some((w) => !isNaN(parseInt(w, 10)));
+
       if (looksNumeric) {
-        this.log?.logVerbose(`[H23 gate] BLOCKING - No decision found for numeric-looking command in hard-gate mode. chunkId=${chunkId}`);
-        shouldBlock = true;
+        console.log(
+          `[EXEC_TRACE] h23_missing_decision_observe_only chunkId="${chunkId}" transcript="${response.execute?.transcript || ""}" hardGateNumeric=${hardGateNumeric}`
+        );
       }
     }
 
     if (shouldBlock) {
       this.log?.logVerbose(`[H23 gate] blocking execution for chunkId=${chunkId} reason=${h23Decision?.reason ?? "missing_decision"}`);
+      console.log(
+        `[EXEC_TRACE] h23_block chunkId="${chunkId}" reason="${h23Decision?.reason ?? "missing_decision"}" transcript="${response.execute?.transcript || ""}"`
+      );
       this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
       this.resolveChainFinished();
       this.newChainFinishedPromise();
