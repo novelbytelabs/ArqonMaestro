@@ -3,7 +3,7 @@ import RuntimeCommandDispatcher from "../../main/runtime/runtime-command-dispatc
 import RuntimeCommandEmitter from "../../main/runtime/runtime-command-emitter";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const Executor = require("../../main/execute/executor.js").default;
+const Executor = require("../../main/execute/executor").default;
 
 function responseWithAlternatives(
   transcript: string,
@@ -103,16 +103,17 @@ describe("Voice command regression suite", () => {
     it("auto-activates goto-line fallback alternative for 'go to line fifty two'", () => {
       const executor = Object.create(Executor.prototype) as any;
       const response = responseWithAlternatives("go to line fifty two", [
-        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "g" },
-        { type: core.CommandType.COMMAND_TYPE_INSERT, text: "52" },
-        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "enter" },
+        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "" },
       ]);
+      executor.log = { logVerbose: jest.fn() };
 
       const output = executor.setExecuteToFirstAlternativeIfNeeded(response);
       expect(output.execute).toBeDefined();
       expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_PRESS);
+      expect(output.execute.commands[0].text).toBe("g");
       expect(output.execute.commands[1].type).toBe(core.CommandType.COMMAND_TYPE_INSERT);
-      expect(output.execute.commands[2].text).toBe("enter");
+      expect(output.execute.commands[1].text).toBe("52");
+      expect(output.execute.commands[2].text).toBe("return");
     });
 
     it("auto-activates tab creation alternative for 'new tab'", () => {
@@ -129,13 +130,30 @@ describe("Voice command regression suite", () => {
     it("auto-activates endpoint navigation fallback for 'go to end'", () => {
       const executor = Object.create(Executor.prototype) as any;
       const response = responseWithAlternatives("go to end", [
-        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "end" },
+        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "" },
       ]);
+      executor.log = { logVerbose: jest.fn() };
 
       const output = executor.setExecuteToFirstAlternativeIfNeeded(response);
       expect(output.execute).toBeDefined();
       expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_PRESS);
-      expect(output.execute.commands[0].text).toBe("end");
+      expect(output.execute.commands[0].text).toBe("g");
+      expect(output.execute.commands[1].type).toBe(core.CommandType.COMMAND_TYPE_INSERT);
+      expect(output.execute.commands[1].text).toBe("999999");
+      expect(output.execute.commands[2].text).toBe("return");
+    });
+
+    it("synthesizes focus fallback when transcript is present but command payload is empty", () => {
+      const executor = Object.create(Executor.prototype) as any;
+      executor.log = { logVerbose: jest.fn() };
+      const response = responseWithAlternatives("focus code", [
+        { type: core.CommandType.COMMAND_TYPE_PRESS, text: "" },
+      ]);
+
+      const output = executor.setExecuteToFirstAlternativeIfNeeded(response);
+      expect(output.execute).toBeDefined();
+      expect(output.execute.commands[0].type).toBe(core.CommandType.COMMAND_TYPE_FOCUS);
+      expect(output.execute.commands[0].text).toBe("code");
     });
   });
 

@@ -143,10 +143,22 @@ export default class CommandHandler {
   }
 
   async COMMAND_TYPE_PRESS(data: core.ICommand): Promise<any> {
-    if (this.revisionBoxWindow.shown()) {
+    const forceSystemPress = process.env.ARQON_FORCE_SYSTEM_PRESS !== "0";
+    const key = (data.text || "").trim();
+    const modifiers = data.modifiers || [];
+    const count = Math.max(1, data.index || 0);
+    console.log(
+      "[COMMAND_HANDLER] COMMAND_TYPE_PRESS called with:",
+      JSON.stringify({ key, modifiers, count, forceSystemPress })
+    );
+    if (!key) {
+      console.warn("[COMMAND_HANDLER] COMMAND_TYPE_PRESS skipped: empty key");
+      return;
+    }
+    if (!forceSystemPress && this.revisionBoxWindow.shown()) {
       await this.nativeCommands.applyRevisionBoxPress(data);
     } else {
-      await this.system.pressKey(data.text!, data.modifiers!, Math.max(1, data.index || 0));
+      await this.system.pressKey(key, modifiers, count);
     }
   }
 

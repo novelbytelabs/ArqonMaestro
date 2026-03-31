@@ -93,7 +93,7 @@ export interface InvariantCheckRecord {
 export default class FocusSafetyMonitor {
   private config: SafetyMonitorConfig;
   private isMonitoring: boolean = false;
-  private monitorInterval?: NodeJS.Timeout;
+  private monitorInterval?: ReturnType<typeof setInterval>;
   private activeInvariants: SafetyInvariant[];
   private checkHistory: InvariantCheckRecord[];
   private lastCheckResults: Map<SafetyInvariantType, InvariantResult>;

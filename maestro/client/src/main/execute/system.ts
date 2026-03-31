@@ -24,17 +24,26 @@ export default class System {
 
   private normalizePressKey(key: string): string {
     const normalized = (key || "").toLowerCase().trim();
+    const isLinux = os.platform() === "linux";
     switch (normalized) {
       case "return":
-        return "enter";
+        return isLinux ? "Return" : "enter";
+      case "enter":
+        return isLinux ? "Return" : "enter";
       case "del":
-        return "delete";
+        return isLinux ? "Delete" : "delete";
+      case "delete":
+        return isLinux ? "Delete" : "delete";
+      case "home":
+        return isLinux ? "Home" : "home";
+      case "end":
+        return isLinux ? "End" : "end";
       case "pgup":
       case "page up":
-        return "pageup";
+        return isLinux ? "Page_Up" : "pageup";
       case "pgdn":
       case "page down":
-        return "pagedown";
+        return isLinux ? "Page_Down" : "pagedown";
       default:
         return normalized;
     }
@@ -231,7 +240,16 @@ export default class System {
   }
 
   async pressKey(key: string, modifiers: string[] = [], count: number = 1) {
-    await driver.pressKey(this.normalizePressKey(key), modifiers, count);
+    const normalizedKey = this.normalizePressKey(key);
+    if (!normalizedKey) {
+      console.warn("[SYSTEM] pressKey skipped: empty normalized key", { key, modifiers, count });
+      return;
+    }
+    console.log(
+      "[SYSTEM] pressKey()",
+      JSON.stringify({ key, normalizedKey, modifiers, count })
+    );
+    await driver.pressKey(normalizedKey, modifiers, count);
     await this.delay(50);
   }
 

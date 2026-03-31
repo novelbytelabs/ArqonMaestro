@@ -26,6 +26,7 @@ import core.snippet.SnippetCollectionFactory;
 import core.util.ArrowKeyDirection;
 import core.util.Diff;
 import core.util.InsertDirection;
+import core.util.NumberConverter;
 import core.util.ObjectType;
 import core.util.Range;
 import core.util.SearchDirection;
@@ -61,6 +62,7 @@ public class CommandsVisitor
   protected Whitespace whitespace;
   protected Styler styler;
   protected TextConversionMap textConversionMap;
+  protected NumberConverter numberConverter;
 
   @Inject
   public CommandsVisitor(
@@ -72,6 +74,7 @@ public class CommandsVisitor
     CommandsFactory commandsFactory,
     SnippetCollectionFactory snippetCollectionFactory,
     FormattedTextConverter formattedTextConverter,
+    NumberConverter numberConverter,
     Whitespace whitespace,
     Styler styler,
     TextConversionMap textConversionMap
@@ -83,6 +86,7 @@ public class CommandsVisitor
     this.commandsFactory = commandsFactory;
     this.snippetCollectionFactory = snippetCollectionFactory;
     this.formattedTextConverter = formattedTextConverter;
+    this.numberConverter = numberConverter;
     this.transcriptParser = transcriptParser;
     this.whitespace = whitespace;
     this.styler = styler;
@@ -386,16 +390,7 @@ public class CommandsVisitor
     if (english.length() < 3) {
       return wrap(context, Command.newBuilder().setType(CommandType.COMMAND_TYPE_INVALID).build());
     }
-
-    String url = formattedTextConverter.convert(
-      english,
-      FormattedTextOptions.newBuilder().setExpression(false).build(),
-      Language.LANGUAGE_DEFAULT
-    );
-
-    if (url.contains(".") || url.contains("/")) {
-      url = url.replaceAll(" ", "");
-    }
+    String url = navigateToUrl(english);
 
     return CompletableFuture.completedFuture(
       Arrays.asList(
@@ -416,6 +411,41 @@ public class CommandsVisitor
         )
       )
     );
+  }
+
+  private String navigateToUrl(String english) {
+    String url = formattedTextConverter.convert(
+      english,
+      FormattedTextOptions.newBuilder().setExpression(false).build(),
+      Language.LANGUAGE_DEFAULT
+    );
+
+    if (url.contains(".") || url.contains("/")) {
+      url = url.replaceAll(" ", "");
+    }
+    return url;
+  }
+
+  private List<Command> navigateToCommands(CommandsVisitorContext context, String destination) {
+    String url = navigateToUrl(destination);
+    return Arrays.asList(
+      Command
+        .newBuilder()
+        .setType(CommandType.COMMAND_TYPE_PRESS)
+        .addAllModifiers(commandOrControl(context))
+        .setText("l")
+        .build(),
+      Command.newBuilder().setType(CommandType.COMMAND_TYPE_INSERT).setText(url).build(),
+      Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("enter").build()
+    );
+  }
+
+  private String externalUrl(String destination) {
+    String url = navigateToUrl(destination);
+    if (!url.contains("://")) {
+      return "https://" + url;
+    }
+    return url;
   }
 
   private CompletableFuture<CommandsResponseAlternativeWithMetadata> repeat(
@@ -641,6 +671,124 @@ public class CommandsVisitor
   @Override
   protected CompletableFuture<List<CommandsResponseAlternativeWithMetadata>> defaultResult() {
     return CompletableFuture.completedFuture(Arrays.asList());
+  }
+
+  private boolean isLineNavigationTranscript(String transcript) {
+    return (
+      transcript.startsWith("go to line ") ||
+      transcript.equals("go to top") ||
+      transcript.equals("go to beginning") ||
+      transcript.contains("first line") ||
+      transcript.equals("go to end") ||
+      transcript.equals("go to last line") ||
+      transcript.contains("end of file")
+    );
+  }
+
+  private Optional<Integer> extractLineNumberFromTranscript(String transcript) {
+    String prefix = "go to line ";
+    if (!transcript.startsWith(prefix)) {
+      return Optional.empty();
+    }
+
+    String suffix = transcript.substring(prefix.length()).trim();
+    if (suffix.startsWith("number ")) {
+      suffix = suffix.substring("number ".length()).trim();
+    }
+    if (suffix.equals("")) {
+      return Optional.empty();
+    }
+
+    String[] tokens = suffix.split("\\s+");
+    for (int i = tokens.length; i > 0; i--) {
+      String candidate = String.join(" ", Arrays.asList(tokens).subList(0, i));
+      if (numberConverter.isValid(candidate)) {
+        int line = numberConverter.fromString(candidate);
+        if (line > 0) {
+          return Optional.of(line);
+        }
+      }
+    }
+
+    return Optional.empty();
+  }
+
+  private List<Command> editorGoToLineCommands(CommandsVisitorContext context, int line) {
+    return Arrays.asList(
+      Command
+        .newBuilder()
+        .setType(CommandType.COMMAND_TYPE_PRESS)
+        .setText("g")
+        .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
+        .build(),
+      Command.newBuilder().setType(CommandType.COMMAND_TYPE_INSERT).setText(Integer.toString(line)).build(),
+      Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("enter").build()
+    );
+  }
+
+  private Optional<List<Command>> goToWithoutSourceFallback(
+    ParseTree node,
+    CommandsVisitorContext context,
+    Optional<Selection> maybeSelection,
+    Optional<ParseTree> destinationNode
+  ) {
+    String transcript = context.parsed.transcript().toLowerCase();
+
+    if (isEditorLike(context) && isLineNavigationTranscript(transcript)) {
+      if (maybeSelection.isPresent()) {
+        Selection selection = maybeSelection.get();
+        if (selection.object == ObjectType.LINE && selection.count.isPresent()) {
+          return Optional.of(editorGoToLineCommands(context, selection.count.get()));
+        }
+        if (selection.endpoint == SelectionEndpoint.START) {
+          return Optional.of(editorGoToLineCommands(context, 1));
+        }
+        if (selection.endpoint == SelectionEndpoint.END) {
+          return Optional.of(editorGoToLineCommands(context, 999999));
+        }
+      }
+
+      Optional<Integer> lineFromTranscript = extractLineNumberFromTranscript(transcript);
+      if (lineFromTranscript.isPresent()) {
+        return Optional.of(editorGoToLineCommands(context, lineFromTranscript.get()));
+      }
+      if (
+        transcript.equals("go to top") ||
+        transcript.equals("go to beginning") ||
+        transcript.contains("first line")
+      ) {
+        return Optional.of(editorGoToLineCommands(context, 1));
+      }
+      if (
+        transcript.equals("go to end") ||
+        transcript.equals("go to last line") ||
+        transcript.contains("end of file")
+      ) {
+        return Optional.of(editorGoToLineCommands(context, 999999));
+      }
+    }
+
+    String destination = destinationNode
+      .map(treeConverter::convertToEnglish)
+      .orElseGet(
+        () -> transcript.startsWith("go to ") ? transcript.substring("go to ".length()).trim() : ""
+      );
+    if (destination.length() >= 3 && (isBrowser(context) || destination.contains(" dot "))) {
+      if (isBrowser(context)) {
+        return Optional.of(navigateToCommands(context, destination));
+      }
+      return Optional.of(
+        Arrays.asList(
+          Command
+            .newBuilder()
+            .setType(CommandType.COMMAND_TYPE_OPEN_IN_BROWSER)
+            .setPath(externalUrl(destination))
+            .build()
+        )
+      );
+    }
+
+    return Optional.empty();
   }
 
   public CompletableFuture<List<CommandsResponseAlternativeWithMetadata>> visitAdd(
@@ -1370,58 +1518,14 @@ public class CommandsVisitor
           );
       }
 
-      // VS Code fallback when editor source is temporarily unavailable:
-      // trigger native "Go to Line" and type the target.
-      if (isEditorLike(context) && fallbackSelection.object == ObjectType.LINE) {
-        if (fallbackSelection.count.isPresent()) {
-          String line = Integer.toString(fallbackSelection.count.get());
-          List<Command> commands = Arrays.asList(
-            Command
-              .newBuilder()
-              .setType(CommandType.COMMAND_TYPE_PRESS)
-              .setText("g")
-              .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
-              .build(),
-            Command.newBuilder().setType(CommandType.COMMAND_TYPE_INSERT).setText(line).build(),
-            Command.newBuilder().setType(CommandType.COMMAND_TYPE_PRESS).setText("enter").build()
-          );
-          return wrap(context, commands);
-        }
-
-        String transcript = context.parsed.transcript().toLowerCase();
-        if (
-          fallbackSelection.endpoint == SelectionEndpoint.START ||
-          transcript.contains("first line") ||
-          transcript.equals("go to top") ||
-          transcript.equals("go to beginning")
-        ) {
-          return wrap(
-            context,
-            Command
-              .newBuilder()
-              .setType(CommandType.COMMAND_TYPE_PRESS)
-              .setText("home")
-              .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
-              .build()
-          );
-        }
-
-        if (
-          fallbackSelection.endpoint == SelectionEndpoint.END ||
-          transcript.equals("go to end") ||
-          transcript.contains("end of file") ||
-          transcript.equals("go to last line")
-        ) {
-          return wrap(
-            context,
-            Command
-              .newBuilder()
-              .setType(CommandType.COMMAND_TYPE_PRESS)
-              .setText("end")
-              .addAllModifiers(Arrays.asList(isMac(context) ? "command" : "control"))
-              .build()
-          );
-        }
+      Optional<List<Command>> fallback = goToWithoutSourceFallback(
+        node,
+        context,
+        Optional.of(fallbackSelection),
+        Optional.empty()
+      );
+      if (fallback.isPresent()) {
+        return wrap(context, fallback.get());
       }
 
       return requiresSource(context);
@@ -1497,6 +1601,15 @@ public class CommandsVisitor
     }
 
     if (!canGetState(context)) {
+      Optional<List<Command>> fallback = goToWithoutSourceFallback(
+        node,
+        context,
+        Optional.empty(),
+        Optional.of(selectionNode)
+      );
+      if (fallback.isPresent()) {
+        return wrap(context, fallback.get());
+      }
       return requiresSource(context);
     }
 

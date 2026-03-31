@@ -1098,44 +1098,234 @@ export default class Executor {
       "pageup",
     ];
 
-    if (!valid[0].transcript || !valid[0].commands || valid[0].commands.length == 0) {
+    const first = valid[0];
+    const transcript = (first.transcript || "").trim();
+
+    const fallbackCommands = this.buildTranscriptFallbackCommands(transcript);
+    if (
+      fallbackCommands &&
+      (!first.commands || first.commands.length == 0 || this.commandsNeedRepair(first.commands))
+    ) {
+      response.execute = {
+        ...first,
+        commands: fallbackCommands,
+      };
+      this.log.logVerbose(
+        `[EXECUTOR_FALLBACK] synthesized commands for transcript="${transcript}"`
+      );
       return response;
     }
 
-    if (valid[0].transcript.startsWith("run")) {
+    if (!transcript || !first.commands || first.commands.length == 0) {
       return response;
     }
 
-    if (valid[0].transcript.startsWith("focus")) {
-      response.execute = valid[0];
+    if (transcript.startsWith("run")) {
       return response;
     }
 
-    if (valid[0].transcript.startsWith("go to line")) {
-      response.execute = valid[0];
+    if (transcript.startsWith("focus")) {
+      response.execute = first;
+      return response;
+    }
+
+    const gotoLineFallback = this.buildGoToLineFallbackCommands(transcript);
+    if (gotoLineFallback) {
+      response.execute = {
+        ...first,
+        commands: gotoLineFallback,
+      };
       return response;
     }
 
     if (
       valid.length == 1 ||
-      valid[0].commands.every(
+      first.commands.every(
         (e) =>
           autoExecuteCommandTypes.includes(e.type || core.CommandType.COMMAND_TYPE_NONE) ||
           (e.type == core.CommandType.COMMAND_TYPE_PRESS && executeKeys.includes(e.text || ""))
       )
     ) {
-      response.execute = valid[0];
-    } else if (valid[0].commands[0].type == core.CommandType.COMMAND_TYPE_CUSTOM) {
+      response.execute = first;
+    } else if (first.commands[0].type == core.CommandType.COMMAND_TYPE_CUSTOM) {
       const custom = this.active.customCommands.filter(
-        (e) => e.id == valid[0].commands![0].customCommandId && e.autoExecute
+        (e) => e.id == first.commands![0].customCommandId && e.autoExecute
       );
 
       if (custom.length > 0) {
-        response.execute = valid[0];
+        response.execute = first;
       }
     }
 
     return response;
+  }
+
+  private commandsNeedRepair(commands: core.ICommand[]): boolean {
+    return commands.some((command) => {
+      if (command.type === core.CommandType.COMMAND_TYPE_PRESS) {
+        return !(command.text || "").trim();
+      }
+      if (command.type === core.CommandType.COMMAND_TYPE_FOCUS) {
+        return !(command.text || "").trim();
+      }
+      return false;
+    });
+  }
+
+  private buildTranscriptFallbackCommands(transcript: string): core.ICommand[] | null {
+    const text = (transcript || "").trim().toLowerCase();
+    if (!text) {
+      return null;
+    }
+
+    const goToLine = this.buildGoToLineFallbackCommands(text);
+    if (goToLine) {
+      return goToLine;
+    }
+
+    const focusMatch = text.match(/^focus\s+(.+)$/);
+    if (focusMatch && focusMatch[1]) {
+      const target = focusMatch[1].trim();
+      if (target) {
+        return [
+          {
+            type: core.CommandType.COMMAND_TYPE_FOCUS,
+            text: target,
+          },
+        ] as core.ICommand[];
+      }
+    }
+
+    const url = this.tryParseGoToUrl(text);
+    if (url) {
+      return [
+        {
+          type: core.CommandType.COMMAND_TYPE_OPEN_IN_BROWSER,
+          path: url,
+        },
+      ] as core.ICommand[];
+    }
+
+    return null;
+  }
+
+  private tryParseGoToUrl(transcript: string): string | null {
+    if (!transcript.startsWith("go to ")) {
+      return null;
+    }
+    const raw = transcript.replace(/^go to\s+/, "").trim();
+    if (!raw) {
+      return null;
+    }
+    if (raw.startsWith("line ") || raw === "first line" || raw === "end" || raw === "last line") {
+      return null;
+    }
+
+    const normalized = raw
+      .replace(/\s+dot\s+/g, ".")
+      .replace(/\s+/g, "")
+      .toLowerCase();
+    if (!/[a-z0-9-]+\.[a-z]/.test(normalized)) {
+      return null;
+    }
+    if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+      return normalized;
+    }
+    return `https://${normalized}`;
+  }
+
+  private buildGoToLineFallbackCommands(transcript: string): core.ICommand[] | null {
+    const text = (transcript || "").trim().toLowerCase();
+    if (!text) {
+      return null;
+    }
+
+    let line: number | null = null;
+    if (text == "go to first line" || text == "go to top" || text == "go to beginning") {
+      line = 1;
+    } else if (text == "go to end" || text == "go to last line") {
+      line = 999999;
+    } else if (/^go to l+ine /.test(text)) {
+      const raw = text.replace(/^go to l+ine /, "").trim();
+      line = this.parseLineNumberFromText(raw);
+    } else {
+      return null;
+    }
+
+    if (line == null || !Number.isFinite(line) || line < 1) {
+      return null;
+    }
+
+    const mod = os.platform() == "darwin" ? "command" : "control";
+    return [
+      {
+        type: core.CommandType.COMMAND_TYPE_PRESS,
+        text: "g",
+        modifiers: [mod],
+      },
+      {
+        type: core.CommandType.COMMAND_TYPE_INSERT,
+        text: String(line),
+      },
+      {
+        type: core.CommandType.COMMAND_TYPE_PRESS,
+        text: "return",
+      },
+    ] as core.ICommand[];
+  }
+
+  private parseLineNumberFromText(raw: string): number | null {
+    const cleaned = raw.replace(/^number /, "").trim();
+    if (!cleaned) {
+      return null;
+    }
+    if (/^\d+$/.test(cleaned)) {
+      return Number.parseInt(cleaned, 10);
+    }
+
+    const map: Record<string, number> = {
+      zero: 0,
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+      ten: 10,
+      eleven: 11,
+      twelve: 12,
+      thirteen: 13,
+      fourteen: 14,
+      fifteen: 15,
+      sixteen: 16,
+      seventeen: 17,
+      eighteen: 18,
+      nineteen: 19,
+      twenty: 20,
+      thirty: 30,
+      forty: 40,
+      fifty: 50,
+      sixty: 60,
+      seventy: 70,
+      eighty: 80,
+      ninety: 90,
+    };
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
+    if (tokens.length == 0) {
+      return null;
+    }
+    let total = 0;
+    for (const token of tokens) {
+      const value = map[token];
+      if (value == null) {
+        return null;
+      }
+      total += value;
+    }
+    return total > 0 ? total : null;
   }
 
   clearPending() {

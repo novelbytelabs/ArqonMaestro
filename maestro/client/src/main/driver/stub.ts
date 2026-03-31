@@ -21,6 +21,40 @@
 import { spawn, spawnSync, execSync } from "child_process";
 import * as os from "os";
 
+function normalizeLinuxKey(key: string): string {
+  const value = (key || "").trim().toLowerCase();
+  const map: { [k: string]: string } = {
+    enter: "Return",
+    return: "Return",
+    backspace: "BackSpace",
+    delete: "Delete",
+    del: "Delete",
+    space: "space",
+    tab: "Tab",
+    escape: "Escape",
+    esc: "Escape",
+    home: "Home",
+    end: "End",
+    pageup: "Page_Up",
+    pagedown: "Page_Down",
+    up: "Up",
+    down: "Down",
+    left: "Left",
+    right: "Right",
+  };
+  return map[value] || key;
+}
+
+function normalizeLinuxModifier(modifier: string): string {
+  const value = (modifier || "").trim().toLowerCase();
+  const map: { [k: string]: string } = {
+    control: "ctrl",
+    command: "super",
+    option: "alt",
+  };
+  return map[value] || value;
+}
+
 function syncTimeoutMs(): number {
   const raw = Number(process.env.ARQON_DRIVER_SYNC_TIMEOUT_MS || "700");
   if (!Number.isFinite(raw)) {
@@ -89,10 +123,11 @@ export function pressKey(key: string, modifiers?: string[], count?: number): voi
       // Build modifier string
       let modStr = "";
       if (modifiers && modifiers.length > 0) {
-        modStr = modifiers.join("+");
+        modStr = modifiers.map(normalizeLinuxModifier).join("+");
       }
       
-      const fullKey = modStr ? modStr + "+" + key : key;
+      const normalizedKey = normalizeLinuxKey(key);
+      const fullKey = modStr ? modStr + "+" + normalizedKey : normalizedKey;
       execSync("xdotool key" + countStr + " " + fullKey, { encoding: "utf8" });
       console.log("[arqon-driver] Pressed key:", fullKey);
     } catch (e) {

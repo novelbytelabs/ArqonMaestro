@@ -325,6 +325,32 @@ public class CommandsVisitorTest extends BaseServiceTest {
   }
 
   @Test
+  public void testGoToLineNoSourceEditorFallback() {
+    EditorState state = EditorState
+      .newBuilder()
+      .setApplication("vscode")
+      .setClientIdentifier("{\"version\": \"1.10.0\", \"os\": \"linux\"}")
+      .setCanGetState(false)
+      .setCanSetState(false)
+      .setPluginInstalled(false)
+      .build();
+
+    CommandsResponse line = makeRequest(state, Arrays.asList("go to line fifty two"));
+    assertEquals(CommandType.COMMAND_TYPE_PRESS, line.getAlternatives(0).getCommands(0).getType());
+    assertEquals("g", line.getAlternatives(0).getCommands(0).getText());
+    assertEquals(CommandType.COMMAND_TYPE_INSERT, line.getAlternatives(0).getCommands(1).getType());
+    assertEquals("52", line.getAlternatives(0).getCommands(1).getText());
+
+    CommandsResponse first = makeRequest(state, Arrays.asList("go to first line"));
+    assertEquals(CommandType.COMMAND_TYPE_INSERT, first.getAlternatives(0).getCommands(1).getType());
+    assertEquals("1", first.getAlternatives(0).getCommands(1).getText());
+
+    CommandsResponse end = makeRequest(state, Arrays.asList("go to end"));
+    assertEquals(CommandType.COMMAND_TYPE_INSERT, end.getAlternatives(0).getCommands(1).getType());
+    assertEquals("999999", end.getAlternatives(0).getCommands(1).getText());
+  }
+
+  @Test
   public void testSystem() {
     CommandsResponse r = makeRequest(
       EditorState.newBuilder().setApplication("chrome").build(),
@@ -504,6 +530,25 @@ public class CommandsVisitorTest extends BaseServiceTest {
 
     assertEquals(2, r.getAlternativesList().size());
     assertEquals(CommandType.COMMAND_TYPE_PRESS, r.getAlternatives(0).getCommands(0).getType());
+  }
+
+  @Test
+  public void testGoToUrlNoSourceEditorFallback() {
+    EditorState state = EditorState
+      .newBuilder()
+      .setApplication("vscode")
+      .setClientIdentifier("{\"version\": \"1.10.0\", \"os\": \"linux\"}")
+      .setCanGetState(false)
+      .setCanSetState(false)
+      .setPluginInstalled(false)
+      .build();
+
+    CommandsResponse r = makeRequest(state, Arrays.asList("go to wikipedia dot org"));
+    assertEquals(
+      CommandType.COMMAND_TYPE_OPEN_IN_BROWSER,
+      r.getAlternatives(0).getCommands(0).getType()
+    );
+    assertEquals("https://wikipedia.org", r.getAlternatives(0).getCommands(0).getPath());
   }
 
   @Test
