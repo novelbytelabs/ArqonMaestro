@@ -1315,15 +1315,22 @@ export default class Executor {
     }
 
     // H2.3: Observe and Gate
-    const h23Decision = h23Recorder.getLatestDecision(response.chunkId || "");
+    const chunkId = response.chunkId || "";
+    this.log?.logVerbose(`[Executor] executing response for chunkId: "${chunkId}"`);
+    
+    const h23Decision = h23Recorder.getLatestDecision(chunkId);
     if (h23Decision) {
-      this.log.logVerbose(`[H23 decision] chunkId=${response.chunkId} commandClass=${h23Decision.commandClass} granted=${h23Decision.granted} reason=${h23Decision.reason}`);
+      this.log.logVerbose(`[H23 decision] chunkId=${h23Decision.chunkId} commandClass=${h23Decision.commandClass} granted=${h23Decision.granted} reason=${h23Decision.reason}`);
       
-      const hardGateEnabled = process.env.H23_HARD_GATE_NUMERIC === "true";
-      const isNumericParam = h23Decision.commandClass === "parameterized" && h23Decision.numericEndpointRequired;
-      
-      if (hardGateEnabled && isNumericParam && !h23Decision.granted) {
-        this.log.logVerbose(`[H23 GATED] Blocking numeric parameterized command until closure: ${h23Decision.transcript}`);
+      const hardGateNumeric = process.env.H23_HARD_GATE_NUMERIC === "true";
+      const shouldBlock = 
+        hardGateNumeric &&
+        h23Decision.commandClass === "parameterized" &&
+        h23Decision.numericEndpointRequired === true &&
+        h23Decision.granted !== true;
+
+      if (shouldBlock) {
+        this.log?.logVerbose(`[H23 gate] blocking execution for chunkId=${chunkId} reason=${h23Decision.reason}`);
         this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
         this.resolveChainFinished();
         this.newChainFinishedPromise();

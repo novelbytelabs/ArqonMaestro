@@ -15,6 +15,14 @@ export interface H23FinalizeResult {
   finalReason: string | null;
 }
 
+export interface H23DecisionSummary {
+  chunkId: string;
+  commandClass: string;
+  granted: boolean;
+  reason: string | null;
+  numericEndpointRequired: boolean;
+}
+
 export default class H23LiveTraceRecorder {
   private static instance: H23LiveTraceRecorder | null = null;
   private governor: H23CommandGovernor;
@@ -65,9 +73,17 @@ export default class H23LiveTraceRecorder {
     });
   }
 
-  getLatestDecision(chunkId: string): H23TraceStep | null {
+  getLatestDecision(chunkId: string): H23DecisionSummary | null {
     const trace = this.governor.getTrace(chunkId);
-    return trace.length > 0 ? trace[trace.length - 1] : null;
+    if (trace.length === 0) return null;
+    const step = trace[trace.length - 1];
+    return {
+      chunkId,
+      commandClass: step.commandClass,
+      granted: step.granted,
+      reason: step.reason,
+      numericEndpointRequired: step.numericEndpointRequired,
+    };
   }
 
   finalizeChunk(chunkId: string): H23FinalizeResult {

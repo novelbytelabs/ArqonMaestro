@@ -23,6 +23,7 @@ export default class Stream {
   private reconnectCount: number = 0;
   private lastDisconnectTime: number = 0;
   private runtimeCommandDispatcher?: RuntimeCommandDispatcher;
+  private pendingTextRequestChunkId?: string;
 
   constructor(
     private active: Active,
@@ -187,6 +188,9 @@ export default class Stream {
         if (response.commandsResponse) {
           this.lastActivity = Date.now();
           if (response.commandsResponse.textResponse) {
+            if (!response.commandsResponse.chunkId && this.pendingTextRequestChunkId) {
+              response.commandsResponse.chunkId = this.pendingTextRequestChunkId;
+            }
             this.onTextCommandsResponse(custom, executor, response.commandsResponse);
           } else {
             this.onCommandsResponse(chunkManager, response.commandsResponse);
@@ -380,8 +384,9 @@ export default class Stream {
     });
   }
 
-  async sendTextRequest(text: string, includeAlternatives: boolean) {
-    this.log.logVerbose(`Sending text request: ${text}, ${includeAlternatives}`);
+  async sendTextRequest(text: string, includeAlternatives: boolean, chunkId?: string) {
+    this.log.logVerbose(`Sending text request: ${text}, ${includeAlternatives}, chunkId=${chunkId}`);
+    this.pendingTextRequestChunkId = chunkId;
     await this.sendInitializeRequest();
     this.send(this.coreSocket, {
       textRequest: {

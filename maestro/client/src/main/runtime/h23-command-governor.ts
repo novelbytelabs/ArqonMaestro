@@ -128,10 +128,11 @@ export default class H23CommandGovernor {
           ? structurallyStable && slotClosed && slotStable && slotFinalized
           : false;
 
+    const acousticConfidence = input.acousticConfidence ?? 0.99;
     const granted = Boolean(
       executionEligible &&
       commandClass !== "unknown" &&
-      (input.acousticConfidence ?? 0.99) >= 0.9
+      acousticConfidence >= 0.9
     );
 
     const reason = this.reasonFor({
@@ -140,7 +141,8 @@ export default class H23CommandGovernor {
       slotClosed,
       slotStable,
       slotFinalized,
-      acousticConfidence: input.acousticConfidence ?? 0.99,
+      numericEndpointRequired,
+      acousticConfidence,
       granted,
     });
 
@@ -303,6 +305,7 @@ export default class H23CommandGovernor {
     slotClosed: boolean;
     slotStable: boolean;
     slotFinalized: boolean;
+    numericEndpointRequired: boolean;
     acousticConfidence: number;
     granted: boolean;
   }): H23TraceStep["reason"] {
@@ -310,7 +313,7 @@ export default class H23CommandGovernor {
     if (!args.structurallyStable) return "awaiting_structural_stability";
     if (args.commandClass === "parameterized" && !args.slotClosed) return "awaiting_required_slot_closure";
     if (args.commandClass === "parameterized" && !args.slotStable) return "awaiting_slot_value_stability";
-    if (args.commandClass === "parameterized" && !args.slotFinalized) return "awaiting_endpoint_closure";
+    if (args.numericEndpointRequired && !args.slotFinalized) return "awaiting_endpoint_closure";
     if (args.acousticConfidence < 0.9) return "low_confidence";
     return args.granted ? "passed" : "out_of_grammar";
   }

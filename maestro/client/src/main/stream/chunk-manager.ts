@@ -1082,7 +1082,7 @@ export default class ChunkManager {
       );
 
       // CRITICAL: Dispatch to editor for execution
-      await this.stream.sendTextRequest(result.transcript, true);
+      await this.stream.sendTextRequest(result.transcript, true, result.chunkId);
       success = true;
       return true;
     } catch (err: any) {
