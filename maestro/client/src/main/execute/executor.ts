@@ -1510,7 +1510,7 @@ export default class Executor {
       this.newChainFinishedPromise();
       return;
     }
-    this.log.logVerbose(
+    console.log(
       `[EXEC_TRACE] post_auth_allow chunkId="${response.chunkId || ""}" transcript="${response.execute?.transcript || ""}" interactionId="${authorizationResult.interactionId || ""}" trustState="${authorizationResult.trustState || ""}"`
     );
 
@@ -1605,7 +1605,7 @@ export default class Executor {
             return `${index + 1}/${commandCount}:${type}:${text}`;
           })
           .join(" | ");
-        this.log.logVerbose(
+        console.log(
           `[EXEC_TRACE] expanded_sequence chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" total=${commandCount} sequence="${commandSequence}"`
         );
 
@@ -1627,7 +1627,7 @@ export default class Executor {
             nextQueued,
           };
 
-          this.log.logVerbose(
+          console.log(
             `[EXEC_TRACE] pre_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} enteringDispatch=true handler="${handlerName}" handlerInvoked=${commandType in this.commandHandler()} nextQueued=${nextQueued}`
           );
 
@@ -1643,7 +1643,7 @@ export default class Executor {
                 focusTimeoutMs,
                 "focus_command"
               );
-              this.log.logVerbose(
+              console.log(
                 `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=${focusConfirmed} handlerReturn="${focusConfirmed}" nextQueued=${nextQueued}`
               );
               if (!focusConfirmed) {
@@ -1652,7 +1652,7 @@ export default class Executor {
             } catch (error) {
               allCommandsConfirmed = false;
               this.log.logVerbose(`[EXECUTOR] Focus command timed out/failed: ${error}`);
-              this.log.logVerbose(
+              console.log(
                 `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=false handlerReturn="error:${String(
                   error
                 )}" nextQueued=${nextQueued}`
@@ -1676,14 +1676,14 @@ export default class Executor {
               handlerReturn = await this.commandHandler()[commandType](command);
             } catch (error) {
               handlerSuccess = false;
-              this.log.logVerbose(
+              console.log(
                 `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=false handlerReturn="error:${String(
                   error
                 )}" nextQueued=${nextQueued}`
               );
               throw error;
             }
-            this.log.logVerbose(
+            console.log(
               `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=true handlerSuccess=${handlerSuccess} handlerReturn="${String(
                 handlerReturn
               )}" nextQueued=${nextQueued}`
@@ -1697,7 +1697,7 @@ export default class Executor {
             }
           } else {
             allCommandsConfirmed = false;
-            this.log.logVerbose(
+            console.log(
               `[EXEC_TRACE] post_dispatch chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" commandType="${commandType}" seq=${index + 1}/${response.execute.commands.length} handler="${handlerName}" handlerInvoked=false handlerSuccess=false handlerReturn="missing_handler" nextQueued=${nextQueued}`
             );
           }
