@@ -1,6 +1,7 @@
 import { core } from "../../gen/core";
 import RuntimeCommandDispatcher from "../../main/runtime/runtime-command-dispatcher";
 import RuntimeCommandEmitter from "../../main/runtime/runtime-command-emitter";
+import { h23Recorder } from "../../main/runtime/h23-live-trace-recorder";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Executor = require("../../main/execute/executor").default;
@@ -176,6 +177,120 @@ describe("Voice command regression suite", () => {
       );
       expect(plan.route).toBe("app_control_local");
       expect(plan.reason).toBe("all_commands_support_app_control_local");
+    });
+  });
+
+  describe("Go-to-line execution gating regression", () => {
+    const originalHardGate = process.env.H23_HARD_GATE_NUMERIC;
+
+    afterEach(() => {
+      process.env.H23_HARD_GATE_NUMERIC = originalHardGate;
+      jest.restoreAllMocks();
+    });
+
+    it("executes local PRESS/INSERT/PRESS chain when H2.3 decision is missing", async () => {
+      process.env.H23_HARD_GATE_NUMERIC = "true";
+
+      const pressHandler = jest.fn().mockResolvedValue(undefined);
+      const insertHandler = jest.fn().mockResolvedValue(undefined);
+      const failLoud = jest.fn();
+
+      const executor = Object.create(Executor.prototype) as any;
+      executor.bridge = { setState: jest.fn(), send: jest.fn() };
+      executor.mainWindow = {};
+      executor.miniModeWindow = {};
+      executor.log = { logVerbose: jest.fn() };
+      executor.nativeCommands = {};
+      executor.addToHistory = jest.fn();
+      executor.checkAuthorization = jest
+        .fn()
+        .mockResolvedValue({ authorized: true, interactionId: 1, trustState: "verified" });
+      executor.setLifecycleRendererState = jest.fn();
+      executor.beginCompletionEvidenceWindow = jest.fn();
+      executor.settings = { getNuxCompleted: () => true };
+      executor.active = { app: "vscode", filename: "calculator.py" };
+      executor.revisionBoxWindow = { shown: () => false };
+      executor.pluginManager = { sendResponseToApp: jest.fn() };
+      executor.insertHistory = { clear: jest.fn() };
+      executor.commandHandler = () => ({
+        COMMAND_TYPE_PRESS: pressHandler,
+        COMMAND_TYPE_INSERT: insertHandler,
+      });
+      executor.handleResponseFromPlugin = jest.fn();
+      executor.nux = { updateForResponse: jest.fn() };
+      executor.finalizeCompletionEvidence = jest.fn();
+      executor.failLoudExecution = failLoud;
+
+      jest.spyOn(h23Recorder, "getLatestDecision").mockReturnValue(undefined as any);
+      jest.spyOn(h23Recorder, "finalizeChunk").mockImplementation(() => undefined as any);
+
+      const response = {
+        chunkId: "regression-go-to-line-52",
+        final: true,
+        execute: {
+          transcript: "go to line fifty two",
+          commands: [
+            {
+              type: core.CommandType.COMMAND_TYPE_PRESS,
+              text: "g",
+              modifiers: ["control"],
+              count: 1,
+            },
+            { type: core.CommandType.COMMAND_TYPE_INSERT, text: "52" },
+            { type: core.CommandType.COMMAND_TYPE_PRESS, text: "enter", count: 1 },
+          ],
+        },
+      } as unknown as core.ICommandsResponse;
+
+      await executor.execute(response, false, 0);
+
+      expect(pressHandler).toHaveBeenCalledTimes(2);
+      expect(insertHandler).toHaveBeenCalledTimes(1);
+      expect(executor.pluginManager.sendResponseToApp).not.toHaveBeenCalled();
+      expect(failLoud).not.toHaveBeenCalled();
+    });
+
+    it("fails loud when H2.3 explicitly blocks execution", async () => {
+      process.env.H23_HARD_GATE_NUMERIC = "true";
+
+      const failLoud = jest.fn();
+      const executor = Object.create(Executor.prototype) as any;
+      executor.bridge = { setState: jest.fn(), send: jest.fn() };
+      executor.mainWindow = {};
+      executor.miniModeWindow = {};
+      executor.log = { logVerbose: jest.fn() };
+      executor.nativeCommands = {};
+      executor.addToHistory = jest.fn();
+      executor.checkAuthorization = jest
+        .fn()
+        .mockResolvedValue({ authorized: true, interactionId: 1, trustState: "verified" });
+      executor.setLifecycleRendererState = jest.fn();
+      executor.beginCompletionEvidenceWindow = jest.fn();
+      executor.failLoudExecution = failLoud;
+      executor.newChainFinishedPromise = jest.fn();
+      executor.resolveChainFinished = jest.fn();
+
+      jest.spyOn(h23Recorder, "getLatestDecision").mockReturnValue({
+        chunkId: "blocked",
+        commandClass: "parameterized",
+        granted: false,
+        numericEndpointRequired: true,
+        reason: "test_block",
+      } as any);
+
+      const response = {
+        chunkId: "blocked",
+        final: true,
+        execute: {
+          transcript: "go to line fifty two",
+          commands: [{ type: core.CommandType.COMMAND_TYPE_PRESS, text: "g" }],
+        },
+      } as unknown as core.ICommandsResponse;
+
+      await executor.execute(response, false, 0);
+
+      expect(failLoud).toHaveBeenCalled();
+      expect((failLoud.mock.calls[0] || [])[0]).toBe("h23_gate_block");
     });
   });
 
