@@ -1,0 +1,346 @@
+import { clipboard } from "electron";
+import { shell } from "electron";
+import * as os from "os";
+import Active from "../active";
+import App from "../app";
+import ChunkManager from "../stream/chunk-manager";
+import Custom from "../ipc/custom";
+import Executor from "./executor";
+import LanguageSwitcherWindow from "../windows/language-switcher";
+import MainWindow from "../windows/main";
+import NativeCommands from "./native-commands";
+import NUX from "../nux";
+import RendererBridge from "../bridge";
+import RevisionBoxWindow from "../windows/revision-box";
+import Settings from "../settings";
+import Stream from "../stream/stream";
+import System from "./system";
+import { core } from "../../gen/core";
+
+export default class CommandHandler {
+  constructor(
+    private active: Active,
+    private app: App,
+    private bridge: RendererBridge,
+    private chunkManager: ChunkManager,
+    private custom: Custom,
+    private executor: Executor,
+    private mainWindow: MainWindow,
+    private nativeCommands: NativeCommands,
+    private nux: NUX,
+    private revisionBoxWindow: RevisionBoxWindow,
+    private settings: Settings,
+    private stream: Stream,
+    private system: System,
+    private languageSwitcherWindow: () => Promise<LanguageSwitcherWindow> | undefined
+  ) {}
+
+  private clearPending() {
+    this.executor.clearPending();
+    this.app.clearAlternativesAndShowExamples();
+  }
+
+  async COMMAND_TYPE_BACK(_data: core.ICommand): Promise<any> {
+    this.nux.back(true);
+  }
+
+  async COMMAND_TYPE_CALLBACK(data: core.ICommand): Promise<any> {
+    const command = this.active.customCommands.filter((e: any) => e.templated == data.path)[0];
+    const state = await this.active.getEditorState();
+    state.source = Buffer.from(data.source || "");
+    state.cursor = data.cursor || 0;
+
+    this.stream.sendCallbackRequest({
+      type: data.callbackType,
+      text: data.text,
+    });
+  }
+
+  async COMMAND_TYPE_CANCEL(_data: core.ICommand): Promise<any> {
+    this.clearPending();
+    if (this.revisionBoxWindow.shown()) {
+      this.revisionBoxWindow.hide("cancel");
+    }
+  }
+
+  async COMMAND_TYPE_CLICK(data: core.ICommand): Promise<any> {
+    // Click buttons in system dialogs. This is overloaded for clicks
+    // via the Chrome plugin as well, but one of the actions will always
+    // be a no-op since only one of Chrome or system dialog can be in
+    // focus at a given time.
+    if (data.path) {
+      await this.system.clickButton(data.path);
+    } else {
+      const button = data.text || "left";
+      await this.system.click(button);
+    }
+  }
+
+  async COMMAND_TYPE_CLIPBOARD(data: core.ICommand): Promise<any> {
+    await this.stream.sendEditorStateRequest(true);
+    this.stream.sendCallbackRequest({
+      type: core.CallbackType.CALLBACK_TYPE_PASTE,
+      text: data.direction || "",
+    });
+  }
+
+  async COMMAND_TYPE_COPY(data: core.ICommand): Promise<any> {
+    clipboard.writeText(data.text || "");
+  }
+
+  async COMMAND_TYPE_CUSTOM(data: core.ICommand): Promise<any> {
+    this.custom.execute(data.customCommandId!, data.replacements!);
+  }
+
+  async COMMAND_TYPE_DIFF(data: core.ICommand): Promise<any> {
+    const state = await this.active.getEditorState();
+    const trigger = this.settings.revisionBoxTrigger(this.active.app);
+    if ((!state.canSetState && trigger == "auto") || trigger == "always") {
+      await this.revisionBoxWindow.show();
+    }
+
+    if (this.revisionBoxWindow.shown()) {
+      await this.nativeCommands.applyRevisionBoxDiff(data);
+    } else if (!state.canSetState) {
+      await this.nativeCommands.applyNativeDiff(data);
+    }
+  }
+
+  async COMMAND_TYPE_FOCUS(data: core.ICommand): Promise<any> {
+    console.log("[COMMAND_HANDLER] COMMAND_TYPE_FOCUS called with:", data.text);
+    await this.system.focus(data.text!);
+  }
+
+  async COMMAND_TYPE_HIDE_REVISION_BOX(data: any): Promise<any> {
+    this.revisionBoxWindow.hide(data.text);
+  }
+
+  async COMMAND_TYPE_INSERT(data: core.ICommand): Promise<any> {
+    await this.nativeCommands.applyInsert(data.source || data.text || "");
+  }
+
+  async COMMAND_TYPE_LANGUAGE_MODE(data: core.ICommand): Promise<any> {
+    this.active.languageSwitcherLanguage = data.language!;
+    this.bridge.setState(
+      {
+        languageSwitcherLanguage: data.language!,
+      },
+      [this.mainWindow, this.languageSwitcherWindow()]
+    );
+  }
+
+  async COMMAND_TYPE_LAUNCH(data: core.ICommand): Promise<any> {
+    await this.system.launch(data.text!);
+  }
+
+  async COMMAND_TYPE_OPEN_IN_BROWSER(data: core.ICommand): Promise<any> {
+    await shell.openExternal(data.path!);
+  }
+
+  async COMMAND_TYPE_PAUSE(_data: core.ICommand): Promise<any> {
+    this.clearPending();
+    this.chunkManager.toggle(false);
+  }
+
+  async COMMAND_TYPE_PRESS(data: core.ICommand): Promise<any> {
+    if (this.revisionBoxWindow.shown()) {
+      await this.nativeCommands.applyRevisionBoxPress(data);
+    } else {
+      await this.system.pressKey(data.text!, data.modifiers!, Math.max(1, data.index || 0));
+    }
+  }
+
+  async COMMAND_TYPE_REDO(_data: core.ICommand): Promise<any> {
+    if (this.active.isFirstPartyBrowser()) {
+      await this.system.pressKey(
+        "z",
+        os.platform() == "darwin" ? ["command", "shift"] : ["control", "shift"]
+      );
+      return;
+    }
+
+    const state = await this.active.getEditorState();
+    if (this.nativeCommands.needsUndoStack(state)) {
+      await this.nativeCommands.redo(state);
+    }
+  }
+
+  async COMMAND_TYPE_RUN(data: core.ICommand): Promise<any> {
+    await this.nativeCommands.applyNativeDiff(data);
+    await this.system.pressKey("enter");
+  }
+
+  async COMMAND_TYPE_QUIT(data: core.ICommand): Promise<any> {
+    await this.system.quit(data.text!);
+  }
+
+  async COMMAND_TYPE_SELECT(data: core.ICommand): Promise<any> {
+    if (this.revisionBoxWindow.shown()) {
+      this.nativeCommands.applyRevisionBoxDiff(data);
+    }
+  }
+
+  async COMMAND_TYPE_SHOW_REVISION_BOX(data: any): Promise<any> {
+    this.revisionBoxWindow.show(data.text);
+  }
+
+  async COMMAND_TYPE_START_DICTATE(_data: any): Promise<any> {
+    this.chunkManager.setDictationProviderPreference("qwen3");
+    const preflight = await this.chunkManager.verifyDictationReady();
+    if (!preflight.ok) {
+      const reason = (preflight.reason || "qwen3_dictation_not_ready").replace(/^qwen3_/, "");
+      const isSidecarIssue = reason.includes("sidecar");
+      const message = isSidecarIssue
+        ? "Dictation unavailable: Qwen3 sidecar is unreachable. Start/warmup the sidecar and retry."
+        : "Dictation unavailable: Qwen3 model failed preflight (" + reason + ").";
+      this.active.dictateMode = false;
+      this.app.syncSecurityInteractionModeFromRuntime(false);
+      this.active.update(true);
+      this.executor.updateDictationRuntimeStatus({
+        stage: "dictate_mode_denied",
+        errorCode: isSidecarIssue ? "sidecar_unreachable" : reason,
+      });
+      this.bridge.setState(
+        {
+          dictateMode: false,
+          statusText: "Dictation unavailable",
+          alternatives: [{ description: message }],
+          highlighted: [0],
+          executedSuccess: [],
+          staleOrFailed: [0],
+          backendIssue:
+            (isSidecarIssue
+              ? "Qwen3 dictation sidecar unreachable. Ensure :5002 is healthy, then retry."
+              : "Qwen3 dictation preflight failed: " + reason),
+          backendIssueAction: "dictationUseLegacyFallback",
+          backendIssueActionLabel: "Fallback to Kaldi/Legacy",
+        },
+        [this.mainWindow]
+      );
+      return;
+    }
+
+    this.active.dictateMode = true;
+    this.app.syncSecurityInteractionModeFromRuntime(true);
+    this.active.update(true);
+    this.executor.updateDictationRuntimeStatus({
+      stage: "dictate_mode_active",
+      errorCode: "",
+    });
+    this.bridge.setState(
+      {
+        dictateMode: true,
+        backendIssue: "",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
+      },
+      [this.mainWindow]
+    );
+  }
+
+  async COMMAND_TYPE_STOP_DICTATE(_data: any): Promise<any> {
+    this.chunkManager.setDictationProviderPreference("qwen3");
+    this.active.dictateMode = false;
+    this.app.syncSecurityInteractionModeFromRuntime(false);
+    this.active.update(true);
+    this.bridge.setState(
+      {
+        dictateMode: false,
+        backendIssue: "",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
+      },
+      [this.mainWindow]
+    );
+  }
+
+  async COMMAND_TYPE_UNDO(_data: core.ICommand): Promise<any> {
+    if (this.active.isFirstPartyBrowser()) {
+      await this.system.pressKey("z", os.platform() == "darwin" ? ["command"] : ["control"]);
+      return;
+    }
+
+    if (!this.settings.getNuxCompleted()) {
+      await this.nux.showCurrentStep();
+      return;
+    }
+
+    const state = await this.active.getEditorState();
+    if (this.nativeCommands.needsUndoStack(state)) {
+      await this.nativeCommands.undo(state);
+    }
+  }
+
+  async COMMAND_TYPE_SCROLL(data: core.ICommand): Promise<any> {
+    const direction = (data.direction || "").toLowerCase();
+    const target = (data.path || "").toLowerCase().trim();
+
+    if (target == "top") {
+      if (this.active.isFirstPartyBrowser()) {
+        await this.system.pressKey(
+          os.platform() == "darwin" ? "up" : "home",
+          os.platform() == "darwin" ? ["command"] : ["control"]
+        );
+      } else {
+        await this.system.pressKey("home");
+      }
+      return;
+    }
+
+    if (target == "bottom") {
+      if (this.active.isFirstPartyBrowser()) {
+        await this.system.pressKey(
+          os.platform() == "darwin" ? "down" : "end",
+          os.platform() == "darwin" ? ["command"] : ["control"]
+        );
+      } else {
+        await this.system.pressKey("end");
+      }
+      return;
+    }
+
+    if (direction == "up") {
+      await this.system.pressKey("pageup");
+      return;
+    }
+
+    if (direction == "down") {
+      await this.system.pressKey("pagedown");
+      return;
+    }
+  }
+
+  async COMMAND_TYPE_NEXT_TAB(_data: core.ICommand): Promise<any> {
+    if (os.platform() == "darwin") {
+      await this.system.pressKey("]", ["command", "shift"]);
+    } else {
+      await this.system.pressKey("tab", ["control"]);
+    }
+  }
+
+  async COMMAND_TYPE_PREVIOUS_TAB(_data: core.ICommand): Promise<any> {
+    if (os.platform() == "darwin") {
+      await this.system.pressKey("[", ["command", "shift"]);
+    } else {
+      await this.system.pressKey("tab", ["control", "shift"]);
+    }
+  }
+
+  async COMMAND_TYPE_SWITCH_TAB(data: core.ICommand): Promise<any> {
+    const index = Math.max(1, Math.min(9, data.index || 1));
+    if (os.platform() == "darwin") {
+      await this.system.pressKey(index.toString(), ["command"]);
+    } else {
+      await this.system.pressKey(index.toString(), ["control"]);
+    }
+  }
+
+  async COMMAND_TYPE_USE(data: core.ICommand): Promise<any> {
+    const state = await this.active.getEditorState();
+    if (this.nativeCommands.useNeedsUndo) {
+      await this.nativeCommands.undo(state);
+    }
+
+    await this.executor.executePending(data.index! - 1);
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "trace_name": "trace_param_goto_line_fifty_two",
+  "captured_from": "live client stdout (parameterized command session)",
+  "captured_at_local": "2026-03-31T12:02:00-04:00",
+  "lane": "command_fast_parakeet",
+  "events": [
+    {"t_rel_ms": 0, "type": "chunk_start", "chunk_id": "cf8fb3c9-753c-4fc9-8584-cadcfe0b481d", "samples": 4800},
+    {"t_rel_ms": 20, "type": "initialize_request"},
+    {"t_rel_ms": 95, "type": "partial_update", "channel": "audio_frames", "bytes": 9600, "sequence": 0},
+    {"t_rel_ms": 125, "type": "partial_update", "channel": "audio_frames", "bytes": 960, "sequence": 1},
+    {"t_rel_ms": 154, "type": "partial_update", "channel": "audio_frames", "bytes": 960, "sequence": 2},
+    {"t_rel_ms": 185, "type": "partial_update", "channel": "audio_frames", "bytes": 960, "sequence": 3},
+    {"t_rel_ms": 1040, "type": "endpoint_request", "chunk_id": "cf8fb3c9-753c-4fc9-8584-cadcfe0b481d", "finalize": true},
+    {"t_rel_ms": 1180, "type": "auth_allow", "risk": "low", "command_type": "COMMAND_TYPE_GOTO_LINE"},
+    {"t_rel_ms": 1240, "type": "intent_mapping", "intent": "goto_line", "slot_state": {"line": 52}},
+    {"t_rel_ms": 1310, "type": "execution", "result": "success", "action": "goto_line", "line": 52}
+  ]
+}

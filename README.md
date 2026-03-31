@@ -244,6 +244,77 @@ The short version:
 - ecosystems need coherent interaction layers
 - this codebase is worth preserving and extending
 
+## Terminal Run Commands
+
+The following numbered list shows terminals that need to be opened and run:
+
+0) **MKDOCS** - Start MkDocs server:
+```bash
+mkdocs serve --livereload
+```
+
+1) **BUS** - Start ArqonBus:
+```bash
+PYTHONPATH=src python - <<'PY'
+import asyncio
+from arqonbus.config.config import get_config
+from arqonbus.transport.websocket_bus import WebSocketBus
+from arqonbus.routing.client_registry import ClientRegistry
+async def main():
+     config = get_config()
+     ws_bus = WebSocketBus(ClientRegistry(), config=config)
+     await ws_bus.start_server(host=config.server.host, port=config.server.port)
+     print(f"ArqonBus listening on {config.server.host}:{config.server.port}")
+     await asyncio.Future()
+asyncio.run(main())
+PY
+```
+
+2) **BUILD** - Build main client:
+```bash
+npm run build:main
+```
+
+3) **Backend** - Install backend services:
+```bash
+./gradlew :core:installDist client:installServer -x downloadModels
+```
+
+4) **MAESTRO** - Run client:
+```bash
+./scripts/run_client.sh
+```
+
+5) **TTS-SIDECAR** - Start Kokoro TTS sidecar:
+```bash
+PYTHONPATH=/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/scripts python -m uvicorn kokoro_sidecar:app --host 127.0.0.1 --port 7781
+```
+
+6) **VOICE** - Test TTS voice synthesis:
+```bash
+curl -s -X POST http://127.0.0.1:7781/synthesize -H "Content-Type: application/json" -d '{"text":"Kyle, are you doing your homework? ... ... ... ... ... ... ... ... ... ... ... ... ... Wow, I am impressed. Is that math you are doing?","voice":"am_eric","format":"wav"}' | jq -r '.audio_data_b64' | base64 -d > /tmp/kokoro.wav && paplay /tmp/kokoro.wav
+```
+
+7) **HEALTH** - Check service ports:
+```bash
+ss -ltnp | rg "9100|17200|17202|17203"
+```
+
+8) **QWEN** - Start Qwen3 STT sidecar:
+```bash
+cd ~/Projects/arqon/ArqonMaestro/maestro/client/src/main/stt/sidecars
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh preflight qwen3
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh start qwen3
+MAESTRO_QWEN3_PYTHON_PATH=~/miniconda3/envs/helios-gpu-118/bin/python ./sidecar_manager.sh warmup qwen3
+```
+
+9) **PARAKEET** - Start Parakeet STT sidecar:
+```bash
+cd /home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/stt/sidecars
+./sidecar_manager.sh start parakeet
+./sidecar_manager.sh warmup parakeet
+```
+
 ## Credits
 
 Arqon Maestro exists because voice-native developer tooling and voice-native system control are worth preserving, improving, and making usable in practice.

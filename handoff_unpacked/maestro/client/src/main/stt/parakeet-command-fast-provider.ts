@@ -7,7 +7,6 @@ import https from "https";
 import WebSocket from "ws";
 import Log from "../log";
 import { buildWavFile } from "./audio-utils";
-import { h23Recorder } from "../runtime/h23-live-trace-recorder";
 
 export interface ParakeetCommandFastProviderConfig {
   enabled?: boolean;
@@ -29,7 +28,6 @@ export interface ParakeetTranscriptionInput {
 }
 
 export interface ParakeetTranscriptionResult {
-  chunkId: string;
   transcript: string;
   model: string;
   device: string;
@@ -510,7 +508,6 @@ export default class ParakeetCommandFastProvider {
       }
 
       return {
-        chunkId: input.chunkId,
         transcript: parsed.text,
         model: parsed.model,
         device: parsed.device,
@@ -543,9 +540,6 @@ export default class ParakeetCommandFastProvider {
     let settled = false;
     let canceled = false;
     let initTimeout: ReturnType<typeof setTimeout> | undefined;
-    let h23StepIndex = 0;
-
-    h23Recorder.startChunk(chunkId);
 
     const finalizePromise = new Promise<ParakeetTranscriptionResult>((resolve, reject) => {
       const settleResolve = (value: ParakeetTranscriptionResult) => {
@@ -603,11 +597,7 @@ export default class ParakeetCommandFastProvider {
               ws.terminate();
               return;
             }
-            h23StepIndex += 1;
-            const finalStep = h23Recorder.recordFinal(chunkId, response.text, h23StepIndex);
-            this.log?.logVerbose(`[H23 final] ${JSON.stringify(finalStep)}`);
             settleResolve({
-              chunkId,
               transcript: response.text,
               model: this.config.modelPath,
               device: this.config.device,
@@ -619,9 +609,6 @@ export default class ParakeetCommandFastProvider {
           }
 
           if (onPartial && response.text) {
-            h23StepIndex += 1;
-            const step = h23Recorder.recordPartial(chunkId, response.text, h23StepIndex);
-            this.log?.logVerbose(`[H23 partial] ${JSON.stringify(step)}`);
             onPartial(response.text);
           }
         } catch (err) {
@@ -668,7 +655,6 @@ export default class ParakeetCommandFastProvider {
             clearTimeout(initTimeout);
           }
           ws.terminate();
-          h23Recorder.finalizeChunk(chunkId);
         }
       },
     };

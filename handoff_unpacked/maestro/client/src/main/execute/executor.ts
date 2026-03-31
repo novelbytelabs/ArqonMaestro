@@ -16,7 +16,6 @@ import System from "./system";
 import SettingsWindow from "../windows/settings";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
-import { h23Recorder } from "../runtime/h23-live-trace-recorder";
 
 // Focus verification imports
 import FocusVerificationService, {
@@ -1314,23 +1313,6 @@ export default class Executor {
       return;
     }
 
-    // H2.3: Observe and Gate
-    const h23Decision = h23Recorder.getLatestDecision(response.chunkId || "");
-    if (h23Decision) {
-      this.log.logVerbose(`[H23 decision] chunkId=${response.chunkId} commandClass=${h23Decision.commandClass} granted=${h23Decision.granted} reason=${h23Decision.reason}`);
-      
-      const hardGateEnabled = process.env.H23_HARD_GATE_NUMERIC === "true";
-      const isNumericParam = h23Decision.commandClass === "parameterized" && h23Decision.numericEndpointRequired;
-      
-      if (hardGateEnabled && isNumericParam && !h23Decision.granted) {
-        this.log.logVerbose(`[H23 GATED] Blocking numeric parameterized command until closure: ${h23Decision.transcript}`);
-        this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
-        this.resolveChainFinished();
-        this.newChainFinishedPromise();
-        return;
-      }
-    }
-
     const trustState = authorizationResult.trustState || "unknown";
     const interactionId = authorizationResult.interactionId;
     this.setLifecycleRendererState(selectedAlternativeIndex, "activated");
@@ -1449,9 +1431,6 @@ export default class Executor {
         interactionId,
         selectedAlternativeIndex
       );
-      if (response.chunkId) {
-        h23Recorder.finalizeChunk(response.chunkId);
-      }
     }
   }
 
