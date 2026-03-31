@@ -1585,12 +1585,42 @@ export default class Executor {
       forwardToPlugin = false;
     }
 
+    // Navigation/editing keystroke chains (e.g., "go to line fifty two") are
+    // executed locally via PRESS/INSERT handlers and should never block on plugin RPC.
+    if (
+      forwardToPlugin &&
+      response.execute &&
+      response.execute.commands &&
+      response.execute.commands.some(
+        (command) =>
+          command.type === core.CommandType.COMMAND_TYPE_PRESS ||
+          command.type === core.CommandType.COMMAND_TYPE_INSERT
+      )
+    ) {
+      this.log.logVerbose("[EXECUTOR] Disabling plugin forwarding for PRESS/INSERT command chain");
+      console.log(
+        `[EXEC_TRACE] plugin_forwarding_disabled chunkId="${response.chunkId || ""}" reason="press_or_insert_chain" transcript="${response.execute.transcript || ""}"`
+      );
+      forwardToPlugin = false;
+    }
+
     let pluginResponse;
     let executionOutcome: CommandCompletionOutcome = "unknown";
     if (forwardToPlugin) {
+      console.log(
+        `[EXEC_TRACE] plugin_handoff_start chunkId="${response.chunkId || ""}" app="${this.active.app}" transcript="${response.execute?.transcript || ""}"`
+      );
       try {
         pluginResponse = await this.pluginManager.sendResponseToApp(this.active.app, response);
+        console.log(
+          `[EXEC_TRACE] plugin_handoff_done chunkId="${response.chunkId || ""}" app="${this.active.app}" responsePresent=${pluginResponse != null}`
+        );
       } catch (e) {
+        console.log(
+          `[EXEC_TRACE] plugin_handoff_error chunkId="${response.chunkId || ""}" app="${this.active.app}" error="${String(
+            e
+          )}"`
+        );
         console.log(e);
       }
     }
