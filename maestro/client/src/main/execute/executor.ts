@@ -1490,6 +1490,13 @@ export default class Executor {
     }
 
     if (!this.hasExecute(response)) {
+      if ((response.execute?.transcript || response.alternatives?.[0]?.transcript || "").trim().length > 0) {
+        this.failLoudExecution(
+          "no_execute_payload",
+          "Final transcript had no executable command payload",
+          response
+        );
+      }
       this.resolveChainFinished();
       this.newChainFinishedPromise();
       return;
@@ -1504,6 +1511,11 @@ export default class Executor {
     if (!authorizationResult.authorized) {
       console.log(`[EXECUTOR] Authorization denied: ${authorizationResult.reason}`);
       this.log.logVerbose(`[FP-2A] Authorization denied: ${authorizationResult.reason}`);
+      this.failLoudExecution(
+        "authorization_denied",
+        authorizationResult.reason || "Authorization denied",
+        response
+      );
       this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
       // Still resolve chain but don't execute
       this.resolveChainFinished();
@@ -1556,6 +1568,11 @@ export default class Executor {
       this.log?.logVerbose(`[H23 gate] blocking execution for chunkId=${chunkId} reason=${h23Decision?.reason ?? "missing_decision"}`);
       console.log(
         `[EXEC_TRACE] h23_block chunkId="${chunkId}" reason="${h23Decision?.reason ?? "missing_decision"}" transcript="${response.execute?.transcript || ""}"`
+      );
+      this.failLoudExecution(
+        "h23_gate_block",
+        `H2.3 blocked command (${h23Decision?.reason ?? "missing_decision"})`,
+        response
       );
       this.setLifecycleRendererState(selectedAlternativeIndex, "stale_or_failed");
       this.resolveChainFinished();
@@ -1662,8 +1679,21 @@ export default class Executor {
       }
     }
 
+    let dispatchStarted = false;
+    const dispatchWatchdogMs = 4000;
+    const dispatchWatchdog = setTimeout(() => {
+      if (!dispatchStarted) {
+        this.failLoudExecution(
+          "dispatch_stall_after_auth",
+          `Execution stalled after auth allow before dispatch (>${dispatchWatchdogMs}ms)`,
+          response
+        );
+      }
+    }, dispatchWatchdogMs) as any;
+
     try {
       if (response.execute && response.execute.commands) {
+        dispatchStarted = true;
         const commandCount = response.execute.commands.length;
         const commandSequence = response.execute.commands
           .map((command, index) => {
@@ -1783,8 +1813,10 @@ export default class Executor {
       this.nux.updateForResponse(response);
     } catch (error) {
       executionOutcome = this.inferExecutionOutcomeFromError(error);
+      this.failLoudExecution("executor_exception", String(error), response);
       throw error;
     } finally {
+      clearTimeout(dispatchWatchdog);
       this.finalizeCompletionEvidence(
         executionOutcome,
         trustState,
@@ -1938,6 +1970,29 @@ export default class Executor {
         clearTimeout(timer);
       }
     }
+  }
+
+  private failLoudExecution(
+    reasonCode: string,
+    message: string,
+    response?: core.ICommandsResponse
+  ): void {
+    const chunkId = response?.chunkId || "";
+    const transcript = response?.execute?.transcript || response?.alternatives?.[0]?.transcript || "";
+    const executeCount = (response?.execute?.commands || []).length;
+    const commandTypes = (response?.execute?.commands || [])
+      .map((command) => commandTypeToString(command.type || 0))
+      .join(",");
+    const detail = `reason=${reasonCode} chunkId=${chunkId} executeCount=${executeCount} commandTypes=${commandTypes} transcript="${transcript}"`;
+
+    console.error(`[EXEC_FAIL_LOUD] ${message} :: ${detail}`);
+    this.log.logVerbose(`[EXEC_FAIL_LOUD] ${message} :: ${detail}`);
+
+    this.setAlternativesState({
+      backendIssue: `Execution blocked: ${message} (${reasonCode})`,
+      backendIssueAction: "",
+      backendIssueActionLabel: "",
+    });
   }
 
   truncateAlternativesIfNeeded(response: core.ICommandsResponse): core.ICommandsResponse {
