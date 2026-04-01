@@ -1,0 +1,532 @@
+--- /mnt/data/h24pack/h24_pack/source_files/h23-live-trace-recorder.ts	2026-03-31 23:44:28.000000000 +0000
++++ /mnt/data/h24impl/h23-live-trace-recorder.ts	2026-03-31 23:51:43.111876866 +0000
+@@ -17,10 +17,22 @@
+ 
+ export interface H23DecisionSummary {
+   chunkId: string;
++  decisionPresent: true;
+   commandClass: string;
+   granted: boolean;
+   reason: string | null;
+   numericEndpointRequired: boolean;
++  stepIndex: number;
++  timestampMs: number;
++  isFinalStep: boolean;
++  structurallyStable: boolean;
++  slotClosed: boolean;
++  slotStable: boolean;
++  slotFinalized: boolean;
++  executionEligible: boolean;
++  finalizationReason: string | null;
++  transcript: string;
++  normalizedTranscript: string;
+ }
+ 
+ export default class H23LiveTraceRecorder {
+@@ -79,13 +91,34 @@
+     const step = trace[trace.length - 1];
+     return {
+       chunkId,
++      decisionPresent: true,
+       commandClass: step.commandClass,
+       granted: step.granted,
+       reason: step.reason,
+       numericEndpointRequired: step.numericEndpointRequired,
++      stepIndex: step.stepIndex,
++      timestampMs: step.timestampMs,
++      isFinalStep: step.isFinalStep,
++      structurallyStable: step.structurallyStable,
++      slotClosed: step.slotClosed,
++      slotStable: step.slotStable,
++      slotFinalized: step.slotFinalized,
++      executionEligible: step.executionEligible,
++      finalizationReason: step.finalizationReason,
++      transcript: step.transcript,
++      normalizedTranscript: step.normalizedTranscript,
+     };
+   }
+ 
++  getTraceSnapshot(chunkId: string): H23TraceStep[] {
++    return this.governor.getTrace(chunkId);
++  }
++
++  getRelativeNowMs(chunkId: string): number | null {
++    const base = this.sessionStarts.get(chunkId);
++    return base == null ? null : this.now() - base;
++  }
++
+   finalizeChunk(chunkId: string): H23FinalizeResult {
+     const trace = this.governor.getTrace(chunkId);
+     const finalStep = trace.length > 0 ? trace[trace.length - 1] : null;
+--- /mnt/data/h24pack/h24_pack/source_files/executor.ts	2026-03-31 23:44:28.000000000 +0000
++++ /mnt/data/h24impl/executor.ts	2026-03-31 23:53:16.801382148 +0000
+@@ -17,6 +17,7 @@
+ import { core } from "../../gen/core";
+ import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
+ import { h23Recorder } from "../runtime/h23-live-trace-recorder";
++import { h24ProofRecorder } from "../runtime/h24-policy-proof-recorder";
+ 
+ // Focus verification imports
+ import FocusVerificationService, {
+@@ -1540,7 +1541,17 @@
+     
+     let shouldBlock = false;
+     const hardGateNumeric = process.env.H23_HARD_GATE_NUMERIC === "true";
+-    
++    const h24Enabled = process.env.H24_ENABLED === "true";
++
++    if (h24Enabled) {
++      h24ProofRecorder.record({
++        chunkId,
++        transcript: response.execute?.transcript || "",
++        stage: "lookup",
++        h23Decision,
++      });
++    }
++
+     if (h23Decision) {
+       this.log.logVerbose(`[H23 decision] chunkId=${h23Decision.chunkId} commandClass=${h23Decision.commandClass} granted=${h23Decision.granted} reason=${h23Decision.reason}`);
+       shouldBlock = 
+@@ -1569,6 +1580,15 @@
+       console.log(
+         `[EXEC_TRACE] h23_block chunkId="${chunkId}" reason="${h23Decision?.reason ?? "missing_decision"}" transcript="${response.execute?.transcript || ""}"`
+       );
++      if (h24Enabled) {
++        h24ProofRecorder.record({
++          chunkId,
++          transcript: response.execute?.transcript || "",
++          stage: "block",
++          h23Decision,
++          shouldBlock: true,
++        });
++      }
+       this.failLoudExecution(
+         "h23_gate_block",
+         `H2.3 blocked command (${h23Decision?.reason ?? "missing_decision"})`,
+@@ -1705,6 +1725,16 @@
+         console.log(
+           `[EXEC_TRACE] expanded_sequence chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" total=${commandCount} sequence="${commandSequence}"`
+         );
++        if (h24Enabled) {
++          h24ProofRecorder.record({
++            chunkId,
++            transcript: response.execute.transcript || "",
++            stage: "dispatch_start",
++            h23Decision,
++            commandCount,
++            shouldBlock: false,
++          });
++        }
+ 
+         let allCommandsConfirmed = true;
+         let hasExecutableCommands = false;
+@@ -1823,6 +1853,16 @@
+         interactionId,
+         selectedAlternativeIndex
+       );
++      if (h24Enabled && response.chunkId) {
++        h24ProofRecorder.record({
++          chunkId: response.chunkId,
++          transcript: response.execute?.transcript || "",
++          stage: "dispatch_complete",
++          h23Decision,
++          shouldBlock,
++        });
++        h24ProofRecorder.finalize(response.chunkId);
++      }
+       if (response.chunkId) {
+         h23Recorder.finalizeChunk(response.chunkId);
+       }
+--- /dev/null	2026-03-31 23:47:36.134408035 +0000
++++ /mnt/data/h24impl/h24-policy-proof-recorder.ts	2026-03-31 23:52:27.023457109 +0000
+@@ -0,0 +1,248 @@
++import fs from "fs";
++import path from "path";
++import { H23DecisionSummary, h23Recorder } from "./h23-live-trace-recorder";
++import { H23TraceStep } from "./h23-command-governor";
++
++export type H24ExecutionClass =
++  | "reflex"
++  | "closed_structure"
++  | "parameterized_numeric"
++  | "parameterized_open"
++  | "unknown";
++
++export type H24ExecutionGate =
++  | "reflex_early"
++  | "structural_stability"
++  | "endpoint_closure"
++  | "unknown";
++
++export type H24PolicyControlState =
++  | "policy_present_granted"
++  | "policy_present_blocked"
++  | "observe_only_missing_decision";
++
++export interface H24ProofStageEvent {
++  stage:
++    | "lookup"
++    | "block"
++    | "dispatch_start"
++    | "dispatch_complete";
++  observedAtMs: number | null;
++  decisionPresent: boolean;
++  commandCount?: number;
++  shouldBlock?: boolean;
++  reason?: string | null;
++}
++
++export interface H24PolicyProofArtifact {
++  chunkId: string;
++  transcript: string;
++  commandClass: H24ExecutionClass;
++  recommendedGate: H24ExecutionGate;
++  policyControlState: H24PolicyControlState;
++  policyDecisionPresent: boolean;
++  policyGranted: boolean | null;
++  policyReason: string | null;
++  numericEndpointRequired: boolean;
++  firstStructuralStableAtMs: number | null;
++  firstGrantedAtMs: number | null;
++  endpointAtMs: number | null;
++  observedExecutionAtMs: number | null;
++  matchedRecommendedGate: boolean | null;
++  policyControlledExecution: boolean;
++  decisionContinuity: {
++    decisionPresentAtExecution: boolean;
++    finalStepSeenByPolicy: boolean;
++    finalizationReason: string | null;
++  };
++  events: H24ProofStageEvent[];
++  h23Decision: H23DecisionSummary | null;
++  h23Trace: H23TraceStep[];
++}
++
++interface H24RecordInput {
++  chunkId: string;
++  transcript: string;
++  stage: H24ProofStageEvent["stage"];
++  h23Decision: H23DecisionSummary | null;
++  commandCount?: number;
++  shouldBlock?: boolean;
++}
++
++const REFLEX_TRANSCRIPTS = new Set(["stop", "cancel", "mute", "pause"]);
++const CLOSED_STRUCTURE_TRANSCRIPTS = new Set([
++  "focus terminal",
++  "focus chrome",
++  "focus code",
++  "focus editor",
++  "delete previous token",
++  "delete previous word",
++  "new tab",
++]);
++
++export default class H24PolicyProofRecorder {
++  private static instance: H24PolicyProofRecorder | null = null;
++  private outputDir: string;
++  private records = new Map<string, H24PolicyProofArtifact>();
++
++  public static getInstance(outputDir?: string): H24PolicyProofRecorder {
++    if (!H24PolicyProofRecorder.instance) {
++      H24PolicyProofRecorder.instance = new H24PolicyProofRecorder(outputDir);
++    }
++    return H24PolicyProofRecorder.instance;
++  }
++
++  constructor(outputDir?: string) {
++    this.outputDir = outputDir ?? path.resolve(process.cwd(), "artifacts/reports/h24_policy_proofs");
++    fs.mkdirSync(this.outputDir, { recursive: true });
++  }
++
++  record(input: H24RecordInput): H24PolicyProofArtifact {
++    const existing = this.records.get(input.chunkId);
++    const trace = h23Recorder.getTraceSnapshot(input.chunkId);
++    const observedExecutionAtMs = h23Recorder.getRelativeNowMs(input.chunkId);
++    const artifact = existing ?? this.createArtifact(input.chunkId, input.transcript, input.h23Decision, trace, observedExecutionAtMs);
++
++    artifact.transcript = input.transcript || artifact.transcript;
++    artifact.h23Decision = input.h23Decision;
++    artifact.h23Trace = trace;
++    artifact.policyDecisionPresent = Boolean(input.h23Decision);
++    artifact.policyGranted = input.h23Decision?.granted ?? null;
++    artifact.policyReason = input.h23Decision?.reason ?? null;
++    artifact.numericEndpointRequired = input.h23Decision?.numericEndpointRequired ?? artifact.numericEndpointRequired;
++    artifact.policyControlState = this.policyControlState(input.h23Decision);
++    artifact.observedExecutionAtMs = observedExecutionAtMs;
++    artifact.decisionContinuity = {
++      decisionPresentAtExecution: Boolean(input.h23Decision),
++      finalStepSeenByPolicy: Boolean(input.h23Decision?.isFinalStep),
++      finalizationReason: input.h23Decision?.finalizationReason ?? null,
++    };
++    artifact.events.push({
++      stage: input.stage,
++      observedAtMs: observedExecutionAtMs,
++      decisionPresent: Boolean(input.h23Decision),
++      commandCount: input.commandCount,
++      shouldBlock: input.shouldBlock,
++      reason: input.h23Decision?.reason ?? null,
++    });
++    artifact.policyControlledExecution = Boolean(input.h23Decision?.granted);
++    artifact.matchedRecommendedGate = this.matchedRecommendedGate(artifact);
++
++    this.records.set(input.chunkId, artifact);
++    this.write(input.chunkId, artifact);
++    return artifact;
++  }
++
++  finalize(chunkId: string): H24PolicyProofArtifact | null {
++    const artifact = this.records.get(chunkId);
++    if (!artifact) return null;
++    this.write(chunkId, artifact);
++    this.records.delete(chunkId);
++    return artifact;
++  }
++
++  private createArtifact(
++    chunkId: string,
++    transcript: string,
++    decision: H23DecisionSummary | null,
++    trace: H23TraceStep[],
++    observedExecutionAtMs: number | null,
++  ): H24PolicyProofArtifact {
++    const commandClass = this.classify(transcript, decision, trace);
++    const recommendedGate = this.recommendedGate(commandClass);
++    const firstStructuralStable = trace.find((step) => step.structurallyStable)?.timestampMs ?? null;
++    const firstGranted = trace.find((step) => step.granted)?.timestampMs ?? null;
++    const endpoint = trace.length > 0 ? trace[trace.length - 1].timestampMs : null;
++
++    return {
++      chunkId,
++      transcript,
++      commandClass,
++      recommendedGate,
++      policyControlState: this.policyControlState(decision),
++      policyDecisionPresent: Boolean(decision),
++      policyGranted: decision?.granted ?? null,
++      policyReason: decision?.reason ?? null,
++      numericEndpointRequired: decision?.numericEndpointRequired ?? false,
++      firstStructuralStableAtMs: firstStructuralStable,
++      firstGrantedAtMs: firstGranted,
++      endpointAtMs: endpoint,
++      observedExecutionAtMs,
++      matchedRecommendedGate: null,
++      policyControlledExecution: Boolean(decision?.granted),
++      decisionContinuity: {
++        decisionPresentAtExecution: Boolean(decision),
++        finalStepSeenByPolicy: Boolean(decision?.isFinalStep),
++        finalizationReason: decision?.finalizationReason ?? null,
++      },
++      events: [],
++      h23Decision: decision,
++      h23Trace: trace,
++    };
++  }
++
++  private classify(
++    transcript: string,
++    decision: H23DecisionSummary | null,
++    trace: H23TraceStep[],
++  ): H24ExecutionClass {
++    const normalized = transcript.trim().toLowerCase();
++    if (decision?.numericEndpointRequired) {
++      return "parameterized_numeric";
++    }
++    if (REFLEX_TRANSCRIPTS.has(normalized)) {
++      return "reflex";
++    }
++    if (CLOSED_STRUCTURE_TRANSCRIPTS.has(normalized)) {
++      return "closed_structure";
++    }
++    if (normalized.startsWith("go to ") || normalized.startsWith("open ")) {
++      return "parameterized_open";
++    }
++    const lastStepClass = trace.length > 0 ? trace[trace.length - 1].commandClass : "unknown";
++    if (lastStepClass === "reflex" || lastStepClass === "closed_structure") {
++      return lastStepClass;
++    }
++    return "unknown";
++  }
++
++  private recommendedGate(commandClass: H24ExecutionClass): H24ExecutionGate {
++    switch (commandClass) {
++      case "reflex":
++        return "reflex_early";
++      case "closed_structure":
++        return "structural_stability";
++      case "parameterized_numeric":
++      case "parameterized_open":
++        return "endpoint_closure";
++      default:
++        return "unknown";
++    }
++  }
++
++  private policyControlState(decision: H23DecisionSummary | null): H24PolicyControlState {
++    if (!decision) return "observe_only_missing_decision";
++    return decision.granted ? "policy_present_granted" : "policy_present_blocked";
++  }
++
++  private matchedRecommendedGate(artifact: H24PolicyProofArtifact): boolean | null {
++    const observed = artifact.observedExecutionAtMs;
++    if (observed == null) return null;
++    switch (artifact.recommendedGate) {
++      case "reflex_early":
++      case "structural_stability":
++        return artifact.firstStructuralStableAtMs != null && observed >= artifact.firstStructuralStableAtMs;
++      case "endpoint_closure":
++        return artifact.endpointAtMs != null && observed >= artifact.endpointAtMs;
++      default:
++        return null;
++    }
++  }
++
++  private write(chunkId: string, artifact: H24PolicyProofArtifact): void {
++    const outfile = path.join(this.outputDir, `${chunkId}.json`);
++    fs.writeFileSync(outfile, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
++  }
++}
++
++export const h24ProofRecorder = H24PolicyProofRecorder.getInstance();
+--- /dev/null	2026-03-31 23:47:36.134408035 +0000
++++ /mnt/data/h24impl/h24-trace-replay.ts	2026-03-31 23:53:32.700312248 +0000
+@@ -0,0 +1,76 @@
++import fs from "fs";
++import path from "path";
++import H23CommandGovernor from "./h23-command-governor";
++import { H24ExecutionClass } from "./h24-policy-proof-recorder";
++
++interface ReplayArtifact {
++  chunkId?: string;
++  steps?: Array<{
++    transcript: string;
++    timestampMs?: number;
++    isFinalStep?: boolean;
++  }>;
++}
++
++function classifyTranscript(transcript: string): H24ExecutionClass {
++  const t = transcript.trim().toLowerCase();
++  if (["stop", "cancel", "mute", "pause"].includes(t)) return "reflex";
++  if (["focus terminal", "focus chrome", "focus code", "focus editor", "new tab", "delete previous token", "delete previous word"].includes(t)) {
++    return "closed_structure";
++  }
++  if (t.startsWith("go to line") || t.startsWith("switch tab") || t.startsWith("scroll down")) {
++    return "parameterized_numeric";
++  }
++  if (t.startsWith("go to ") || t.startsWith("open ")) return "parameterized_open";
++  return "unknown";
++}
++
++function main(): void {
++  const inputPath = process.argv[2];
++  if (!inputPath) {
++    console.error("usage: ts-node src/main/runtime/h24-trace-replay.ts <trace.json>");
++    process.exit(2);
++  }
++
++  const raw = fs.readFileSync(path.resolve(inputPath), "utf8");
++  const input = JSON.parse(raw) as ReplayArtifact;
++  const steps = input.steps ?? [];
++  if (steps.length === 0) {
++    console.error("no steps found in artifact");
++    process.exit(3);
++  }
++
++  const governor = new H23CommandGovernor();
++  const chunkId = input.chunkId ?? "unknown";
++  const replayed = steps.map((step, index) =>
++    governor.observe({
++      chunkId,
++      transcript: step.transcript,
++      stepIndex: index + 1,
++      timestampMs: step.timestampMs ?? (index + 1) * 40,
++      isFinalStep: step.isFinalStep ?? index === steps.length - 1,
++    }),
++  );
++
++  const finalStep = replayed[replayed.length - 1];
++  const firstStable = replayed.find((step) => step.structurallyStable)?.timestampMs ?? null;
++  const firstGranted = replayed.find((step) => step.granted)?.timestampMs ?? null;
++  const endpoint = finalStep?.timestampMs ?? null;
++
++  const summary = {
++    chunkId,
++    transcript: finalStep?.transcript ?? "",
++    commandClass: classifyTranscript(finalStep?.transcript ?? ""),
++    firstStructuralStableAtMs: firstStable,
++    firstGrantedAtMs: firstGranted,
++    endpointAtMs: endpoint,
++    finalGranted: finalStep?.granted ?? false,
++    finalReason: finalStep?.reason ?? null,
++    finalizationReason: finalStep?.finalizationReason ?? null,
++    stepCount: replayed.length,
++  };
++
++  console.log(JSON.stringify(summary, null, 2));
++}
++
++main();
+--- /dev/null	2026-03-31 23:47:36.134408035 +0000
++++ /mnt/data/h24impl/H24_IMPLEMENTATION_NOTES.md	2026-03-31 23:54:09.326746975 +0000
+@@ -0,0 +1,60 @@
++# H2.4 Implementation Notes
++
++This bundle adds an **additive H2.4 proof layer** on top of the current H2.3 runtime.
++
++## Goal
++
++H2.4 is designed to answer, with artifacts:
++- when each command class becomes eligible to execute
++- whether an H2/H23 policy decision was present at execution time
++- whether execution timing matched the recommended class gate
++- whether execution happened under real policy control or observe-only fallback
++
++## What is included
++
++### Modified
++- `h23-live-trace-recorder.ts`
++  - richer `H23DecisionSummary`
++  - `getTraceSnapshot(chunkId)`
++  - `getRelativeNowMs(chunkId)`
++
++- `executor.ts`
++  - `H24_ENABLED` additive integration
++  - records H2.4 proof at:
++    - lookup
++    - block
++    - dispatch_start
++    - dispatch_complete
++
++### New
++- `h24-policy-proof-recorder.ts`
++  - writes `artifacts/reports/h24_policy_proofs/{chunkId}.json`
++  - classifies command into:
++    - reflex
++    - closed_structure
++    - parameterized_numeric
++    - parameterized_open
++    - unknown
++  - computes recommended gate:
++    - reflex_early
++    - structural_stability
++    - endpoint_closure
++  - records whether policy decision was present and granted at execution
++
++- `h24-trace-replay.ts`
++  - lightweight replay/summary helper for H24 artifacts and H23 recorder artifacts
++
++## Runtime flags
++
++- `H24_ENABLED=true`
++  - enable proof artifact generation
++
++- `H24_OBSERVE_ONLY=true`
++  - documentation-level companion flag; current implementation does not change runtime behavior when false
++  - H24 currently records proof and does not add new blocks
++
++## Notes
++
++This bundle is intentionally **proof-first**, not behavior-first.
++It does **not** change H2.3 gating behavior.
++It adds the measurement layer needed to prove whether the policy layer is actually controlling execution timing by class.

@@ -1,0 +1,17 @@
+{
+  "trace_name": "trace_reflex_stop",
+  "captured_from": "live client stdout",
+  "captured_at_local": "2026-03-31T12:04:27-04:00",
+  "lane": "command_fast_parakeet",
+  "events": [
+    {"t_rel_ms": 0, "type": "session_start", "detail": "listening enabled"},
+    {"t_rel_ms": 80, "type": "chunk_start", "chunk_id": "bda95c1e-df57-472f-aedd-0e8b610ca441", "samples": 480},
+    {"t_rel_ms": 105, "type": "initialize_request"},
+    {"t_rel_ms": 210, "type": "partial_update", "channel": "audio_frames", "bytes": 960, "sequence": 1},
+    {"t_rel_ms": 255, "type": "partial_update", "channel": "audio_frames", "bytes": 960, "sequence": 2},
+    {"t_rel_ms": 300, "type": "partial_update", "channel": "audio_frames", "bytes": 960, "sequence": 3},
+    {"t_rel_ms": 1280, "type": "endpoint_request", "chunk_id": "bda95c1e-df57-472f-aedd-0e8b610ca441", "finalize": true},
+    {"t_rel_ms": 1330, "type": "stream_cancel", "reason": "microphone stop / buffer reset"},
+    {"t_rel_ms": 1340, "type": "execution", "result": "not_executed", "reason": "stream canceled before committed final transcript"}
+  ]
+}
