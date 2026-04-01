@@ -1,0 +1,3 @@
+H3 Stage 2 freeze artifacts
+- events_after_hardening.ndjson
+- events_before_hardening_20260401_163817.ndjson
