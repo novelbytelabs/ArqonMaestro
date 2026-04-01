@@ -644,7 +644,11 @@ export default class ParakeetCommandFastProvider {
                 commandClass: geometricEvent.commandClass,
                 hadTranscriptText: Boolean(transcriptText && transcriptText.trim().length > 0),
                 transcriptText: transcriptText && transcriptText.trim().length > 0 ? transcriptText : null,
-                reason: "proxied_from_sidecar_payload",
+                reason: `proxied_from_sidecar_payload;atlas_backed=${Boolean(
+                  geometricEvent.atlasBacked
+                )};atlas_schema=${geometricEvent.atlasSchema || "unknown"};atlas_version=${
+                  geometricEvent.atlasVersion || "unknown"
+                }`,
               });
               onGeometricEvent(geometricEvent);
               emitH3RuntimeEvidence({
@@ -655,6 +659,11 @@ export default class ParakeetCommandFastProvider {
                 commandClass: geometricEvent.commandClass,
                 hadTranscriptText: Boolean(transcriptText && transcriptText.trim().length > 0),
                 transcriptText: transcriptText && transcriptText.trim().length > 0 ? transcriptText : null,
+                reason: `atlas_backed=${Boolean(
+                  geometricEvent.atlasBacked
+                )};command_id=${geometricEvent.commandId || "unknown"};parameter_type=${
+                  geometricEvent.parameterType ?? "null"
+                }`,
               });
             }
           }

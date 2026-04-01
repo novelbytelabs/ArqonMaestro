@@ -37,6 +37,7 @@ PARAKEET_MODEL = None
 PARAKEET_DEVICE = "cpu"
 PARAKEET_MODEL_ERROR = ""
 H3_GEOMETRIC_DETECTOR = None
+H3_VALIDATED_V1_REGIONS = {"pause", "new tab", "focus chrome", "go to line"}
 
 
 def emit_h3_evidence(
@@ -110,6 +111,8 @@ class H3GeometricDetector:
         self.feature_dim = 0
         self.atlas_schema = "unknown"
         self.atlas_version = "unknown"
+        self.bootstrap_mode = False
+        self._bootstrap_validated_region_warning_emitted = False
         if not self.enabled:
             return
 
@@ -168,12 +171,13 @@ class H3GeometricDetector:
             self._validate_atlas_v1(atlas, source=f"default:{default_v1}")
             return atlas
 
-        if os.getenv("MAESTRO_H3_ALLOW_BOOTSTRAP", "1") != "1":
+        if os.getenv("MAESTRO_H3_ALLOW_BOOTSTRAP", "0") != "1":
             raise RuntimeError("h3_command_atlas_v1_required_and_missing")
 
         bootstrap_path = Path("/tmp/maestro_h3_bootstrap_atlas.json")
         if bootstrap_path.exists():
             logger.warning("[H3] using legacy bootstrap atlas fallback")
+            self.bootstrap_mode = True
             return json.loads(bootstrap_path.read_text(encoding="utf-8"))
 
         manifold_root = Path(
@@ -189,6 +193,7 @@ class H3GeometricDetector:
 
         bootstrap_path.parent.mkdir(parents=True, exist_ok=True)
         logger.warning("[H3] building legacy bootstrap atlas fallback (Stage 3A compatibility mode)")
+        self.bootstrap_mode = True
         return bootstrap_demo_atlas(bootstrap_path)
 
     def _validate_atlas_v1(self, atlas: Dict[str, Any], *, source: str) -> None:
@@ -311,6 +316,15 @@ class H3GeometricDetector:
         best_idx, best_score, second_score = self._scan_best(query_words)
         command_name = self.command_names[best_idx]
         meta = self.command_meta.get(command_name, {})
+        allow_bootstrap_validated = os.getenv("MAESTRO_H3_ALLOW_BOOTSTRAP_VALIDATED_V1", "0") == "1"
+        if self.bootstrap_mode and command_name in H3_VALIDATED_V1_REGIONS and not allow_bootstrap_validated:
+            if not self._bootstrap_validated_region_warning_emitted:
+                logger.warning(
+                    "[H3] bootstrap fallback suppression active for validated v1 regions; "
+                    "set MAESTRO_H3_ALLOW_BOOTSTRAP_VALIDATED_V1=1 to override"
+                )
+                self._bootstrap_validated_region_warning_emitted = True
+            return None
         min_frames = int(meta.get("min_frames", 1))
         if frame_count < min_frames:
             return None
@@ -487,7 +501,12 @@ async def websocket_transcribe(websocket: WebSocket):
                                 command_class=str(geometric_event.get("command_class")),
                                 had_transcript_text=bool(partial_text and partial_text.strip()),
                                 transcript_text=partial_text if partial_text and partial_text.strip() else None,
-                                reason="partial_payload",
+                                reason=(
+                                    "partial_payload;"
+                                    f"atlas_backed={bool(geometric_event.get('atlas_backed', False))};"
+                                    f"atlas_schema={geometric_event.get('atlas_schema')};"
+                                    f"atlas_version={geometric_event.get('atlas_version')}"
+                                ),
                             )
                             should_emit = True
                         if partial_text and len(partial_text) > last_partial_chars:
@@ -551,7 +570,12 @@ async def websocket_transcribe(websocket: WebSocket):
                 command_class=str(geometric_event.get("command_class")),
                 had_transcript_text=bool(final_text and final_text.strip()),
                 transcript_text=final_text if final_text and final_text.strip() else None,
-                reason="final_payload",
+                reason=(
+                    "final_payload;"
+                    f"atlas_backed={bool(geometric_event.get('atlas_backed', False))};"
+                    f"atlas_schema={geometric_event.get('atlas_schema')};"
+                    f"atlas_version={geometric_event.get('atlas_version')}"
+                ),
             )
         await websocket.send_json(final_payload)
         logger.info(f"[{chunk_id}] Stream completed successfully. Final text: '{final_text}'")
