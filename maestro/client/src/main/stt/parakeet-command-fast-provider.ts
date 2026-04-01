@@ -631,6 +631,16 @@ export default class ParakeetCommandFastProvider {
               lastGeometricEventSignature = signature;
               lastGeometricEventAtMs = nowMs;
               const transcriptText = typeof response.text === "string" ? response.text : null;
+              emitH3RuntimeEvidence({
+                event: "geometric_event_emitted",
+                chunkId,
+                source: geometricEvent.source,
+                regionId: geometricEvent.regionId,
+                commandClass: geometricEvent.commandClass,
+                hadTranscriptText: Boolean(transcriptText && transcriptText.trim().length > 0),
+                transcriptText: transcriptText && transcriptText.trim().length > 0 ? transcriptText : null,
+                reason: "proxied_from_sidecar_payload",
+              });
               onGeometricEvent(geometricEvent);
               emitH3RuntimeEvidence({
                 event: "geometric_event_received",

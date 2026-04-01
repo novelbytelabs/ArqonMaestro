@@ -1,0 +1,12 @@
+{
+  "chunkId": "near-miss-001",
+  "transcript": "go too lime fifty two",
+  "commandClass": "unknown",
+  "firstStructuralStableAtMs": null,
+  "firstGrantedAtMs": null,
+  "endpointAtMs": 40,
+  "finalGranted": false,
+  "finalReason": "out_of_grammar",
+  "finalizationReason": null,
+  "stepCount": 1
+}

@@ -758,7 +758,11 @@ export default class ChunkManager {
       regionId: event.regionId,
       commandClass: step.commandClass,
     });
-    this.chunkH3Route.set(chunkId, route.route);
+    const routeAfter =
+      this.chunkH3TailDecodeActive.get(chunkId) && routeBefore === "geometric_prefix_asr_tail"
+        ? "geometric_prefix_asr_tail"
+        : route.route;
+    this.chunkH3Route.set(chunkId, routeAfter);
     this.emitH3Evidence(chunkId, "route_activation", {
       source: event.source,
       regionId: event.regionId,
@@ -766,12 +770,15 @@ export default class ChunkManager {
       hadTranscriptText: Boolean(transcriptTail && transcriptTail.trim().length > 0),
       transcriptText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
       routeBefore,
-      routeAfter: route.route,
-      reason: route.reason,
+      routeAfter,
+      reason:
+        routeAfter !== route.route
+          ? "tail_route_locked_until_finalize"
+          : route.reason,
     });
 
     if (
-      route.route === "geometric_prefix_asr_tail" &&
+      routeAfter === "geometric_prefix_asr_tail" &&
       step.structurallyStable &&
       event.regionId &&
       (event.regionId === "go to line" || event.regionId === "go to")
@@ -791,8 +798,11 @@ export default class ChunkManager {
           hadTranscriptText: Boolean(transcriptTail && transcriptTail.trim().length > 0),
           transcriptText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
           routeBefore,
-          routeAfter: route.route,
-          reason: route.reason,
+          routeAfter,
+          reason:
+            routeAfter !== route.route
+              ? "tail_route_locked_until_finalize"
+              : route.reason,
         });
       }
     }

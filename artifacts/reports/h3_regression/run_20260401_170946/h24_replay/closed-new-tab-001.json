@@ -1,0 +1,12 @@
+{
+  "chunkId": "closed-new-tab-001",
+  "transcript": "new tab",
+  "commandClass": "closed_structure",
+  "firstStructuralStableAtMs": null,
+  "firstGrantedAtMs": null,
+  "endpointAtMs": 60,
+  "finalGranted": false,
+  "finalReason": "out_of_grammar",
+  "finalizationReason": null,
+  "stepCount": 1
+}

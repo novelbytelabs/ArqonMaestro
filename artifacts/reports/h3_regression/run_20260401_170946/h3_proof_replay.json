@@ -1,0 +1,480 @@
+{
+  "summary": [
+    {
+      "chunkId": "closed-focus-chrome-001",
+      "granted": true,
+      "reason": "passed",
+      "commandClass": "closed_structure",
+      "transcript": "<geometric:focus chrome>"
+    },
+    {
+      "chunkId": "closed-new-tab-001",
+      "granted": true,
+      "reason": "passed",
+      "commandClass": "closed_structure",
+      "transcript": "<geometric:new tab>"
+    },
+    {
+      "chunkId": "param-goto-line-001",
+      "granted": true,
+      "reason": "passed",
+      "commandClass": "parameterized",
+      "transcript": "go to line fifty two"
+    },
+    {
+      "chunkId": "param-goto-wikipedia-001",
+      "granted": true,
+      "reason": "passed",
+      "commandClass": "parameterized",
+      "transcript": "go to wikipedia dot org"
+    },
+    {
+      "chunkId": "reflex-pause-001",
+      "granted": true,
+      "reason": "passed",
+      "commandClass": "reflex",
+      "transcript": "<geometric:pause>"
+    }
+  ],
+  "results": [
+    {
+      "chunkId": "closed-focus-chrome-001",
+      "replay": [
+        {
+          "chunkId": "closed-focus-chrome-001",
+          "transcript": "<geometric:unknown>",
+          "normalizedTranscript": "<geometric:unknown>",
+          "stepIndex": 1,
+          "timestampMs": 40,
+          "isFinalStep": false,
+          "commandClass": "unknown",
+          "structuralPrefix": "unknown",
+          "structurallyStable": false,
+          "slotClosed": false,
+          "slotSignature": null,
+          "slotStable": true,
+          "slotFinalized": false,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": false,
+          "granted": false,
+          "reason": "out_of_grammar",
+          "finalizationReason": null,
+          "slots": {
+            "command_family": null,
+            "required_slots_present": true
+          }
+        },
+        {
+          "chunkId": "closed-focus-chrome-001",
+          "transcript": "<geometric:focus chrome>",
+          "normalizedTranscript": "<geometric:focus chrome>",
+          "stepIndex": 2,
+          "timestampMs": 80,
+          "isFinalStep": true,
+          "commandClass": "closed_structure",
+          "structuralPrefix": "focus chrome",
+          "structurallyStable": true,
+          "slotClosed": true,
+          "slotSignature": null,
+          "slotStable": true,
+          "slotFinalized": true,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": true,
+          "granted": true,
+          "reason": "passed",
+          "finalizationReason": "not_required_for_class",
+          "slots": {
+            "command_family": null,
+            "required_slots_present": true
+          }
+        }
+      ],
+      "finalDecision": {
+        "chunkId": "closed-focus-chrome-001",
+        "transcript": "<geometric:focus chrome>",
+        "normalizedTranscript": "<geometric:focus chrome>",
+        "stepIndex": 2,
+        "timestampMs": 80,
+        "isFinalStep": true,
+        "commandClass": "closed_structure",
+        "structuralPrefix": "focus chrome",
+        "structurallyStable": true,
+        "slotClosed": true,
+        "slotSignature": null,
+        "slotStable": true,
+        "slotFinalized": true,
+        "numericEndpointRequired": false,
+        "numericPhraseNonExpandableHint": false,
+        "executionEligible": true,
+        "granted": true,
+        "reason": "passed",
+        "finalizationReason": "not_required_for_class",
+        "slots": {
+          "command_family": null,
+          "required_slots_present": true
+        }
+      }
+    },
+    {
+      "chunkId": "closed-new-tab-001",
+      "replay": [
+        {
+          "chunkId": "closed-new-tab-001",
+          "transcript": "<geometric:new tab>",
+          "normalizedTranscript": "<geometric:new tab>",
+          "stepIndex": 1,
+          "timestampMs": 60,
+          "isFinalStep": true,
+          "commandClass": "closed_structure",
+          "structuralPrefix": "new tab",
+          "structurallyStable": true,
+          "slotClosed": true,
+          "slotSignature": null,
+          "slotStable": true,
+          "slotFinalized": true,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": true,
+          "granted": true,
+          "reason": "passed",
+          "finalizationReason": "not_required_for_class",
+          "slots": {
+            "command_family": null,
+            "required_slots_present": true
+          }
+        }
+      ],
+      "finalDecision": {
+        "chunkId": "closed-new-tab-001",
+        "transcript": "<geometric:new tab>",
+        "normalizedTranscript": "<geometric:new tab>",
+        "stepIndex": 1,
+        "timestampMs": 60,
+        "isFinalStep": true,
+        "commandClass": "closed_structure",
+        "structuralPrefix": "new tab",
+        "structurallyStable": true,
+        "slotClosed": true,
+        "slotSignature": null,
+        "slotStable": true,
+        "slotFinalized": true,
+        "numericEndpointRequired": false,
+        "numericPhraseNonExpandableHint": false,
+        "executionEligible": true,
+        "granted": true,
+        "reason": "passed",
+        "finalizationReason": "not_required_for_class",
+        "slots": {
+          "command_family": null,
+          "required_slots_present": true
+        }
+      }
+    },
+    {
+      "chunkId": "param-goto-line-001",
+      "replay": [
+        {
+          "chunkId": "param-goto-line-001",
+          "transcript": "<geometric:unknown>",
+          "normalizedTranscript": "<geometric:unknown>",
+          "stepIndex": 1,
+          "timestampMs": 40,
+          "isFinalStep": false,
+          "commandClass": "unknown",
+          "structuralPrefix": "unknown",
+          "structurallyStable": false,
+          "slotClosed": false,
+          "slotSignature": null,
+          "slotStable": true,
+          "slotFinalized": false,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": false,
+          "granted": false,
+          "reason": "out_of_grammar",
+          "finalizationReason": null,
+          "slots": {
+            "command_family": null,
+            "required_slots_present": true
+          }
+        },
+        {
+          "chunkId": "param-goto-line-001",
+          "transcript": "go to",
+          "normalizedTranscript": "go to",
+          "stepIndex": 2,
+          "timestampMs": 80,
+          "isFinalStep": false,
+          "commandClass": "parameterized",
+          "structuralPrefix": "go to",
+          "structurallyStable": true,
+          "slotClosed": false,
+          "slotSignature": null,
+          "slotStable": false,
+          "slotFinalized": false,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": false,
+          "granted": false,
+          "reason": "awaiting_required_slot_closure",
+          "finalizationReason": null,
+          "slots": {
+            "command_family": "goto_open",
+            "target_raw": "",
+            "target": null,
+            "required_slots_present": false
+          }
+        },
+        {
+          "chunkId": "param-goto-line-001",
+          "transcript": "go to line",
+          "normalizedTranscript": "go to line",
+          "stepIndex": 3,
+          "timestampMs": 120,
+          "isFinalStep": false,
+          "commandClass": "parameterized",
+          "structuralPrefix": "go to line",
+          "structurallyStable": true,
+          "slotClosed": false,
+          "slotSignature": null,
+          "slotStable": false,
+          "slotFinalized": false,
+          "numericEndpointRequired": true,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": false,
+          "granted": false,
+          "reason": "awaiting_required_slot_closure",
+          "finalizationReason": null,
+          "slots": {
+            "command_family": "goto_line",
+            "line_number_raw": "",
+            "line_number": null,
+            "required_slots_present": false
+          }
+        },
+        {
+          "chunkId": "param-goto-line-001",
+          "transcript": "go to line fifty two",
+          "normalizedTranscript": "go to line fifty two",
+          "stepIndex": 4,
+          "timestampMs": 200,
+          "isFinalStep": true,
+          "commandClass": "parameterized",
+          "structuralPrefix": "go to line",
+          "structurallyStable": true,
+          "slotClosed": true,
+          "slotSignature": "goto_line:52",
+          "slotStable": true,
+          "slotFinalized": true,
+          "numericEndpointRequired": true,
+          "numericPhraseNonExpandableHint": true,
+          "executionEligible": true,
+          "granted": true,
+          "reason": "passed",
+          "finalizationReason": "numeric_endpoint_finalization",
+          "slots": {
+            "command_family": "goto_line",
+            "line_number_raw": "fifty two",
+            "line_number": 52,
+            "required_slots_present": true
+          }
+        }
+      ],
+      "finalDecision": {
+        "chunkId": "param-goto-line-001",
+        "transcript": "go to line fifty two",
+        "normalizedTranscript": "go to line fifty two",
+        "stepIndex": 4,
+        "timestampMs": 200,
+        "isFinalStep": true,
+        "commandClass": "parameterized",
+        "structuralPrefix": "go to line",
+        "structurallyStable": true,
+        "slotClosed": true,
+        "slotSignature": "goto_line:52",
+        "slotStable": true,
+        "slotFinalized": true,
+        "numericEndpointRequired": true,
+        "numericPhraseNonExpandableHint": true,
+        "executionEligible": true,
+        "granted": true,
+        "reason": "passed",
+        "finalizationReason": "numeric_endpoint_finalization",
+        "slots": {
+          "command_family": "goto_line",
+          "line_number_raw": "fifty two",
+          "line_number": 52,
+          "required_slots_present": true
+        }
+      }
+    },
+    {
+      "chunkId": "param-goto-wikipedia-001",
+      "replay": [
+        {
+          "chunkId": "param-goto-wikipedia-001",
+          "transcript": "<geometric:unknown>",
+          "normalizedTranscript": "<geometric:unknown>",
+          "stepIndex": 1,
+          "timestampMs": 40,
+          "isFinalStep": false,
+          "commandClass": "unknown",
+          "structuralPrefix": "unknown",
+          "structurallyStable": false,
+          "slotClosed": false,
+          "slotSignature": null,
+          "slotStable": true,
+          "slotFinalized": false,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": false,
+          "granted": false,
+          "reason": "out_of_grammar",
+          "finalizationReason": null,
+          "slots": {
+            "command_family": null,
+            "required_slots_present": true
+          }
+        },
+        {
+          "chunkId": "param-goto-wikipedia-001",
+          "transcript": "go to",
+          "normalizedTranscript": "go to",
+          "stepIndex": 2,
+          "timestampMs": 80,
+          "isFinalStep": false,
+          "commandClass": "parameterized",
+          "structuralPrefix": "go to",
+          "structurallyStable": true,
+          "slotClosed": false,
+          "slotSignature": null,
+          "slotStable": false,
+          "slotFinalized": false,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": false,
+          "granted": false,
+          "reason": "awaiting_required_slot_closure",
+          "finalizationReason": null,
+          "slots": {
+            "command_family": "goto_open",
+            "target_raw": "",
+            "target": null,
+            "required_slots_present": false
+          }
+        },
+        {
+          "chunkId": "param-goto-wikipedia-001",
+          "transcript": "go to wikipedia dot org",
+          "normalizedTranscript": "go to wikipedia dot org",
+          "stepIndex": 3,
+          "timestampMs": 160,
+          "isFinalStep": true,
+          "commandClass": "parameterized",
+          "structuralPrefix": "go to",
+          "structurallyStable": true,
+          "slotClosed": true,
+          "slotSignature": "goto_open:wikipedia.org",
+          "slotStable": true,
+          "slotFinalized": true,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": true,
+          "granted": true,
+          "reason": "passed",
+          "finalizationReason": "numeric_endpoint_finalization",
+          "slots": {
+            "command_family": "goto_open",
+            "target_raw": "wikipedia dot org",
+            "target": "wikipedia.org",
+            "required_slots_present": true
+          }
+        }
+      ],
+      "finalDecision": {
+        "chunkId": "param-goto-wikipedia-001",
+        "transcript": "go to wikipedia dot org",
+        "normalizedTranscript": "go to wikipedia dot org",
+        "stepIndex": 3,
+        "timestampMs": 160,
+        "isFinalStep": true,
+        "commandClass": "parameterized",
+        "structuralPrefix": "go to",
+        "structurallyStable": true,
+        "slotClosed": true,
+        "slotSignature": "goto_open:wikipedia.org",
+        "slotStable": true,
+        "slotFinalized": true,
+        "numericEndpointRequired": false,
+        "numericPhraseNonExpandableHint": false,
+        "executionEligible": true,
+        "granted": true,
+        "reason": "passed",
+        "finalizationReason": "numeric_endpoint_finalization",
+        "slots": {
+          "command_family": "goto_open",
+          "target_raw": "wikipedia dot org",
+          "target": "wikipedia.org",
+          "required_slots_present": true
+        }
+      }
+    },
+    {
+      "chunkId": "reflex-pause-001",
+      "replay": [
+        {
+          "chunkId": "reflex-pause-001",
+          "transcript": "<geometric:pause>",
+          "normalizedTranscript": "<geometric:pause>",
+          "stepIndex": 1,
+          "timestampMs": 40,
+          "isFinalStep": true,
+          "commandClass": "reflex",
+          "structuralPrefix": "pause",
+          "structurallyStable": true,
+          "slotClosed": true,
+          "slotSignature": null,
+          "slotStable": true,
+          "slotFinalized": true,
+          "numericEndpointRequired": false,
+          "numericPhraseNonExpandableHint": false,
+          "executionEligible": true,
+          "granted": true,
+          "reason": "passed",
+          "finalizationReason": "not_required_for_class",
+          "slots": {
+            "command_family": null,
+            "required_slots_present": true
+          }
+        }
+      ],
+      "finalDecision": {
+        "chunkId": "reflex-pause-001",
+        "transcript": "<geometric:pause>",
+        "normalizedTranscript": "<geometric:pause>",
+        "stepIndex": 1,
+        "timestampMs": 40,
+        "isFinalStep": true,
+        "commandClass": "reflex",
+        "structuralPrefix": "pause",
+        "structurallyStable": true,
+        "slotClosed": true,
+        "slotSignature": null,
+        "slotStable": true,
+        "slotFinalized": true,
+        "numericEndpointRequired": false,
+        "numericPhraseNonExpandableHint": false,
+        "executionEligible": true,
+        "granted": true,
+        "reason": "passed",
+        "finalizationReason": "not_required_for_class",
+        "slots": {
+          "command_family": null,
+          "required_slots_present": true
+        }
+      }
+    }
+  ]
+}
