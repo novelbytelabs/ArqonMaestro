@@ -911,7 +911,17 @@ export default class ChunkManager {
         this.log.logVerbose(
           `[Chunk][H3] Numeric tail rejected for ${chunkId}: ${normalized.reason} raw="${tailResult.transcript}"`
         );
-        return false;
+        this.emitH3Evidence(chunkId, "numeric_tail_rejected", {
+          routeBefore: "geometric_prefix_asr_tail",
+          routeAfter: "geometric_prefix_asr_tail",
+          reason: normalized.reason,
+          parameterType: "numeric",
+          numericRaw: tailResult.transcript,
+          numericNormalized: null,
+          numericParseConfidence: normalized.confidence,
+          numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
+        });
+        return true;
       }
       if (!numericStrategyAccepted) {
         this.emitH3Evidence(chunkId, "numeric_tail_strategy_selected", {

@@ -100,7 +100,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     );
   });
 
-  it("rejects partial numeric tails and blocks execution", async () => {
+  it("rejects partial numeric tails, blocks execution, and avoids finalize fallback", async () => {
     const manager = makeBareManager();
     manager.parakeetCommandFastProvider.transcribeCommand = jest.fn(async () => ({
       chunkId: "chunk-1",
@@ -115,8 +115,17 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     h23Recorder.getLatestDecision = jest.fn(() => null);
 
     const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
-    expect(handled).toBe(false);
+    expect(handled).toBe(true);
     expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-1",
+      "numeric_tail_rejected",
+      expect.objectContaining({
+        parameterType: "numeric",
+        numericRaw: "one hun",
+        numericStrategyVersion: "3b1-numeric-v1",
+      })
+    );
   });
 
   it("selects numeric strategy only after atlas-backed numeric prefix event", () => {
