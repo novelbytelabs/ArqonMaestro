@@ -1,0 +1,12 @@
+{
+  "chunkId": "param-goto-line-001",
+  "transcript": "go to line fifty two",
+  "commandClass": "parameterized_numeric",
+  "firstStructuralStableAtMs": 200,
+  "firstGrantedAtMs": 200,
+  "endpointAtMs": 200,
+  "finalGranted": true,
+  "finalReason": "passed",
+  "finalizationReason": "numeric_endpoint_finalization",
+  "stepCount": 4
+}

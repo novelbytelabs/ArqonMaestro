@@ -1,0 +1,6 @@
+{
+  "chunkId": "negative-noise-001",
+  "steps": [
+    { "transcript": "hello there how are you", "timestampMs": 40, "isFinalStep": true }
+  ]
+}

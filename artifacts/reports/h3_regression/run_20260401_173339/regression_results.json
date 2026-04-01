@@ -1,0 +1,83 @@
+{
+  "status": "PASS",
+  "checkedAt": "2026-04-01T21:34:01.413Z",
+  "passes": [
+    {
+      "name": "reflex positive",
+      "detail": "reflex-pause-001 granted=true"
+    },
+    {
+      "name": "closed-structure positive (focus chrome)",
+      "detail": "closed-focus-chrome-001 granted=true"
+    },
+    {
+      "name": "closed-structure positive (new tab)",
+      "detail": "closed-new-tab-001 granted=true"
+    },
+    {
+      "name": "parameterized positive (line)",
+      "detail": "param-goto-line-001 granted=true"
+    },
+    {
+      "name": "parameterized positive (url)",
+      "detail": "param-goto-wikipedia-001 granted=true"
+    },
+    {
+      "name": "negative/noise case",
+      "detail": "negative-noise-001 finalGranted=false"
+    },
+    {
+      "name": "near-miss non-trigger case",
+      "detail": "near-miss-001 finalGranted=false"
+    },
+    {
+      "name": "H3-off safety guard",
+      "detail": "chunk-manager has H3 disabled guard"
+    },
+    {
+      "name": "H3-off route baseline",
+      "detail": "chunk start resets to legacy_text"
+    },
+    {
+      "name": "evidence instrumentation: geometric_event_emitted",
+      "detail": "provider emits event"
+    },
+    {
+      "name": "evidence instrumentation: geometric_event_received",
+      "detail": "provider emits event"
+    },
+    {
+      "name": "evidence instrumentation: route_activation",
+      "detail": "chunk manager emits event"
+    },
+    {
+      "name": "evidence instrumentation: tail_capture_started",
+      "detail": "chunk manager emits event"
+    },
+    {
+      "name": "evidence instrumentation: tail_capture_completed",
+      "detail": "chunk manager emits event"
+    },
+    {
+      "name": "evidence instrumentation: tail_decode_started",
+      "detail": "chunk manager emits event"
+    },
+    {
+      "name": "evidence instrumentation: tail_decode_completed",
+      "detail": "chunk manager emits event"
+    },
+    {
+      "name": "evidence instrumentation: merged_transcript_emitted",
+      "detail": "chunk manager emits event"
+    },
+    {
+      "name": "evidence instrumentation: h23_trace_written",
+      "detail": "H23 recorder emits event"
+    },
+    {
+      "name": "evidence instrumentation: h24_proof_written",
+      "detail": "H24 recorder emits event"
+    }
+  ],
+  "failures": []
+}

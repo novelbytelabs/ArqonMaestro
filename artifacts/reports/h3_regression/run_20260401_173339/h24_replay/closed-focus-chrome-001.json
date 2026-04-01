@@ -1,0 +1,12 @@
+{
+  "chunkId": "closed-focus-chrome-001",
+  "transcript": "focus chrome",
+  "commandClass": "closed_structure",
+  "firstStructuralStableAtMs": null,
+  "firstGrantedAtMs": null,
+  "endpointAtMs": 80,
+  "finalGranted": false,
+  "finalReason": "out_of_grammar",
+  "finalizationReason": null,
+  "stepCount": 2
+}
