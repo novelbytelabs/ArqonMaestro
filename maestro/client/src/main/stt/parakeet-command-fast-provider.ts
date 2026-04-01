@@ -48,7 +48,12 @@ export interface ParakeetStreamSession {
 export interface GeometricRegionEvent {
   source: "spectral_manifold";
   regionId: string;
+  commandId?: string;
   commandClass: "reflex" | "closed_structure" | "parameterized" | "unknown";
+  parameterType?: "numeric" | "open" | null;
+  atlasSchema?: string;
+  atlasVersion?: string;
+  atlasBacked?: boolean;
   confidence: number;
   frameCount: number;
   timestampMs: number;
@@ -747,7 +752,12 @@ export default class ParakeetCommandFastProvider {
     }
     const source = String(value.source || "");
     const regionId = String(value.region_id || value.regionId || "").trim();
+    const commandIdRaw = String(value.command_id || value.commandId || "").trim();
     const commandClass = String(value.command_class || value.commandClass || "unknown");
+    const parameterTypeRaw = value.parameter_type ?? value.parameterType ?? null;
+    const atlasSchemaRaw = value.atlas_schema ?? value.atlasSchema;
+    const atlasVersionRaw = value.atlas_version ?? value.atlasVersion;
+    const atlasBackedRaw = value.atlas_backed ?? value.atlasBacked;
     const confidence = Number(value.confidence ?? 0);
     const frameCount = Number(value.frame_count ?? value.frameCount ?? 0);
     const timestampMs = Number(value.timestamp_ms ?? value.timestampMs ?? 0);
@@ -760,10 +770,21 @@ export default class ParakeetCommandFastProvider {
     if (!Number.isFinite(confidence) || !Number.isFinite(frameCount) || !Number.isFinite(timestampMs)) {
       return null;
     }
+    let parameterType: "numeric" | "open" | null | undefined = undefined;
+    if (parameterTypeRaw === null || parameterTypeRaw === "") {
+      parameterType = null;
+    } else if (parameterTypeRaw === "numeric" || parameterTypeRaw === "open") {
+      parameterType = parameterTypeRaw;
+    }
     return {
       source: "spectral_manifold",
       regionId,
+      commandId: commandIdRaw || undefined,
       commandClass: commandClass as GeometricRegionEvent["commandClass"],
+      parameterType,
+      atlasSchema: typeof atlasSchemaRaw === "string" ? atlasSchemaRaw : undefined,
+      atlasVersion: typeof atlasVersionRaw === "string" ? atlasVersionRaw : undefined,
+      atlasBacked: typeof atlasBackedRaw === "boolean" ? atlasBackedRaw : undefined,
       confidence: Math.max(0, Math.min(1, confidence)),
       frameCount: Math.max(0, Math.round(frameCount)),
       timestampMs: Math.max(0, Math.round(timestampMs)),

@@ -108,6 +108,7 @@ class H3GeometricDetector:
         self.command_names: List[str] = []
         self.command_meta: Dict[str, Dict[str, Any]] = {}
         self.feature_dim = 0
+        self.atlas_schema = "unknown"
         self.atlas_version = "unknown"
         if not self.enabled:
             return
@@ -126,7 +127,9 @@ class H3GeometricDetector:
             self.command_names = [c["region_id"] for c in commands]
             self.command_meta = {
                 c["region_id"]: {
+                    "command_id": str(c.get("command_id", c["region_id"])),
                     "class": str(c.get("command_class", "unknown")),
+                    "parameter_type": c.get("parameter_type"),
                     "min_frames": int(c.get("min_frames", 1)),
                     "activation_threshold": float(c.get("activation_threshold", 0.12)),
                     "stability_threshold": float(c.get("stability_threshold", 0.78)),
@@ -137,9 +140,13 @@ class H3GeometricDetector:
             self.feature_dim = int(commands[0].get("feature_dim", 0))
             self.db_words = np.array([c["centroid_words"] for c in commands], dtype=np.uint64)
             build = atlas.get("build", {}) if isinstance(atlas.get("build", {}), dict) else {}
+            self.atlas_schema = str(atlas.get("schema_version", "unknown"))
             self.atlas_version = str(build.get("atlas_version", atlas.get("version", "unknown")))
             self.ready = True
-            logger.info(f"[H3] geometric detector ready (spectral/manifold runtime), atlas_version={self.atlas_version}")
+            logger.info(
+                f"[H3] geometric detector ready (spectral/manifold runtime), "
+                f"schema={self.atlas_schema}, atlas_version={self.atlas_version}"
+            )
         except Exception as exc:
             self.error = str(exc)
             self.ready = False
@@ -151,11 +158,15 @@ class H3GeometricDetector:
             atlas_path = Path(atlas_path_env).expanduser()
             if not atlas_path.exists():
                 raise RuntimeError(f"h3_atlas_not_found:{atlas_path}")
-            return json.loads(atlas_path.read_text(encoding="utf-8"))
+            atlas = json.loads(atlas_path.read_text(encoding="utf-8"))
+            self._validate_atlas_v1(atlas, source=f"env:{atlas_path}")
+            return atlas
 
-        default_v1 = Path("/home/irbsurfer/Projects/arqon/ArqonMaestro/artifacts/h3/command_atlas_v1.json")
+        default_v1 = Path("/home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/artifacts/h3/command_atlas_v1.json")
         if default_v1.exists():
-            return json.loads(default_v1.read_text(encoding="utf-8"))
+            atlas = json.loads(default_v1.read_text(encoding="utf-8"))
+            self._validate_atlas_v1(atlas, source=f"default:{default_v1}")
+            return atlas
 
         if os.getenv("MAESTRO_H3_ALLOW_BOOTSTRAP", "1") != "1":
             raise RuntimeError("h3_command_atlas_v1_required_and_missing")
@@ -179,6 +190,27 @@ class H3GeometricDetector:
         bootstrap_path.parent.mkdir(parents=True, exist_ok=True)
         logger.warning("[H3] building legacy bootstrap atlas fallback (Stage 3A compatibility mode)")
         return bootstrap_demo_atlas(bootstrap_path)
+
+    def _validate_atlas_v1(self, atlas: Dict[str, Any], *, source: str) -> None:
+        schema = atlas.get("schema_version")
+        if schema != "h3_command_atlas_v1":
+            raise RuntimeError(f"h3_atlas_schema_invalid:{source}:{schema}")
+        commands = atlas.get("commands")
+        if not isinstance(commands, list) or len(commands) == 0:
+            raise RuntimeError(f"h3_atlas_commands_invalid:{source}")
+        for idx, cmd in enumerate(commands):
+            if not isinstance(cmd, dict):
+                raise RuntimeError(f"h3_atlas_command_not_object:{source}:{idx}")
+            for key in ("command_id", "region_id", "command_class", "centroid_words", "feature_dim"):
+                if key not in cmd:
+                    raise RuntimeError(f"h3_atlas_command_missing_field:{source}:{idx}:{key}")
+            if cmd.get("command_class") not in ("reflex", "closed_structure", "parameterized", "unknown"):
+                raise RuntimeError(f"h3_atlas_command_class_invalid:{source}:{idx}")
+            if cmd.get("parameter_type") not in (None, "numeric", "open"):
+                raise RuntimeError(f"h3_atlas_parameter_type_invalid:{source}:{idx}")
+            centroid_words = cmd.get("centroid_words")
+            if not isinstance(centroid_words, list) or len(centroid_words) == 0:
+                raise RuntimeError(f"h3_atlas_centroid_words_invalid:{source}:{idx}")
 
     def _commands_from_atlas(self, atlas: Dict[str, Any]) -> List[Dict[str, Any]]:
         if atlas.get("schema_version") == "h3_command_atlas_v1":
@@ -291,11 +323,15 @@ class H3GeometricDetector:
         return {
             "source": "spectral_manifold",
             "region_id": command_name,
+            "command_id": str(meta.get("command_id", command_name)),
             "command_class": str(meta.get("class", "unknown")),
+            "parameter_type": meta.get("parameter_type"),
             "confidence": confidence,
             "frame_count": int(frame_count),
             "timestamp_ms": int(timestamp_ms),
+            "atlas_schema": self.atlas_schema,
             "atlas_version": self.atlas_version,
+            "atlas_backed": self.atlas_schema == "h3_command_atlas_v1",
             "activation_threshold": activation_threshold,
             "stability_threshold": float(meta.get("stability_threshold", 0.78)),
             "fallback_eligible": bool(meta.get("fallback_eligible", True)),
