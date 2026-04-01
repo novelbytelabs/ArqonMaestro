@@ -24,6 +24,11 @@ export interface H3RuntimeEvidenceEvent {
   numericNormalized: string | null;
   numericParseConfidence: number | null;
   numericStrategyVersion: string | null;
+  openRaw: string | null;
+  openNormalized: string | null;
+  openParseConfidence: number | null;
+  openStrategyVersion: string | null;
+  openTargetKind: string | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -56,6 +61,11 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     numericNormalized: input.numericNormalized ?? null,
     numericParseConfidence: input.numericParseConfidence ?? null,
     numericStrategyVersion: input.numericStrategyVersion ?? null,
+    openRaw: input.openRaw ?? null,
+    openNormalized: input.openNormalized ?? null,
+    openParseConfidence: input.openParseConfidence ?? null,
+    openStrategyVersion: input.openStrategyVersion ?? null,
+    openTargetKind: input.openTargetKind ?? null,
   };
 }
 
