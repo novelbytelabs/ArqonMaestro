@@ -62,7 +62,6 @@ interface Request {
 
 type H3Route = "legacy_text" | "geometric_only" | "geometric_prefix_asr_tail";
 const H3_NUMERIC_STRATEGY_VERSION = "3b1-numeric-v1";
-const H3_NUMERIC_STRATEGY_ACCEPTANCE_CONFIDENCE = 0.55;
 
 /**
  * When speaking, chunks go through the following states:
@@ -792,8 +791,7 @@ export default class ChunkManager {
         event.regionId === "go to line" &&
         event.commandClass === "parameterized" &&
         event.parameterType === "numeric" &&
-        event.atlasBacked === true &&
-        event.confidence >= H3_NUMERIC_STRATEGY_ACCEPTANCE_CONFIDENCE;
+        event.atlasBacked === true;
       this.chunkH3NumericStrategyEnabled.set(chunkId, numericStrategyEnabled);
       this.emitH3Evidence(chunkId, "numeric_tail_strategy_selected", {
         source: event.source,
@@ -895,7 +893,6 @@ export default class ChunkManager {
     const numericStrategyEnabled = this.chunkH3NumericStrategyEnabled.get(chunkId) === true;
     if (numericStrategyEnabled && prefix === "go to line") {
       const normalized = normalizeNumericTail(tailResult.transcript);
-      const numericStrategyAccepted = normalized.confidence >= H3_NUMERIC_STRATEGY_ACCEPTANCE_CONFIDENCE;
       this.emitH3Evidence(chunkId, "numeric_tail_normalized", {
         routeBefore: "geometric_prefix_asr_tail",
         routeAfter: "geometric_prefix_asr_tail",
@@ -923,20 +920,7 @@ export default class ChunkManager {
         });
         return true;
       }
-      if (!numericStrategyAccepted) {
-        this.emitH3Evidence(chunkId, "numeric_tail_strategy_selected", {
-          routeBefore: "geometric_prefix_asr_tail",
-          routeAfter: "geometric_prefix_asr_tail",
-          reason: "numeric_strategy_low_confidence_fallback",
-          parameterType: "numeric",
-          numericRaw: tailResult.transcript,
-          numericNormalized: normalized.normalized,
-          numericParseConfidence: normalized.confidence,
-          numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
-        });
-      } else {
-        mergedTranscript = `${prefix} ${normalized.normalized}`.trim();
-      }
+      mergedTranscript = `${prefix} ${normalized.normalized}`.trim();
     }
     const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
     this.observeH3GeometricEvent(chunkId, geometricEvent, true, tailResult.transcript);
