@@ -33,8 +33,8 @@ function main(): void {
   }
 
   const raw = fs.readFileSync(path.resolve(inputPath), "utf8");
-  const input = JSON.parse(raw) as ReplayArtifact;
-  const steps = input.steps ?? [];
+  const input = JSON.parse(raw) as any;
+  const steps: any[] = input.steps ?? input.h23Trace ?? [];
   if (steps.length === 0) {
     console.error("no steps found in artifact");
     process.exit(3);
@@ -42,7 +42,7 @@ function main(): void {
 
   const governor = new H23CommandGovernor();
   const chunkId = input.chunkId ?? "unknown";
-  const replayed = steps.map((step, index) =>
+  const replayed = steps.map((step: any, index: number) =>
     governor.observe({
       chunkId,
       transcript: step.transcript,
@@ -53,8 +53,8 @@ function main(): void {
   );
 
   const finalStep = replayed[replayed.length - 1];
-  const firstStable = replayed.find((step) => step.structurallyStable)?.timestampMs ?? null;
-  const firstGranted = replayed.find((step) => step.granted)?.timestampMs ?? null;
+  const firstStable = replayed.find((step: any) => step.structurallyStable)?.timestampMs ?? null;
+  const firstGranted = replayed.find((step: any) => step.granted)?.timestampMs ?? null;
   const endpoint = finalStep?.timestampMs ?? null;
 
   const summary = {

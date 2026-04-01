@@ -1,0 +1,37 @@
+[
+  {
+    "chunkId": "closed-focus-chrome-001",
+    "granted": true,
+    "reason": "passed",
+    "commandClass": "closed_structure",
+    "transcript": "<geometric:focus chrome>"
+  },
+  {
+    "chunkId": "closed-new-tab-001",
+    "granted": true,
+    "reason": "passed",
+    "commandClass": "closed_structure",
+    "transcript": "<geometric:new tab>"
+  },
+  {
+    "chunkId": "param-goto-line-001",
+    "granted": true,
+    "reason": "passed",
+    "commandClass": "parameterized",
+    "transcript": "go to line fifty two"
+  },
+  {
+    "chunkId": "param-goto-wikipedia-001",
+    "granted": true,
+    "reason": "passed",
+    "commandClass": "parameterized",
+    "transcript": "go to wikipedia dot org"
+  },
+  {
+    "chunkId": "reflex-pause-001",
+    "granted": true,
+    "reason": "passed",
+    "commandClass": "reflex",
+    "transcript": "<geometric:pause>"
+  }
+]
