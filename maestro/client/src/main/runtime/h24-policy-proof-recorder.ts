@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { H23DecisionSummary, h23Recorder } from "./h23-live-trace-recorder";
 import { H23TraceStep } from "./h23-command-governor";
+import { emitH3RuntimeEvidence } from "./h3-runtime-evidence";
 
 export type H24ExecutionClass =
   | "reflex"
@@ -242,6 +243,22 @@ export default class H24PolicyProofRecorder {
   private write(chunkId: string, artifact: H24PolicyProofArtifact): void {
     const outfile = path.join(this.outputDir, `${chunkId}.json`);
     fs.writeFileSync(outfile, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
+    emitH3RuntimeEvidence({
+      event: "h24_proof_written",
+      chunkId,
+      source: null,
+      regionId: null,
+      commandClass: artifact.commandClass,
+      hadTranscriptText: null,
+      transcriptText: artifact.transcript,
+      routeBefore: null,
+      routeAfter: null,
+      tailText: null,
+      mergedText: artifact.transcript,
+      stepCount: artifact.h23Trace.length,
+      finalGranted: artifact.policyGranted,
+      reason: artifact.policyReason,
+    });
   }
 }
 

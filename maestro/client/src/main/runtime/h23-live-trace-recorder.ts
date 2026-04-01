@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import H23CommandGovernor, { H23GovernorInput, H23TraceStep } from "./h23-command-governor";
+import { emitH3RuntimeEvidence } from "./h3-runtime-evidence";
 
 export interface H23RecorderConfig {
   outputDir?: string;
@@ -132,6 +133,22 @@ export default class H23LiveTraceRecorder {
     };
     const outfile = path.join(this.outputDir, `${chunkId}.json`);
     fs.writeFileSync(outfile, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+    emitH3RuntimeEvidence({
+      event: "h23_trace_written",
+      chunkId,
+      source: null,
+      regionId: null,
+      commandClass: finalStep?.commandClass ?? null,
+      hadTranscriptText: null,
+      transcriptText: finalStep?.transcript ?? null,
+      routeBefore: null,
+      routeAfter: null,
+      tailText: null,
+      mergedText: finalStep?.transcript ?? null,
+      stepCount: trace.length,
+      finalGranted: finalStep?.granted ?? false,
+      reason: finalStep?.reason ?? null,
+    });
     this.governor.reset(chunkId);
     this.sessionStarts.delete(chunkId);
     return {

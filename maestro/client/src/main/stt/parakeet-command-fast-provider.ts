@@ -8,6 +8,7 @@ import WebSocket from "ws";
 import Log from "../log";
 import { buildWavFile } from "./audio-utils";
 import { h23Recorder } from "../runtime/h23-live-trace-recorder";
+import { emitH3RuntimeEvidence } from "../runtime/h3-runtime-evidence";
 
 export interface ParakeetCommandFastProviderConfig {
   enabled?: boolean;
@@ -35,12 +36,22 @@ export interface ParakeetTranscriptionResult {
   device: string;
   latencyMs: number;
   provider: "parakeet";
+  geometricEvent?: GeometricRegionEvent | null;
 }
 
 export interface ParakeetStreamSession {
   sendAudio(audio: Buffer): void;
   finalize(): Promise<ParakeetTranscriptionResult>;
   cancel(): void;
+}
+
+export interface GeometricRegionEvent {
+  source: "spectral_manifold";
+  regionId: string;
+  commandClass: "reflex" | "closed_structure" | "parameterized" | "unknown";
+  confidence: number;
+  frameCount: number;
+  timestampMs: number;
 }
 
 // Sidecar contract: HTTP request JSON
@@ -527,15 +538,23 @@ export default class ParakeetCommandFastProvider {
     return this.ready && this.config.mode === "sidecar" && !!this.config.sidecarUrl;
   }
 
-  createStream(chunkId: string, onPartial?: (text: string) => void): ParakeetStreamSession {
+  createStream(
+    chunkId: string,
+    onPartial?: (text: string) => void,
+    onGeometricEvent?: (event: GeometricRegionEvent) => void
+  ): ParakeetStreamSession {
     if (!this.isStreamingSupported()) {
       throw new Error(`parakeet_streaming_unavailable`);
     }
 
-    return this.createWebSocketStream(chunkId, onPartial);
+    return this.createWebSocketStream(chunkId, onPartial, onGeometricEvent);
   }
 
-  private createWebSocketStream(chunkId: string, onPartial?: (text: string) => void): ParakeetStreamSession {
+  private createWebSocketStream(
+    chunkId: string,
+    onPartial?: (text: string) => void,
+    onGeometricEvent?: (event: GeometricRegionEvent) => void
+  ): ParakeetStreamSession {
     const wsUrl = this.config.sidecarUrl.replace("http://", "ws://").replace("https://", "wss://");
     const ws = this.deps.createWebSocket(wsUrl);
     const start = Date.now();
@@ -544,6 +563,8 @@ export default class ParakeetCommandFastProvider {
     let canceled = false;
     let initTimeout: ReturnType<typeof setTimeout> | undefined;
     let h23StepIndex = 0;
+    let lastGeometricEventSignature: string | null = null;
+    let lastGeometricEventAtMs = 0;
 
     h23Recorder.startChunk(chunkId);
 
@@ -597,6 +618,32 @@ export default class ParakeetCommandFastProvider {
             throw new Error(`parakeet_sidecar_error:${errorMsg}`);
           }
 
+          const geometricEvent = this.parseGeometricEvent(response.geometric_event);
+          if (geometricEvent && onGeometricEvent) {
+            const isFinalStep = Boolean(response.is_final);
+            const signature = `${geometricEvent.regionId}|${geometricEvent.commandClass}`;
+            const nowMs = Date.now();
+            const isDuplicate =
+              !isFinalStep &&
+              lastGeometricEventSignature === signature &&
+              nowMs - lastGeometricEventAtMs < 250;
+            if (!isDuplicate) {
+              lastGeometricEventSignature = signature;
+              lastGeometricEventAtMs = nowMs;
+              const transcriptText = typeof response.text === "string" ? response.text : null;
+              onGeometricEvent(geometricEvent);
+              emitH3RuntimeEvidence({
+                event: "geometric_event_received",
+                chunkId,
+                source: geometricEvent.source,
+                regionId: geometricEvent.regionId,
+                commandClass: geometricEvent.commandClass,
+                hadTranscriptText: Boolean(transcriptText && transcriptText.trim().length > 0),
+                transcriptText: transcriptText && transcriptText.trim().length > 0 ? transcriptText : null,
+              });
+            }
+          }
+
           if (response.is_final) {
             if (!response.text) {
               settleReject(new Error("parakeet_empty_transcript"));
@@ -613,6 +660,7 @@ export default class ParakeetCommandFastProvider {
               device: this.config.device,
               latencyMs: Date.now() - start,
               provider: "parakeet",
+              geometricEvent,
             });
             ws.close();
             return;
@@ -681,5 +729,34 @@ export default class ParakeetCommandFastProvider {
     this.log?.logVerbose(
       `[ParakeetCommandFastProvider] unavailable: ${this.loadError || "not_ready"}`
     );
+  }
+
+  private parseGeometricEvent(value: any): GeometricRegionEvent | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const source = String(value.source || "");
+    const regionId = String(value.region_id || value.regionId || "").trim();
+    const commandClass = String(value.command_class || value.commandClass || "unknown");
+    const confidence = Number(value.confidence ?? 0);
+    const frameCount = Number(value.frame_count ?? value.frameCount ?? 0);
+    const timestampMs = Number(value.timestamp_ms ?? value.timestampMs ?? 0);
+    if (source !== "spectral_manifold" || !regionId) {
+      return null;
+    }
+    if (!["reflex", "closed_structure", "parameterized", "unknown"].includes(commandClass)) {
+      return null;
+    }
+    if (!Number.isFinite(confidence) || !Number.isFinite(frameCount) || !Number.isFinite(timestampMs)) {
+      return null;
+    }
+    return {
+      source: "spectral_manifold",
+      regionId,
+      commandClass: commandClass as GeometricRegionEvent["commandClass"],
+      confidence: Math.max(0, Math.min(1, confidence)),
+      frameCount: Math.max(0, Math.round(frameCount)),
+      timestampMs: Math.max(0, Math.round(timestampMs)),
+    };
   }
 }
