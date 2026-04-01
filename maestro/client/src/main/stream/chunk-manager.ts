@@ -30,19 +30,25 @@ import STTRoutingService from "../runtime/stt-routing-service";
 import STTShadowPublisher from "../runtime/stt-shadow-publisher";
 import TranscriptResponseObserver from "../runtime/transcript-response-observer";
 import { phase3ABenchmarkService } from "../runtime/phase3a-benchmark-service";
+import H3GeometricCommandGovernor from "../runtime/h3-geometric-command-governor";
+import { h23Recorder } from "../runtime/h23-live-trace-recorder";
 import { TurnEvent } from "../audio/turn-events";
 import WhisperCommandFastProvider from "../stt/whisper-command-fast-provider";
 import ParakeetCommandFastProvider, {
+  GeometricRegionEvent,
   ParakeetStreamSession,
 } from "../stt/parakeet-command-fast-provider";
 import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-provider";
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
+import GeometricRoutingService from "./geometric-routing-service";
+import { emitH3RuntimeEvidence } from "../runtime/h3-runtime-evidence";
 
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
 const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
 const FORCE_LEGACY_COMMAND_LANE = process.env.MAESTRO_FORCE_LEGACY_COMMAND_LANE === "1";
 const ENABLE_FASTER_WHISPER_DICTATION_FALLBACK =
   process.env.MAESTRO_ENABLE_FASTER_WHISPER_DICTATION_FALLBACK === "1";
+const H3_GEOMETRIC_ENABLED = process.env.H3_GEOMETRIC_ENABLED === "true";
 
 type DictationProviderPreference = "qwen3" | "legacy" | "faster_whisper";
 
@@ -52,6 +58,8 @@ interface Request {
   chunkId?: string;
   finalize?: boolean;
 }
+
+type H3Route = "legacy_text" | "geometric_only" | "geometric_prefix_asr_tail";
 
 /**
  * When speaking, chunks go through the following states:
@@ -116,6 +124,17 @@ export default class ChunkManager {
   private dictationWarmupInFlight?: Promise<void>;
   private dictationProviderStartAtMs = new Map<string, number>();
   private dictationRuntimeLastStage = "idle";
+  private h3GeometricEnabled = H3_GEOMETRIC_ENABLED;
+  private h3GeometricGovernor = new H3GeometricCommandGovernor();
+  private h3GeometricRoutingService = new GeometricRoutingService();
+  private chunkH3StepIndex = new Map<string, number>();
+  private chunkH3Route = new Map<string, H3Route>();
+  private chunkH3ParameterizedPrefix = new Map<string, string>();
+  private chunkH3TailDecodeActive = new Map<string, boolean>();
+  private chunkH3TailAudioFrames = new Map<string, Buffer[]>();
+  private chunkH3LatestGeometricEvent = new Map<string, GeometricRegionEvent>();
+  private chunkH3TailCaptureStartMs = new Map<string, number>();
+  private chunkH3LastGeometricSignature = new Map<string, { signature: string; atMs: number }>();
 
   listening: boolean = false;
 
@@ -683,6 +702,221 @@ export default class ChunkManager {
     return this.sttRoutingService.getCurrentRoutingDecision();
   }
 
+  private observeH3GeometricEvent(
+    chunkId: string,
+    event: GeometricRegionEvent | null | undefined,
+    isFinalStep: boolean,
+    transcriptTail?: string
+  ): void {
+    if (!this.h3GeometricEnabled) {
+      return;
+    }
+    if (!event || event.source !== "spectral_manifold") {
+      return;
+    }
+
+    const signature = `${event.regionId}|${event.commandClass}`;
+    const nowMs = Date.now();
+    const previous = this.chunkH3LastGeometricSignature.get(chunkId);
+    const hasTranscriptTail = Boolean(transcriptTail && transcriptTail.trim().length > 0);
+    if (
+      !isFinalStep &&
+      !hasTranscriptTail &&
+      previous &&
+      previous.signature === signature &&
+      nowMs - previous.atMs < 250
+    ) {
+      return;
+    }
+    this.chunkH3LastGeometricSignature.set(chunkId, { signature, atMs: nowMs });
+
+    this.chunkH3LatestGeometricEvent.set(chunkId, event);
+    const stepIndex = (this.chunkH3StepIndex.get(chunkId) ?? 0) + 1;
+    this.chunkH3StepIndex.set(chunkId, stepIndex);
+    const receivedAt = this.tracking.getChunkMetrics(chunkId)?.received_at;
+    const timestampMs = receivedAt ? Date.now() - receivedAt : 0;
+    const frameCount = Math.max(1, event.frameCount);
+    const regionScore = Math.max(0, Math.min(1, event.confidence));
+    const driftScore = Math.max(0, 1 - regionScore);
+
+    const step = this.h3GeometricGovernor.observe({
+      chunkId,
+      stepIndex,
+      timestampMs,
+      isFinalStep,
+      regionId: event.regionId,
+      regionScore,
+      driftScore,
+      velocityConverged: isFinalStep || frameCount >= 2,
+      frameCount,
+      transcriptTail,
+      acousticConfidence: regionScore,
+    });
+
+    const routeBefore = this.chunkH3Route.get(chunkId) ?? "legacy_text";
+    const route = this.h3GeometricRoutingService.decide({
+      regionId: event.regionId,
+      commandClass: step.commandClass,
+    });
+    this.chunkH3Route.set(chunkId, route.route);
+    this.emitH3Evidence(chunkId, "route_activation", {
+      source: event.source,
+      regionId: event.regionId,
+      commandClass: step.commandClass,
+      hadTranscriptText: Boolean(transcriptTail && transcriptTail.trim().length > 0),
+      transcriptText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
+      routeBefore,
+      routeAfter: route.route,
+      reason: route.reason,
+    });
+
+    if (
+      route.route === "geometric_prefix_asr_tail" &&
+      step.structurallyStable &&
+      event.regionId &&
+      (event.regionId === "go to line" || event.regionId === "go to")
+    ) {
+      this.chunkH3ParameterizedPrefix.set(chunkId, event.regionId);
+      if (!this.chunkH3TailDecodeActive.get(chunkId)) {
+        this.chunkH3TailDecodeActive.set(chunkId, true);
+        this.chunkH3TailAudioFrames.set(chunkId, []);
+        this.chunkH3TailCaptureStartMs.set(chunkId, this.relativeChunkNowMs(chunkId));
+        this.log.logVerbose(
+          `[Chunk][H3] Activated tail decode for ${chunkId} from spectral_manifold event: prefix="${event.regionId}" confidence=${event.confidence.toFixed(3)}`
+        );
+        this.emitH3Evidence(chunkId, "tail_capture_started", {
+          source: event.source,
+          regionId: event.regionId,
+          commandClass: step.commandClass,
+          hadTranscriptText: Boolean(transcriptTail && transcriptTail.trim().length > 0),
+          transcriptText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
+          routeBefore,
+          routeAfter: route.route,
+          reason: route.reason,
+        });
+      }
+    }
+  }
+
+  private composeH3MergedTranscript(prefix: string, tailTranscript: string): string {
+    const tail = tailTranscript.trim().toLowerCase();
+    if (!tail) {
+      return prefix;
+    }
+    if (tail.startsWith(prefix)) {
+      return tail;
+    }
+    return `${prefix} ${tail}`.trim();
+  }
+
+  private async tryHandleH3ParameterizedTailFinalize(chunkId: string): Promise<boolean> {
+    if (!this.h3GeometricEnabled) {
+      return false;
+    }
+    if (this.chunkH3Route.get(chunkId) !== "geometric_prefix_asr_tail") {
+      return false;
+    }
+
+    const prefix = this.chunkH3ParameterizedPrefix.get(chunkId);
+    if (!prefix) {
+      return false;
+    }
+
+    const tailFrames = this.chunkH3TailAudioFrames.get(chunkId) || [];
+    const tailAudio = tailFrames.length > 0 ? Buffer.concat(tailFrames) : Buffer.alloc(0);
+    this.emitH3Evidence(chunkId, "tail_capture_completed", {
+      routeBefore: "geometric_prefix_asr_tail",
+      routeAfter: "geometric_prefix_asr_tail",
+      reason: tailAudio.length === 0 ? "empty_tail_audio" : "tail_audio_ready",
+      tailEndMs: this.relativeChunkNowMs(chunkId),
+    });
+    if (tailAudio.length === 0) {
+      this.log.logVerbose(`[Chunk][H3] Tail decode skipped for ${chunkId}: empty tail audio`);
+      return false;
+    }
+
+    this.emitH3Evidence(chunkId, "tail_decode_started", {
+      routeBefore: "geometric_prefix_asr_tail",
+      routeAfter: "geometric_prefix_asr_tail",
+    });
+    const tailResult = await this.parakeetCommandFastProvider.transcribeCommand({
+      chunkId,
+      pcm16leAudio: tailAudio,
+      sampleRateHz: 16000,
+    });
+    this.emitH3Evidence(chunkId, "tail_decode_completed", {
+      routeBefore: "geometric_prefix_asr_tail",
+      routeAfter: "geometric_prefix_asr_tail",
+      tailEndMs: this.relativeChunkNowMs(chunkId),
+      tailText: tailResult.transcript,
+      reason: "tail_decode_ok",
+    });
+    const mergedTranscript = this.composeH3MergedTranscript(prefix, tailResult.transcript);
+    const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
+    this.observeH3GeometricEvent(chunkId, geometricEvent, true, tailResult.transcript);
+    const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
+    h23Recorder.recordFinal(chunkId, mergedTranscript, h23StepIndex, 0.95);
+    this.emitH3Evidence(chunkId, "merged_transcript_emitted", {
+      routeBefore: "geometric_prefix_asr_tail",
+      routeAfter: "geometric_prefix_asr_tail",
+      tailText: tailResult.transcript,
+      mergedText: mergedTranscript,
+      reason: "merged_from_geometric_prefix_and_asr_tail",
+    });
+
+    this.log.logVerbose(
+      `[Chunk][H3] merged transcript ${chunkId}: "${mergedTranscript}" (tail ${tailResult.latencyMs}ms)`
+    );
+    await this.stream.sendTextRequest(mergedTranscript, true, chunkId);
+    return true;
+  }
+
+  private relativeChunkNowMs(chunkId: string): number {
+    const receivedAt = this.tracking.getChunkMetrics(chunkId)?.received_at;
+    return receivedAt ? Date.now() - receivedAt : Date.now();
+  }
+
+  private emitH3Evidence(
+    chunkId: string,
+    eventName: string,
+    overrides: Partial<{
+      source: string;
+      regionId: string;
+      commandClass: string;
+      hadTranscriptText: boolean;
+      transcriptText: string | null;
+      routeBefore: string;
+      routeAfter: string;
+      tailEndMs: number;
+      tailText: string;
+      mergedText: string;
+      reason: string;
+    }> = {}
+  ): void {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    const trace = h23Recorder.getTraceSnapshot(chunkId);
+    const decision = h23Recorder.getLatestDecision(chunkId);
+    emitH3RuntimeEvidence({
+      event: eventName,
+      chunkId,
+      timestampMs: this.relativeChunkNowMs(chunkId),
+      source: overrides.source ?? latest?.source ?? null,
+      regionId: overrides.regionId ?? latest?.regionId ?? null,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
+      hadTranscriptText: overrides.hadTranscriptText ?? null,
+      transcriptText: overrides.transcriptText ?? null,
+      routeBefore: overrides.routeBefore ?? this.chunkH3Route.get(chunkId) ?? null,
+      routeAfter: overrides.routeAfter ?? this.chunkH3Route.get(chunkId) ?? null,
+      tailStartMs: this.chunkH3TailCaptureStartMs.get(chunkId) ?? null,
+      tailEndMs: overrides.tailEndMs ?? null,
+      tailText: overrides.tailText ?? null,
+      mergedText: overrides.mergedText ?? null,
+      stepCount: trace.length,
+      finalGranted: decision?.granted ?? null,
+      reason: overrides.reason ?? decision?.reason ?? null,
+    });
+  }
+
   private async enqueue(request: Request, flush: boolean = true) {
     this.buffer.push(request);
     if (flush) {
@@ -1047,7 +1281,21 @@ export default class ChunkManager {
     this.chunkTranscriptionInFlight.add(chunkId);
     let success = false;
     try {
+      let handledByH3TailDecode = false;
+      try {
+        handledByH3TailDecode = await this.tryHandleH3ParameterizedTailFinalize(chunkId);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        this.log.logVerbose(`[Chunk][H3] tail decode failed for ${chunkId}; falling back to full finalize: ${reason}`);
+      }
+      if (handledByH3TailDecode) {
+        stream.cancel();
+        success = true;
+        return true;
+      }
+
       const result = await stream.finalize();
+      this.observeH3GeometricEvent(chunkId, result.geometricEvent, true);
       this.log.logVerbose(
         `[Chunk] parakeet command-fast transcript ${chunkId}: "${result.transcript}" (${result.latencyMs}ms)`
       );
@@ -1615,6 +1863,14 @@ export default class ChunkManager {
       this.chunkUseParakeetCommandFast.delete(chunk.id);
       this.chunkUseQwen3AsrDictation.delete(chunk.id);
       this.chunkUseFasterWhisperDictation.delete(chunk.id);
+      this.chunkH3StepIndex.delete(chunk.id);
+      this.chunkH3Route.delete(chunk.id);
+      this.chunkH3ParameterizedPrefix.delete(chunk.id);
+      this.chunkH3TailDecodeActive.delete(chunk.id);
+      this.chunkH3TailAudioFrames.delete(chunk.id);
+      this.chunkH3LatestGeometricEvent.delete(chunk.id);
+      this.chunkH3TailCaptureStartMs.delete(chunk.id);
+      this.chunkH3LastGeometricSignature.delete(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
@@ -1658,6 +1914,9 @@ export default class ChunkManager {
       }
       const frameBuffer = Buffer.from(audio.buffer, audio.byteOffset || 0, audio.byteLength);
       this.chunkAudioFrames.get(current.id)?.push(frameBuffer);
+      if (this.h3GeometricEnabled && this.chunkH3TailDecodeActive.get(current.id)) {
+        this.chunkH3TailAudioFrames.get(current.id)?.push(frameBuffer);
+      }
       this.enqueue({ requestType: "audio", audio: frameBuffer, chunkId: current.id });
 
       this.sttShadowPublisher.publishAudioAppend(
@@ -1831,6 +2090,13 @@ export default class ChunkManager {
     this.chunkUseParakeetCommandFast.set(id, useParakeetCommandFast);
     this.chunkUseQwen3AsrDictation.set(id, useQwen3Dictation);
     this.chunkUseFasterWhisperDictation.set(id, useFasterWhisperDictation);
+    this.chunkH3StepIndex.set(id, 0);
+    this.chunkH3Route.set(id, "legacy_text");
+    this.chunkH3ParameterizedPrefix.delete(id);
+    this.chunkH3TailDecodeActive.set(id, false);
+    this.chunkH3TailAudioFrames.set(id, []);
+    this.chunkH3LatestGeometricEvent.delete(id);
+    this.chunkH3TailCaptureStartMs.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:
@@ -1858,6 +2124,8 @@ export default class ChunkManager {
             0,
             this.parakeetCommandFastProvider.getConfig().modelPath
           );
+        }, (geometricEvent) => {
+          this.observeH3GeometricEvent(id, geometricEvent, false);
         });
         this.chunkParakeetStream.set(id, stream);
       } catch (err) {
@@ -1921,6 +2189,14 @@ export default class ChunkManager {
     this.chunkUseParakeetCommandFast.clear();
     this.chunkUseQwen3AsrDictation.clear();
     this.chunkUseFasterWhisperDictation.clear();
+    this.chunkH3StepIndex.clear();
+    this.chunkH3Route.clear();
+    this.chunkH3ParameterizedPrefix.clear();
+    this.chunkH3TailDecodeActive.clear();
+    this.chunkH3TailAudioFrames.clear();
+    this.chunkH3LatestGeometricEvent.clear();
+    this.chunkH3TailCaptureStartMs.clear();
+    this.chunkH3LastGeometricSignature.clear();
     this.chunkParakeetStream.forEach((stream) => stream.cancel());
     this.chunkParakeetStream.clear();
     this.chunkFinalizationRequested.clear();

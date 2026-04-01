@@ -161,3 +161,35 @@ The proof artifacts demonstrate that:
 5. Execution is measurable and attributable to policy (not accidental fallthrough)
 
 **No blockers encountered.**
+
+## Hardening Addendum (2026-04-01)
+
+### Scope
+
+Applied non-functional Stage 2 hardening only:
+- Non-blocking H3 evidence writes (removed sync file append hot path)
+- Geometric event dedupe/throttle in Parakeet stream callback path
+- Chunk-level duplicate suppression and cleanup for geometric signatures
+
+### Evidence Snapshot
+
+- Before hardening capture: `artifacts/reports/h3_runtime_evidence/events_before_hardening_20260401_163817.ndjson`
+- After hardening capture: `artifacts/reports/h3_runtime_evidence/events.ndjson`
+
+### Quantitative Delta
+
+| Metric | Before | After | Delta |
+|-------|--------|-------|-------|
+| Total evidence events | 194 | 52 | -73.2% |
+| `route_activation` events | 89 | 19 | -78.7% |
+| `geometric_event_received` events | 89 | 19 | -78.7% |
+| Duplicate chunk/event bursts (`count > 1`) | 16 | 5 | -68.8% |
+| Largest single burst size | 39 | 19 | -51.3% |
+
+### Live Outcome
+
+User live microphone verification passed after hardening:
+- "go to line fifty two" executed successfully
+- "go to wikipedia dot org" executed successfully
+
+Operational result: reduced event storming and preserved successful end-to-end command execution.
