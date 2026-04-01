@@ -42,6 +42,7 @@ import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-prov
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 import GeometricRoutingService from "./geometric-routing-service";
 import { emitH3RuntimeEvidence } from "../runtime/h3-runtime-evidence";
+import { normalizeNumericTail } from "./numeric-tail-normalizer";
 
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
 const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
@@ -60,6 +61,7 @@ interface Request {
 }
 
 type H3Route = "legacy_text" | "geometric_only" | "geometric_prefix_asr_tail";
+const H3_NUMERIC_STRATEGY_VERSION = "3b1-numeric-v1";
 
 /**
  * When speaking, chunks go through the following states:
@@ -135,6 +137,8 @@ export default class ChunkManager {
   private chunkH3LatestGeometricEvent = new Map<string, GeometricRegionEvent>();
   private chunkH3TailCaptureStartMs = new Map<string, number>();
   private chunkH3LastGeometricSignature = new Map<string, { signature: string; atMs: number }>();
+  private chunkH3NumericStrategyEnabled = new Map<string, boolean>();
+  private chunkH3LatestTailHintText = new Map<string, string>();
 
   listening: boolean = false;
 
@@ -731,6 +735,9 @@ export default class ChunkManager {
     this.chunkH3LastGeometricSignature.set(chunkId, { signature, atMs: nowMs });
 
     this.chunkH3LatestGeometricEvent.set(chunkId, event);
+    if (transcriptTail && transcriptTail.trim().length > 0) {
+      this.chunkH3LatestTailHintText.set(chunkId, transcriptTail.trim().toLowerCase());
+    }
     const stepIndex = (this.chunkH3StepIndex.get(chunkId) ?? 0) + 1;
     this.chunkH3StepIndex.set(chunkId, stepIndex);
     const receivedAt = this.tracking.getChunkMetrics(chunkId)?.received_at;
@@ -784,6 +791,25 @@ export default class ChunkManager {
       (event.regionId === "go to line" || event.regionId === "go to")
     ) {
       this.chunkH3ParameterizedPrefix.set(chunkId, event.regionId);
+      const numericStrategyEnabled =
+        event.regionId === "go to line" &&
+        event.commandClass === "parameterized" &&
+        event.parameterType === "numeric" &&
+        event.atlasBacked === true;
+      this.chunkH3NumericStrategyEnabled.set(chunkId, numericStrategyEnabled);
+      this.emitH3Evidence(chunkId, "numeric_tail_strategy_selected", {
+        source: event.source,
+        regionId: event.regionId,
+        commandClass: step.commandClass,
+        routeBefore,
+        routeAfter,
+        reason: numericStrategyEnabled
+          ? "numeric_strategy_selected"
+          : "numeric_strategy_not_selected",
+        parameterType: event.parameterType ?? null,
+        numericParseConfidence: event.confidence,
+        numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
+      });
       if (!this.chunkH3TailDecodeActive.get(chunkId)) {
         this.chunkH3TailDecodeActive.set(chunkId, true);
         this.chunkH3TailAudioFrames.set(chunkId, []);
@@ -848,6 +874,9 @@ export default class ChunkManager {
     this.emitH3Evidence(chunkId, "tail_decode_started", {
       routeBefore: "geometric_prefix_asr_tail",
       routeAfter: "geometric_prefix_asr_tail",
+      numericStrategyVersion: this.chunkH3NumericStrategyEnabled.get(chunkId)
+        ? H3_NUMERIC_STRATEGY_VERSION
+        : null,
     });
     const tailResult = await this.parakeetCommandFastProvider.transcribeCommand({
       chunkId,
@@ -860,8 +889,55 @@ export default class ChunkManager {
       tailEndMs: this.relativeChunkNowMs(chunkId),
       tailText: tailResult.transcript,
       reason: "tail_decode_ok",
+      numericStrategyVersion: this.chunkH3NumericStrategyEnabled.get(chunkId)
+        ? H3_NUMERIC_STRATEGY_VERSION
+        : null,
     });
-    const mergedTranscript = this.composeH3MergedTranscript(prefix, tailResult.transcript);
+    let mergedTranscript = this.composeH3MergedTranscript(prefix, tailResult.transcript);
+    const numericStrategyEnabled = this.chunkH3NumericStrategyEnabled.get(chunkId) === true;
+    if (numericStrategyEnabled && prefix === "go to line") {
+      const normalized = normalizeNumericTail(tailResult.transcript);
+      const tailHint = this.chunkH3LatestTailHintText.get(chunkId) ?? "";
+      const normalizedHint = normalizeNumericTail(tailHint);
+      const malformedHintSignals =
+        /\buh\b|\bum\b|\bmaybe\b/.test(tailHint) ||
+        /\band\s*$/.test(tailHint) ||
+        /\bhun\b/.test(tailHint);
+      const rejectFromHint =
+        tailHint.length > 0 &&
+        malformedHintSignals &&
+        normalizedHint.status !== "ok";
+      this.emitH3Evidence(chunkId, "numeric_tail_normalized", {
+        routeBefore: "geometric_prefix_asr_tail",
+        routeAfter: "geometric_prefix_asr_tail",
+        tailText: tailResult.transcript,
+        reason: rejectFromHint ? "numeric_tail_rejected_from_partial_hint" : normalized.reason,
+        parameterType: "numeric",
+        numericRaw: tailResult.transcript,
+        numericNormalized: normalized.normalized,
+        numericParseConfidence: normalized.confidence,
+        numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
+      });
+      if (rejectFromHint || normalized.normalized == null) {
+        this.log.logVerbose(
+          `[Chunk][H3] Numeric tail rejected for ${chunkId}: ${
+            rejectFromHint ? "numeric_tail_rejected_from_partial_hint" : normalized.reason
+          } raw="${tailResult.transcript}" hint="${tailHint}"`
+        );
+        this.emitH3Evidence(chunkId, "numeric_tail_rejected", {
+          routeBefore: "geometric_prefix_asr_tail",
+          routeAfter: "geometric_prefix_asr_tail",
+          reason: rejectFromHint ? "numeric_tail_rejected_from_partial_hint" : normalized.reason,
+          parameterType: "numeric",
+          numericRaw: tailResult.transcript,
+          numericNormalized: null,
+          numericParseConfidence: normalized.confidence,
+          numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
+        });
+        return true;
+      }
+      mergedTranscript = `${prefix} ${normalized.normalized}`.trim();
+    }
     const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
     this.observeH3GeometricEvent(chunkId, geometricEvent, true, tailResult.transcript);
     const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
@@ -872,6 +948,10 @@ export default class ChunkManager {
       tailText: tailResult.transcript,
       mergedText: mergedTranscript,
       reason: "merged_from_geometric_prefix_and_asr_tail",
+      parameterType: numericStrategyEnabled ? "numeric" : null,
+      numericRaw: numericStrategyEnabled ? tailResult.transcript : null,
+      numericNormalized: numericStrategyEnabled ? mergedTranscript.slice(prefix.length).trim() : null,
+      numericStrategyVersion: numericStrategyEnabled ? H3_NUMERIC_STRATEGY_VERSION : null,
     });
 
     this.log.logVerbose(
@@ -901,6 +981,11 @@ export default class ChunkManager {
       tailText: string;
       mergedText: string;
       reason: string;
+      parameterType: string | null;
+      numericRaw: string | null;
+      numericNormalized: string | null;
+      numericParseConfidence: number | null;
+      numericStrategyVersion: string | null;
     }> = {}
   ): void {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
@@ -924,6 +1009,11 @@ export default class ChunkManager {
       stepCount: trace.length,
       finalGranted: decision?.granted ?? null,
       reason: overrides.reason ?? decision?.reason ?? null,
+      parameterType: overrides.parameterType ?? null,
+      numericRaw: overrides.numericRaw ?? null,
+      numericNormalized: overrides.numericNormalized ?? null,
+      numericParseConfidence: overrides.numericParseConfidence ?? null,
+      numericStrategyVersion: overrides.numericStrategyVersion ?? null,
     });
   }
 
@@ -1881,6 +1971,8 @@ export default class ChunkManager {
       this.chunkH3LatestGeometricEvent.delete(chunk.id);
       this.chunkH3TailCaptureStartMs.delete(chunk.id);
       this.chunkH3LastGeometricSignature.delete(chunk.id);
+      this.chunkH3NumericStrategyEnabled.delete(chunk.id);
+      this.chunkH3LatestTailHintText.delete(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
@@ -2107,6 +2199,8 @@ export default class ChunkManager {
     this.chunkH3TailAudioFrames.set(id, []);
     this.chunkH3LatestGeometricEvent.delete(id);
     this.chunkH3TailCaptureStartMs.delete(id);
+    this.chunkH3NumericStrategyEnabled.delete(id);
+    this.chunkH3LatestTailHintText.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:
@@ -2207,6 +2301,8 @@ export default class ChunkManager {
     this.chunkH3LatestGeometricEvent.clear();
     this.chunkH3TailCaptureStartMs.clear();
     this.chunkH3LastGeometricSignature.clear();
+    this.chunkH3NumericStrategyEnabled.clear();
+    this.chunkH3LatestTailHintText.clear();
     this.chunkParakeetStream.forEach((stream) => stream.cancel());
     this.chunkParakeetStream.clear();
     this.chunkFinalizationRequested.clear();
