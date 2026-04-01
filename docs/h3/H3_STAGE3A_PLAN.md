@@ -78,6 +78,14 @@ Manifold:
 - Manifold manifest sample is now portable/reviewable as Markdown with embedded JSON.
 - Sidecar loader now validates Atlas v1 schema/version and emits atlas-backed metadata in geometric events.
 
+## Slice 3 Progress Notes
+
+- Coordinated post-merge verification completed on both `ArqonManifold/main` and `ArqonMaestro/main`.
+- Atlas-backed command-family validation captured for `pause`, `new tab`, and `go to line`.
+- Bootstrap dependency reduced for validated v1 regions:
+  - `MAESTRO_H3_ALLOW_BOOTSTRAP` now defaults to `0` when atlas is missing.
+  - validated v1 regions are suppressed in bootstrap mode unless `MAESTRO_H3_ALLOW_BOOTSTRAP_VALIDATED_V1=1`.
+
 ## Risks
 
 - Enrollment quality variance can reduce region separability
