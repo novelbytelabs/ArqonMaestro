@@ -1,0 +1,95 @@
+{
+  "generatedAt": "2026-04-01T21:08:44.206Z",
+  "source": "/home/irbsurfer/Projects/arqon/ArqonMaestro/artifacts/reports/h24_policy_proofs",
+  "rows": [
+    {
+      "file": "closed-focus-chrome-001.json",
+      "transcript": "focus chrome",
+      "commandClass": "closed_structure",
+      "bucket": "closed_structure",
+      "firstStructuralStableAtMs": 80,
+      "firstGrantedAtMs": 80,
+      "endpointAtMs": 120,
+      "observedExecutionAtMs": 125,
+      "policyGranted": true,
+      "matchedRecommendedGate": true
+    },
+    {
+      "file": "closed-new-tab-001.json",
+      "transcript": "new tab",
+      "commandClass": "closed_structure",
+      "bucket": "closed_structure",
+      "firstStructuralStableAtMs": 60,
+      "firstGrantedAtMs": 60,
+      "endpointAtMs": 60,
+      "observedExecutionAtMs": 65,
+      "policyGranted": true,
+      "matchedRecommendedGate": true
+    },
+    {
+      "file": "param-goto-line-001.json",
+      "transcript": "go to line fifty two",
+      "commandClass": "parameterized_numeric",
+      "bucket": "parameterized",
+      "firstStructuralStableAtMs": 120,
+      "firstGrantedAtMs": 160,
+      "endpointAtMs": 200,
+      "observedExecutionAtMs": 205,
+      "policyGranted": true,
+      "matchedRecommendedGate": true
+    },
+    {
+      "file": "param-goto-wikipedia-001.json",
+      "transcript": "go to wikipedia dot org",
+      "commandClass": "parameterized_open",
+      "bucket": "parameterized",
+      "firstStructuralStableAtMs": 80,
+      "firstGrantedAtMs": 120,
+      "endpointAtMs": 160,
+      "observedExecutionAtMs": 165,
+      "policyGranted": true,
+      "matchedRecommendedGate": true
+    },
+    {
+      "file": "reflex-pause-001.json",
+      "transcript": "pause",
+      "commandClass": "reflex",
+      "bucket": "reflex",
+      "firstStructuralStableAtMs": 40,
+      "firstGrantedAtMs": 40,
+      "endpointAtMs": 40,
+      "observedExecutionAtMs": 45,
+      "policyGranted": true,
+      "matchedRecommendedGate": true
+    }
+  ],
+  "buckets": {
+    "reflex": {
+      "count": 1,
+      "avgFirstStructuralStableAtMs": 40,
+      "avgFirstGrantedAtMs": 40,
+      "avgEndpointAtMs": 40,
+      "avgObservedExecutionAtMs": 45,
+      "allPolicyGranted": true,
+      "allMatchedRecommendedGate": true
+    },
+    "closed_structure": {
+      "count": 2,
+      "avgFirstStructuralStableAtMs": 70,
+      "avgFirstGrantedAtMs": 70,
+      "avgEndpointAtMs": 90,
+      "avgObservedExecutionAtMs": 95,
+      "allPolicyGranted": true,
+      "allMatchedRecommendedGate": true
+    },
+    "parameterized": {
+      "count": 2,
+      "avgFirstStructuralStableAtMs": 100,
+      "avgFirstGrantedAtMs": 140,
+      "avgEndpointAtMs": 180,
+      "avgObservedExecutionAtMs": 185,
+      "allPolicyGranted": true,
+      "allMatchedRecommendedGate": true
+    }
+  }
+}

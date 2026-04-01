@@ -1,0 +1,12 @@
+{
+  "chunkId": "param-goto-wikipedia-001",
+  "transcript": "go to wikipedia dot org",
+  "commandClass": "parameterized_open",
+  "firstStructuralStableAtMs": null,
+  "firstGrantedAtMs": null,
+  "endpointAtMs": 160,
+  "finalGranted": false,
+  "finalReason": "out_of_grammar",
+  "finalizationReason": null,
+  "stepCount": 3
+}

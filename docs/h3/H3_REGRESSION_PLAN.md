@@ -16,6 +16,8 @@
 
 ## Entry Point
 - `scripts/h3_regression.sh`
+- Run: `./scripts/h3_regression.sh`
+- Output: `artifacts/reports/h3_regression/run_<timestamp>/`
 
 ## Output Directory
 - `artifacts/reports/h3_regression/`
