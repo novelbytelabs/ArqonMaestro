@@ -19,7 +19,7 @@ jest.mock("../../main/stt/cfh", () => ({
 
 import { h23Recorder } from "../../main/runtime/h23-live-trace-recorder";
 
-describe("ChunkManager H3 numeric tail specialization", () => {
+describe("ChunkManager H3 open-tail specialization", () => {
   const originalGetTraceSnapshot = h23Recorder.getTraceSnapshot.bind(h23Recorder);
   const originalRecordFinal = h23Recorder.recordFinal.bind(h23Recorder);
   const originalGetLatestDecision = h23Recorder.getLatestDecision.bind(h23Recorder);
@@ -32,7 +32,6 @@ describe("ChunkManager H3 numeric tail specialization", () => {
   });
 
   function makeBareManager(): any {
-    // Use explicit .ts require to avoid legacy compiled sibling shadowing.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const ChunkManager = require("../../main/stream/chunk-manager.ts").default;
     const manager = Object.create(ChunkManager.prototype) as any;
@@ -51,19 +50,19 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     manager.chunkH3TailDecodeActive.set("chunk-1", true);
     manager.chunkH3TailAudioFrames.set("chunk-1", [Buffer.from([1, 2, 3, 4])]);
     manager.chunkH3Route.set("chunk-1", "geometric_prefix_asr_tail");
-    manager.chunkH3ParameterizedPrefix.set("chunk-1", "go to line");
+    manager.chunkH3ParameterizedPrefix.set("chunk-1", "go to");
     manager.chunkH3LatestGeometricEvent.set("chunk-1", {
       source: "spectral_manifold",
-      regionId: "go to line",
+      regionId: "go to",
       commandClass: "parameterized",
-      parameterType: "numeric",
+      parameterType: "open",
       atlasBacked: true,
-      confidence: 0.9,
+      confidence: 0.91,
       frameCount: 99,
       timestampMs: 100,
     });
-    manager.chunkH3NumericStrategyEnabled.set("chunk-1", true);
-    manager.chunkH3OpenStrategyEnabled.set("chunk-1", false);
+    manager.chunkH3NumericStrategyEnabled.set("chunk-1", false);
+    manager.chunkH3OpenStrategyEnabled.set("chunk-1", true);
     manager.relativeChunkNowMs = () => 111;
     manager.tracking = { getChunkMetrics: jest.fn(() => ({ received_at: Date.now() - 5 })) };
     manager.emitH3Evidence = jest.fn();
@@ -73,7 +72,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     manager.parakeetCommandFastProvider = {
       transcribeCommand: jest.fn(async () => ({
         chunkId: "chunk-1",
-        transcript: "fifty two",
+        transcript: "wikipedia dot org",
         model: "parakeet",
         device: "cpu",
         latencyMs: 10,
@@ -83,7 +82,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     return manager;
   }
 
-  it("normalizes numeric tail and merges canonical transcript", async () => {
+  it("normalizes open tail and merges canonical go-to target", async () => {
     const manager = makeBareManager();
     h23Recorder.getTraceSnapshot = jest.fn(() => []);
     h23Recorder.recordFinal = jest.fn();
@@ -91,24 +90,38 @@ describe("ChunkManager H3 numeric tail specialization", () => {
 
     const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
     expect(handled).toBe(true);
-    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("go to line 52", true, "chunk-1");
+    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("go to wikipedia.org", true, "chunk-1");
     expect(manager.emitH3Evidence).toHaveBeenCalledWith(
       "chunk-1",
-      "numeric_tail_normalized",
+      "open_tail_normalized",
       expect.objectContaining({
-        parameterType: "numeric",
-        numericNormalized: "52",
-        numericStrategyVersion: "3b1-numeric-v1",
+        parameterType: "open",
+        openNormalized: "wikipedia.org",
+        openTargetKind: "domain",
+        openStrategyVersion: "3b2a-open-v1",
       })
     );
   });
 
-  it("rejects malformed numeric tails, blocks execution, and avoids finalize fallback", async () => {
+  it("arms open strategy then rejects malformed target with no executable merged output", async () => {
     const manager = makeBareManager();
-    manager.chunkH3LatestTailHintText.set("chunk-1", "one hun");
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const ChunkManager = require("../../main/stream/chunk-manager.ts").default;
+    manager.observeH3GeometricEvent = ChunkManager.prototype.observeH3GeometricEvent.bind(manager);
+    manager.chunkH3TailDecodeActive.set("chunk-2", false);
+    manager.chunkH3Route.set("chunk-2", "legacy_text");
+    manager.chunkH3StepIndex.set("chunk-2", 0);
+    manager.chunkH3TailAudioFrames.set("chunk-2", [Buffer.from([1, 2])]);
+    manager.tracking = { getChunkMetrics: jest.fn(() => ({ received_at: Date.now() - 5 })) };
+    manager.h3GeometricGovernor = {
+      observe: jest.fn(() => ({ commandClass: "parameterized", structurallyStable: true })),
+    };
+    manager.h3GeometricRoutingService = {
+      decide: jest.fn(() => ({ route: "geometric_prefix_asr_tail", reason: "parameterized" })),
+    };
     manager.parakeetCommandFastProvider.transcribeCommand = jest.fn(async () => ({
-      chunkId: "chunk-1",
-      transcript: "100",
+      chunkId: "chunk-2",
+      transcript: "maybe",
       model: "parakeet",
       device: "cpu",
       latencyMs: 10,
@@ -118,90 +131,44 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     h23Recorder.recordFinal = jest.fn();
     h23Recorder.getLatestDecision = jest.fn(() => null);
 
-    const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
-    expect(handled).toBe(true);
-    expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
-    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
-      "chunk-1",
-      "numeric_tail_rejected",
-      expect.objectContaining({
-        parameterType: "numeric",
-        numericRaw: "100",
-        numericStrategyVersion: "3b1-numeric-v1",
-      })
-    );
-  });
-
-  it("rejects required malformed-tail cases by normalization or hint guard", async () => {
-    const manager = makeBareManager();
-    const cases: Array<{ transcript: string; hint?: string }> = [
-      { transcript: "one hun", hint: "one hun" },
-      { transcript: "fifty uh two", hint: "fifty uh two" },
-      { transcript: "two hundred and", hint: "two hundred and" },
-      { transcript: "zero", hint: "zero" },
-      { transcript: "maybe", hint: "maybe" },
-      { transcript: "", hint: "" },
-    ];
-    h23Recorder.getTraceSnapshot = jest.fn(() => []);
-    h23Recorder.recordFinal = jest.fn();
-    h23Recorder.getLatestDecision = jest.fn(() => null);
-
-    for (const c of cases) {
-      manager.chunkH3LatestTailHintText.set("chunk-1", c.hint ?? c.transcript);
-      manager.parakeetCommandFastProvider.transcribeCommand = jest.fn(async () => ({
-        chunkId: "chunk-1",
-        transcript: c.transcript,
-        model: "parakeet",
-        device: "cpu",
-        latencyMs: 10,
-        provider: "parakeet",
-      }));
-      const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
-      expect(handled).toBe(true);
-    }
-    expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
-  });
-
-  it("selects numeric strategy only after atlas-backed numeric prefix event", () => {
-    const manager = makeBareManager();
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const ChunkManager = require("../../main/stream/chunk-manager.ts").default;
-    manager.observeH3GeometricEvent = ChunkManager.prototype.observeH3GeometricEvent.bind(manager);
-    manager.chunkH3TailDecodeActive.set("chunk-2", false);
-    manager.chunkH3Route.set("chunk-2", "legacy_text");
-    manager.chunkH3StepIndex.set("chunk-2", 0);
-    manager.chunkH3TailAudioFrames.set("chunk-2", []);
-    manager.h3GeometricGovernor = {
-      observe: jest.fn(() => ({ commandClass: "parameterized", structurallyStable: true })),
-    };
-    manager.h3GeometricRoutingService = {
-      decide: jest.fn(() => ({ route: "geometric_prefix_asr_tail", reason: "parameterized" })),
-    };
-
     manager.observeH3GeometricEvent(
       "chunk-2",
       {
         source: "spectral_manifold",
-        regionId: "go to line",
+        regionId: "go to",
         commandClass: "parameterized",
-        parameterType: "numeric",
+        parameterType: "open",
         atlasBacked: true,
-        confidence: 0.9,
+        confidence: 0.92,
         frameCount: 99,
         timestampMs: 200,
       },
       false,
-      ""
+      "maybe"
     );
+    manager.chunkH3TailAudioFrames.set("chunk-2", [Buffer.from([1, 2])]);
 
-    expect(manager.chunkH3NumericStrategyEnabled.get("chunk-2")).toBe(true);
+    const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-2");
+    expect(handled).toBe(true);
+    expect(manager.stream.sendTextRequest).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^go to /),
+      true,
+      "chunk-2"
+    );
     expect(manager.emitH3Evidence).toHaveBeenCalledWith(
       "chunk-2",
-      "numeric_tail_strategy_selected",
+      "open_tail_rejected",
       expect.objectContaining({
-        parameterType: "numeric",
-        numericStrategyVersion: "3b1-numeric-v1",
+        parameterType: "open",
+        openRaw: "maybe",
+        openTargetKind: "unknown",
+        openStrategyVersion: "3b2a-open-v1",
       })
+    );
+    expect(manager.emitH3Evidence).not.toHaveBeenCalledWith(
+      "chunk-2",
+      "merged_transcript_emitted",
+      expect.anything()
     );
   });
 });
