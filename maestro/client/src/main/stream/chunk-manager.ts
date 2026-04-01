@@ -138,6 +138,7 @@ export default class ChunkManager {
   private chunkH3TailCaptureStartMs = new Map<string, number>();
   private chunkH3LastGeometricSignature = new Map<string, { signature: string; atMs: number }>();
   private chunkH3NumericStrategyEnabled = new Map<string, boolean>();
+  private chunkH3LatestTailHintText = new Map<string, string>();
 
   listening: boolean = false;
 
@@ -734,6 +735,9 @@ export default class ChunkManager {
     this.chunkH3LastGeometricSignature.set(chunkId, { signature, atMs: nowMs });
 
     this.chunkH3LatestGeometricEvent.set(chunkId, event);
+    if (transcriptTail && transcriptTail.trim().length > 0) {
+      this.chunkH3LatestTailHintText.set(chunkId, transcriptTail.trim().toLowerCase());
+    }
     const stepIndex = (this.chunkH3StepIndex.get(chunkId) ?? 0) + 1;
     this.chunkH3StepIndex.set(chunkId, stepIndex);
     const receivedAt = this.tracking.getChunkMetrics(chunkId)?.received_at;
@@ -893,25 +897,37 @@ export default class ChunkManager {
     const numericStrategyEnabled = this.chunkH3NumericStrategyEnabled.get(chunkId) === true;
     if (numericStrategyEnabled && prefix === "go to line") {
       const normalized = normalizeNumericTail(tailResult.transcript);
+      const tailHint = this.chunkH3LatestTailHintText.get(chunkId) ?? "";
+      const normalizedHint = normalizeNumericTail(tailHint);
+      const malformedHintSignals =
+        /\buh\b|\bum\b|\bmaybe\b/.test(tailHint) ||
+        /\band\s*$/.test(tailHint) ||
+        /\bhun\b/.test(tailHint);
+      const rejectFromHint =
+        tailHint.length > 0 &&
+        malformedHintSignals &&
+        normalizedHint.status !== "ok";
       this.emitH3Evidence(chunkId, "numeric_tail_normalized", {
         routeBefore: "geometric_prefix_asr_tail",
         routeAfter: "geometric_prefix_asr_tail",
         tailText: tailResult.transcript,
-        reason: normalized.reason,
+        reason: rejectFromHint ? "numeric_tail_rejected_from_partial_hint" : normalized.reason,
         parameterType: "numeric",
         numericRaw: tailResult.transcript,
         numericNormalized: normalized.normalized,
         numericParseConfidence: normalized.confidence,
         numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
       });
-      if (normalized.normalized == null) {
+      if (rejectFromHint || normalized.normalized == null) {
         this.log.logVerbose(
-          `[Chunk][H3] Numeric tail rejected for ${chunkId}: ${normalized.reason} raw="${tailResult.transcript}"`
+          `[Chunk][H3] Numeric tail rejected for ${chunkId}: ${
+            rejectFromHint ? "numeric_tail_rejected_from_partial_hint" : normalized.reason
+          } raw="${tailResult.transcript}" hint="${tailHint}"`
         );
         this.emitH3Evidence(chunkId, "numeric_tail_rejected", {
           routeBefore: "geometric_prefix_asr_tail",
           routeAfter: "geometric_prefix_asr_tail",
-          reason: normalized.reason,
+          reason: rejectFromHint ? "numeric_tail_rejected_from_partial_hint" : normalized.reason,
           parameterType: "numeric",
           numericRaw: tailResult.transcript,
           numericNormalized: null,
@@ -1956,6 +1972,7 @@ export default class ChunkManager {
       this.chunkH3TailCaptureStartMs.delete(chunk.id);
       this.chunkH3LastGeometricSignature.delete(chunk.id);
       this.chunkH3NumericStrategyEnabled.delete(chunk.id);
+      this.chunkH3LatestTailHintText.delete(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
@@ -2183,6 +2200,7 @@ export default class ChunkManager {
     this.chunkH3LatestGeometricEvent.delete(id);
     this.chunkH3TailCaptureStartMs.delete(id);
     this.chunkH3NumericStrategyEnabled.delete(id);
+    this.chunkH3LatestTailHintText.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:
@@ -2284,6 +2302,7 @@ export default class ChunkManager {
     this.chunkH3TailCaptureStartMs.clear();
     this.chunkH3LastGeometricSignature.clear();
     this.chunkH3NumericStrategyEnabled.clear();
+    this.chunkH3LatestTailHintText.clear();
     this.chunkParakeetStream.forEach((stream) => stream.cancel());
     this.chunkParakeetStream.clear();
     this.chunkFinalizationRequested.clear();

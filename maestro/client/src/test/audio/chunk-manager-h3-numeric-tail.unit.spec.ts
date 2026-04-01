@@ -42,6 +42,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     manager.chunkH3TailAudioFrames = new Map<string, Buffer[]>();
     manager.chunkH3TailDecodeActive = new Map<string, boolean>();
     manager.chunkH3LatestGeometricEvent = new Map<string, any>();
+    manager.chunkH3LatestTailHintText = new Map<string, string>();
     manager.chunkH3StepIndex = new Map<string, number>();
     manager.chunkH3TailCaptureStartMs = new Map<string, number>();
     manager.chunkH3LastGeometricSignature = new Map<string, any>();
@@ -100,11 +101,12 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     );
   });
 
-  it("rejects partial numeric tails, blocks execution, and avoids finalize fallback", async () => {
+  it("rejects malformed numeric tails, blocks execution, and avoids finalize fallback", async () => {
     const manager = makeBareManager();
+    manager.chunkH3LatestTailHintText.set("chunk-1", "one hun");
     manager.parakeetCommandFastProvider.transcribeCommand = jest.fn(async () => ({
       chunkId: "chunk-1",
-      transcript: "one hun",
+      transcript: "100",
       model: "parakeet",
       device: "cpu",
       latencyMs: 10,
@@ -122,10 +124,40 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       "numeric_tail_rejected",
       expect.objectContaining({
         parameterType: "numeric",
-        numericRaw: "one hun",
+        numericRaw: "100",
         numericStrategyVersion: "3b1-numeric-v1",
       })
     );
+  });
+
+  it("rejects required malformed-tail cases by normalization or hint guard", async () => {
+    const manager = makeBareManager();
+    const cases: Array<{ transcript: string; hint?: string }> = [
+      { transcript: "one hun", hint: "one hun" },
+      { transcript: "fifty uh two", hint: "fifty uh two" },
+      { transcript: "two hundred and", hint: "two hundred and" },
+      { transcript: "zero", hint: "zero" },
+      { transcript: "maybe", hint: "maybe" },
+      { transcript: "", hint: "" },
+    ];
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.recordFinal = jest.fn();
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+
+    for (const c of cases) {
+      manager.chunkH3LatestTailHintText.set("chunk-1", c.hint ?? c.transcript);
+      manager.parakeetCommandFastProvider.transcribeCommand = jest.fn(async () => ({
+        chunkId: "chunk-1",
+        transcript: c.transcript,
+        model: "parakeet",
+        device: "cpu",
+        latencyMs: 10,
+        provider: "parakeet",
+      }));
+      const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
+      expect(handled).toBe(true);
+    }
+    expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
   });
 
   it("selects numeric strategy only after atlas-backed numeric prefix event", () => {
