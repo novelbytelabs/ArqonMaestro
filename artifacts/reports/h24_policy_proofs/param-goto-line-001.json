@@ -1,0 +1,150 @@
+{
+  "chunkId": "param-goto-line-001",
+  "transcript": "go to line fifty two",
+  "commandClass": "parameterized_numeric",
+  "recommendedGate": "endpoint_closure",
+  "policyControlState": "policy_present_granted",
+  "policyDecisionPresent": true,
+  "policyGranted": true,
+  "policyReason": "numeric_parameterized_command_requires_endpoint",
+  "numericEndpointRequired": true,
+  "firstStructuralStableAtMs": 120,
+  "firstGrantedAtMs": 160,
+  "endpointAtMs": 200,
+  "observedExecutionAtMs": 205,
+  "matchedRecommendedGate": true,
+  "policyControlledExecution": true,
+  "decisionContinuity": {
+    "decisionPresentAtExecution": true,
+    "finalStepSeenByPolicy": true,
+    "finalizationReason": "numeric_value_resolved_endpoint_reached"
+  },
+  "events": [
+    {
+      "stage": "lookup",
+      "observedAtMs": 80,
+      "decisionPresent": false
+    },
+    {
+      "stage": "lookup",
+      "observedAtMs": 120,
+      "decisionPresent": false,
+      "reason": "numeric_parameter_still_resolving"
+    },
+    {
+      "stage": "lookup",
+      "observedAtMs": 160,
+      "decisionPresent": true,
+      "reason": "numeric_parameter_resolved_granted"
+    },
+    {
+      "stage": "dispatch_start",
+      "observedAtMs": 202,
+      "decisionPresent": true,
+      "commandCount": 3,
+      "shouldBlock": false,
+      "reason": "numeric_parameterized_command_requires_endpoint"
+    },
+    {
+      "stage": "dispatch_complete",
+      "observedAtMs": 205,
+      "decisionPresent": true,
+      "commandCount": 3,
+      "shouldBlock": false,
+      "reason": "numeric_parameterized_command_requires_endpoint"
+    }
+  ],
+  "h23Decision": {
+    "chunkId": "param-goto-line-001",
+    "decisionPresent": true,
+    "commandClass": "parameterized_numeric",
+    "granted": true,
+    "reason": "numeric_parameterized_command_requires_endpoint",
+    "numericEndpointRequired": true,
+    "stepIndex": 4,
+    "timestampMs": 200,
+    "isFinalStep": true,
+    "structurallyStable": true,
+    "slotClosed": true,
+    "slotStable": true,
+    "slotFinalized": true,
+    "executionEligible": true,
+    "finalizationReason": "numeric_value_resolved_endpoint_reached",
+    "transcript": "go to line fifty two",
+    "normalizedTranscript": "go to line 52"
+  },
+  "h23Trace": [
+    {
+      "chunkId": "param-goto-line-001",
+      "stepIndex": 1,
+      "timestampMs": 40,
+      "transcript": "go",
+      "normalizedTranscript": "go",
+      "commandClass": "unknown",
+      "granted": false,
+      "reason": "incomplete_command_waiting_for_target",
+      "numericEndpointRequired": false,
+      "isFinalStep": false,
+      "structurallyStable": false,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": false,
+      "executionEligible": false,
+      "finalizationReason": null
+    },
+    {
+      "chunkId": "param-goto-line-001",
+      "stepIndex": 2,
+      "timestampMs": 80,
+      "transcript": "go to",
+      "normalizedTranscript": "go to",
+      "commandClass": "unknown",
+      "granted": false,
+      "reason": "incomplete_command_waiting_for_target",
+      "numericEndpointRequired": false,
+      "isFinalStep": false,
+      "structurallyStable": false,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": false,
+      "executionEligible": false,
+      "finalizationReason": null
+    },
+    {
+      "chunkId": "param-goto-line-001",
+      "stepIndex": 3,
+      "timestampMs": 120,
+      "transcript": "go to line",
+      "normalizedTranscript": "go to line",
+      "commandClass": "parameterized_numeric",
+      "granted": false,
+      "reason": "numeric_parameter_still_resolving",
+      "numericEndpointRequired": true,
+      "isFinalStep": false,
+      "structurallyStable": true,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": false,
+      "executionEligible": false,
+      "finalizationReason": null
+    },
+    {
+      "chunkId": "param-goto-line-001",
+      "stepIndex": 4,
+      "timestampMs": 200,
+      "transcript": "go to line fifty two",
+      "normalizedTranscript": "go to line 52",
+      "commandClass": "parameterized_numeric",
+      "granted": true,
+      "reason": "numeric_parameterized_command_requires_endpoint",
+      "numericEndpointRequired": true,
+      "isFinalStep": true,
+      "structurallyStable": true,
+      "slotClosed": true,
+      "slotStable": true,
+      "slotFinalized": true,
+      "executionEligible": true,
+      "finalizationReason": "numeric_value_resolved_endpoint_reached"
+    }
+  ]
+}

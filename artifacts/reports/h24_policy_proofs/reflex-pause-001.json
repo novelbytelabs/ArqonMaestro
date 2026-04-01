@@ -1,0 +1,87 @@
+{
+  "chunkId": "reflex-pause-001",
+  "transcript": "pause",
+  "commandClass": "reflex",
+  "recommendedGate": "reflex_early",
+  "policyControlState": "policy_present_granted",
+  "policyDecisionPresent": true,
+  "policyGranted": true,
+  "policyReason": "reflex_command_allowed_immediately",
+  "numericEndpointRequired": false,
+  "firstStructuralStableAtMs": 40,
+  "firstGrantedAtMs": 40,
+  "endpointAtMs": 40,
+  "observedExecutionAtMs": 45,
+  "matchedRecommendedGate": true,
+  "policyControlledExecution": true,
+  "decisionContinuity": {
+    "decisionPresentAtExecution": true,
+    "finalStepSeenByPolicy": true,
+    "finalizationReason": "reflex_immediate_execution_allowed"
+  },
+  "events": [
+    {
+      "stage": "lookup",
+      "observedAtMs": 40,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "reflex_command_allowed_immediately"
+    },
+    {
+      "stage": "dispatch_start",
+      "observedAtMs": 43,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "reflex_command_allowed_immediately"
+    },
+    {
+      "stage": "dispatch_complete",
+      "observedAtMs": 45,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "reflex_command_allowed_immediately"
+    }
+  ],
+  "h23Decision": {
+    "chunkId": "reflex-pause-001",
+    "decisionPresent": true,
+    "commandClass": "reflex",
+    "granted": true,
+    "reason": "reflex_command_allowed_immediately",
+    "numericEndpointRequired": false,
+    "stepIndex": 1,
+    "timestampMs": 40,
+    "isFinalStep": true,
+    "structurallyStable": false,
+    "slotClosed": false,
+    "slotStable": false,
+    "slotFinalized": true,
+    "executionEligible": true,
+    "finalizationReason": "reflex_immediate_execution_allowed",
+    "transcript": "pause",
+    "normalizedTranscript": "pause"
+  },
+  "h23Trace": [
+    {
+      "chunkId": "reflex-pause-001",
+      "stepIndex": 1,
+      "timestampMs": 40,
+      "transcript": "pause",
+      "normalizedTranscript": "pause",
+      "commandClass": "reflex",
+      "granted": true,
+      "reason": "reflex_command_allowed_immediately",
+      "numericEndpointRequired": false,
+      "isFinalStep": true,
+      "structurallyStable": false,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": true,
+      "executionEligible": true,
+      "finalizationReason": "reflex_immediate_execution_allowed"
+    }
+  ]
+}

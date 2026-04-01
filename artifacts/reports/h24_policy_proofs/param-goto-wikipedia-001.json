@@ -1,0 +1,132 @@
+{
+  "chunkId": "param-goto-wikipedia-001",
+  "transcript": "go to wikipedia dot org",
+  "commandClass": "parameterized_open",
+  "recommendedGate": "endpoint_closure",
+  "policyControlState": "policy_present_granted",
+  "policyDecisionPresent": true,
+  "policyGranted": true,
+  "policyReason": "open_parameterized_command_requires_endpoint",
+  "numericEndpointRequired": false,
+  "firstStructuralStableAtMs": 80,
+  "firstGrantedAtMs": 120,
+  "endpointAtMs": 160,
+  "observedExecutionAtMs": 165,
+  "matchedRecommendedGate": true,
+  "policyControlledExecution": true,
+  "decisionContinuity": {
+    "decisionPresentAtExecution": true,
+    "finalStepSeenByPolicy": true,
+    "finalizationReason": "url_resolved_endpoint_reached"
+  },
+  "events": [
+    {
+      "stage": "lookup",
+      "observedAtMs": 40,
+      "decisionPresent": false
+    },
+    {
+      "stage": "lookup",
+      "observedAtMs": 80,
+      "decisionPresent": false,
+      "reason": "url_parameter_still_resolving"
+    },
+    {
+      "stage": "lookup",
+      "observedAtMs": 120,
+      "decisionPresent": true,
+      "reason": "url_parameter_resolved_granted"
+    },
+    {
+      "stage": "dispatch_start",
+      "observedAtMs": 162,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "open_parameterized_command_requires_endpoint"
+    },
+    {
+      "stage": "dispatch_complete",
+      "observedAtMs": 165,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "open_parameterized_command_requires_endpoint"
+    }
+  ],
+  "h23Decision": {
+    "chunkId": "param-goto-wikipedia-001",
+    "decisionPresent": true,
+    "commandClass": "parameterized_open",
+    "granted": true,
+    "reason": "open_parameterized_command_requires_endpoint",
+    "numericEndpointRequired": false,
+    "stepIndex": 3,
+    "timestampMs": 160,
+    "isFinalStep": true,
+    "structurallyStable": true,
+    "slotClosed": true,
+    "slotStable": true,
+    "slotFinalized": true,
+    "executionEligible": true,
+    "finalizationReason": "url_resolved_endpoint_reached",
+    "transcript": "go to wikipedia dot org",
+    "normalizedTranscript": "go to wikipedia.org"
+  },
+  "h23Trace": [
+    {
+      "chunkId": "param-goto-wikipedia-001",
+      "stepIndex": 1,
+      "timestampMs": 40,
+      "transcript": "go",
+      "normalizedTranscript": "go",
+      "commandClass": "unknown",
+      "granted": false,
+      "reason": "incomplete_command_waiting_for_target",
+      "numericEndpointRequired": false,
+      "isFinalStep": false,
+      "structurallyStable": false,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": false,
+      "executionEligible": false,
+      "finalizationReason": null
+    },
+    {
+      "chunkId": "param-goto-wikipedia-001",
+      "stepIndex": 2,
+      "timestampMs": 80,
+      "transcript": "go to",
+      "normalizedTranscript": "go to",
+      "commandClass": "unknown",
+      "granted": false,
+      "reason": "incomplete_command_waiting_for_target",
+      "numericEndpointRequired": false,
+      "isFinalStep": false,
+      "structurallyStable": false,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": false,
+      "executionEligible": false,
+      "finalizationReason": null
+    },
+    {
+      "chunkId": "param-goto-wikipedia-001",
+      "stepIndex": 3,
+      "timestampMs": 160,
+      "transcript": "go to wikipedia dot org",
+      "normalizedTranscript": "go to wikipedia.org",
+      "commandClass": "parameterized_open",
+      "granted": true,
+      "reason": "open_parameterized_command_requires_endpoint",
+      "numericEndpointRequired": false,
+      "isFinalStep": true,
+      "structurallyStable": true,
+      "slotClosed": true,
+      "slotStable": true,
+      "slotFinalized": true,
+      "executionEligible": true,
+      "finalizationReason": "url_resolved_endpoint_reached"
+    }
+  ]
+}

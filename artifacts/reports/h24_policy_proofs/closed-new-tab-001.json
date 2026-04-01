@@ -1,0 +1,85 @@
+{
+  "chunkId": "closed-new-tab-001",
+  "transcript": "new tab",
+  "commandClass": "closed_structure",
+  "recommendedGate": "structural_stability",
+  "policyControlState": "policy_present_granted",
+  "policyDecisionPresent": true,
+  "policyGranted": true,
+  "policyReason": "closed_structure_command_allowed_after_stability",
+  "numericEndpointRequired": false,
+  "firstStructuralStableAtMs": 60,
+  "firstGrantedAtMs": 60,
+  "endpointAtMs": 60,
+  "observedExecutionAtMs": 65,
+  "matchedRecommendedGate": true,
+  "policyControlledExecution": true,
+  "decisionContinuity": {
+    "decisionPresentAtExecution": true,
+    "finalStepSeenByPolicy": true,
+    "finalizationReason": "closed_structure_stability_confirmed"
+  },
+  "events": [
+    {
+      "stage": "lookup",
+      "observedAtMs": 60,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "closed_structure_command_allowed_after_stability"
+    },
+    {
+      "stage": "dispatch_start",
+      "observedAtMs": 63,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false
+    },
+    {
+      "stage": "dispatch_complete",
+      "observedAtMs": 65,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false
+    }
+  ],
+  "h23Decision": {
+    "chunkId": "closed-new-tab-001",
+    "decisionPresent": true,
+    "commandClass": "closed_structure",
+    "granted": true,
+    "reason": "closed_structure_command_allowed_after_stability",
+    "numericEndpointRequired": false,
+    "stepIndex": 1,
+    "timestampMs": 60,
+    "isFinalStep": true,
+    "structurallyStable": true,
+    "slotClosed": true,
+    "slotStable": true,
+    "slotFinalized": true,
+    "executionEligible": true,
+    "finalizationReason": "closed_structure_stability_confirmed",
+    "transcript": "new tab",
+    "normalizedTranscript": "new tab"
+  },
+  "h23Trace": [
+    {
+      "chunkId": "closed-new-tab-001",
+      "stepIndex": 1,
+      "timestampMs": 60,
+      "transcript": "new tab",
+      "normalizedTranscript": "new tab",
+      "commandClass": "closed_structure",
+      "granted": true,
+      "reason": "closed_structure_command_allowed_after_stability",
+      "numericEndpointRequired": false,
+      "isFinalStep": true,
+      "structurallyStable": true,
+      "slotClosed": true,
+      "slotStable": true,
+      "slotFinalized": true,
+      "executionEligible": true,
+      "finalizationReason": "closed_structure_stability_confirmed"
+    }
+  ]
+}

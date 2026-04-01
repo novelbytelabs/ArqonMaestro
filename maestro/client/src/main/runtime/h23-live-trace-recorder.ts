@@ -17,10 +17,22 @@ export interface H23FinalizeResult {
 
 export interface H23DecisionSummary {
   chunkId: string;
+  decisionPresent: true;
   commandClass: string;
   granted: boolean;
   reason: string | null;
   numericEndpointRequired: boolean;
+  stepIndex: number;
+  timestampMs: number;
+  isFinalStep: boolean;
+  structurallyStable: boolean;
+  slotClosed: boolean;
+  slotStable: boolean;
+  slotFinalized: boolean;
+  executionEligible: boolean;
+  finalizationReason: string | null;
+  transcript: string;
+  normalizedTranscript: string;
 }
 
 export default class H23LiveTraceRecorder {
@@ -79,11 +91,32 @@ export default class H23LiveTraceRecorder {
     const step = trace[trace.length - 1];
     return {
       chunkId,
+      decisionPresent: true,
       commandClass: step.commandClass,
       granted: step.granted,
       reason: step.reason,
       numericEndpointRequired: step.numericEndpointRequired,
+      stepIndex: step.stepIndex,
+      timestampMs: step.timestampMs,
+      isFinalStep: step.isFinalStep,
+      structurallyStable: step.structurallyStable,
+      slotClosed: step.slotClosed,
+      slotStable: step.slotStable,
+      slotFinalized: step.slotFinalized,
+      executionEligible: step.executionEligible,
+      finalizationReason: step.finalizationReason,
+      transcript: step.transcript,
+      normalizedTranscript: step.normalizedTranscript,
     };
+  }
+
+  getTraceSnapshot(chunkId: string): H23TraceStep[] {
+    return this.governor.getTrace(chunkId);
+  }
+
+  getRelativeNowMs(chunkId: string): number | null {
+    const base = this.sessionStarts.get(chunkId);
+    return base == null ? null : this.now() - base;
   }
 
   finalizeChunk(chunkId: string): H23FinalizeResult {

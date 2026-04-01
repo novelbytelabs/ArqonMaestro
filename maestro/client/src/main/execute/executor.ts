@@ -17,6 +17,7 @@ import SettingsWindow from "../windows/settings";
 import { core } from "../../gen/core";
 import { commandTypeToString, isMetaResponse, isValidAlternative } from "../../shared/alternatives";
 import { h23Recorder } from "../runtime/h23-live-trace-recorder";
+import { h24ProofRecorder } from "../runtime/h24-policy-proof-recorder";
 
 // Focus verification imports
 import FocusVerificationService, {
@@ -1538,6 +1539,17 @@ export default class Executor {
       `[EXEC_TRACE] stage chunkId="${response.chunkId || ""}" name="after_h23_lookup" hardGateNumeric=${process.env.H23_HARD_GATE_NUMERIC === "true"} h23DecisionPresent=${!!h23Decision}`
     );
     
+    const h24Enabled = process.env.H24_ENABLED === "true";
+
+    if (h24Enabled) {
+      h24ProofRecorder.record({
+        chunkId,
+        transcript: response.execute?.transcript || "",
+        stage: "lookup",
+        h23Decision,
+      });
+    }
+    
     let shouldBlock = false;
     const hardGateNumeric = process.env.H23_HARD_GATE_NUMERIC === "true";
     
@@ -1569,6 +1581,15 @@ export default class Executor {
       console.log(
         `[EXEC_TRACE] h23_block chunkId="${chunkId}" reason="${h23Decision?.reason ?? "missing_decision"}" transcript="${response.execute?.transcript || ""}"`
       );
+      if (h24Enabled) {
+        h24ProofRecorder.record({
+          chunkId,
+          transcript: response.execute?.transcript || "",
+          stage: "block",
+          h23Decision,
+          shouldBlock: true,
+        });
+      }
       this.failLoudExecution(
         "h23_gate_block",
         `H2.3 blocked command (${h23Decision?.reason ?? "missing_decision"})`,
@@ -1705,6 +1726,16 @@ export default class Executor {
         console.log(
           `[EXEC_TRACE] expanded_sequence chunkId="${response.chunkId || ""}" transcript="${response.execute.transcript || ""}" total=${commandCount} sequence="${commandSequence}"`
         );
+        if (h24Enabled) {
+          h24ProofRecorder.record({
+            chunkId,
+            transcript: response.execute.transcript || "",
+            stage: "dispatch_start",
+            h23Decision,
+            commandCount,
+            shouldBlock: false,
+          });
+        }
 
         let allCommandsConfirmed = true;
         let hasExecutableCommands = false;
@@ -1825,6 +1856,16 @@ export default class Executor {
       );
       if (response.chunkId) {
         h23Recorder.finalizeChunk(response.chunkId);
+        if (h24Enabled) {
+          h24ProofRecorder.record({
+            chunkId: response.chunkId,
+            transcript: response.execute?.transcript || "",
+            stage: "dispatch_complete",
+            h23Decision,
+            shouldBlock,
+          });
+          h24ProofRecorder.finalize(response.chunkId);
+        }
       }
     }
   }

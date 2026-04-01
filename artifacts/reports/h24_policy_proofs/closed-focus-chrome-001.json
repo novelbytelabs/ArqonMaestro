@@ -1,0 +1,108 @@
+{
+  "chunkId": "closed-focus-chrome-001",
+  "transcript": "focus chrome",
+  "commandClass": "closed_structure",
+  "recommendedGate": "structural_stability",
+  "policyControlState": "policy_present_granted",
+  "policyDecisionPresent": true,
+  "policyGranted": true,
+  "policyReason": "closed_structure_command_allowed_after_stability",
+  "numericEndpointRequired": false,
+  "firstStructuralStableAtMs": 80,
+  "firstGrantedAtMs": 80,
+  "endpointAtMs": 120,
+  "observedExecutionAtMs": 125,
+  "matchedRecommendedGate": true,
+  "policyControlledExecution": true,
+  "decisionContinuity": {
+    "decisionPresentAtExecution": true,
+    "finalStepSeenByPolicy": true,
+    "finalizationReason": "closed_structure_stability_confirmed"
+  },
+  "events": [
+    {
+      "stage": "lookup",
+      "observedAtMs": 60,
+      "decisionPresent": false
+    },
+    {
+      "stage": "lookup",
+      "observedAtMs": 80,
+      "decisionPresent": true,
+      "reason": "closed_structure_command_allowed_after_stability"
+    },
+    {
+      "stage": "dispatch_start",
+      "observedAtMs": 122,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "closed_structure_command_allowed_after_stability"
+    },
+    {
+      "stage": "dispatch_complete",
+      "observedAtMs": 125,
+      "decisionPresent": true,
+      "commandCount": 1,
+      "shouldBlock": false,
+      "reason": "closed_structure_command_allowed_after_stability"
+    }
+  ],
+  "h23Decision": {
+    "chunkId": "closed-focus-chrome-001",
+    "decisionPresent": true,
+    "commandClass": "closed_structure",
+    "granted": true,
+    "reason": "closed_structure_command_allowed_after_stability",
+    "numericEndpointRequired": false,
+    "stepIndex": 2,
+    "timestampMs": 80,
+    "isFinalStep": true,
+    "structurallyStable": true,
+    "slotClosed": true,
+    "slotStable": true,
+    "slotFinalized": true,
+    "executionEligible": true,
+    "finalizationReason": "closed_structure_stability_confirmed",
+    "transcript": "focus chrome",
+    "normalizedTranscript": "focus chrome"
+  },
+  "h23Trace": [
+    {
+      "chunkId": "closed-focus-chrome-001",
+      "stepIndex": 1,
+      "timestampMs": 40,
+      "transcript": "focus",
+      "normalizedTranscript": "focus",
+      "commandClass": "unknown",
+      "granted": false,
+      "reason": "incomplete_command_waiting_for_target",
+      "numericEndpointRequired": false,
+      "isFinalStep": false,
+      "structurallyStable": false,
+      "slotClosed": false,
+      "slotStable": false,
+      "slotFinalized": false,
+      "executionEligible": false,
+      "finalizationReason": null
+    },
+    {
+      "chunkId": "closed-focus-chrome-001",
+      "stepIndex": 2,
+      "timestampMs": 80,
+      "transcript": "focus chrome",
+      "normalizedTranscript": "focus chrome",
+      "commandClass": "closed_structure",
+      "granted": true,
+      "reason": "closed_structure_command_allowed_after_stability",
+      "numericEndpointRequired": false,
+      "isFinalStep": true,
+      "structurallyStable": true,
+      "slotClosed": true,
+      "slotStable": true,
+      "slotFinalized": true,
+      "executionEligible": true,
+      "finalizationReason": "closed_structure_stability_confirmed"
+    }
+  ]
+}
