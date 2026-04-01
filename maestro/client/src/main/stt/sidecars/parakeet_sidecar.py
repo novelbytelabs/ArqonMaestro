@@ -108,6 +108,7 @@ class H3GeometricDetector:
         self.command_names: List[str] = []
         self.command_meta: Dict[str, Dict[str, Any]] = {}
         self.feature_dim = 0
+        self.atlas_version = "unknown"
         if not self.enabled:
             return
 
@@ -118,36 +119,51 @@ class H3GeometricDetector:
             self.np = np
             self.libhume = libhume
             self.lift = libhume.SpectralLift(16000, 20, 10)
-            atlas = self._load_or_build_atlas()
-            commands = atlas.get("commands", {})
+            atlas = self._load_atlas()
+            commands = self._commands_from_atlas(atlas)
             if not commands:
                 raise RuntimeError("empty_h3_command_atlas")
-            self.command_names = list(commands.keys())
+            self.command_names = [c["region_id"] for c in commands]
             self.command_meta = {
-                name: {
-                    "class": str(commands[name].get("class", "unknown")),
-                    "min_frames": int(commands[name].get("min_frames", 1)),
+                c["region_id"]: {
+                    "class": str(c.get("command_class", "unknown")),
+                    "min_frames": int(c.get("min_frames", 1)),
+                    "activation_threshold": float(c.get("activation_threshold", 0.12)),
+                    "stability_threshold": float(c.get("stability_threshold", 0.78)),
+                    "fallback_eligible": bool(c.get("fallback_eligible", True)),
                 }
-                for name in self.command_names
+                for c in commands
             }
-            self.feature_dim = int(next(iter(commands.values())).get("feature_dim", 0))
-            self.db_words = np.array([commands[name]["packed_words"] for name in self.command_names], dtype=np.uint64)
+            self.feature_dim = int(commands[0].get("feature_dim", 0))
+            self.db_words = np.array([c["centroid_words"] for c in commands], dtype=np.uint64)
+            build = atlas.get("build", {}) if isinstance(atlas.get("build", {}), dict) else {}
+            self.atlas_version = str(build.get("atlas_version", atlas.get("version", "unknown")))
             self.ready = True
-            logger.info("[H3] geometric detector ready (spectral/manifold runtime)")
+            logger.info(f"[H3] geometric detector ready (spectral/manifold runtime), atlas_version={self.atlas_version}")
         except Exception as exc:
             self.error = str(exc)
             self.ready = False
             logger.warning(f"[H3] geometric detector unavailable: {self.error}")
 
-    def _load_or_build_atlas(self) -> Dict[str, Any]:
+    def _load_atlas(self) -> Dict[str, Any]:
         atlas_path_env = os.getenv("MAESTRO_H3_ATLAS_PATH", "").strip()
         if atlas_path_env:
             atlas_path = Path(atlas_path_env).expanduser()
-        else:
-            atlas_path = Path("/tmp/maestro_h3_bootstrap_atlas.json")
-
-        if atlas_path.exists():
+            if not atlas_path.exists():
+                raise RuntimeError(f"h3_atlas_not_found:{atlas_path}")
             return json.loads(atlas_path.read_text(encoding="utf-8"))
+
+        default_v1 = Path("/home/irbsurfer/Projects/arqon/ArqonMaestro/artifacts/h3/command_atlas_v1.json")
+        if default_v1.exists():
+            return json.loads(default_v1.read_text(encoding="utf-8"))
+
+        if os.getenv("MAESTRO_H3_ALLOW_BOOTSTRAP", "1") != "1":
+            raise RuntimeError("h3_command_atlas_v1_required_and_missing")
+
+        bootstrap_path = Path("/tmp/maestro_h3_bootstrap_atlas.json")
+        if bootstrap_path.exists():
+            logger.warning("[H3] using legacy bootstrap atlas fallback")
+            return json.loads(bootstrap_path.read_text(encoding="utf-8"))
 
         manifold_root = Path(
             os.getenv("MAESTRO_ARQON_MANIFOLD_ROOT", "/home/irbsurfer/Projects/arqon/ArqonManifold")
@@ -160,8 +176,50 @@ class H3GeometricDetector:
 
         from command_atlas import bootstrap_demo_atlas  # type: ignore
 
-        atlas_path.parent.mkdir(parents=True, exist_ok=True)
-        return bootstrap_demo_atlas(atlas_path)
+        bootstrap_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.warning("[H3] building legacy bootstrap atlas fallback (Stage 3A compatibility mode)")
+        return bootstrap_demo_atlas(bootstrap_path)
+
+    def _commands_from_atlas(self, atlas: Dict[str, Any]) -> List[Dict[str, Any]]:
+        if atlas.get("schema_version") == "h3_command_atlas_v1":
+            commands = atlas.get("commands", [])
+            if not isinstance(commands, list):
+                return []
+            normalized: List[Dict[str, Any]] = []
+            for c in commands:
+                if not isinstance(c, dict):
+                    continue
+                if "region_id" not in c or "centroid_words" not in c:
+                    continue
+                normalized.append(c)
+            return normalized
+
+        # Legacy bootstrap shape compatibility.
+        legacy = atlas.get("commands", {})
+        if not isinstance(legacy, dict):
+            return []
+        out: List[Dict[str, Any]] = []
+        for region_id, meta in legacy.items():
+            if not isinstance(meta, dict):
+                continue
+            packed = meta.get("packed_words")
+            if not isinstance(packed, list):
+                continue
+            out.append(
+                {
+                    "region_id": str(region_id),
+                    "command_class": str(meta.get("class", "unknown")),
+                    "parameter_type": str(meta.get("param_type")) if meta.get("param_type") is not None else None,
+                    "centroid_words": packed,
+                    "feature_dim": int(meta.get("feature_dim", 0)),
+                    "capture_radius": int(meta.get("capture_radius", 0)),
+                    "min_frames": int(meta.get("min_frames", 1)),
+                    "activation_threshold": float(meta.get("activation_threshold", 0.12)),
+                    "stability_threshold": float(meta.get("stability_threshold", 0.78)),
+                    "fallback_eligible": bool(meta.get("fallback_eligible", True)),
+                }
+            )
+        return out
 
     def _aggregate_signature(self, audio_float: List[float]):
         assert self.np is not None
@@ -227,7 +285,8 @@ class H3GeometricDetector:
         # Relative margin confidence from nearest-neighbor score spread.
         denom = max(abs(best_score), 1)
         confidence = max(0.0, min(1.0, (best_score - second_score) / float(denom)))
-        if confidence < 0.12:
+        activation_threshold = float(meta.get("activation_threshold", 0.12))
+        if confidence < activation_threshold:
             return None
         return {
             "source": "spectral_manifold",
@@ -236,6 +295,10 @@ class H3GeometricDetector:
             "confidence": confidence,
             "frame_count": int(frame_count),
             "timestamp_ms": int(timestamp_ms),
+            "atlas_version": self.atlas_version,
+            "activation_threshold": activation_threshold,
+            "stability_threshold": float(meta.get("stability_threshold", 0.78)),
+            "fallback_eligible": bool(meta.get("fallback_eligible", True)),
         }
 
 def load_parakeet_model(model_path: str, device: str):
