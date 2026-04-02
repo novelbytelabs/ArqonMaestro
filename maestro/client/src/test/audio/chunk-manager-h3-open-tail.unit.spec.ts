@@ -268,6 +268,32 @@ describe("ChunkManager H3 open-tail specialization", () => {
     );
   });
 
+  it("falls back to full finalize when open prefix is armed but transcript hint mismatches", async () => {
+    const manager = makeBareManager({
+      chunkId: "chunk-open-fallback",
+      prefix: "open",
+      regionId: "open",
+      transcript: "pause",
+    });
+    manager.chunkH3LatestTailHintText.set("chunk-open-fallback", "pause");
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.recordFinal = jest.fn();
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+
+    const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-open-fallback");
+    expect(handled).toBe(false);
+    expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-open-fallback",
+      "open_tail_rejected",
+      expect.objectContaining({
+        reason: "open_tail_prefix_hint_mismatch_fallback",
+        parameterType: "open",
+        openStrategyVersion: "3b2b-open-v1",
+      })
+    );
+  });
+
   it("selects open strategy only after atlas-backed geometric open prefix activation", () => {
     const manager = makeBareManager({
       chunkId: "chunk-open-4",

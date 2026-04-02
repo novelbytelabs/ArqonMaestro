@@ -145,6 +145,17 @@ export default class ChunkManager {
   private chunkH3NumericStrategyEnabled = new Map<string, boolean>();
   private chunkH3OpenStrategyEnabled = new Map<string, boolean>();
   private chunkH3LatestTailHintText = new Map<string, string>();
+  private chunkH3WarmLookup = new Map<
+    string,
+    {
+      warmHitClass: "strong" | "weak" | "miss";
+      bestCandidateId: string | null;
+      bestCandidateScore: number | null;
+      lookupPath: string;
+      warmApplied: boolean;
+      warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
+    }
+  >();
 
   listening: boolean = false;
 
@@ -772,6 +783,8 @@ export default class ChunkManager {
         regionId: event.regionId,
         parameterType: event.parameterType ?? null,
         transcriptTailHint: transcriptTail,
+        atlasVersion: event.atlasVersion,
+        atlasSchema: event.atlasSchema,
       });
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
@@ -783,11 +796,13 @@ export default class ChunkManager {
         bestCandidateId: semanticLookup.bestCandidateId,
         bestCandidateScore: semanticLookup.bestCandidateScore,
         warmHitClass: semanticLookup.warmHitClass,
+        lookupPath: semanticLookup.lookupPath,
         governanceRequired: true,
         reason:
-          semanticLookup.warmHitClass === "miss"
+          semanticLookup.mismatchReason ??
+          (semanticLookup.warmHitClass === "miss"
             ? "semantic_lookup_miss_advisory_only"
-            : "semantic_lookup_hit_advisory_only",
+            : "semantic_lookup_hit_advisory_only"),
       });
       this.emitH3Evidence(
         chunkId,
@@ -804,11 +819,71 @@ export default class ChunkManager {
           bestCandidateId: semanticLookup.bestCandidateId,
           bestCandidateScore: semanticLookup.bestCandidateScore,
           warmHitClass: semanticLookup.warmHitClass,
+          lookupPath: semanticLookup.lookupPath,
           governanceRequired: true,
           reason:
-            semanticLookup.warmHitClass === "miss"
+            semanticLookup.mismatchReason ??
+            (semanticLookup.warmHitClass === "miss"
               ? "warm_cache_miss_continue_normal_path"
-              : "warm_cache_hit_advisory_continue_governed_path",
+              : "warm_cache_hit_advisory_continue_governed_path"),
+        }
+      );
+      const canApplyWarm = semanticLookup.atlasCompatible && event.atlasBacked === true;
+      let warmApplied = false;
+      let warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null = null;
+      let warmDiscardReason: string | null = null;
+      if (!canApplyWarm) {
+        warmDiscardReason = semanticLookup.mismatchReason ?? "warm_discarded_requires_live_atlas_backed_event";
+      } else if (semanticLookup.warmHitClass === "strong") {
+        warmApplied = true;
+        warmAppliedStage = event.commandClass === "parameterized" ? "tail_strategy_prearm" : "candidate_rank";
+      } else if (semanticLookup.warmHitClass === "weak") {
+        warmApplied = true;
+        warmAppliedStage = "shortlist_only";
+      } else {
+        warmDiscardReason = "warm_miss_continue_normal_path";
+      }
+
+      if (warmApplied && warmAppliedStage === "tail_strategy_prearm") {
+        if (event.regionId === "go to line" && event.parameterType === "numeric") {
+          this.chunkH3NumericStrategyEnabled.set(chunkId, true);
+        }
+        if ((event.regionId === "go to" || event.regionId === "open") && event.parameterType === "open") {
+          this.chunkH3OpenStrategyEnabled.set(chunkId, true);
+        }
+      }
+
+      const warmLookupStore =
+        this.chunkH3WarmLookup ?? (this.chunkH3WarmLookup = new Map());
+      warmLookupStore.set(chunkId, {
+        warmHitClass: semanticLookup.warmHitClass,
+        bestCandidateId: semanticLookup.bestCandidateId,
+        bestCandidateScore: semanticLookup.bestCandidateScore,
+        lookupPath: semanticLookup.lookupPath,
+        warmApplied,
+        warmAppliedStage,
+      });
+
+      this.emitH3Evidence(
+        chunkId,
+        warmApplied ? "voice_semantic_address_warm_applied" : "voice_semantic_address_warm_discarded",
+        {
+          source: event.source,
+          regionId: event.regionId,
+          commandClass: event.commandClass,
+          parameterType: event.parameterType ?? null,
+          warmHitClass: semanticLookup.warmHitClass,
+          bestCandidateId: semanticLookup.bestCandidateId,
+          bestCandidateScore: semanticLookup.bestCandidateScore,
+          lookupPath: semanticLookup.lookupPath,
+          warmApplied,
+          warmAppliedStage,
+          warmDiscardReason,
+          liveEvidenceOverride: false,
+          governanceRequired: true,
+          reason: warmApplied
+            ? "warm_applied_pre_dispatch_advisory_only"
+            : warmDiscardReason ?? "warm_discarded_continue_normal_path",
         }
       );
     }
@@ -1187,6 +1262,11 @@ export default class ChunkManager {
       h23StepCount: number | null;
       h24FinalGranted: boolean | null;
       successCount: number | null;
+      warmApplied: boolean | null;
+      warmAppliedStage: string | null;
+      warmDiscardReason: string | null;
+      liveEvidenceOverride: boolean | null;
+      lookupPath: string | null;
     }> = {}
   ): void {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
@@ -1233,6 +1313,11 @@ export default class ChunkManager {
       h23StepCount: overrides.h23StepCount ?? null,
       h24FinalGranted: overrides.h24FinalGranted ?? null,
       successCount: overrides.successCount ?? null,
+      warmApplied: overrides.warmApplied ?? null,
+      warmAppliedStage: overrides.warmAppliedStage ?? null,
+      warmDiscardReason: overrides.warmDiscardReason ?? null,
+      liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
+      lookupPath: overrides.lookupPath ?? null,
     });
   }
 
@@ -2193,6 +2278,7 @@ export default class ChunkManager {
       this.chunkH3NumericStrategyEnabled.delete(chunk.id);
       this.chunkH3OpenStrategyEnabled.delete(chunk.id);
       this.chunkH3LatestTailHintText.delete(chunk.id);
+      this.chunkH3WarmLookup?.delete(chunk.id);
       voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
@@ -2423,6 +2509,7 @@ export default class ChunkManager {
     this.chunkH3NumericStrategyEnabled.delete(id);
     this.chunkH3OpenStrategyEnabled.delete(id);
     this.chunkH3LatestTailHintText.delete(id);
+    this.chunkH3WarmLookup?.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:

@@ -62,6 +62,9 @@ interface LookupInput {
   regionId: string;
   parameterType: "numeric" | "open" | null;
   transcriptTailHint?: string;
+  atlasVersion?: string;
+  atlasSchema?: string;
+  forceCandidateScan?: boolean;
 }
 
 export interface LookupResult {
@@ -69,12 +72,18 @@ export interface LookupResult {
   bestCandidateId: string | null;
   bestCandidateScore: number | null;
   warmHitClass: "strong" | "weak" | "miss";
+  lookupPath: "slot_signature_index" | "candidate_scan" | "none";
+  slotSignature: string | null;
+  atlasCompatible: boolean;
+  mismatchReason: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
 const SCHEMA_VERSION = "h3_voice_semantic_address_v1" as const;
 const H23_VERSION = "h23_live_trace_v1";
 const H24_VERSION = "h24_policy_proof_v1";
+export const VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD = 0.78;
+export const VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD = 0.93;
 
 export class VoiceSemanticAddressRegistry {
   private recordsById = new Map<string, SemanticAddressRecord>();
@@ -114,6 +123,45 @@ export class VoiceSemanticAddressRegistry {
   }
 
   lookup(input: LookupInput): LookupResult {
+    const normalizedHint = (input.transcriptTailHint || "").trim().toLowerCase();
+    const derivedSlotSignature = this.deriveSlotSignature(
+      input.regionId,
+      input.parameterType,
+      normalizedHint
+    );
+    if (derivedSlotSignature && input.forceCandidateScan !== true) {
+      const indexedId = this.idsByRegionAndSlot.get(`${input.regionId}|${derivedSlotSignature}`) ?? null;
+      if (indexedId) {
+        const indexedRecord = this.recordsById.get(indexedId);
+        if (indexedRecord) {
+          const atlasCompatible = this.isAtlasCompatible(indexedRecord, input);
+          if (!atlasCompatible) {
+            return {
+              lookupCandidateCount: 1,
+              bestCandidateId: indexedRecord.semanticAddressId,
+              bestCandidateScore: null,
+              warmHitClass: "miss",
+              lookupPath: "slot_signature_index",
+              slotSignature: derivedSlotSignature,
+              atlasCompatible: false,
+              mismatchReason: "warm_miss_atlas_incompatible",
+            };
+          }
+          const score = this.scoreCandidate(indexedRecord, normalizedHint);
+          return {
+            lookupCandidateCount: 1,
+            bestCandidateId: indexedRecord.semanticAddressId,
+            bestCandidateScore: Number(score.toFixed(3)),
+            warmHitClass: this.classifyWarmHit(score),
+            lookupPath: "slot_signature_index",
+            slotSignature: derivedSlotSignature,
+            atlasCompatible: true,
+            mismatchReason: null,
+          };
+        }
+      }
+    }
+
     const candidates = [...this.recordsById.values()].filter(
       (record) => record.regionId === input.regionId && record.parameterType === input.parameterType
     );
@@ -123,28 +171,47 @@ export class VoiceSemanticAddressRegistry {
         bestCandidateId: null,
         bestCandidateScore: null,
         warmHitClass: "miss",
+        lookupPath: "none",
+        slotSignature: derivedSlotSignature,
+        atlasCompatible: true,
+        mismatchReason: null,
       };
     }
 
     let best: SemanticAddressRecord | null = null;
     let bestScore = -1;
-    const normalizedHint = (input.transcriptTailHint || "").trim().toLowerCase();
     for (const candidate of candidates) {
+      if (!this.isAtlasCompatible(candidate, input)) {
+        continue;
+      }
       const score = this.scoreCandidate(candidate, normalizedHint);
       if (score > bestScore) {
         best = candidate;
         bestScore = score;
       }
     }
-
-    const warmHitClass =
-      bestScore >= 0.92 ? "strong" : bestScore >= 0.75 ? "weak" : "miss";
+    if (!best || bestScore < 0) {
+      return {
+        lookupCandidateCount: candidates.length,
+        bestCandidateId: null,
+        bestCandidateScore: null,
+        warmHitClass: "miss",
+        lookupPath: "candidate_scan",
+        slotSignature: derivedSlotSignature,
+        atlasCompatible: false,
+        mismatchReason: "warm_miss_atlas_incompatible",
+      };
+    }
 
     return {
       lookupCandidateCount: candidates.length,
       bestCandidateId: best?.semanticAddressId ?? null,
       bestCandidateScore: best ? Number(bestScore.toFixed(3)) : null,
-      warmHitClass,
+      warmHitClass: this.classifyWarmHit(bestScore),
+      lookupPath: "candidate_scan",
+      slotSignature: derivedSlotSignature,
+      atlasCompatible: true,
+      mismatchReason: null,
     };
   }
 
@@ -291,6 +358,61 @@ export class VoiceSemanticAddressRegistry {
       return 0.85;
     }
     return 0.72;
+  }
+
+  private classifyWarmHit(score: number): "strong" | "weak" | "miss" {
+    if (score >= VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD) {
+      return "strong";
+    }
+    if (score >= VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD) {
+      return "weak";
+    }
+    return "miss";
+  }
+
+  private isAtlasCompatible(record: SemanticAddressRecord, input: LookupInput): boolean {
+    if (input.atlasSchema && input.atlasSchema !== record.atlasSchema) {
+      return false;
+    }
+    if (input.atlasVersion && input.atlasVersion !== record.atlasVersion) {
+      return false;
+    }
+    return true;
+  }
+
+  private deriveSlotSignature(
+    regionId: string,
+    parameterType: "numeric" | "open" | null,
+    transcriptTailHint: string
+  ): string | null {
+    if (regionId === "pause" && parameterType === null) {
+      return "pause";
+    }
+    if (regionId === "new tab" && parameterType === null) {
+      return "new_tab";
+    }
+    if (regionId === "go to line" && parameterType === "numeric") {
+      const normalized = normalizeNumericTail(transcriptTailHint);
+      if (!normalized.normalized) {
+        return null;
+      }
+      return `goto_line:${normalized.normalized}`;
+    }
+    if (regionId === "go to" && parameterType === "open") {
+      const normalized = normalizeOpenTail(transcriptTailHint, { commandPrefix: "go to" });
+      if (normalized.status !== "ok" || !normalized.normalized) {
+        return null;
+      }
+      return `goto_open:${normalized.normalized}`;
+    }
+    if (regionId === "open" && parameterType === "open") {
+      const normalized = normalizeOpenTail(transcriptTailHint, { commandPrefix: "open" });
+      if (normalized.status !== "ok" || !normalized.normalized) {
+        return null;
+      }
+      return `open_target:${normalized.normalized}`;
+    }
+    return null;
   }
 
   private makeSemanticAddressId(regionId: string, slotSignature: string, canonical: string): string {

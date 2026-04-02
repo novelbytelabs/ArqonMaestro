@@ -104,19 +104,35 @@ export default class ChunkEvaluationService {
 
     if (!chunk.reverted && !chunk.response) {
       this.deps.log.logVerbose(`Not executing chunk ${chunk.id}: no final response yet`);
+      console.log(
+        `[STREAM_TRACE] evaluate_skip chunkId="${chunk.id}" reason="no_final_response_yet" currentId="${current.id}"`
+      );
       executionTrace?.recordParseOutcome(chunk.id, "waiting_for_silence");
       return;
     }
 
     if (chunk.reverted && !chunk.revertedResponse) {
       this.deps.log.logVerbose(`Not executing chunk ${chunk.id}: no reverted response yet`);
+      console.log(
+        `[STREAM_TRACE] evaluate_skip chunkId="${chunk.id}" reason="no_reverted_response_yet" currentId="${current.id}"`
+      );
       return;
     }
 
-    if (!reachedSilenceThreshold(chunk)) {
+    const responseForExecution = getResponse(chunk);
+    const finalResponseReady = Boolean(responseForExecution?.final);
+    if (!reachedSilenceThreshold(chunk) && !finalResponseReady) {
       this.deps.log.logVerbose(`Not executing chunk ${chunk.id}: waiting for silence`);
+      console.log(
+        `[STREAM_TRACE] evaluate_skip chunkId="${chunk.id}" reason="waiting_for_silence" finalReady=${finalResponseReady}`
+      );
       executionTrace?.recordParseOutcome(chunk.id, "waiting_for_silence");
       return;
+    }
+    if (!reachedSilenceThreshold(chunk) && finalResponseReady) {
+      console.log(
+        `[STREAM_TRACE] evaluate_override chunkId="${chunk.id}" reason="final_response_ready_before_silence_threshold" final=${finalResponseReady}`
+      );
     }
 
     if (
@@ -126,6 +142,9 @@ export default class ChunkEvaluationService {
       !chunk.response.execute
     ) {
       this.deps.log.logVerbose(`Not executing chunk ${chunk.id}: no alternatives or execute`);
+      console.log(
+        `[STREAM_TRACE] evaluate_skip chunkId="${chunk.id}" reason="no_alternatives_or_execute" final=${!!chunk.response.final}`
+      );
       executionTrace?.recordParseOutcome(chunk.id, "no_alternatives_or_execute");
       onMarkNoiseDelayDeadline(
         chunk.audioSize < audioSizeForDelayedInitialize
@@ -154,6 +173,9 @@ export default class ChunkEvaluationService {
     );
 
     this.deps.log.logVerbose(`Executing chunk ${chunk.id}`);
+    console.log(
+      `[STREAM_TRACE] evaluate_execute chunkId="${chunk.id}" final=${!!responseForExecution?.final} executePresent=${!!responseForExecution?.execute} executeCount=${(responseForExecution?.execute?.commands || []).length}`
+    );
     onResetInitializeDeadline();
     chunk.executed = Date.now();
     const sessionId = this.deps.tracking.getCurrentSessionId() || undefined;

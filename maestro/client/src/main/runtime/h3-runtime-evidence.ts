@@ -42,6 +42,11 @@ export interface H3RuntimeEvidenceEvent {
   h23StepCount: number | null;
   h24FinalGranted: boolean | null;
   successCount: number | null;
+  warmApplied: boolean | null;
+  warmAppliedStage: string | null;
+  warmDiscardReason: string | null;
+  liveEvidenceOverride: boolean | null;
+  lookupPath: string | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -92,6 +97,11 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     h23StepCount: input.h23StepCount ?? null,
     h24FinalGranted: input.h24FinalGranted ?? null,
     successCount: input.successCount ?? null,
+    warmApplied: input.warmApplied ?? null,
+    warmAppliedStage: input.warmAppliedStage ?? null,
+    warmDiscardReason: input.warmDiscardReason ?? null,
+    liveEvidenceOverride: input.liveEvidenceOverride ?? null,
+    lookupPath: input.lookupPath ?? null,
   };
 }
 
