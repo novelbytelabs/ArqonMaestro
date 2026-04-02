@@ -40,6 +40,7 @@ describe("ChunkManager H3 focus context evidence", () => {
     manager.chunkH3Route = new Map<string, any>();
     manager.chunkH3TailCaptureStartMs = new Map<string, number>();
     manager.chunkH3FocusContextEnvelope = new Map<string, any>();
+    manager.chunkH3AtlasShardHint = new Map<string, any>();
     manager.relativeChunkNowMs = () => 111;
     manager.chunkH3Route.set("chunk-1", "geometric_prefix_asr_tail");
     manager.chunkH3LatestGeometricEvent.set("chunk-1", {

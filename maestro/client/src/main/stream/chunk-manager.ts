@@ -46,6 +46,11 @@ import {
   FocusConditionedCommandContextEnvelope,
   deriveFocusContextEvidenceFields,
 } from "../runtime/focus-conditioned-command-context";
+import {
+  PolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardEvidenceFields,
+  derivePolicyShapedAtlasShardHint,
+} from "../runtime/policy-shaped-atlas-shards";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -183,6 +188,7 @@ export default class ChunkManager {
     }
   >();
   private chunkH3FocusContextEnvelope = new Map<string, FocusConditionedCommandContextEnvelope>();
+  private chunkH3AtlasShardHint = new Map<string, PolicyShapedAtlasShardHint>();
 
   listening: boolean = false;
 
@@ -1407,17 +1413,24 @@ export default class ChunkManager {
   ): void {
     if (!envelope) {
       this.chunkH3FocusContextEnvelope.delete(chunkId);
+      this.chunkH3AtlasShardHint.delete(chunkId);
       return;
     }
     this.chunkH3FocusContextEnvelope.set(chunkId, envelope);
+    this.chunkH3AtlasShardHint.set(chunkId, derivePolicyShapedAtlasShardHint(envelope));
   }
 
   clearFocusConditionedCommandContextForChunk(chunkId: string): void {
     this.chunkH3FocusContextEnvelope.delete(chunkId);
+    this.chunkH3AtlasShardHint.delete(chunkId);
   }
 
   private getFocusContextEvidenceFields(chunkId: string) {
     return deriveFocusContextEvidenceFields(this.chunkH3FocusContextEnvelope.get(chunkId) ?? null);
+  }
+
+  private getAtlasShardEvidenceFields(chunkId: string) {
+    return derivePolicyShapedAtlasShardEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? null);
   }
 
   private emitH3Evidence(
@@ -1490,6 +1503,7 @@ export default class ChunkManager {
     const trace = h23Recorder.getTraceSnapshot(chunkId);
     const decision = h23Recorder.getLatestDecision(chunkId);
     const focusFields = this.getFocusContextEvidenceFields(chunkId);
+    const atlasShardFields = this.getAtlasShardEvidenceFields(chunkId);
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
@@ -1577,6 +1591,12 @@ export default class ChunkManager {
       focusRankingEligible: focusFields.focusRankingEligible,
       focusLegalityEligible: focusFields.focusLegalityEligible,
       focusReasonCodes: focusFields.focusReasonCodes,
+      atlasShardPolicyVersion: atlasShardFields.atlasShardPolicyVersion,
+      atlasShardHintId: atlasShardFields.atlasShardHintId,
+      atlasShardHintEligible: atlasShardFields.atlasShardHintEligible,
+      atlasShardHintSource: atlasShardFields.atlasShardHintSource,
+      atlasShardHintPriority: atlasShardFields.atlasShardHintPriority,
+      atlasShardReasonCodes: atlasShardFields.atlasShardReasonCodes,
     });
   }
 
@@ -2539,6 +2559,7 @@ export default class ChunkManager {
       this.chunkH3LatestTailHintText.delete(chunk.id);
       this.chunkH3WarmLookup?.delete(chunk.id);
       this.chunkH3FocusContextEnvelope.delete(chunk.id);
+      this.chunkH3AtlasShardHint.delete(chunk.id);
       voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
@@ -2771,6 +2792,7 @@ export default class ChunkManager {
     this.chunkH3LatestTailHintText.delete(id);
     this.chunkH3WarmLookup?.delete(id);
     this.chunkH3FocusContextEnvelope.delete(id);
+    this.chunkH3AtlasShardHint.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:
@@ -2870,6 +2892,7 @@ export default class ChunkManager {
     this.chunkH3TailAudioFrames.clear();
     this.chunkH3LatestGeometricEvent.clear();
     this.chunkH3FocusContextEnvelope.clear();
+    this.chunkH3AtlasShardHint.clear();
     this.chunkH3TailCaptureStartMs.clear();
     this.chunkH3LastGeometricSignature.clear();
     this.chunkH3NumericStrategyEnabled.clear();

@@ -88,6 +88,12 @@ export interface H3RuntimeEvidenceEvent {
   focusRankingEligible: boolean | null;
   focusLegalityEligible: boolean | null;
   focusReasonCodes: string[] | null;
+  atlasShardPolicyVersion: string | null;
+  atlasShardHintId: string | null;
+  atlasShardHintEligible: boolean | null;
+  atlasShardHintSource: string | null;
+  atlasShardHintPriority: number | null;
+  atlasShardReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -184,6 +190,12 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     focusRankingEligible: input.focusRankingEligible ?? null,
     focusLegalityEligible: input.focusLegalityEligible ?? null,
     focusReasonCodes: input.focusReasonCodes ?? null,
+    atlasShardPolicyVersion: input.atlasShardPolicyVersion ?? null,
+    atlasShardHintId: input.atlasShardHintId ?? null,
+    atlasShardHintEligible: input.atlasShardHintEligible ?? null,
+    atlasShardHintSource: input.atlasShardHintSource ?? null,
+    atlasShardHintPriority: input.atlasShardHintPriority ?? null,
+    atlasShardReasonCodes: input.atlasShardReasonCodes ?? null,
   };
 }
 
