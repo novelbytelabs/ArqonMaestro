@@ -51,6 +51,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3WarmLookup = new Map<string, any>();
     manager.chunkH3FocusContextEnvelope = new Map<string, any>();
+    manager.chunkH3AtlasShardHint = new Map<string, any>();
     manager.chunkH3TailDecodeActive.set("chunk-1", true);
     manager.chunkH3TailAudioFrames.set("chunk-1", [Buffer.from([1, 2, 3, 4])]);
     manager.chunkH3Route.set("chunk-1", "geometric_prefix_asr_tail");
@@ -266,6 +267,10 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       focusLegalityPenalty: 0,
       focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
       focusLegalityCommandKind: null,
+      atlasShardRankingApplied: false,
+      atlasShardRankingBoost: 0,
+      atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+      atlasShardRankingCandidateKind: null,
     });
 
     manager.observeH3GeometricEvent(

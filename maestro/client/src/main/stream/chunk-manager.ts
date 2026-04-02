@@ -183,6 +183,10 @@ export default class ChunkManager {
       focusTaskMomentumPenalty?: number;
       focusTaskMomentumReasonCodes?: string[];
       focusTaskMomentumMatchedSemanticAddressId?: string | null;
+      atlasShardRankingApplied?: boolean;
+      atlasShardRankingBoost?: number;
+      atlasShardRankingReasonCodes?: string[];
+      atlasShardRankingCandidateKind?: string | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -819,6 +823,7 @@ export default class ChunkManager {
         atlasVersion: event.atlasVersion,
         atlasSchema: event.atlasSchema,
         focusContextEnvelope: this.chunkH3FocusContextEnvelope.get(chunkId) ?? null,
+        atlasShardHint: this.chunkH3AtlasShardHint.get(chunkId) ?? null,
       });
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
@@ -853,6 +858,10 @@ export default class ChunkManager {
         focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
         focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
         focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? null,
+        atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+        atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+        atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+        atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -892,6 +901,10 @@ export default class ChunkManager {
           focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
           focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
           focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+          atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+          atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+          atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+          atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
           governanceRequired: true,
           reason:
             semanticLookup.mismatchReason ??
@@ -954,6 +967,10 @@ export default class ChunkManager {
         focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
         focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
         focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? null,
+        atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+        atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+        atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+        atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
         warmApplied,
         warmAppliedStage,
       });
@@ -987,6 +1004,10 @@ export default class ChunkManager {
           focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
           focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
           focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+          atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+          atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+          atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+          atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1339,6 +1360,10 @@ export default class ChunkManager {
         focusTaskMomentumPenalty: warmLookup?.focusTaskMomentumPenalty ?? null,
         focusTaskMomentumReasonCodes: warmLookup?.focusTaskMomentumReasonCodes ?? null,
         focusTaskMomentumMatchedSemanticAddressId: warmLookup?.focusTaskMomentumMatchedSemanticAddressId ?? null,
+        atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? null,
+        atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? null,
+        atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? null,
+        atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1381,6 +1406,10 @@ export default class ChunkManager {
       focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? null,
       focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? null,
       focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? null,
+      atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? null,
+      atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? null,
+      atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? null,
+      atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
       lookupPath: warmLookup?.lookupPath ?? null,
@@ -1494,6 +1523,10 @@ export default class ChunkManager {
       focusTaskMomentumPenalty: number | null;
       focusTaskMomentumReasonCodes: string[] | null;
       focusTaskMomentumMatchedSemanticAddressId: string | null;
+      atlasShardRankingApplied: boolean | null;
+      atlasShardRankingBoost: number | null;
+      atlasShardRankingReasonCodes: string[] | null;
+      atlasShardRankingCandidateKind: string | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1597,6 +1630,10 @@ export default class ChunkManager {
       atlasShardHintSource: atlasShardFields.atlasShardHintSource,
       atlasShardHintPriority: atlasShardFields.atlasShardHintPriority,
       atlasShardReasonCodes: atlasShardFields.atlasShardReasonCodes,
+      atlasShardRankingApplied: overrides.atlasShardRankingApplied ?? null,
+      atlasShardRankingBoost: overrides.atlasShardRankingBoost ?? null,
+      atlasShardRankingReasonCodes: overrides.atlasShardRankingReasonCodes ?? null,
+      atlasShardRankingCandidateKind: overrides.atlasShardRankingCandidateKind ?? null,
     });
   }
 

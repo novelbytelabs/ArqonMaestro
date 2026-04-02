@@ -2,15 +2,16 @@
 
 Status:
 - S1 implemented
-- S2 next
+- S2 implemented
+- S3 next
 
 Objective:
-Use validated focus context to derive bounded, advisory atlas-shard hints so later lookup and ranking can become context-partitioned without changing execution authority.
+Use validated focus context to derive bounded, advisory atlas-shard hints so lookup and ranking can become context-partitioned without changing execution authority.
 
 Doctrine:
 - shard hints are advisory only
-- shard hints may shape future lookup/ranking
-- shard hints may not authorize execution
+- shard-aware ranking is advisory only
+- shard hints and shard-aware ranking may not authorize execution
 - live geometric truth remains primary
 - live tail normalization remains primary
 - H23/H24 remain the only authority gate
@@ -30,6 +31,13 @@ Stage 3E2-S1 delivered:
 - evidence propagation through H3 runtime evidence
 - no lookup or execution-path authority broadening
 
+Stage 3E2-S2 delivered:
+- bounded shard-aware ranking adjustment helper
+- shard-aware ranking applied during warm candidate scoring only
+- shard-aware ranking metadata propagated through lookup, warm, and merged evidence
+- no lookup narrowing yet
+- no execution authority broadening
+
 Current v1 shard hints:
 - `browser_navigation`
 - `editor_symbolic`
@@ -37,4 +45,4 @@ Current v1 shard hints:
 - `global_default`
 
 Next:
-- Stage 3E2-S2 — bounded shard-aware ranking pilot
+- Stage 3E2-S3 — policy-conditioned lookup narrowing pilot

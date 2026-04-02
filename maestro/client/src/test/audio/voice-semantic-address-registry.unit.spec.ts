@@ -15,6 +15,7 @@ import {
   FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
   buildFocusConditionedCommandContext,
 } from "../../main/runtime/focus-conditioned-command-context";
+import { derivePolicyShapedAtlasShardHint } from "../../main/runtime/policy-shaped-atlas-shards";
 
 describe("VoiceSemanticAddressRegistry", () => {
   it("registers governed v1 command trajectories and returns warm lookup hits", () => {
@@ -954,6 +955,121 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.focusTaskMomentumPenaltyApplied).toBe(true);
     expect(lookup.focusTaskMomentumPenalty).toBeGreaterThan(0);
     expect(lookup.focusTaskMomentumReasonCodes).toContain("recent_undo_inhibits_reuse");
+  });
+
+
+  it("applies a bounded browser shard ranking boost for browser-like open candidates", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-browser-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    const browserRecord = registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-browser-1",
+      transcript: "open github.com",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-browser-2",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-browser-2",
+      transcript: "open src/main.ts",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-shard-browser-lookup",
+      regionId: "open",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: derivePolicyShapedAtlasShardHint(envelope),
+    });
+
+    expect(lookup.bestCandidateId).toBe(browserRecord!.semanticAddressId);
+    expect(lookup.atlasShardRankingApplied).toBe(true);
+    expect(lookup.atlasShardRankingBoost).toBeGreaterThan(0);
+    expect(lookup.atlasShardRankingReasonCodes).toContain("atlas_shard_browser_target_match");
+    expect(lookup.atlasShardRankingCandidateKind).toBe("browser_target");
+  });
+
+  it("keeps shard-aware ranking advisory when the shard hint is global default", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-global-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-global-1",
+      transcript: "open notes.txt",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "notion",
+        regionId: "document",
+        controlId: "body",
+        focusConfidence: 0.9,
+        authorityType: "verified",
+        snapshotAgeMs: 40,
+      },
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-shard-global-lookup",
+      regionId: "open",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: derivePolicyShapedAtlasShardHint(envelope),
+    });
+
+    expect(lookup.atlasShardRankingApplied).toBe(false);
+    expect(lookup.atlasShardRankingBoost).toBe(0);
+    expect(lookup.atlasShardRankingReasonCodes).toContain("atlas_shard_global_default_no_adjustment");
   });
 
 });

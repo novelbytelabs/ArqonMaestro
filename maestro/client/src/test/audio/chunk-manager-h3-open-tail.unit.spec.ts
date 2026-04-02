@@ -57,6 +57,7 @@ describe("ChunkManager H3 open-tail specialization", () => {
     manager.chunkH3NumericStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3FocusContextEnvelope = new Map<string, any>();
+    manager.chunkH3AtlasShardHint = new Map<string, any>();
     manager.chunkH3TailDecodeActive.set(chunkId, true);
     manager.chunkH3TailAudioFrames.set(chunkId, [Buffer.from([1, 2, 3, 4])]);
     manager.chunkH3Route.set(chunkId, "geometric_prefix_asr_tail");

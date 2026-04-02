@@ -1,6 +1,7 @@
 import {
   derivePolicyShapedAtlasShardEvidenceFields,
   derivePolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardRankingAdjustment,
 } from "../../main/runtime/policy-shaped-atlas-shards";
 import { buildFocusConditionedCommandContext } from "../../main/runtime/focus-conditioned-command-context";
 
@@ -68,4 +69,58 @@ describe("policy-shaped atlas shards", () => {
     expect(evidence.atlasShardHintEligible).toBe(false);
     expect(evidence.atlasShardHintId).toBeNull();
   });
+
+  it("derives bounded browser shard ranking boost for browser-like open targets", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const adjustment = derivePolicyShapedAtlasShardRankingAdjustment(hint, {
+      regionId: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+    });
+
+    expect(adjustment.atlasShardRankingApplied).toBe(true);
+    expect(adjustment.atlasShardRankingBoost).toBeGreaterThan(0);
+    expect(adjustment.atlasShardRankingReasonCodes).toContain("atlas_shard_browser_target_match");
+    expect(adjustment.atlasShardRankingCandidateKind).toBe("browser_target");
+  });
+
+  it("keeps global-default shard advisory with no ranking adjustment", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "notion",
+        regionId: "document",
+        controlId: "body",
+        focusConfidence: 0.91,
+        authorityType: "verified",
+        snapshotAgeMs: 40,
+      },
+    });
+
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const adjustment = derivePolicyShapedAtlasShardRankingAdjustment(hint, {
+      regionId: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open notes.txt",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+    });
+
+    expect(adjustment.atlasShardRankingApplied).toBe(false);
+    expect(adjustment.atlasShardRankingBoost).toBe(0);
+    expect(adjustment.atlasShardRankingReasonCodes).toContain("atlas_shard_global_default_no_adjustment");
+  });
+
 });

@@ -7,6 +7,10 @@ import {
   deriveFocusContextRankingAdjustment,
   deriveFocusContextTaskMomentumAssessment,
 } from "./focus-conditioned-command-context";
+import {
+  PolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardRankingAdjustment,
+} from "./policy-shaped-atlas-shards";
 
 export type SemanticCommandFamily =
   | "reflex"
@@ -82,6 +86,7 @@ interface LookupInput {
   atlasSchema?: string;
   forceCandidateScan?: boolean;
   focusContextEnvelope?: FocusConditionedCommandContextEnvelope | null;
+  atlasShardHint?: PolicyShapedAtlasShardHint | null;
 }
 
 export interface LookupResult {
@@ -115,6 +120,10 @@ export interface LookupResult {
   focusTaskMomentumPenalty?: number;
   focusTaskMomentumReasonCodes?: string[];
   focusTaskMomentumMatchedSemanticAddressId?: string | null;
+  atlasShardRankingApplied: boolean;
+  atlasShardRankingBoost: number;
+  atlasShardRankingReasonCodes: string[];
+  atlasShardRankingCandidateKind: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -227,12 +236,17 @@ export class VoiceSemanticAddressRegistry {
               focusTaskMomentumPenalty: 0,
               focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
               focusTaskMomentumMatchedSemanticAddressId: null,
+              atlasShardRankingApplied: false,
+              atlasShardRankingBoost: 0,
+              atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+              atlasShardRankingCandidateKind: null,
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
           const focusAdjustment = this.deriveFocusRankingAdjustment(input, indexedRecord);
           const focusLegality = this.deriveFocusLegalityAssessment(input, indexedRecord);
           const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, indexedRecord);
+          const atlasShardAdjustment = this.deriveAtlasShardRankingAdjustment(input, indexedRecord);
           const indexedBaseScore = Math.max(
             0,
             Math.min(
@@ -241,7 +255,8 @@ export class VoiceSemanticAddressRegistry {
                 focusAdjustment.focusRankingBoost -
                 focusLegality.focusLegalityPenalty +
                 focusTaskMomentum.focusTaskMomentumBoost -
-                focusTaskMomentum.focusTaskMomentumPenalty
+                focusTaskMomentum.focusTaskMomentumPenalty +
+                atlasShardAdjustment.atlasShardRankingBoost
             )
           );
           const policy = this.applyConfidencePolicy(indexedRecord, indexedBaseScore, indexedProfile);
@@ -276,6 +291,10 @@ export class VoiceSemanticAddressRegistry {
             focusTaskMomentumPenalty: focusTaskMomentum.focusTaskMomentumPenalty,
             focusTaskMomentumReasonCodes: focusTaskMomentum.focusTaskMomentumReasonCodes,
             focusTaskMomentumMatchedSemanticAddressId: focusTaskMomentum.focusTaskMomentumMatchedSemanticAddressId,
+            atlasShardRankingApplied: atlasShardAdjustment.atlasShardRankingApplied,
+            atlasShardRankingBoost: atlasShardAdjustment.atlasShardRankingBoost,
+            atlasShardRankingReasonCodes: atlasShardAdjustment.atlasShardRankingReasonCodes,
+            atlasShardRankingCandidateKind: atlasShardAdjustment.atlasShardRankingCandidateKind,
           };
         }
       }
@@ -316,6 +335,10 @@ export class VoiceSemanticAddressRegistry {
         focusTaskMomentumPenalty: 0,
         focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
         focusTaskMomentumMatchedSemanticAddressId: null,
+        atlasShardRankingApplied: false,
+        atlasShardRankingBoost: 0,
+        atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+        atlasShardRankingCandidateKind: null,
       };
     }
 
@@ -343,6 +366,10 @@ export class VoiceSemanticAddressRegistry {
           focusTaskMomentumPenalty: number;
           focusTaskMomentumReasonCodes: string[];
           focusTaskMomentumMatchedSemanticAddressId: string | null;
+          atlasShardRankingApplied: boolean;
+          atlasShardRankingBoost: number;
+          atlasShardRankingReasonCodes: string[];
+          atlasShardRankingCandidateKind: string | null;
         }
       | null = null;
     let bestComparableScore = -2;
@@ -354,6 +381,7 @@ export class VoiceSemanticAddressRegistry {
       const focusAdjustment = this.deriveFocusRankingAdjustment(input, candidate);
       const focusLegality = this.deriveFocusLegalityAssessment(input, candidate);
       const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, candidate);
+      const atlasShardAdjustment = this.deriveAtlasShardRankingAdjustment(input, candidate);
       const candidateBaseScore = Math.max(
         0,
         Math.min(
@@ -362,7 +390,8 @@ export class VoiceSemanticAddressRegistry {
             focusAdjustment.focusRankingBoost -
             focusLegality.focusLegalityPenalty +
             focusTaskMomentum.focusTaskMomentumBoost -
-            focusTaskMomentum.focusTaskMomentumPenalty
+            focusTaskMomentum.focusTaskMomentumPenalty +
+            atlasShardAdjustment.atlasShardRankingBoost
         )
       );
       const basePolicy = this.applyConfidencePolicy(candidate, candidateBaseScore, candidateProfile);
@@ -383,6 +412,10 @@ export class VoiceSemanticAddressRegistry {
         focusTaskMomentumPenalty: focusTaskMomentum.focusTaskMomentumPenalty,
         focusTaskMomentumReasonCodes: focusTaskMomentum.focusTaskMomentumReasonCodes,
         focusTaskMomentumMatchedSemanticAddressId: focusTaskMomentum.focusTaskMomentumMatchedSemanticAddressId,
+        atlasShardRankingApplied: atlasShardAdjustment.atlasShardRankingApplied,
+        atlasShardRankingBoost: atlasShardAdjustment.atlasShardRankingBoost,
+        atlasShardRankingReasonCodes: atlasShardAdjustment.atlasShardRankingReasonCodes,
+        atlasShardRankingCandidateKind: atlasShardAdjustment.atlasShardRankingCandidateKind,
       };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
@@ -423,6 +456,10 @@ export class VoiceSemanticAddressRegistry {
         focusTaskMomentumPenalty: 0,
         focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
         focusTaskMomentumMatchedSemanticAddressId: null,
+        atlasShardRankingApplied: false,
+        atlasShardRankingBoost: 0,
+        atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+        atlasShardRankingCandidateKind: null,
       };
     }
 
@@ -457,6 +494,10 @@ export class VoiceSemanticAddressRegistry {
       focusTaskMomentumPenalty: bestPolicy.focusTaskMomentumPenalty,
       focusTaskMomentumReasonCodes: bestPolicy.focusTaskMomentumReasonCodes,
       focusTaskMomentumMatchedSemanticAddressId: bestPolicy.focusTaskMomentumMatchedSemanticAddressId,
+      atlasShardRankingApplied: bestPolicy.atlasShardRankingApplied,
+      atlasShardRankingBoost: bestPolicy.atlasShardRankingBoost,
+      atlasShardRankingReasonCodes: bestPolicy.atlasShardRankingReasonCodes,
+      atlasShardRankingCandidateKind: bestPolicy.atlasShardRankingCandidateKind,
     };
   }
 
@@ -651,6 +692,21 @@ export class VoiceSemanticAddressRegistry {
       canonicalPrefix: candidate.canonicalPrefix,
       canonicalMergedText: candidate.canonicalMergedText,
       commandFamily: candidate.commandFamily,
+    });
+  }
+
+  private deriveAtlasShardRankingAdjustment(input: LookupInput, candidate: SemanticAddressRecord): {
+    atlasShardRankingApplied: boolean;
+    atlasShardRankingBoost: number;
+    atlasShardRankingReasonCodes: string[];
+    atlasShardRankingCandidateKind: string | null;
+  } {
+    return derivePolicyShapedAtlasShardRankingAdjustment(input.atlasShardHint ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
     });
   }
 

@@ -94,6 +94,10 @@ export interface H3RuntimeEvidenceEvent {
   atlasShardHintSource: string | null;
   atlasShardHintPriority: number | null;
   atlasShardReasonCodes: string[] | null;
+  atlasShardRankingApplied: boolean | null;
+  atlasShardRankingBoost: number | null;
+  atlasShardRankingReasonCodes: string[] | null;
+  atlasShardRankingCandidateKind: string | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -196,6 +200,10 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     atlasShardHintSource: input.atlasShardHintSource ?? null,
     atlasShardHintPriority: input.atlasShardHintPriority ?? null,
     atlasShardReasonCodes: input.atlasShardReasonCodes ?? null,
+    atlasShardRankingApplied: input.atlasShardRankingApplied ?? null,
+    atlasShardRankingBoost: input.atlasShardRankingBoost ?? null,
+    atlasShardRankingReasonCodes: input.atlasShardRankingReasonCodes ?? null,
+    atlasShardRankingCandidateKind: input.atlasShardRankingCandidateKind ?? null,
   };
 }
 

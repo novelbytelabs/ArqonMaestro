@@ -162,6 +162,10 @@ describe("ChunkManager H3 focus context evidence", () => {
       focusTaskMomentumPenalty: 0,
       focusTaskMomentumReasonCodes: ["recent_semantic_reuse"],
       focusTaskMomentumMatchedSemanticAddressId: "semantic-1",
+      atlasShardRankingApplied: true,
+      atlasShardRankingBoost: 0.045,
+      atlasShardRankingReasonCodes: ["atlas_shard_browser_target_match"],
+      atlasShardRankingCandidateKind: "browser_target",
     });
     jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
 
@@ -275,6 +279,10 @@ describe("ChunkManager H3 focus context evidence", () => {
       focusTaskMomentumPenalty: 0,
       focusTaskMomentumReasonCodes: ["focus_task_momentum_no_match"],
       focusTaskMomentumMatchedSemanticAddressId: null,
+      atlasShardRankingApplied: false,
+      atlasShardRankingBoost: 0,
+      atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+      atlasShardRankingCandidateKind: null,
     });
     jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
 
@@ -411,6 +419,10 @@ describe("ChunkManager H3 focus context evidence", () => {
       focusTaskMomentumPenalty: 0,
       focusTaskMomentumReasonCodes: ["recent_semantic_reuse"],
       focusTaskMomentumMatchedSemanticAddressId: "semantic-1",
+      atlasShardRankingApplied: true,
+      atlasShardRankingBoost: 0.045,
+      atlasShardRankingReasonCodes: ["atlas_shard_browser_target_match"],
+      atlasShardRankingCandidateKind: "browser_target",
     });
     jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
 
