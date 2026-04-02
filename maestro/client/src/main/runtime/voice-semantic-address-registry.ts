@@ -9,6 +9,7 @@ import {
 } from "./focus-conditioned-command-context";
 import {
   PolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardLookupNarrowing,
   derivePolicyShapedAtlasShardRankingAdjustment,
 } from "./policy-shaped-atlas-shards";
 
@@ -124,6 +125,12 @@ export interface LookupResult {
   atlasShardRankingBoost: number;
   atlasShardRankingReasonCodes: string[];
   atlasShardRankingCandidateKind: string | null;
+  atlasShardNarrowingApplied?: boolean;
+  atlasShardNarrowingFallbackUsed?: boolean;
+  atlasShardNarrowingCandidateCountBefore?: number;
+  atlasShardNarrowingCandidateCountAfter?: number;
+  atlasShardNarrowingReasonCodes?: string[];
+  atlasShardNarrowingAllowedCandidateKinds?: string[] | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -240,6 +247,12 @@ export class VoiceSemanticAddressRegistry {
               atlasShardRankingBoost: 0,
               atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
               atlasShardRankingCandidateKind: null,
+              atlasShardNarrowingApplied: false,
+              atlasShardNarrowingFallbackUsed: false,
+              atlasShardNarrowingCandidateCountBefore: 1,
+              atlasShardNarrowingCandidateCountAfter: 1,
+              atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_evaluated_slot_signature_index"],
+              atlasShardNarrowingAllowedCandidateKinds: null,
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
@@ -295,6 +308,12 @@ export class VoiceSemanticAddressRegistry {
             atlasShardRankingBoost: atlasShardAdjustment.atlasShardRankingBoost,
             atlasShardRankingReasonCodes: atlasShardAdjustment.atlasShardRankingReasonCodes,
             atlasShardRankingCandidateKind: atlasShardAdjustment.atlasShardRankingCandidateKind,
+            atlasShardNarrowingApplied: false,
+            atlasShardNarrowingFallbackUsed: false,
+            atlasShardNarrowingCandidateCountBefore: 1,
+            atlasShardNarrowingCandidateCountAfter: 1,
+            atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_evaluated_slot_signature_index"],
+            atlasShardNarrowingAllowedCandidateKinds: null,
           };
         }
       }
@@ -303,6 +322,8 @@ export class VoiceSemanticAddressRegistry {
     const candidates = [...this.recordsById.values()].filter(
       (record) => record.regionId === input.regionId && record.parameterType === input.parameterType
     );
+    const atlasShardNarrowing = this.deriveAtlasShardLookupNarrowing(input, candidates);
+    const narrowedCandidates = atlasShardNarrowing.narrowedCandidates as SemanticAddressRecord[];
     if (candidates.length === 0) {
       return {
         lookupCandidateCount: 0,
@@ -310,7 +331,7 @@ export class VoiceSemanticAddressRegistry {
         bestCandidateScore: null,
         bestCanonicalMergedText: null,
         warmHitClass: "miss",
-        lookupPath: "none",
+        lookupPath: "candidate_scan",
         slotSignature: derivedSlotSignature,
         atlasCompatible: true,
         mismatchReason: null,
@@ -339,6 +360,12 @@ export class VoiceSemanticAddressRegistry {
         atlasShardRankingBoost: 0,
         atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
         atlasShardRankingCandidateKind: null,
+        atlasShardNarrowingApplied: atlasShardNarrowing.atlasShardNarrowingApplied,
+        atlasShardNarrowingFallbackUsed: atlasShardNarrowing.atlasShardNarrowingFallbackUsed,
+        atlasShardNarrowingCandidateCountBefore: atlasShardNarrowing.atlasShardNarrowingCandidateCountBefore,
+        atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
+        atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
       };
     }
 
@@ -370,10 +397,16 @@ export class VoiceSemanticAddressRegistry {
           atlasShardRankingBoost: number;
           atlasShardRankingReasonCodes: string[];
           atlasShardRankingCandidateKind: string | null;
+          atlasShardNarrowingApplied: boolean;
+          atlasShardNarrowingFallbackUsed: boolean;
+          atlasShardNarrowingCandidateCountBefore: number;
+          atlasShardNarrowingCandidateCountAfter: number;
+          atlasShardNarrowingReasonCodes: string[];
+          atlasShardNarrowingAllowedCandidateKinds: string[] | null;
         }
       | null = null;
     let bestComparableScore = -2;
-    for (const candidate of candidates) {
+    for (const candidate of narrowedCandidates) {
       if (!this.isAtlasCompatible(candidate, input)) {
         continue;
       }
@@ -416,6 +449,12 @@ export class VoiceSemanticAddressRegistry {
         atlasShardRankingBoost: atlasShardAdjustment.atlasShardRankingBoost,
         atlasShardRankingReasonCodes: atlasShardAdjustment.atlasShardRankingReasonCodes,
         atlasShardRankingCandidateKind: atlasShardAdjustment.atlasShardRankingCandidateKind,
+        atlasShardNarrowingApplied: atlasShardNarrowing.atlasShardNarrowingApplied,
+        atlasShardNarrowingFallbackUsed: atlasShardNarrowing.atlasShardNarrowingFallbackUsed,
+        atlasShardNarrowingCandidateCountBefore: atlasShardNarrowing.atlasShardNarrowingCandidateCountBefore,
+        atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
+        atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
       };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
@@ -426,7 +465,7 @@ export class VoiceSemanticAddressRegistry {
     }
     if (!best || !bestPolicy) {
       return {
-        lookupCandidateCount: candidates.length,
+        lookupCandidateCount: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
         bestCandidateId: null,
         bestCandidateScore: null,
         bestCanonicalMergedText: null,
@@ -460,11 +499,17 @@ export class VoiceSemanticAddressRegistry {
         atlasShardRankingBoost: 0,
         atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
         atlasShardRankingCandidateKind: null,
+        atlasShardNarrowingApplied: atlasShardNarrowing.atlasShardNarrowingApplied,
+        atlasShardNarrowingFallbackUsed: atlasShardNarrowing.atlasShardNarrowingFallbackUsed,
+        atlasShardNarrowingCandidateCountBefore: atlasShardNarrowing.atlasShardNarrowingCandidateCountBefore,
+        atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
+        atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
       };
     }
 
     return {
-      lookupCandidateCount: candidates.length,
+      lookupCandidateCount: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
       bestCandidateId: best.semanticAddressId,
       bestCandidateScore: bestPolicy.score,
       bestCanonicalMergedText: best.canonicalMergedText,
@@ -498,6 +543,12 @@ export class VoiceSemanticAddressRegistry {
       atlasShardRankingBoost: bestPolicy.atlasShardRankingBoost,
       atlasShardRankingReasonCodes: bestPolicy.atlasShardRankingReasonCodes,
       atlasShardRankingCandidateKind: bestPolicy.atlasShardRankingCandidateKind,
+      atlasShardNarrowingApplied: bestPolicy.atlasShardNarrowingApplied,
+      atlasShardNarrowingFallbackUsed: bestPolicy.atlasShardNarrowingFallbackUsed,
+      atlasShardNarrowingCandidateCountBefore: bestPolicy.atlasShardNarrowingCandidateCountBefore,
+      atlasShardNarrowingCandidateCountAfter: bestPolicy.atlasShardNarrowingCandidateCountAfter,
+      atlasShardNarrowingReasonCodes: bestPolicy.atlasShardNarrowingReasonCodes,
+      atlasShardNarrowingAllowedCandidateKinds: bestPolicy.atlasShardNarrowingAllowedCandidateKinds,
     };
   }
 
@@ -708,6 +759,32 @@ export class VoiceSemanticAddressRegistry {
       commandFamily: candidate.commandFamily,
       parameterType: candidate.parameterType,
     });
+  }
+
+  private deriveAtlasShardLookupNarrowing(
+    input: LookupInput,
+    candidates: SemanticAddressRecord[]
+  ): {
+    atlasShardNarrowingApplied: boolean;
+    atlasShardNarrowingFallbackUsed: boolean;
+    atlasShardNarrowingCandidateCountBefore: number;
+    atlasShardNarrowingCandidateCountAfter: number;
+    atlasShardNarrowingReasonCodes: string[];
+    atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+    narrowedCandidates: SemanticAddressRecord[];
+  } {
+    return derivePolicyShapedAtlasShardLookupNarrowing(
+      input.atlasShardHint ?? null,
+      candidates
+    ) as {
+      atlasShardNarrowingApplied: boolean;
+      atlasShardNarrowingFallbackUsed: boolean;
+      atlasShardNarrowingCandidateCountBefore: number;
+      atlasShardNarrowingCandidateCountAfter: number;
+      atlasShardNarrowingReasonCodes: string[];
+      atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+      narrowedCandidates: SemanticAddressRecord[];
+    };
   }
 
   private scoreCandidate(candidate: SemanticAddressRecord, normalizedHint: string): number {

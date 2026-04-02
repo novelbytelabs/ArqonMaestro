@@ -98,6 +98,12 @@ export interface H3RuntimeEvidenceEvent {
   atlasShardRankingBoost: number | null;
   atlasShardRankingReasonCodes: string[] | null;
   atlasShardRankingCandidateKind: string | null;
+  atlasShardNarrowingApplied: boolean | null;
+  atlasShardNarrowingFallbackUsed: boolean | null;
+  atlasShardNarrowingCandidateCountBefore: number | null;
+  atlasShardNarrowingCandidateCountAfter: number | null;
+  atlasShardNarrowingReasonCodes: string[] | null;
+  atlasShardNarrowingAllowedCandidateKinds: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -204,6 +210,12 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     atlasShardRankingBoost: input.atlasShardRankingBoost ?? null,
     atlasShardRankingReasonCodes: input.atlasShardRankingReasonCodes ?? null,
     atlasShardRankingCandidateKind: input.atlasShardRankingCandidateKind ?? null,
+    atlasShardNarrowingApplied: input.atlasShardNarrowingApplied ?? null,
+    atlasShardNarrowingFallbackUsed: input.atlasShardNarrowingFallbackUsed ?? null,
+    atlasShardNarrowingCandidateCountBefore: input.atlasShardNarrowingCandidateCountBefore ?? null,
+    atlasShardNarrowingCandidateCountAfter: input.atlasShardNarrowingCandidateCountAfter ?? null,
+    atlasShardNarrowingReasonCodes: input.atlasShardNarrowingReasonCodes ?? null,
+    atlasShardNarrowingAllowedCandidateKinds: input.atlasShardNarrowingAllowedCandidateKinds ?? null,
   };
 }
 

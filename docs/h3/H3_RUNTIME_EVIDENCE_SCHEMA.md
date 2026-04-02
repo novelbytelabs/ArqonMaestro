@@ -16,13 +16,23 @@ Stage 3E2-S2 shard-aware ranking pilot fields:
 - `atlasShardRankingReasonCodes`
 - `atlasShardRankingCandidateKind`
 
+Stage 3E2-S3 policy-conditioned lookup narrowing pilot fields:
+- `atlasShardNarrowingApplied`
+- `atlasShardNarrowingFallbackUsed`
+- `atlasShardNarrowingCandidateCountBefore`
+- `atlasShardNarrowingCandidateCountAfter`
+- `atlasShardNarrowingReasonCodes`
+- `atlasShardNarrowingAllowedCandidateKinds`
+
 Meaning:
 - shard hints are derived from validated focus context only
 - shard-aware ranking is bounded and advisory only
-- shard-aware ranking may reshape warm candidate ordering
-- shard-aware ranking may not authorize execution
-- shard-aware ranking does not bypass live geometry, live tail normalization, or H23/H24
-- shard-aware ranking does not add persistence or distributed cache
+- shard-aware lookup narrowing is bounded and advisory only
+- shard-aware lookup narrowing may reduce candidate-scan breadth only when a v1 shard-kind match exists
+- shard-aware lookup narrowing must fall back instead of eliminating the candidate set
+- shard-aware shaping may not authorize execution
+- shard-aware shaping does not bypass live geometry, live tail normalization, or H23/H24
+- shard-aware shaping does not add persistence or distributed cache
 
 Current v1 shard hints:
 - `browser_navigation`

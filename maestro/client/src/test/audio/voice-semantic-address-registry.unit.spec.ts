@@ -91,7 +91,7 @@ describe("VoiceSemanticAddressRegistry", () => {
       transcriptTailHint: "wikipedia.org",
     });
     expect(lookup.warmHitClass).toBe("miss");
-    expect(lookup.lookupPath).toBe("none");
+    expect(lookup.lookupPath).toBe("candidate_scan");
   });
 
   it("refreshes existing semantic address on repeat governed success", () => {
@@ -612,7 +612,7 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     registry.registerFromGovernedExecution({
       chunkId: "chunk-open-1",
-      transcript: "open github dot com",
+      transcript: "open github.com",
       policyGranted: true,
       h23StepCount: 3,
       h24FinalGranted: true,
@@ -991,7 +991,7 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     registry.registerFromGovernedExecution({
       chunkId: "chunk-shard-browser-2",
-      transcript: "open src/main.ts",
+      transcript: "open stack overflow",
       policyGranted: true,
       h23StepCount: 4,
       h24FinalGranted: true,
@@ -1070,6 +1070,150 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.atlasShardRankingApplied).toBe(false);
     expect(lookup.atlasShardRankingBoost).toBe(0);
     expect(lookup.atlasShardRankingReasonCodes).toContain("atlas_shard_global_default_no_adjustment");
+  });
+
+  it("applies bounded browser shard narrowing during candidate scan before ranking", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-narrow-browser-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    const browserRecord = registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-narrow-browser-1",
+      transcript: "open github dot com",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-narrow-browser-2",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-narrow-browser-2",
+      transcript: "open stack overflow",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 30,
+      },
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-shard-narrow-browser-lookup",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: derivePolicyShapedAtlasShardHint(envelope),
+    });
+
+    expect(lookup.bestCandidateId).toBe(browserRecord!.semanticAddressId);
+    expect(lookup.atlasShardNarrowingApplied).toBe(true);
+    expect(lookup.atlasShardNarrowingFallbackUsed).toBe(false);
+    expect(lookup.atlasShardNarrowingCandidateCountBefore).toBe(2);
+    expect(lookup.atlasShardNarrowingCandidateCountAfter).toBe(1);
+    expect(lookup.atlasShardNarrowingReasonCodes).toContain(
+      "atlas_shard_narrowing_browser_navigation_candidate_kind_filter"
+    );
+    expect(lookup.atlasShardNarrowingAllowedCandidateKinds).toEqual(["browser_target"]);
+  });
+
+  it("keeps shard narrowing advisory by falling back when no matching kind exists", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-narrow-fallback-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    const firstRecord = registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-narrow-fallback-1",
+      transcript: "open stack overflow",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+    registry.markGeometricContext({
+      chunkId: "chunk-shard-narrow-fallback-2",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 60,
+    });
+    const secondRecord = registry.registerFromGovernedExecution({
+      chunkId: "chunk-shard-narrow-fallback-2",
+      transcript: "open settings",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    expect(firstRecord).not.toBeNull();
+    expect(secondRecord).not.toBeNull();
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 30,
+      },
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-shard-narrow-fallback-lookup",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: derivePolicyShapedAtlasShardHint(envelope),
+    });
+
+    expect(lookup.atlasShardNarrowingApplied).toBe(false);
+    expect(lookup.atlasShardNarrowingFallbackUsed).toBe(true);
+    expect(lookup.atlasShardNarrowingCandidateCountBefore).toBe(2);
+    expect(lookup.atlasShardNarrowingCandidateCountAfter).toBe(2);
+    expect(lookup.atlasShardNarrowingReasonCodes).toContain("atlas_shard_narrowing_no_match_fallback");
+    expect(lookup.bestCandidateId).not.toBeNull();
   });
 
 });

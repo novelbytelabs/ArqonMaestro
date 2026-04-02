@@ -187,6 +187,12 @@ export default class ChunkManager {
       atlasShardRankingBoost?: number;
       atlasShardRankingReasonCodes?: string[];
       atlasShardRankingCandidateKind?: string | null;
+      atlasShardNarrowingApplied?: boolean;
+      atlasShardNarrowingFallbackUsed?: boolean;
+      atlasShardNarrowingCandidateCountBefore?: number;
+      atlasShardNarrowingCandidateCountAfter?: number;
+      atlasShardNarrowingReasonCodes?: string[];
+      atlasShardNarrowingAllowedCandidateKinds?: string[] | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -862,6 +868,12 @@ export default class ChunkManager {
         atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
         atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
         atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+        atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
+        atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
+        atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
+        atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
+        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -905,6 +917,12 @@ export default class ChunkManager {
           atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
           atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
           atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+          atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
+          atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
+          atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? null,
+          atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? null,
+          atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
+          atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
           governanceRequired: true,
           reason:
             semanticLookup.mismatchReason ??
@@ -971,6 +989,12 @@ export default class ChunkManager {
         atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
         atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
         atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+        atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
+        atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
+        atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
+        atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
+        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
         warmApplied,
         warmAppliedStage,
       });
@@ -1364,6 +1388,12 @@ export default class ChunkManager {
         atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? null,
         atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? null,
         atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
+        atlasShardNarrowingApplied: warmLookup?.atlasShardNarrowingApplied ?? null,
+        atlasShardNarrowingFallbackUsed: warmLookup?.atlasShardNarrowingFallbackUsed ?? null,
+        atlasShardNarrowingCandidateCountBefore: warmLookup?.atlasShardNarrowingCandidateCountBefore ?? null,
+        atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? null,
+        atlasShardNarrowingReasonCodes: warmLookup?.atlasShardNarrowingReasonCodes ?? null,
+        atlasShardNarrowingAllowedCandidateKinds: warmLookup?.atlasShardNarrowingAllowedCandidateKinds ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1527,6 +1557,12 @@ export default class ChunkManager {
       atlasShardRankingBoost: number | null;
       atlasShardRankingReasonCodes: string[] | null;
       atlasShardRankingCandidateKind: string | null;
+      atlasShardNarrowingApplied: boolean | null;
+      atlasShardNarrowingFallbackUsed: boolean | null;
+      atlasShardNarrowingCandidateCountBefore: number | null;
+      atlasShardNarrowingCandidateCountAfter: number | null;
+      atlasShardNarrowingReasonCodes: string[] | null;
+      atlasShardNarrowingAllowedCandidateKinds: string[] | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1634,6 +1670,12 @@ export default class ChunkManager {
       atlasShardRankingBoost: overrides.atlasShardRankingBoost ?? null,
       atlasShardRankingReasonCodes: overrides.atlasShardRankingReasonCodes ?? null,
       atlasShardRankingCandidateKind: overrides.atlasShardRankingCandidateKind ?? null,
+      atlasShardNarrowingApplied: overrides.atlasShardNarrowingApplied ?? null,
+      atlasShardNarrowingFallbackUsed: overrides.atlasShardNarrowingFallbackUsed ?? null,
+      atlasShardNarrowingCandidateCountBefore: overrides.atlasShardNarrowingCandidateCountBefore ?? null,
+      atlasShardNarrowingCandidateCountAfter: overrides.atlasShardNarrowingCandidateCountAfter ?? null,
+      atlasShardNarrowingReasonCodes: overrides.atlasShardNarrowingReasonCodes ?? null,
+      atlasShardNarrowingAllowedCandidateKinds: overrides.atlasShardNarrowingAllowedCandidateKinds ?? null,
     });
   }
 

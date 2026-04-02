@@ -166,6 +166,12 @@ describe("ChunkManager H3 atlas shard evidence", () => {
       atlasShardRankingBoost: 0.045,
       atlasShardRankingReasonCodes: ["atlas_shard_browser_target_match"],
       atlasShardRankingCandidateKind: "browser_target",
+      atlasShardNarrowingApplied: true,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: 2,
+      atlasShardNarrowingCandidateCountAfter: 1,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_browser_navigation_candidate_kind_filter"],
+      atlasShardNarrowingAllowedCandidateKinds: ["browser_target"],
     });
     jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
 
@@ -207,6 +213,12 @@ describe("ChunkManager H3 atlas shard evidence", () => {
       atlasShardRankingBoost: 0.045,
       atlasShardRankingReasonCodes: ["atlas_shard_browser_target_match"],
       atlasShardRankingCandidateKind: "browser_target",
+      atlasShardNarrowingApplied: true,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: 2,
+      atlasShardNarrowingCandidateCountAfter: 1,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_browser_navigation_candidate_kind_filter"],
+      atlasShardNarrowingAllowedCandidateKinds: ["browser_target"],
     }));
   });
 

@@ -1,6 +1,7 @@
 import {
   derivePolicyShapedAtlasShardEvidenceFields,
   derivePolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardLookupNarrowing,
   derivePolicyShapedAtlasShardRankingAdjustment,
 } from "../../main/runtime/policy-shaped-atlas-shards";
 import { buildFocusConditionedCommandContext } from "../../main/runtime/focus-conditioned-command-context";
@@ -123,4 +124,109 @@ describe("policy-shaped atlas shards", () => {
     expect(adjustment.atlasShardRankingReasonCodes).toContain("atlas_shard_global_default_no_adjustment");
   });
 
+  it("derives bounded browser shard narrowing when mixed candidate kinds are present", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+
+    const narrowing = derivePolicyShapedAtlasShardLookupNarrowing(hint, [
+      {
+        regionId: "open",
+        canonicalPrefix: "open",
+        canonicalMergedText: "open github.com",
+        commandFamily: "parameterized_open",
+        parameterType: "open",
+      },
+      {
+        regionId: "open",
+        canonicalPrefix: "open",
+        canonicalMergedText: "open src/main.ts",
+        commandFamily: "parameterized_open",
+        parameterType: "open",
+      },
+    ]);
+
+    expect(narrowing.atlasShardNarrowingApplied).toBe(true);
+    expect(narrowing.atlasShardNarrowingFallbackUsed).toBe(false);
+    expect(narrowing.atlasShardNarrowingCandidateCountBefore).toBe(2);
+    expect(narrowing.atlasShardNarrowingCandidateCountAfter).toBe(1);
+    expect(narrowing.atlasShardNarrowingAllowedCandidateKinds).toEqual(["browser_target"]);
+    expect(narrowing.atlasShardNarrowingReasonCodes).toContain(
+      "atlas_shard_narrowing_browser_navigation_candidate_kind_filter"
+    );
+    expect(narrowing.narrowedCandidates[0].canonicalMergedText).toBe("open github.com");
+  });
+
+  it("falls back instead of narrowing away all candidates", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+
+    const narrowing = derivePolicyShapedAtlasShardLookupNarrowing(hint, [
+      {
+        regionId: "open",
+        canonicalPrefix: "open",
+        canonicalMergedText: "open src/main.ts",
+        commandFamily: "parameterized_open",
+        parameterType: "open",
+      },
+    ]);
+
+    expect(narrowing.atlasShardNarrowingApplied).toBe(false);
+    expect(narrowing.atlasShardNarrowingFallbackUsed).toBe(false);
+    expect(narrowing.atlasShardNarrowingReasonCodes).toContain("atlas_shard_narrowing_not_needed");
+  });
+
+  it("uses fallback when shard narrowing finds no matching candidate kind in a larger set", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+
+    const narrowing = derivePolicyShapedAtlasShardLookupNarrowing(hint, [
+      {
+        regionId: "open",
+        canonicalPrefix: "open",
+        canonicalMergedText: "open src/main.ts",
+        commandFamily: "parameterized_open",
+        parameterType: "open",
+      },
+      {
+        regionId: "open",
+        canonicalPrefix: "open",
+        canonicalMergedText: "open lib/app.py",
+        commandFamily: "parameterized_open",
+        parameterType: "open",
+      },
+    ]);
+
+    expect(narrowing.atlasShardNarrowingApplied).toBe(false);
+    expect(narrowing.atlasShardNarrowingFallbackUsed).toBe(true);
+    expect(narrowing.atlasShardNarrowingCandidateCountBefore).toBe(2);
+    expect(narrowing.atlasShardNarrowingCandidateCountAfter).toBe(2);
+    expect(narrowing.atlasShardNarrowingReasonCodes).toContain("atlas_shard_narrowing_no_match_fallback");
+  });
 });

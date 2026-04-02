@@ -47,6 +47,24 @@ export interface PolicyShapedAtlasShardRankingAdjustment {
   atlasShardRankingCandidateKind: string | null;
 }
 
+export interface PolicyShapedAtlasShardLookupNarrowingCandidate {
+  regionId: string | null;
+  canonicalPrefix: string | null;
+  canonicalMergedText: string | null;
+  commandFamily: string | null;
+  parameterType?: "numeric" | "open" | null;
+}
+
+export interface PolicyShapedAtlasShardLookupNarrowingResult {
+  atlasShardNarrowingApplied: boolean;
+  atlasShardNarrowingFallbackUsed: boolean;
+  atlasShardNarrowingCandidateCountBefore: number;
+  atlasShardNarrowingCandidateCountAfter: number;
+  atlasShardNarrowingReasonCodes: string[];
+  atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+  narrowedCandidates: PolicyShapedAtlasShardLookupNarrowingCandidate[];
+}
+
 export const POLICY_SHAPED_ATLAS_SHARD_HINT_SCHEMA_VERSION =
   "h3_policy_shaped_atlas_shard_hint_v1" as const;
 export const POLICY_SHAPED_ATLAS_SHARD_POLICY_VERSION =
@@ -195,6 +213,115 @@ export function derivePolicyShapedAtlasShardRankingAdjustment(
   };
 }
 
+export function derivePolicyShapedAtlasShardLookupNarrowing(
+  hint: PolicyShapedAtlasShardHint | null | undefined,
+  candidates: PolicyShapedAtlasShardLookupNarrowingCandidate[]
+): PolicyShapedAtlasShardLookupNarrowingResult {
+  const countBefore = candidates.length;
+
+  if (!hint || !hint.atlasShardHintEligible || !hint.atlasShardHintId) {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: countBefore,
+      atlasShardNarrowingCandidateCountAfter: countBefore,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_eligible"],
+      atlasShardNarrowingAllowedCandidateKinds: null,
+      narrowedCandidates: [...candidates],
+    };
+  }
+
+  if (countBefore === 0) {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: 0,
+      atlasShardNarrowingCandidateCountAfter: 0,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_no_candidates"],
+      atlasShardNarrowingAllowedCandidateKinds: allowedKindsForHint(hint.atlasShardHintId),
+      narrowedCandidates: [],
+    };
+  }
+
+  if (hint.atlasShardHintId === "global_default") {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: countBefore,
+      atlasShardNarrowingCandidateCountAfter: countBefore,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_global_default_no_narrowing"],
+      atlasShardNarrowingAllowedCandidateKinds: null,
+      narrowedCandidates: [...candidates],
+    };
+  }
+
+  const allowedKinds = allowedKindsForHint(hint.atlasShardHintId);
+  if (!allowedKinds || allowedKinds.length === 0) {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: countBefore,
+      atlasShardNarrowingCandidateCountAfter: countBefore,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_no_allowed_kinds"],
+      atlasShardNarrowingAllowedCandidateKinds: null,
+      narrowedCandidates: [...candidates],
+    };
+  }
+
+  if (countBefore <= 1) {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: countBefore,
+      atlasShardNarrowingCandidateCountAfter: countBefore,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_needed"],
+      atlasShardNarrowingAllowedCandidateKinds: [...allowedKinds],
+      narrowedCandidates: [...candidates],
+    };
+  }
+
+  const narrowedCandidates = candidates.filter((candidate) => {
+    const kind = classifyCandidateKind(candidate);
+    return kind ? allowedKinds.includes(kind) : false;
+  });
+
+  if (narrowedCandidates.length === 0) {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: true,
+      atlasShardNarrowingCandidateCountBefore: countBefore,
+      atlasShardNarrowingCandidateCountAfter: countBefore,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_no_match_fallback"],
+      atlasShardNarrowingAllowedCandidateKinds: [...allowedKinds],
+      narrowedCandidates: [...candidates],
+    };
+  }
+
+  if (narrowedCandidates.length === countBefore) {
+    return {
+      atlasShardNarrowingApplied: false,
+      atlasShardNarrowingFallbackUsed: false,
+      atlasShardNarrowingCandidateCountBefore: countBefore,
+      atlasShardNarrowingCandidateCountAfter: countBefore,
+      atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_already_aligned"],
+      atlasShardNarrowingAllowedCandidateKinds: [...allowedKinds],
+      narrowedCandidates: [...candidates],
+    };
+  }
+
+  return {
+    atlasShardNarrowingApplied: true,
+    atlasShardNarrowingFallbackUsed: false,
+    atlasShardNarrowingCandidateCountBefore: countBefore,
+    atlasShardNarrowingCandidateCountAfter: narrowedCandidates.length,
+    atlasShardNarrowingReasonCodes: [
+      `atlas_shard_narrowing_${hint.atlasShardHintId}_candidate_kind_filter`,
+    ],
+    atlasShardNarrowingAllowedCandidateKinds: [...allowedKinds],
+    narrowedCandidates,
+  };
+}
+
 function classifyCandidateKind(
   candidate: PolicyShapedAtlasShardRankingCandidate
 ): string | null {
@@ -209,14 +336,29 @@ function classifyCandidateKind(
   if (regionId === "go to line") {
     return "editor_target";
   }
-  if (looksBrowserTarget(combined)) {
-    return "browser_target";
-  }
   if (looksEditorTarget(combined)) {
     return "editor_target";
   }
+  if (looksBrowserTarget(combined)) {
+    return "browser_target";
+  }
   if (looksTerminalTarget(combined)) {
     return "terminal_target";
+  }
+  return null;
+}
+
+function allowedKindsForHint(
+  hintId: PolicyShapedAtlasShardHintId | null | undefined
+): string[] | null {
+  if (hintId === "browser_navigation") {
+    return ["browser_target"];
+  }
+  if (hintId === "editor_symbolic") {
+    return ["editor_target"];
+  }
+  if (hintId === "terminal_session") {
+    return ["terminal_target"];
   }
   return null;
 }
