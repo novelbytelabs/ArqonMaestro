@@ -3,8 +3,10 @@ import {
   DEFAULT_FOCUS_CONTEXT_MAX_FOCUS_DELTA,
   DEFAULT_FOCUS_CONTEXT_MAX_TASK_HISTORY,
   buildFocusConditionedCommandContext,
+  FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
   deriveFocusContextAdvisoryHints,
   deriveFocusContextEvidenceFields,
+  deriveFocusContextLegalityAssessment,
   deriveFocusContextRankingAdjustment,
 } from "../../main/runtime/focus-conditioned-command-context";
 
@@ -207,10 +209,67 @@ describe("FocusConditionedCommandContext", () => {
     expect(adjustment.focusRankingReasonCodes).toContain("focus_context_ineligible");
   });
 
+  it("derives lawful deictic legality for open it when focus provides a selection anchor", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "code",
+        regionId: "editor",
+        controlId: "text-buffer",
+        hasSelection: true,
+        selectionTextLength: 8,
+        focusConfidence: 0.96,
+        authorityType: "verified",
+        snapshotAgeMs: 25,
+      },
+    });
+
+    const legality = deriveFocusContextLegalityAssessment(envelope, {
+      regionId: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open it",
+      commandFamily: "parameterized_open",
+    });
+
+    expect(legality.focusLegalityApplied).toBe(true);
+    expect(legality.focusLegalityLawful).toBe(true);
+    expect(legality.focusLegalityPenaltyApplied).toBe(false);
+    expect(legality.focusLegalityPenalty).toBe(0);
+    expect(legality.focusLegalityCommandKind).toBe("open_it");
+    expect(legality.focusLegalityReasonCodes).toContain("deictic_selection_anchor");
+  });
+
+  it("derives an unlawful deictic legality penalty when go there lacks eligible focus context", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        focusConfidence: 0.94,
+        authorityType: "heuristic",
+        snapshotAgeMs: 20,
+      },
+    });
+
+    const legality = deriveFocusContextLegalityAssessment(envelope, {
+      regionId: "go to",
+      canonicalPrefix: "go to",
+      canonicalMergedText: "go there",
+      commandFamily: "parameterized_open",
+    });
+
+    expect(legality.focusLegalityApplied).toBe(true);
+    expect(legality.focusLegalityLawful).toBe(false);
+    expect(legality.focusLegalityPenaltyApplied).toBe(true);
+    expect(legality.focusLegalityPenalty).toBe(FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY);
+    expect(legality.focusLegalityCommandKind).toBe("go_there");
+    expect(legality.focusLegalityReasonCodes).toContain("focus_context_ineligible");
+  });
+
   it("returns null evidence fields when no envelope is present", () => {
     const fields = deriveFocusContextEvidenceFields(null);
     expect(fields.focusContextSchemaVersion).toBeNull();
     expect(fields.focusRankingEligible).toBeNull();
+    expect(fields.focusLegalityApplied).toBeNull();
+    expect(fields.focusLegalityCommandKind).toBeNull();
     expect(fields.focusReasonCodes).toBeNull();
   });
 });

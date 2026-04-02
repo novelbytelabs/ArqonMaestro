@@ -53,6 +53,12 @@ export interface H3RuntimeEvidenceEvent {
   focusRankingApplied: boolean | null;
   focusRankingBoost: number | null;
   focusRankingReasonCodes: string[] | null;
+  focusLegalityApplied: boolean | null;
+  focusLegalityLawful: boolean | null;
+  focusLegalityPenaltyApplied: boolean | null;
+  focusLegalityPenalty: number | null;
+  focusLegalityReasonCodes: string[] | null;
+  focusLegalityCommandKind: string | null;
   warmDiscardReason: string | null;
   liveEvidenceOverride: boolean | null;
   lookupPath: string | null;
@@ -137,6 +143,12 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     focusRankingApplied: input.focusRankingApplied ?? null,
     focusRankingBoost: input.focusRankingBoost ?? null,
     focusRankingReasonCodes: input.focusRankingReasonCodes ?? null,
+    focusLegalityApplied: input.focusLegalityApplied ?? null,
+    focusLegalityLawful: input.focusLegalityLawful ?? null,
+    focusLegalityPenaltyApplied: input.focusLegalityPenaltyApplied ?? null,
+    focusLegalityPenalty: input.focusLegalityPenalty ?? null,
+    focusLegalityReasonCodes: input.focusLegalityReasonCodes ?? null,
+    focusLegalityCommandKind: input.focusLegalityCommandKind ?? null,
     warmDiscardReason: input.warmDiscardReason ?? null,
     liveEvidenceOverride: input.liveEvidenceOverride ?? null,
     lookupPath: input.lookupPath ?? null,

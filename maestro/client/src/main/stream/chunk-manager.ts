@@ -166,6 +166,12 @@ export default class ChunkManager {
       focusRankingApplied: boolean;
       focusRankingBoost: number;
       focusRankingReasonCodes: string[];
+      focusLegalityApplied: boolean;
+      focusLegalityLawful: boolean | null;
+      focusLegalityPenaltyApplied: boolean;
+      focusLegalityPenalty: number;
+      focusLegalityReasonCodes: string[];
+      focusLegalityCommandKind: string | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -823,6 +829,12 @@ export default class ChunkManager {
         focusRankingApplied: semanticLookup.focusRankingApplied,
         focusRankingBoost: semanticLookup.focusRankingBoost,
         focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+        focusLegalityApplied: semanticLookup.focusLegalityApplied,
+        focusLegalityLawful: semanticLookup.focusLegalityLawful,
+        focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+        focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+        focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+        focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -856,6 +868,12 @@ export default class ChunkManager {
           focusRankingApplied: semanticLookup.focusRankingApplied,
           focusRankingBoost: semanticLookup.focusRankingBoost,
           focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+          focusLegalityApplied: semanticLookup.focusLegalityApplied,
+          focusLegalityLawful: semanticLookup.focusLegalityLawful,
+          focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+          focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+          focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+          focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
           governanceRequired: true,
           reason:
             semanticLookup.mismatchReason ??
@@ -906,6 +924,12 @@ export default class ChunkManager {
         focusRankingApplied: semanticLookup.focusRankingApplied,
         focusRankingBoost: semanticLookup.focusRankingBoost,
         focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+        focusLegalityApplied: semanticLookup.focusLegalityApplied,
+        focusLegalityLawful: semanticLookup.focusLegalityLawful,
+        focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+        focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+        focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+        focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
         warmApplied,
         warmAppliedStage,
       });
@@ -933,6 +957,12 @@ export default class ChunkManager {
           focusRankingApplied: semanticLookup.focusRankingApplied,
           focusRankingBoost: semanticLookup.focusRankingBoost,
           focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+          focusLegalityApplied: semanticLookup.focusLegalityApplied,
+          focusLegalityLawful: semanticLookup.focusLegalityLawful,
+          focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+          focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+          focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+          focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1273,6 +1303,12 @@ export default class ChunkManager {
         focusRankingApplied: warmLookup?.focusRankingApplied ?? null,
         focusRankingBoost: warmLookup?.focusRankingBoost ?? null,
         focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? null,
+        focusLegalityApplied: warmLookup?.focusLegalityApplied ?? null,
+        focusLegalityLawful: warmLookup?.focusLegalityLawful ?? null,
+        focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? null,
+        focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? null,
+        focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? null,
+        focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1309,6 +1345,12 @@ export default class ChunkManager {
       focusRankingApplied: warmLookup?.focusRankingApplied ?? null,
       focusRankingBoost: warmLookup?.focusRankingBoost ?? null,
       focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? null,
+      focusLegalityApplied: warmLookup?.focusLegalityApplied ?? null,
+      focusLegalityLawful: warmLookup?.focusLegalityLawful ?? null,
+      focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? null,
+      focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? null,
+      focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? null,
+      focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? null,
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
       lookupPath: warmLookup?.lookupPath ?? null,
@@ -1403,6 +1445,12 @@ export default class ChunkManager {
       focusRankingApplied: boolean | null;
       focusRankingBoost: number | null;
       focusRankingReasonCodes: string[] | null;
+      focusLegalityApplied: boolean | null;
+      focusLegalityLawful: boolean | null;
+      focusLegalityPenaltyApplied: boolean | null;
+      focusLegalityPenalty: number | null;
+      focusLegalityReasonCodes: string[] | null;
+      focusLegalityCommandKind: string | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1464,6 +1512,12 @@ export default class ChunkManager {
       focusRankingApplied: overrides.focusRankingApplied ?? null,
       focusRankingBoost: overrides.focusRankingBoost ?? null,
       focusRankingReasonCodes: overrides.focusRankingReasonCodes ?? null,
+      focusLegalityApplied: overrides.focusLegalityApplied ?? focusFields.focusLegalityApplied,
+      focusLegalityLawful: overrides.focusLegalityLawful ?? focusFields.focusLegalityLawful,
+      focusLegalityPenaltyApplied: overrides.focusLegalityPenaltyApplied ?? focusFields.focusLegalityPenaltyApplied,
+      focusLegalityPenalty: overrides.focusLegalityPenalty ?? focusFields.focusLegalityPenalty,
+      focusLegalityReasonCodes: overrides.focusLegalityReasonCodes ?? focusFields.focusLegalityReasonCodes,
+      focusLegalityCommandKind: overrides.focusLegalityCommandKind ?? focusFields.focusLegalityCommandKind,
       warmDiscardReason: overrides.warmDiscardReason ?? null,
       liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
       lookupPath: overrides.lookupPath ?? null,

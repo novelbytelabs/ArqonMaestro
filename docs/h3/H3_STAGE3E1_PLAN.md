@@ -1,6 +1,6 @@
 # H3 Stage 3E1 Plan
 
-Status: Slice S3 ranking pilot bundle
+Status: Slice S4 legality shaping pilot bundle
 Scope: Focus-Conditioned Command Geometry, starting with a bounded observational/advisory context envelope only
 
 ## Objective
@@ -77,8 +77,25 @@ Slice S3 is acceptable only if:
 - live geometry and H23/H24 remain the only execution authority
 - no persistence/distributed cache is introduced
 
+## Slice S4
+
+Slice S4 implemented in this bundle:
+- add bounded advisory legality shaping for v1 deictic open-family commands
+- start with `open it` and `go there` only
+- treat focus legality as a bounded penalty, not as authorization
+- carry legality metadata through lookup results and H3 runtime evidence
+- keep live geometry and H23/H24 as the only execution authority
+
+## Acceptance Criteria for S4
+
+Slice S4 is acceptable only if:
+- legality shaping stays bounded and advisory-only
+- deictic focus-ineligible lookups receive a bounded penalty
+- lawful focus envelopes remove the penalty without authorizing execution
+- H23/H24 remain final authority
+- no persistence/distributed cache is introduced
+
 ## Follow-on Slices
 
-Planned next slices after S3:
-- S4: legality shaping pilot for deictic commands such as `open it` / `go there`
+Planned next slices after S4:
 - S5: task-history delta pilot with bounded workflow momentum

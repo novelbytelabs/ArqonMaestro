@@ -246,9 +246,6 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       bestCandidateId: "semantic-warm-2",
       bestCandidateScore: 0.91,
       bestCanonicalMergedText: "go to line 52",
-      focusRankingApplied: false,
-      focusRankingBoost: 0,
-      focusRankingReasonCodes: [],
       warmHitClass: "weak",
       lookupPath: "slot_signature_index",
       slotSignature: "goto_line:52",
@@ -260,6 +257,15 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       candidateAgeMs: 4200,
       recentConflictPenaltyApplied: true,
       staleProtectionApplied: false,
+      focusRankingApplied: false,
+      focusRankingBoost: 0,
+      focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+      focusLegalityApplied: false,
+      focusLegalityLawful: null,
+      focusLegalityPenaltyApplied: false,
+      focusLegalityPenalty: 0,
+      focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+      focusLegalityCommandKind: null,
     });
 
     manager.observeH3GeometricEvent(

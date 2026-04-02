@@ -94,6 +94,22 @@ export interface FocusContextRankingAdjustment {
   focusRankingReasonCodes: string[];
 }
 
+export interface FocusContextLegalityCandidate {
+  regionId: string | null;
+  canonicalPrefix: string | null;
+  canonicalMergedText: string | null;
+  commandFamily: string | null;
+}
+
+export interface FocusContextLegalityAssessment {
+  focusLegalityApplied: boolean;
+  focusLegalityLawful: boolean | null;
+  focusLegalityPenaltyApplied: boolean;
+  focusLegalityPenalty: number;
+  focusLegalityReasonCodes: string[];
+  focusLegalityCommandKind: string | null;
+}
+
 export interface FocusContextEvidenceFields {
   focusContextSchemaVersion: string | null;
   focusContextEligible: boolean | null;
@@ -115,6 +131,12 @@ export interface FocusContextEvidenceFields {
   focusRankingEligible: boolean | null;
   focusLegalityEligible: boolean | null;
   focusReasonCodes: string[] | null;
+  focusLegalityApplied: boolean | null;
+  focusLegalityLawful: boolean | null;
+  focusLegalityPenaltyApplied: boolean | null;
+  focusLegalityPenalty: number | null;
+  focusLegalityReasonCodes: string[] | null;
+  focusLegalityCommandKind: string | null;
 }
 
 export const FOCUS_COMMAND_CONTEXT_SCHEMA_VERSION = "h3_focus_command_context_v1" as const;
@@ -123,6 +145,7 @@ export const DEFAULT_FOCUS_CONTEXT_MIN_CONFIDENCE = 0.75;
 export const DEFAULT_FOCUS_CONTEXT_MAX_FOCUS_DELTA = 8;
 export const DEFAULT_FOCUS_CONTEXT_MAX_TASK_HISTORY = 8;
 export const FOCUS_CONTEXT_RANKING_MAX_BOOST = 0.06;
+export const FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY = 0.08;
 
 export function buildFocusConditionedCommandContext(
   input: BuildFocusConditionedCommandContextInput = {}
@@ -218,11 +241,23 @@ export function deriveFocusContextEvidenceFields(
       focusRankingEligible: null,
       focusLegalityEligible: null,
       focusReasonCodes: null,
+      focusLegalityApplied: null,
+      focusLegalityLawful: null,
+      focusLegalityPenaltyApplied: null,
+      focusLegalityPenalty: null,
+      focusLegalityReasonCodes: null,
+      focusLegalityCommandKind: null,
     };
   }
 
   const hints = deriveFocusContextAdvisoryHints(envelope);
   const snapshot = envelope.snapshot;
+  const legality = deriveFocusContextLegalityAssessment(envelope, {
+    regionId: null,
+    canonicalPrefix: null,
+    canonicalMergedText: null,
+    commandFamily: null,
+  });
 
   return {
     focusContextSchemaVersion: envelope.schemaVersion,
@@ -245,10 +280,117 @@ export function deriveFocusContextEvidenceFields(
     focusRankingEligible: hints.rankingEligible,
     focusLegalityEligible: hints.legalityEligible,
     focusReasonCodes: [...hints.reasonCodes],
+    focusLegalityApplied: legality.focusLegalityApplied,
+    focusLegalityLawful: legality.focusLegalityLawful,
+    focusLegalityPenaltyApplied: legality.focusLegalityPenaltyApplied,
+    focusLegalityPenalty: legality.focusLegalityPenalty,
+    focusLegalityReasonCodes: legality.focusLegalityReasonCodes,
+    focusLegalityCommandKind: legality.focusLegalityCommandKind,
   };
 }
 
 
+
+export function deriveFocusContextLegalityAssessment(
+  envelope: FocusConditionedCommandContextEnvelope | null | undefined,
+  candidate: FocusContextLegalityCandidate
+): FocusContextLegalityAssessment {
+  const commandKind = detectFocusLegalityCommandKind(candidate);
+  if (!commandKind) {
+    return {
+      focusLegalityApplied: false,
+      focusLegalityLawful: null,
+      focusLegalityPenaltyApplied: false,
+      focusLegalityPenalty: 0,
+      focusLegalityReasonCodes: ["focus_legality_not_applicable"],
+      focusLegalityCommandKind: null,
+    };
+  }
+
+  if (!envelope || !envelope.contextEligible) {
+    return {
+      focusLegalityApplied: true,
+      focusLegalityLawful: false,
+      focusLegalityPenaltyApplied: true,
+      focusLegalityPenalty: FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
+      focusLegalityReasonCodes: ["focus_context_ineligible"],
+      focusLegalityCommandKind: commandKind,
+    };
+  }
+
+  if (!envelope.summary.deicticResolutionEligible) {
+    return {
+      focusLegalityApplied: true,
+      focusLegalityLawful: false,
+      focusLegalityPenaltyApplied: true,
+      focusLegalityPenalty: FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
+      focusLegalityReasonCodes: ["focus_deictic_resolution_ineligible"],
+      focusLegalityCommandKind: commandKind,
+    };
+  }
+
+  const snapshot = envelope.snapshot;
+  if (commandKind === "open_it") {
+    if (snapshot?.hasSelection === true) {
+      return {
+        focusLegalityApplied: true,
+        focusLegalityLawful: true,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["deictic_selection_anchor"],
+        focusLegalityCommandKind: commandKind,
+      };
+    }
+    if (snapshot?.controlId || snapshot?.regionId) {
+      return {
+        focusLegalityApplied: true,
+        focusLegalityLawful: true,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["deictic_focus_anchor"],
+        focusLegalityCommandKind: commandKind,
+      };
+    }
+    return {
+      focusLegalityApplied: true,
+      focusLegalityLawful: false,
+      focusLegalityPenaltyApplied: true,
+      focusLegalityPenalty: FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
+      focusLegalityReasonCodes: ["open_it_requires_focus_anchor"],
+      focusLegalityCommandKind: commandKind,
+    };
+  }
+
+  if (commandKind === "go_there") {
+    if (snapshot?.regionId || snapshot?.controlId || snapshot?.windowId) {
+      return {
+        focusLegalityApplied: true,
+        focusLegalityLawful: true,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["deictic_navigation_anchor"],
+        focusLegalityCommandKind: commandKind,
+      };
+    }
+    return {
+      focusLegalityApplied: true,
+      focusLegalityLawful: false,
+      focusLegalityPenaltyApplied: true,
+      focusLegalityPenalty: FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
+      focusLegalityReasonCodes: ["go_there_requires_navigation_anchor"],
+      focusLegalityCommandKind: commandKind,
+    };
+  }
+
+  return {
+    focusLegalityApplied: false,
+    focusLegalityLawful: null,
+    focusLegalityPenaltyApplied: false,
+    focusLegalityPenalty: 0,
+    focusLegalityReasonCodes: ["focus_legality_not_applicable"],
+    focusLegalityCommandKind: null,
+  };
+}
 
 export function deriveFocusContextRankingAdjustment(
   envelope: FocusConditionedCommandContextEnvelope | null | undefined,
@@ -390,6 +532,23 @@ function normalizeTaskHistoryOutcome(value: TaskHistoryOutcome | undefined): Tas
     default:
       return "unknown";
   }
+}
+
+function detectFocusLegalityCommandKind(
+  candidate: FocusContextLegalityCandidate
+): "open_it" | "go_there" | null {
+  const mergedText = normalizeComparableValue(candidate.canonicalMergedText);
+  const regionId = normalizeComparableValue(candidate.regionId);
+  if (candidate.commandFamily !== "parameterized_open" || !mergedText || !regionId) {
+    return null;
+  }
+  if (regionId === "open" && mergedText === "open it") {
+    return "open_it";
+  }
+  if (regionId === "go to" && mergedText === "go there") {
+    return "go_there";
+  }
+  return null;
 }
 
 function normalizeComparableValue(value: string | null | undefined): string | null {

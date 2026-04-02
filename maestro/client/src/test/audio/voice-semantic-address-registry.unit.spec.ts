@@ -11,7 +11,10 @@ import {
   VOICE_SEMANTIC_WARM_STALE_MS,
   VoiceSemanticAddressRegistry,
 } from "../../main/runtime/voice-semantic-address-registry";
-import { buildFocusConditionedCommandContext } from "../../main/runtime/focus-conditioned-command-context";
+import {
+  FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY,
+  buildFocusConditionedCommandContext,
+} from "../../main/runtime/focus-conditioned-command-context";
 
 describe("VoiceSemanticAddressRegistry", () => {
   it("registers governed v1 command trajectories and returns warm lookup hits", () => {
@@ -703,6 +706,127 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.focusRankingApplied).toBe(false);
     expect(lookup.focusRankingBoost).toBe(0);
     expect(lookup.focusRankingReasonCodes).toContain("focus_context_ineligible");
+  });
+
+  it("applies a deictic legality penalty for open it when focus context is ineligible", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-deictic-open-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-deictic-open-1",
+      transcript: "open it",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+
+    const lawful = registry.lookup({
+      chunkId: "chunk-deictic-open-lookup-lawful",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "code",
+          regionId: "editor",
+          controlId: "text-buffer",
+          hasSelection: true,
+          selectionTextLength: 5,
+          focusConfidence: 0.95,
+          authorityType: "verified",
+          snapshotAgeMs: 20,
+        },
+      }),
+    });
+
+    const unlawful = registry.lookup({
+      chunkId: "chunk-deictic-open-lookup-unlawful",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "code",
+          regionId: "editor",
+          focusConfidence: 0.95,
+          authorityType: "heuristic",
+          snapshotAgeMs: 20,
+        },
+      }),
+    });
+
+    expect(lawful.bestCanonicalMergedText).toBe("open it");
+    expect(lawful.focusLegalityApplied).toBe(true);
+    expect(lawful.focusLegalityLawful).toBe(true);
+    expect(lawful.focusLegalityPenaltyApplied).toBe(false);
+    expect(lawful.focusLegalityPenalty).toBe(0);
+    expect(lawful.focusLegalityCommandKind).toBe("open_it");
+    expect(lawful.focusLegalityReasonCodes).toContain("deictic_selection_anchor");
+
+    expect(unlawful.bestCanonicalMergedText).toBe("open it");
+    expect(unlawful.focusLegalityApplied).toBe(true);
+    expect(unlawful.focusLegalityLawful).toBe(false);
+    expect(unlawful.focusLegalityPenaltyApplied).toBe(true);
+    expect(unlawful.focusLegalityPenalty).toBe(FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY);
+    expect(unlawful.focusLegalityCommandKind).toBe("open_it");
+    expect(unlawful.focusLegalityReasonCodes).toContain("focus_context_ineligible");
+    expect(unlawful.bestCandidateScore).not.toBeNull();
+    expect(lawful.bestCandidateScore).not.toBeNull();
+    expect(unlawful.bestCandidateScore!).toBeLessThan(lawful.bestCandidateScore!);
+  });
+
+  it("marks go there deictic legality through lookup metadata", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-deictic-go-1",
+      source: "spectral_manifold",
+      regionId: "go to",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-deictic-go-1",
+      transcript: "go there",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-deictic-go-lookup",
+      regionId: "go to",
+      parameterType: "open",
+      forceCandidateScan: true,
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "chrome",
+          windowId: "window-1",
+          regionId: "tab-strip",
+          focusConfidence: 0.96,
+          authorityType: "verified",
+          snapshotAgeMs: 25,
+        },
+      }),
+    });
+
+    expect(lookup.bestCanonicalMergedText).toBeNull();
+    expect(lookup.focusLegalityApplied).toBe(false);
+    expect(lookup.focusLegalityPenaltyApplied).toBe(false);
+    expect(lookup.focusLegalityCommandKind).toBeNull();
+    expect(lookup.focusLegalityReasonCodes).toContain("focus_legality_not_evaluated");
   });
 
 });

@@ -43,6 +43,12 @@ Stage 3E1 focus-context evidence fields:
 - `focusRankingApplied`
 - `focusRankingBoost`
 - `focusRankingReasonCodes`
+- `focusLegalityApplied`
+- `focusLegalityLawful`
+- `focusLegalityPenaltyApplied`
+- `focusLegalityPenalty`
+- `focusLegalityReasonCodes`
+- `focusLegalityCommandKind`
 - `focusContextSchemaVersion`
 - `focusContextEligible`
 - `focusSnapshotFresh`
@@ -68,3 +74,6 @@ Stage 3E1-S2 is observational only. These fields may describe advisory focus con
 
 
 Stage 3E1-S3 keeps focus-conditioned ranking advisory-only. Focus may reshape warm candidate ranking for bounded pilot families, but it may not authorize execution and may not bypass H23/H24.
+
+
+Stage 3E1-S4 keeps deictic legality shaping advisory-only. Focus may penalize bounded deictic warm candidates such as `open it` and `go there` when the focus envelope is not lawful enough to resolve them, but focus may not authorize execution and may not bypass H23/H24.

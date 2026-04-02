@@ -3,6 +3,7 @@ import { normalizeNumericTail } from "../stream/numeric-tail-normalizer";
 import { normalizeOpenTail } from "../stream/open-tail-normalizer";
 import {
   FocusConditionedCommandContextEnvelope,
+  deriveFocusContextLegalityAssessment,
   deriveFocusContextRankingAdjustment,
 } from "./focus-conditioned-command-context";
 
@@ -101,6 +102,12 @@ export interface LookupResult {
   focusRankingApplied: boolean;
   focusRankingBoost: number;
   focusRankingReasonCodes: string[];
+  focusLegalityApplied: boolean;
+  focusLegalityLawful: boolean | null;
+  focusLegalityPenaltyApplied: boolean;
+  focusLegalityPenalty: number;
+  focusLegalityReasonCodes: string[];
+  focusLegalityCommandKind: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -201,15 +208,27 @@ export class VoiceSemanticAddressRegistry {
               focusRankingApplied: false,
               focusRankingBoost: 0,
               focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+              focusLegalityApplied: false,
+              focusLegalityLawful: null,
+              focusLegalityPenaltyApplied: false,
+              focusLegalityPenalty: 0,
+              focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+              focusLegalityCommandKind: null,
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
           const focusAdjustment = this.deriveFocusRankingAdjustment(input, indexedRecord);
-          const policy = this.applyConfidencePolicy(
-            indexedRecord,
-            Math.min(0.999, this.scoreCandidate(indexedRecord, normalizedHint) + focusAdjustment.focusRankingBoost),
-            indexedProfile
+          const focusLegality = this.deriveFocusLegalityAssessment(input, indexedRecord);
+          const indexedBaseScore = Math.max(
+            0,
+            Math.min(
+              0.999,
+              this.scoreCandidate(indexedRecord, normalizedHint) +
+                focusAdjustment.focusRankingBoost -
+                focusLegality.focusLegalityPenalty
+            )
           );
+          const policy = this.applyConfidencePolicy(indexedRecord, indexedBaseScore, indexedProfile);
           return {
             lookupCandidateCount: 1,
             bestCandidateId: indexedRecord.semanticAddressId,
@@ -229,6 +248,12 @@ export class VoiceSemanticAddressRegistry {
             focusRankingApplied: focusAdjustment.focusRankingApplied,
             focusRankingBoost: focusAdjustment.focusRankingBoost,
             focusRankingReasonCodes: focusAdjustment.focusRankingReasonCodes,
+            focusLegalityApplied: focusLegality.focusLegalityApplied,
+            focusLegalityLawful: focusLegality.focusLegalityLawful,
+            focusLegalityPenaltyApplied: focusLegality.focusLegalityPenaltyApplied,
+            focusLegalityPenalty: focusLegality.focusLegalityPenalty,
+            focusLegalityReasonCodes: focusLegality.focusLegalityReasonCodes,
+            focusLegalityCommandKind: focusLegality.focusLegalityCommandKind,
           };
         }
       }
@@ -257,6 +282,12 @@ export class VoiceSemanticAddressRegistry {
         focusRankingApplied: false,
         focusRankingBoost: 0,
         focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+        focusLegalityApplied: false,
+        focusLegalityLawful: null,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+        focusLegalityCommandKind: null,
       };
     }
 
@@ -272,6 +303,12 @@ export class VoiceSemanticAddressRegistry {
           focusRankingApplied: boolean;
           focusRankingBoost: number;
           focusRankingReasonCodes: string[];
+          focusLegalityApplied: boolean;
+          focusLegalityLawful: boolean | null;
+          focusLegalityPenaltyApplied: boolean;
+          focusLegalityPenalty: number;
+          focusLegalityReasonCodes: string[];
+          focusLegalityCommandKind: string | null;
         }
       | null = null;
     let bestComparableScore = -2;
@@ -281,16 +318,28 @@ export class VoiceSemanticAddressRegistry {
       }
       const candidateProfile = this.getWarmPolicyProfileForCommandFamily(candidate.commandFamily);
       const focusAdjustment = this.deriveFocusRankingAdjustment(input, candidate);
-      const basePolicy = this.applyConfidencePolicy(
-        candidate,
-        Math.min(0.999, this.scoreCandidate(candidate, normalizedHint) + focusAdjustment.focusRankingBoost),
-        candidateProfile
+      const focusLegality = this.deriveFocusLegalityAssessment(input, candidate);
+      const candidateBaseScore = Math.max(
+        0,
+        Math.min(
+          0.999,
+          this.scoreCandidate(candidate, normalizedHint) +
+            focusAdjustment.focusRankingBoost -
+            focusLegality.focusLegalityPenalty
+        )
       );
+      const basePolicy = this.applyConfidencePolicy(candidate, candidateBaseScore, candidateProfile);
       const policy = {
         ...basePolicy,
         focusRankingApplied: focusAdjustment.focusRankingApplied,
         focusRankingBoost: focusAdjustment.focusRankingBoost,
         focusRankingReasonCodes: focusAdjustment.focusRankingReasonCodes,
+        focusLegalityApplied: focusLegality.focusLegalityApplied,
+        focusLegalityLawful: focusLegality.focusLegalityLawful,
+        focusLegalityPenaltyApplied: focusLegality.focusLegalityPenaltyApplied,
+        focusLegalityPenalty: focusLegality.focusLegalityPenalty,
+        focusLegalityReasonCodes: focusLegality.focusLegalityReasonCodes,
+        focusLegalityCommandKind: focusLegality.focusLegalityCommandKind,
       };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
@@ -319,6 +368,12 @@ export class VoiceSemanticAddressRegistry {
         focusRankingApplied: false,
         focusRankingBoost: 0,
         focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+        focusLegalityApplied: false,
+        focusLegalityLawful: null,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+        focusLegalityCommandKind: null,
       };
     }
 
@@ -341,6 +396,12 @@ export class VoiceSemanticAddressRegistry {
       focusRankingApplied: bestPolicy.focusRankingApplied,
       focusRankingBoost: bestPolicy.focusRankingBoost,
       focusRankingReasonCodes: bestPolicy.focusRankingReasonCodes,
+      focusLegalityApplied: bestPolicy.focusLegalityApplied,
+      focusLegalityLawful: bestPolicy.focusLegalityLawful,
+      focusLegalityPenaltyApplied: bestPolicy.focusLegalityPenaltyApplied,
+      focusLegalityPenalty: bestPolicy.focusLegalityPenalty,
+      focusLegalityReasonCodes: bestPolicy.focusLegalityReasonCodes,
+      focusLegalityCommandKind: bestPolicy.focusLegalityCommandKind,
     };
   }
 
@@ -497,6 +558,22 @@ export class VoiceSemanticAddressRegistry {
     candidate: SemanticAddressRecord
   ): { focusRankingApplied: boolean; focusRankingBoost: number; focusRankingReasonCodes: string[] } {
     return deriveFocusContextRankingAdjustment(input.focusContextEnvelope ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+    });
+  }
+
+  private deriveFocusLegalityAssessment(input: LookupInput, candidate: SemanticAddressRecord): {
+    focusLegalityApplied: boolean;
+    focusLegalityLawful: boolean | null;
+    focusLegalityPenaltyApplied: boolean;
+    focusLegalityPenalty: number;
+    focusLegalityReasonCodes: string[];
+    focusLegalityCommandKind: string | null;
+  } {
+    return deriveFocusContextLegalityAssessment(input.focusContextEnvelope ?? null, {
       regionId: candidate.regionId,
       canonicalPrefix: candidate.canonicalPrefix,
       canonicalMergedText: candidate.canonicalMergedText,
