@@ -19,6 +19,7 @@ jest.mock("../../main/stt/cfh", () => ({
 
 import { h23Recorder } from "../../main/runtime/h23-live-trace-recorder";
 import { buildFocusConditionedCommandContext } from "../../main/runtime/focus-conditioned-command-context";
+import { voiceSemanticAddressRegistry } from "../../main/runtime/voice-semantic-address-registry";
 import * as runtimeEvidence from "../../main/runtime/h3-runtime-evidence";
 
 describe("ChunkManager H3 focus context evidence", () => {
@@ -98,6 +99,102 @@ describe("ChunkManager H3 focus context evidence", () => {
         focusLegalityEligible: true,
         focusDeicticResolutionEligible: true,
         focusReasonCodes: [],
+      })
+    );
+  });
+
+
+  it("passes focus envelope into semantic lookup and emits advisory ranking metadata", () => {
+    const { ChunkManager, manager } = makeBareManager();
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+    const evidenceSpy = jest
+      .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+      .mockImplementation((event: any) => event);
+    manager.h3GeometricEnabled = true;
+    manager.chunkH3LastGeometricSignature = new Map<string, any>();
+    manager.chunkH3LatestTailHintText = new Map<string, string>();
+    manager.chunkH3StepIndex = new Map<string, number>();
+    manager.chunkH3NumericStrategyEnabled = new Map<string, boolean>();
+    manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
+    manager.chunkH3WarmLookup = new Map<string, any>();
+    manager.chunkH3TailDecodeActive = new Map<string, boolean>();
+    manager.chunkH3TailCaptureStartMs = new Map<string, number>();
+    manager.chunkH3Route.set("chunk-1", "legacy_text");
+    manager.tracking = { getChunkMetrics: jest.fn(() => ({ received_at: Date.now() - 5 })) };
+    manager.h3GeometricGovernor = {
+      observe: jest.fn(() => ({ commandClass: "parameterized", structurallyStable: false })),
+    };
+    manager.h3GeometricRoutingService = {
+      decide: jest.fn(() => ({ route: "geometric_prefix_asr_tail", reason: "focus_context_ranking_pilot" })),
+    };
+    manager.chunkH3TailDecodeActive.set("chunk-1", false);
+
+    const lookupSpy = jest.spyOn(voiceSemanticAddressRegistry, "lookup").mockReturnValue({
+      lookupCandidateCount: 2,
+      bestCandidateId: "semantic-1",
+      bestCandidateScore: 0.812,
+      bestCanonicalMergedText: "open github.com",
+      warmHitClass: "weak",
+      lookupPath: "candidate_scan",
+      slotSignature: null,
+      atlasCompatible: true,
+      mismatchReason: null,
+      confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+      weakThreshold: 0.82,
+      strongThreshold: 0.95,
+      candidateAgeMs: 300,
+      recentConflictPenaltyApplied: false,
+      staleProtectionApplied: false,
+      focusRankingApplied: true,
+      focusRankingBoost: 0.05,
+      focusRankingReasonCodes: ["browser_navigation_focus_context", "recent_task_exact_match"],
+    });
+    jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.91,
+        authorityType: "verified",
+        snapshotAgeMs: 120,
+      },
+      taskHistoryDelta: [
+        { semanticAddressId: "sa-1", mergedText: "open github.com", outcome: "success", ageMs: 80 },
+      ],
+    });
+
+    ChunkManager.prototype.setFocusConditionedCommandContextForChunk.call(manager, "chunk-1", envelope);
+    ChunkManager.prototype.observeH3GeometricEvent.call(manager, "chunk-1", {
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      atlasBacked: true,
+      confidence: 0.92,
+      frameCount: 40,
+      timestampMs: 100,
+    }, false, "github.com");
+
+    expect(lookupSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chunkId: "chunk-1",
+        regionId: "open",
+        parameterType: "open",
+        focusContextEnvelope: envelope,
+      })
+    );
+    expect(evidenceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "voice_semantic_address_lookup_completed",
+        focusRankingApplied: true,
+        focusRankingBoost: 0.05,
+        focusRankingReasonCodes: ["browser_navigation_focus_context", "recent_task_exact_match"],
       })
     );
   });

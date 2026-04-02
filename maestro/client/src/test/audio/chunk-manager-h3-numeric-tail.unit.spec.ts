@@ -50,6 +50,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     manager.chunkH3NumericStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3WarmLookup = new Map<string, any>();
+    manager.chunkH3FocusContextEnvelope = new Map<string, any>();
     manager.chunkH3TailDecodeActive.set("chunk-1", true);
     manager.chunkH3TailAudioFrames.set("chunk-1", [Buffer.from([1, 2, 3, 4])]);
     manager.chunkH3Route.set("chunk-1", "geometric_prefix_asr_tail");
@@ -245,6 +246,9 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       bestCandidateId: "semantic-warm-2",
       bestCandidateScore: 0.91,
       bestCanonicalMergedText: "go to line 52",
+      focusRankingApplied: false,
+      focusRankingBoost: 0,
+      focusRankingReasonCodes: [],
       warmHitClass: "weak",
       lookupPath: "slot_signature_index",
       slotSignature: "goto_line:52",

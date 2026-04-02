@@ -5,6 +5,7 @@ import {
   buildFocusConditionedCommandContext,
   deriveFocusContextAdvisoryHints,
   deriveFocusContextEvidenceFields,
+  deriveFocusContextRankingAdjustment,
 } from "../../main/runtime/focus-conditioned-command-context";
 
 describe("FocusConditionedCommandContext", () => {
@@ -148,6 +149,62 @@ describe("FocusConditionedCommandContext", () => {
         focusReasonCodes: [],
       })
     );
+  });
+
+
+  it("derives a bounded ranking boost for recent exact open-target history", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.93,
+        authorityType: "verified",
+        snapshotAgeMs: 40,
+      },
+      taskHistoryDelta: [
+        { semanticAddressId: "sa-1", mergedText: "open github.com", outcome: "success", ageMs: 80 },
+      ],
+    });
+
+    const adjustment = deriveFocusContextRankingAdjustment(envelope, {
+      regionId: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+      commandFamily: "parameterized_open",
+    });
+
+    expect(adjustment.focusRankingApplied).toBe(true);
+    expect(adjustment.focusRankingBoost).toBeGreaterThan(0);
+    expect(adjustment.focusRankingReasonCodes).toEqual(
+      expect.arrayContaining(["browser_navigation_focus_context", "recent_task_exact_match"])
+    );
+  });
+
+  it("does not derive a ranking boost when focus context is ineligible", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        focusConfidence: 0.9,
+        authorityType: "heuristic",
+        snapshotAgeMs: 40,
+      },
+      taskHistoryDelta: [
+        { semanticAddressId: "sa-1", mergedText: "open github.com", outcome: "success", ageMs: 80 },
+      ],
+    });
+
+    const adjustment = deriveFocusContextRankingAdjustment(envelope, {
+      regionId: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+      commandFamily: "parameterized_open",
+    });
+
+    expect(adjustment.focusRankingApplied).toBe(false);
+    expect(adjustment.focusRankingBoost).toBe(0);
+    expect(adjustment.focusRankingReasonCodes).toContain("focus_context_ineligible");
   });
 
   it("returns null evidence fields when no envelope is present", () => {

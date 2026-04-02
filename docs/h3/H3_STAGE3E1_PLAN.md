@@ -1,6 +1,6 @@
 # H3 Stage 3E1 Plan
 
-Status: Slice S2 evidence plumbing bundle
+Status: Slice S3 ranking pilot bundle
 Scope: Focus-Conditioned Command Geometry, starting with a bounded observational/advisory context envelope only
 
 ## Objective
@@ -60,9 +60,25 @@ Slice S2 is acceptable only if:
 - no execution path is changed
 - no ranking/governance bypass is introduced
 
+## Slice S3
+
+Slice S3 implemented in this bundle:
+- pass the advisory focus envelope into warm semantic lookup
+- apply a bounded focus-conditioned ranking boost for v1 open-command candidates only
+- keep the pilot constrained to `open` / `go to` style parameterized-open families
+- keep ranking advisory-only with no authorization effect
+- emit advisory ranking metadata through existing H3 evidence
+
+## Acceptance Criteria for S3
+
+Slice S3 is acceptable only if:
+- focus ranking is bounded and advisory-only
+- ineligible focus context produces zero ranking boost
+- live geometry and H23/H24 remain the only execution authority
+- no persistence/distributed cache is introduced
+
 ## Follow-on Slices
 
-Planned next slices after S2:
-- S3: narrow ranking reshaping pilot for `open`, `go to`, and `focus`
+Planned next slices after S3:
 - S4: legality shaping pilot for deictic commands such as `open it` / `go there`
 - S5: task-history delta pilot with bounded workflow momentum

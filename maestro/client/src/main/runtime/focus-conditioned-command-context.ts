@@ -79,6 +79,21 @@ export interface FocusContextAdvisoryHints {
   reasonCodes: string[];
 }
 
+
+
+export interface FocusContextRankingCandidate {
+  regionId: string | null;
+  canonicalPrefix: string | null;
+  canonicalMergedText: string | null;
+  commandFamily: string | null;
+}
+
+export interface FocusContextRankingAdjustment {
+  focusRankingApplied: boolean;
+  focusRankingBoost: number;
+  focusRankingReasonCodes: string[];
+}
+
 export interface FocusContextEvidenceFields {
   focusContextSchemaVersion: string | null;
   focusContextEligible: boolean | null;
@@ -107,6 +122,7 @@ export const DEFAULT_FOCUS_CONTEXT_FRESHNESS_WINDOW_MS = 60_000;
 export const DEFAULT_FOCUS_CONTEXT_MIN_CONFIDENCE = 0.75;
 export const DEFAULT_FOCUS_CONTEXT_MAX_FOCUS_DELTA = 8;
 export const DEFAULT_FOCUS_CONTEXT_MAX_TASK_HISTORY = 8;
+export const FOCUS_CONTEXT_RANKING_MAX_BOOST = 0.06;
 
 export function buildFocusConditionedCommandContext(
   input: BuildFocusConditionedCommandContextInput = {}
@@ -232,6 +248,80 @@ export function deriveFocusContextEvidenceFields(
   };
 }
 
+
+
+export function deriveFocusContextRankingAdjustment(
+  envelope: FocusConditionedCommandContextEnvelope | null | undefined,
+  candidate: FocusContextRankingCandidate
+): FocusContextRankingAdjustment {
+  if (!envelope || !envelope.contextEligible) {
+    return {
+      focusRankingApplied: false,
+      focusRankingBoost: 0,
+      focusRankingReasonCodes: ["focus_context_ineligible"],
+    };
+  }
+
+  const regionId = normalizeComparableValue(candidate.regionId);
+  const canonicalPrefix = normalizeComparableValue(candidate.canonicalPrefix);
+  const canonicalMergedText = normalizeComparableValue(candidate.canonicalMergedText);
+  if (
+    candidate.commandFamily !== "parameterized_open" ||
+    !regionId ||
+    (regionId !== "open" && regionId !== "go to")
+  ) {
+    return {
+      focusRankingApplied: false,
+      focusRankingBoost: 0,
+      focusRankingReasonCodes: ["focus_ranking_not_applicable"],
+    };
+  }
+
+  let boost = 0;
+  const reasons: string[] = [];
+  const snapshot = envelope.snapshot;
+  const snapshotRegion = normalizeComparableValue(snapshot?.regionId);
+  const snapshotControl = normalizeComparableValue(snapshot?.controlId);
+  const snapshotApp = normalizeComparableValue(snapshot?.appId);
+
+  if (
+    snapshotApp === "chrome" &&
+    (snapshotRegion === "address-bar" || snapshotControl === "omnibox" || snapshotRegion === "tab-strip")
+  ) {
+    boost += 0.015;
+    reasons.push("browser_navigation_focus_context");
+  }
+
+  if (snapshotApp === "code" && regionId === "open" && (snapshotRegion === "explorer" || snapshotRegion === "editor")) {
+    boost += 0.012;
+    reasons.push("editor_open_focus_context");
+  }
+
+  const recentMergedTexts = envelope.taskHistoryDelta
+    .filter((entry) => entry.outcome === "success")
+    .map((entry) => normalizeComparableValue(entry.mergedText))
+    .filter((entry): entry is string => Boolean(entry));
+
+  if (canonicalMergedText && recentMergedTexts.includes(canonicalMergedText)) {
+    boost += 0.035;
+    reasons.push("recent_task_exact_match");
+  } else if (
+    canonicalPrefix &&
+    recentMergedTexts.some((entry) => entry.startsWith(canonicalPrefix + ' '))
+  ) {
+    boost += 0.02;
+    reasons.push("recent_task_prefix_match");
+  }
+
+  const boundedBoost = Number(Math.min(FOCUS_CONTEXT_RANKING_MAX_BOOST, boost).toFixed(3));
+  return {
+    focusRankingApplied: boundedBoost > 0,
+    focusRankingBoost: boundedBoost,
+    focusRankingReasonCodes: boundedBoost > 0 ? reasons : ["focus_ranking_no_match"],
+  };
+}
+
+
 function normalizeSnapshot(input: Partial<FocusSnapshot> | null): FocusSnapshot | null {
   if (!input) {
     return null;
@@ -300,6 +390,10 @@ function normalizeTaskHistoryOutcome(value: TaskHistoryOutcome | undefined): Tas
     default:
       return "unknown";
   }
+}
+
+function normalizeComparableValue(value: string | null | undefined): string | null {
+  return value?.trim().toLowerCase() ?? null;
 }
 
 function normalizeString(value: string | null | undefined): string | null {

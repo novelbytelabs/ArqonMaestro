@@ -40,6 +40,9 @@ Stage 3D3 confidence-policy evidence fields:
 - `staleProtectionApplied`
 
 Stage 3E1 focus-context evidence fields:
+- `focusRankingApplied`
+- `focusRankingBoost`
+- `focusRankingReasonCodes`
 - `focusContextSchemaVersion`
 - `focusContextEligible`
 - `focusSnapshotFresh`
@@ -62,3 +65,6 @@ Stage 3E1 focus-context evidence fields:
 - `focusReasonCodes`
 
 Stage 3E1-S2 is observational only. These fields may describe advisory focus context, but they may not authorize execution and may not bypass H23/H24.
+
+
+Stage 3E1-S3 keeps focus-conditioned ranking advisory-only. Focus may reshape warm candidate ranking for bounded pilot families, but it may not authorize execution and may not bypass H23/H24.

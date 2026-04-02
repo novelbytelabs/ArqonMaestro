@@ -50,6 +50,9 @@ export interface H3RuntimeEvidenceEvent {
   candidateAgeMs: number | null;
   recentConflictPenaltyApplied: boolean | null;
   staleProtectionApplied: boolean | null;
+  focusRankingApplied: boolean | null;
+  focusRankingBoost: number | null;
+  focusRankingReasonCodes: string[] | null;
   warmDiscardReason: string | null;
   liveEvidenceOverride: boolean | null;
   lookupPath: string | null;
@@ -131,6 +134,9 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     candidateAgeMs: input.candidateAgeMs ?? null,
     recentConflictPenaltyApplied: input.recentConflictPenaltyApplied ?? null,
     staleProtectionApplied: input.staleProtectionApplied ?? null,
+    focusRankingApplied: input.focusRankingApplied ?? null,
+    focusRankingBoost: input.focusRankingBoost ?? null,
+    focusRankingReasonCodes: input.focusRankingReasonCodes ?? null,
     warmDiscardReason: input.warmDiscardReason ?? null,
     liveEvidenceOverride: input.liveEvidenceOverride ?? null,
     lookupPath: input.lookupPath ?? null,

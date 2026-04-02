@@ -1,6 +1,10 @@
 import * as crypto from "crypto";
 import { normalizeNumericTail } from "../stream/numeric-tail-normalizer";
 import { normalizeOpenTail } from "../stream/open-tail-normalizer";
+import {
+  FocusConditionedCommandContextEnvelope,
+  deriveFocusContextRankingAdjustment,
+} from "./focus-conditioned-command-context";
 
 export type SemanticCommandFamily =
   | "reflex"
@@ -75,6 +79,7 @@ interface LookupInput {
   atlasVersion?: string;
   atlasSchema?: string;
   forceCandidateScan?: boolean;
+  focusContextEnvelope?: FocusConditionedCommandContextEnvelope | null;
 }
 
 export interface LookupResult {
@@ -93,6 +98,9 @@ export interface LookupResult {
   candidateAgeMs: number | null;
   recentConflictPenaltyApplied: boolean;
   staleProtectionApplied: boolean;
+  focusRankingApplied: boolean;
+  focusRankingBoost: number;
+  focusRankingReasonCodes: string[];
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -190,12 +198,16 @@ export class VoiceSemanticAddressRegistry {
               candidateAgeMs: Math.max(0, Date.now() - indexedRecord.updatedAtMs),
               recentConflictPenaltyApplied: false,
               staleProtectionApplied: false,
+              focusRankingApplied: false,
+              focusRankingBoost: 0,
+              focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
+          const focusAdjustment = this.deriveFocusRankingAdjustment(input, indexedRecord);
           const policy = this.applyConfidencePolicy(
             indexedRecord,
-            this.scoreCandidate(indexedRecord, normalizedHint),
+            Math.min(0.999, this.scoreCandidate(indexedRecord, normalizedHint) + focusAdjustment.focusRankingBoost),
             indexedProfile
           );
           return {
@@ -214,6 +226,9 @@ export class VoiceSemanticAddressRegistry {
             candidateAgeMs: policy.ageMs,
             recentConflictPenaltyApplied: policy.recentConflictPenaltyApplied,
             staleProtectionApplied: policy.staleProtectionApplied,
+            focusRankingApplied: focusAdjustment.focusRankingApplied,
+            focusRankingBoost: focusAdjustment.focusRankingBoost,
+            focusRankingReasonCodes: focusAdjustment.focusRankingReasonCodes,
           };
         }
       }
@@ -239,6 +254,9 @@ export class VoiceSemanticAddressRegistry {
         candidateAgeMs: null,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: false,
+        focusRankingApplied: false,
+        focusRankingBoost: 0,
+        focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
       };
     }
 
@@ -251,6 +269,9 @@ export class VoiceSemanticAddressRegistry {
           ageMs: number;
           recentConflictPenaltyApplied: boolean;
           staleProtectionApplied: boolean;
+          focusRankingApplied: boolean;
+          focusRankingBoost: number;
+          focusRankingReasonCodes: string[];
         }
       | null = null;
     let bestComparableScore = -2;
@@ -259,11 +280,18 @@ export class VoiceSemanticAddressRegistry {
         continue;
       }
       const candidateProfile = this.getWarmPolicyProfileForCommandFamily(candidate.commandFamily);
-      const policy = this.applyConfidencePolicy(
+      const focusAdjustment = this.deriveFocusRankingAdjustment(input, candidate);
+      const basePolicy = this.applyConfidencePolicy(
         candidate,
-        this.scoreCandidate(candidate, normalizedHint),
+        Math.min(0.999, this.scoreCandidate(candidate, normalizedHint) + focusAdjustment.focusRankingBoost),
         candidateProfile
       );
+      const policy = {
+        ...basePolicy,
+        focusRankingApplied: focusAdjustment.focusRankingApplied,
+        focusRankingBoost: focusAdjustment.focusRankingBoost,
+        focusRankingReasonCodes: focusAdjustment.focusRankingReasonCodes,
+      };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
         best = candidate;
@@ -288,6 +316,9 @@ export class VoiceSemanticAddressRegistry {
         candidateAgeMs: null,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: false,
+        focusRankingApplied: false,
+        focusRankingBoost: 0,
+        focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
       };
     }
 
@@ -307,6 +338,9 @@ export class VoiceSemanticAddressRegistry {
       candidateAgeMs: bestPolicy.ageMs,
       recentConflictPenaltyApplied: bestPolicy.recentConflictPenaltyApplied,
       staleProtectionApplied: bestPolicy.staleProtectionApplied,
+      focusRankingApplied: bestPolicy.focusRankingApplied,
+      focusRankingBoost: bestPolicy.focusRankingBoost,
+      focusRankingReasonCodes: bestPolicy.focusRankingReasonCodes,
     };
   }
 
@@ -458,6 +492,18 @@ export class VoiceSemanticAddressRegistry {
     return null;
   }
 
+  private deriveFocusRankingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): { focusRankingApplied: boolean; focusRankingBoost: number; focusRankingReasonCodes: string[] } {
+    return deriveFocusContextRankingAdjustment(input.focusContextEnvelope ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+    });
+  }
+
   private scoreCandidate(candidate: SemanticAddressRecord, normalizedHint: string): number {
     if (!normalizedHint) {
       return 0.76;
@@ -482,6 +528,9 @@ export class VoiceSemanticAddressRegistry {
     ageMs: number;
     recentConflictPenaltyApplied: boolean;
     staleProtectionApplied: boolean;
+    focusRankingApplied: boolean;
+    focusRankingBoost: number;
+    focusRankingReasonCodes: string[];
   } {
     const ageMs = Math.max(0, Date.now() - candidate.updatedAtMs);
     if (ageMs >= profile.staleMs) {
@@ -492,6 +541,9 @@ export class VoiceSemanticAddressRegistry {
         ageMs,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: true,
+        focusRankingApplied: false,
+        focusRankingBoost: 0,
+        focusRankingReasonCodes: [],
       };
     }
 
@@ -518,6 +570,9 @@ export class VoiceSemanticAddressRegistry {
       ageMs,
       recentConflictPenaltyApplied,
       staleProtectionApplied: false,
+      focusRankingApplied: false,
+      focusRankingBoost: 0,
+      focusRankingReasonCodes: [],
     };
   }
 

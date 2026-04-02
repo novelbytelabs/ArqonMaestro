@@ -163,6 +163,9 @@ export default class ChunkManager {
       candidateAgeMs: number | null;
       recentConflictPenaltyApplied: boolean;
       staleProtectionApplied: boolean;
+      focusRankingApplied: boolean;
+      focusRankingBoost: number;
+      focusRankingReasonCodes: string[];
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -797,6 +800,7 @@ export default class ChunkManager {
         transcriptTailHint: transcriptTail,
         atlasVersion: event.atlasVersion,
         atlasSchema: event.atlasSchema,
+        focusContextEnvelope: this.chunkH3FocusContextEnvelope.get(chunkId) ?? null,
       });
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
@@ -816,6 +820,9 @@ export default class ChunkManager {
         candidateAgeMs: semanticLookup.candidateAgeMs,
         recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
         staleProtectionApplied: semanticLookup.staleProtectionApplied,
+        focusRankingApplied: semanticLookup.focusRankingApplied,
+        focusRankingBoost: semanticLookup.focusRankingBoost,
+        focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -846,6 +853,9 @@ export default class ChunkManager {
           candidateAgeMs: semanticLookup.candidateAgeMs,
           recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
           staleProtectionApplied: semanticLookup.staleProtectionApplied,
+          focusRankingApplied: semanticLookup.focusRankingApplied,
+          focusRankingBoost: semanticLookup.focusRankingBoost,
+          focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
           governanceRequired: true,
           reason:
             semanticLookup.mismatchReason ??
@@ -893,6 +903,9 @@ export default class ChunkManager {
         candidateAgeMs: semanticLookup.candidateAgeMs,
         recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
         staleProtectionApplied: semanticLookup.staleProtectionApplied,
+        focusRankingApplied: semanticLookup.focusRankingApplied,
+        focusRankingBoost: semanticLookup.focusRankingBoost,
+        focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
         warmApplied,
         warmAppliedStage,
       });
@@ -917,6 +930,9 @@ export default class ChunkManager {
           candidateAgeMs: semanticLookup.candidateAgeMs,
           recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
           staleProtectionApplied: semanticLookup.staleProtectionApplied,
+          focusRankingApplied: semanticLookup.focusRankingApplied,
+          focusRankingBoost: semanticLookup.focusRankingBoost,
+          focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1254,6 +1270,9 @@ export default class ChunkManager {
         candidateAgeMs: warmLookup?.candidateAgeMs ?? null,
         recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? null,
         staleProtectionApplied: warmLookup?.staleProtectionApplied ?? null,
+        focusRankingApplied: warmLookup?.focusRankingApplied ?? null,
+        focusRankingBoost: warmLookup?.focusRankingBoost ?? null,
+        focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1287,6 +1306,9 @@ export default class ChunkManager {
       candidateAgeMs: warmLookup?.candidateAgeMs ?? null,
       recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? null,
       staleProtectionApplied: warmLookup?.staleProtectionApplied ?? null,
+      focusRankingApplied: warmLookup?.focusRankingApplied ?? null,
+      focusRankingBoost: warmLookup?.focusRankingBoost ?? null,
+      focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? null,
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
       lookupPath: warmLookup?.lookupPath ?? null,
@@ -1378,6 +1400,9 @@ export default class ChunkManager {
       candidateAgeMs: number | null;
       recentConflictPenaltyApplied: boolean | null;
       staleProtectionApplied: boolean | null;
+      focusRankingApplied: boolean | null;
+      focusRankingBoost: number | null;
+      focusRankingReasonCodes: string[] | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1436,6 +1461,9 @@ export default class ChunkManager {
       candidateAgeMs: overrides.candidateAgeMs ?? null,
       recentConflictPenaltyApplied: overrides.recentConflictPenaltyApplied ?? null,
       staleProtectionApplied: overrides.staleProtectionApplied ?? null,
+      focusRankingApplied: overrides.focusRankingApplied ?? null,
+      focusRankingBoost: overrides.focusRankingBoost ?? null,
+      focusRankingReasonCodes: overrides.focusRankingReasonCodes ?? null,
       warmDiscardReason: overrides.warmDiscardReason ?? null,
       liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
       lookupPath: overrides.lookupPath ?? null,

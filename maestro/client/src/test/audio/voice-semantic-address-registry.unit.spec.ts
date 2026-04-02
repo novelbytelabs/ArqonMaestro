@@ -11,6 +11,7 @@ import {
   VOICE_SEMANTIC_WARM_STALE_MS,
   VoiceSemanticAddressRegistry,
 } from "../../main/runtime/voice-semantic-address-registry";
+import { buildFocusConditionedCommandContext } from "../../main/runtime/focus-conditioned-command-context";
 
 describe("VoiceSemanticAddressRegistry", () => {
   it("registers governed v1 command trajectories and returns warm lookup hits", () => {
@@ -589,6 +590,119 @@ describe("VoiceSemanticAddressRegistry", () => {
     } finally {
       Date.now = originalNow;
     }
+  });
+
+
+  it("uses focus-conditioned recent task history to reshape open-command candidate ranking", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-open-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-open-1",
+      transcript: "open github dot com",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+    registry.markGeometricContext({
+      chunkId: "chunk-open-2",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-open-2",
+      transcript: "open docs dot python dot org",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-open-lookup",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "chrome",
+          regionId: "address-bar",
+          controlId: "omnibox",
+          focusConfidence: 0.94,
+          authorityType: "verified",
+          snapshotAgeMs: 35,
+        },
+        taskHistoryDelta: [
+          { semanticAddressId: "sa-1", mergedText: "open github.com", outcome: "success", ageMs: 50 },
+        ],
+      }),
+    });
+
+    expect(lookup.bestCanonicalMergedText).toBe("open github.com");
+    expect(lookup.focusRankingApplied).toBe(true);
+    expect(lookup.focusRankingBoost).toBeGreaterThan(0);
+    expect(lookup.focusRankingReasonCodes).toEqual(
+      expect.arrayContaining(["browser_navigation_focus_context", "recent_task_exact_match"])
+    );
+  });
+
+  it("keeps focus-conditioned ranking advisory-only when context is ineligible", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-open-3",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-open-3",
+      transcript: "open github dot com",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-open-lookup-2",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "chrome",
+          regionId: "address-bar",
+          focusConfidence: 0.94,
+          authorityType: "heuristic",
+          snapshotAgeMs: 35,
+        },
+        taskHistoryDelta: [
+          { semanticAddressId: "sa-1", mergedText: "open github.com", outcome: "success", ageMs: 50 },
+        ],
+      }),
+    });
+
+    expect(lookup.focusRankingApplied).toBe(false);
+    expect(lookup.focusRankingBoost).toBe(0);
+    expect(lookup.focusRankingReasonCodes).toContain("focus_context_ineligible");
   });
 
 });
