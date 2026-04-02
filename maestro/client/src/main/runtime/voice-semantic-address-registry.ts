@@ -37,6 +37,14 @@ export interface SemanticAddressRecord {
   evictionScore: number;
 }
 
+interface WarmPolicyProfile {
+  weakThreshold: number;
+  strongThreshold: number;
+  decayFloor: number;
+  staleMs: number;
+  recentConflictMultiplier: number;
+}
+
 interface PendingGeometricContext {
   chunkId: string;
   source: "spectral_manifold";
@@ -99,6 +107,16 @@ export const VOICE_SEMANTIC_WARM_STALE_MS = 10 * 60 * 1000;
 export const VOICE_SEMANTIC_WARM_DECAY_FLOOR = 0.88;
 export const VOICE_SEMANTIC_WARM_RECENT_CONFLICT_WINDOW_MS = 2 * 60 * 1000;
 export const VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER = 0.84;
+export const VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD = 0.76;
+export const VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD = 0.92;
+export const VOICE_SEMANTIC_WARM_NUMERIC_DECAY_FLOOR = 0.9;
+export const VOICE_SEMANTIC_WARM_NUMERIC_STALE_MS = 10 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_NUMERIC_RECENT_CONFLICT_MULTIPLIER = 0.86;
+export const VOICE_SEMANTIC_WARM_OPEN_WEAK_THRESHOLD = 0.82;
+export const VOICE_SEMANTIC_WARM_OPEN_STRONG_THRESHOLD = 0.95;
+export const VOICE_SEMANTIC_WARM_OPEN_DECAY_FLOOR = 0.84;
+export const VOICE_SEMANTIC_WARM_OPEN_STALE_MS = 7 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_OPEN_RECENT_CONFLICT_MULTIPLIER = 0.8;
 
 export class VoiceSemanticAddressRegistry {
   private recordsById = new Map<string, SemanticAddressRecord>();
@@ -144,6 +162,9 @@ export class VoiceSemanticAddressRegistry {
       input.parameterType,
       normalizedHint
     );
+    const lookupProfile = this.getWarmPolicyProfileForCommandFamily(
+      this.inferCommandFamily(input.regionId, input.parameterType)
+    );
     if (derivedSlotSignature && input.forceCandidateScan !== true) {
       const indexedId = this.idsByRegionAndSlot.get(`${input.regionId}|${derivedSlotSignature}`) ?? null;
       if (indexedId) {
@@ -162,14 +183,21 @@ export class VoiceSemanticAddressRegistry {
               atlasCompatible: false,
               mismatchReason: "warm_miss_atlas_incompatible",
               confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
-              weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
-              strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+              weakThreshold: this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily)
+                .weakThreshold,
+              strongThreshold: this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily)
+                .strongThreshold,
               candidateAgeMs: Math.max(0, Date.now() - indexedRecord.updatedAtMs),
               recentConflictPenaltyApplied: false,
               staleProtectionApplied: false,
             };
           }
-          const policy = this.applyConfidencePolicy(indexedRecord, this.scoreCandidate(indexedRecord, normalizedHint));
+          const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
+          const policy = this.applyConfidencePolicy(
+            indexedRecord,
+            this.scoreCandidate(indexedRecord, normalizedHint),
+            indexedProfile
+          );
           return {
             lookupCandidateCount: 1,
             bestCandidateId: indexedRecord.semanticAddressId,
@@ -181,8 +209,8 @@ export class VoiceSemanticAddressRegistry {
             atlasCompatible: true,
             mismatchReason: policy.mismatchReason,
             confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
-            weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
-            strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+            weakThreshold: indexedProfile.weakThreshold,
+            strongThreshold: indexedProfile.strongThreshold,
             candidateAgeMs: policy.ageMs,
             recentConflictPenaltyApplied: policy.recentConflictPenaltyApplied,
             staleProtectionApplied: policy.staleProtectionApplied,
@@ -206,8 +234,8 @@ export class VoiceSemanticAddressRegistry {
         atlasCompatible: true,
         mismatchReason: null,
         confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
-        weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
-        strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+        weakThreshold: lookupProfile.weakThreshold,
+        strongThreshold: lookupProfile.strongThreshold,
         candidateAgeMs: null,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: false,
@@ -230,7 +258,12 @@ export class VoiceSemanticAddressRegistry {
       if (!this.isAtlasCompatible(candidate, input)) {
         continue;
       }
-      const policy = this.applyConfidencePolicy(candidate, this.scoreCandidate(candidate, normalizedHint));
+      const candidateProfile = this.getWarmPolicyProfileForCommandFamily(candidate.commandFamily);
+      const policy = this.applyConfidencePolicy(
+        candidate,
+        this.scoreCandidate(candidate, normalizedHint),
+        candidateProfile
+      );
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
         best = candidate;
@@ -250,8 +283,8 @@ export class VoiceSemanticAddressRegistry {
         atlasCompatible: false,
         mismatchReason: "warm_miss_atlas_incompatible",
         confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
-        weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
-        strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+        weakThreshold: lookupProfile.weakThreshold,
+        strongThreshold: lookupProfile.strongThreshold,
         candidateAgeMs: null,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: false,
@@ -269,8 +302,8 @@ export class VoiceSemanticAddressRegistry {
       atlasCompatible: true,
       mismatchReason: bestPolicy.mismatchReason,
       confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
-      weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
-      strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+      weakThreshold: this.getWarmPolicyProfileForCommandFamily(best.commandFamily).weakThreshold,
+      strongThreshold: this.getWarmPolicyProfileForCommandFamily(best.commandFamily).strongThreshold,
       candidateAgeMs: bestPolicy.ageMs,
       recentConflictPenaltyApplied: bestPolicy.recentConflictPenaltyApplied,
       staleProtectionApplied: bestPolicy.staleProtectionApplied,
@@ -440,7 +473,8 @@ export class VoiceSemanticAddressRegistry {
 
   private applyConfidencePolicy(
     candidate: SemanticAddressRecord,
-    baseScore: number
+    baseScore: number,
+    profile: WarmPolicyProfile
   ): {
     score: number | null;
     warmHitClass: "strong" | "weak" | "miss";
@@ -450,7 +484,7 @@ export class VoiceSemanticAddressRegistry {
     staleProtectionApplied: boolean;
   } {
     const ageMs = Math.max(0, Date.now() - candidate.updatedAtMs);
-    if (ageMs >= VOICE_SEMANTIC_WARM_STALE_MS) {
+    if (ageMs >= profile.staleMs) {
       return {
         score: null,
         warmHitClass: "miss",
@@ -465,15 +499,15 @@ export class VoiceSemanticAddressRegistry {
     const freshnessMultiplier =
       1 -
       (boundedAgeMs / VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS) *
-        (1 - VOICE_SEMANTIC_WARM_DECAY_FLOOR);
+        (1 - profile.decayFloor);
     const recentConflictPenaltyApplied =
       candidate.lastConflictAtMs !== null &&
       Date.now() - candidate.lastConflictAtMs <= VOICE_SEMANTIC_WARM_RECENT_CONFLICT_WINDOW_MS;
     const conflictMultiplier = recentConflictPenaltyApplied
-      ? VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER
+      ? profile.recentConflictMultiplier
       : 1;
     const score = Number((baseScore * freshnessMultiplier * conflictMultiplier).toFixed(3));
-    const warmHitClass = this.classifyWarmHit(score);
+    const warmHitClass = this.classifyWarmHit(score, profile);
     return {
       score,
       warmHitClass,
@@ -487,14 +521,63 @@ export class VoiceSemanticAddressRegistry {
     };
   }
 
-  private classifyWarmHit(score: number): "strong" | "weak" | "miss" {
-    if (score >= VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD) {
+  private classifyWarmHit(score: number, profile: WarmPolicyProfile): "strong" | "weak" | "miss" {
+    if (score >= profile.strongThreshold) {
       return "strong";
     }
-    if (score >= VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD) {
+    if (score >= profile.weakThreshold) {
       return "weak";
     }
     return "miss";
+  }
+
+  private inferCommandFamily(
+    regionId: string,
+    parameterType: "numeric" | "open" | null
+  ): SemanticCommandFamily | null {
+    if (regionId === "pause" && parameterType === null) {
+      return "reflex";
+    }
+    if (regionId === "new tab" && parameterType === null) {
+      return "closed_structure";
+    }
+    if (parameterType === "numeric") {
+      return "parameterized_numeric";
+    }
+    if (parameterType === "open") {
+      return "parameterized_open";
+    }
+    return null;
+  }
+
+  private getWarmPolicyProfileForCommandFamily(
+    commandFamily: SemanticCommandFamily | null
+  ): WarmPolicyProfile {
+    if (commandFamily === "parameterized_numeric") {
+      return {
+        weakThreshold: VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD,
+        strongThreshold: VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD,
+        decayFloor: VOICE_SEMANTIC_WARM_NUMERIC_DECAY_FLOOR,
+        staleMs: VOICE_SEMANTIC_WARM_NUMERIC_STALE_MS,
+        recentConflictMultiplier: VOICE_SEMANTIC_WARM_NUMERIC_RECENT_CONFLICT_MULTIPLIER,
+      };
+    }
+    if (commandFamily === "parameterized_open") {
+      return {
+        weakThreshold: VOICE_SEMANTIC_WARM_OPEN_WEAK_THRESHOLD,
+        strongThreshold: VOICE_SEMANTIC_WARM_OPEN_STRONG_THRESHOLD,
+        decayFloor: VOICE_SEMANTIC_WARM_OPEN_DECAY_FLOOR,
+        staleMs: VOICE_SEMANTIC_WARM_OPEN_STALE_MS,
+        recentConflictMultiplier: VOICE_SEMANTIC_WARM_OPEN_RECENT_CONFLICT_MULTIPLIER,
+      };
+    }
+    return {
+      weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+      strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+      decayFloor: VOICE_SEMANTIC_WARM_DECAY_FLOOR,
+      staleMs: VOICE_SEMANTIC_WARM_STALE_MS,
+      recentConflictMultiplier: VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER,
+    };
   }
 
   private isAtlasCompatible(record: SemanticAddressRecord, input: LookupInput): boolean {

@@ -1,6 +1,6 @@
 # H3 Stage 3D3 Plan
 
-Status: Slice planning + minimal slice S1 implementation bundle
+Status: CLOSED (S1-S3 integrated in bundle lineage; closure docs added in finish bundle)
 Scope: conflict-aware warm-hit confidence policy for validated v1 families only
 
 ## Objective
@@ -97,10 +97,9 @@ Slice S1 is acceptable only if:
 ## Follow-on Slices
 
 Potential later Stage 3D3 slices:
-- S3: family-specific confidence tuning for numeric vs open tails
 - S4: bounded in-memory eviction / reheating heuristics
 
-None of those are included in this bundle.
+Only Slice S3 is included in this bundle beyond S2.
 
 
 ## Slice S2
@@ -115,3 +114,66 @@ Slice S2 must prove:
 - warm-hit / warm-discard evidence carries the same metadata for auditability
 - live override + merged-transcript evidence preserve the carried metadata without granting warm authority
 - all policy metadata remains observational only
+
+
+## Slice S3
+
+Slice S3 implemented in this bundle:
+- add family-specific warm-confidence profiles for `parameterized_numeric` vs `parameterized_open`
+- keep reflex / closed-structure behavior on the baseline profile
+- make open tails stricter on warm reuse through higher thresholds and earlier stale cutoff
+- keep numeric tails slightly more permissive than open tails while still advisory-only
+- reuse existing Stage 3D3 evidence plumbing so the effective thresholds remain auditable without adding new authority paths
+
+Slice S3 bounded profile choices:
+- numeric:
+  - weak threshold: `0.76`
+  - strong threshold: `0.92`
+  - decay floor: `0.90`
+  - stale cutoff: `10 minutes`
+  - recent conflict multiplier: `0.86`
+- open:
+  - weak threshold: `0.82`
+  - strong threshold: `0.95`
+  - decay floor: `0.84`
+  - stale cutoff: `7 minutes`
+  - recent conflict multiplier: `0.80`
+
+Slice S3 must prove:
+- numeric lookups expose numeric-family thresholds
+- open lookups expose open-family thresholds
+- recent conflict penalizes open warm reuse more aggressively than numeric warm reuse
+- open warm entries stale out earlier than numeric entries
+- advisory-only doctrine remains intact with no governance bypass
+
+
+## Slice S4
+
+Slice S4 implemented in this bundle:
+- consolidate Stage 3D3 closure criteria into a dedicated validation report
+- freeze the intended real-repo validation gates for the family-aware advisory warm policy
+- record the doctrine boundary that warm confidence remains advisory-only even after profile specialization
+
+Slice S4 adds no new authority path and no new runtime ranking source beyond the family-aware thresholds already introduced in Slice S3.
+
+## Slice S5
+
+Slice S5 implemented in this bundle:
+- mark Stage 3D3 ready for closure once the real-repo gates pass after integration
+- hand off the next-phase pivot target: Stage 3E1-S1 Focus-Conditioned Command Geometry contract
+- leave runtime governance unchanged while moving the roadmap forward
+
+## Closure Criteria
+
+Stage 3D3 is considered closed only when the real ArqonMaestro checkout validates all of the following after integrating this finish bundle:
+- `cd maestro/client && npx tsc --noEmit`
+- `cd maestro/client && npx jest --config jest.config.js --runInBand src/test/audio/voice-semantic-address-registry.unit.spec.ts src/test/audio/chunk-manager-h3-numeric-tail.unit.spec.ts src/test/audio/chunk-manager-h3-open-tail.unit.spec.ts`
+- `cd /home/irbsurfer/Projects/arqon/ArqonMaestro && conda run -n helios-gpu-118 python3 scripts/h3_stage3d2_validate_timing.py`
+
+Closure doctrine remains:
+- warm state may accelerate and shape ranking only
+- warm state may never authorize execution
+- live geometry outranks warm memory
+- H23/H24 remain sacred
+- no persistence/distributed cache
+- v1 families only

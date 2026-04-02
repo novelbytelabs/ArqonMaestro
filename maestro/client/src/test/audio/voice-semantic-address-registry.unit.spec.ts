@@ -2,6 +2,11 @@ import {
   VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS,
   VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
   VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+  VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD,
+  VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD,
+  VOICE_SEMANTIC_WARM_OPEN_STRONG_THRESHOLD,
+  VOICE_SEMANTIC_WARM_OPEN_STALE_MS,
+  VOICE_SEMANTIC_WARM_OPEN_WEAK_THRESHOLD,
   VOICE_SEMANTIC_WARM_POLICY_VERSION,
   VOICE_SEMANTIC_WARM_STALE_MS,
   VoiceSemanticAddressRegistry,
@@ -47,8 +52,8 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.warmHitClass === "strong" || lookup.warmHitClass === "weak").toBe(true);
     expect(lookup.lookupPath).toBe("slot_signature_index");
     expect(lookup.confidencePolicyVersion).toBe(VOICE_SEMANTIC_WARM_POLICY_VERSION);
-    expect(lookup.weakThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD);
-    expect(lookup.strongThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD);
+    expect(lookup.weakThreshold).toBe(VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD);
+    expect(lookup.strongThreshold).toBe(VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD);
   });
 
   it("does not register when governance is not granted", () => {
@@ -280,6 +285,172 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(numericSlotNs).toBeLessThan(numericScanNs);
   });
 
+  it("uses family-specific warm thresholds for numeric vs open command families", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    const originalNow = Date.now;
+    const baseNow = 1_700_000_200_000;
+    Date.now = jest.fn(() => baseNow);
+    try {
+      registry.markGeometricContext({
+        chunkId: "chunk-fn-1",
+        source: "spectral_manifold",
+        regionId: "go to line",
+        commandClass: "parameterized",
+        parameterType: "numeric",
+        atlasVersion: "v1",
+        atlasSchema: "h3_command_atlas_v1",
+        confidence: 0.95,
+        frameCount: 88,
+      });
+      const numericRecord = registry.registerFromGovernedExecution({
+        chunkId: "chunk-fn-1",
+        transcript: "go to line fifty two",
+        policyGranted: true,
+        h23StepCount: 4,
+        h24FinalGranted: true,
+      });
+
+      registry.markGeometricContext({
+        chunkId: "chunk-fo-1",
+        source: "spectral_manifold",
+        regionId: "open",
+        commandClass: "parameterized",
+        parameterType: "open",
+        atlasVersion: "v1",
+        atlasSchema: "h3_command_atlas_v1",
+        confidence: 0.95,
+        frameCount: 88,
+      });
+      const openRecord = registry.registerFromGovernedExecution({
+        chunkId: "chunk-fo-1",
+        transcript: "open wikipedia dot org",
+        policyGranted: true,
+        h23StepCount: 4,
+        h24FinalGranted: true,
+      });
+
+      expect(numericRecord).not.toBeNull();
+      expect(openRecord).not.toBeNull();
+
+      const numericBaseline = registry.lookup({
+        chunkId: "chunk-fn-2",
+        regionId: "go to line",
+        parameterType: "numeric",
+        transcriptTailHint: "52",
+      });
+      const openBaseline = registry.lookup({
+        chunkId: "chunk-fo-2",
+        regionId: "open",
+        parameterType: "open",
+        transcriptTailHint: "wikipedia.org",
+      });
+
+      expect(numericBaseline.weakThreshold).toBe(VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD);
+      expect(numericBaseline.strongThreshold).toBe(VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD);
+      expect(openBaseline.weakThreshold).toBe(VOICE_SEMANTIC_WARM_OPEN_WEAK_THRESHOLD);
+      expect(openBaseline.strongThreshold).toBe(VOICE_SEMANTIC_WARM_OPEN_STRONG_THRESHOLD);
+      expect(numericBaseline.warmHitClass).toBe("strong");
+      expect(openBaseline.warmHitClass).toBe("strong");
+
+      registry.markWarmConflict(numericRecord!.semanticAddressId);
+      registry.markWarmConflict(openRecord!.semanticAddressId);
+
+      const numericConflicted = registry.lookup({
+        chunkId: "chunk-fn-3",
+        regionId: "go to line",
+        parameterType: "numeric",
+        transcriptTailHint: "52",
+      });
+      const openConflicted = registry.lookup({
+        chunkId: "chunk-fo-3",
+        regionId: "open",
+        parameterType: "open",
+        transcriptTailHint: "wikipedia.org",
+      });
+
+      expect(numericConflicted.recentConflictPenaltyApplied).toBe(true);
+      expect(openConflicted.recentConflictPenaltyApplied).toBe(true);
+      expect(numericConflicted.bestCandidateScore).not.toBeNull();
+      expect(openConflicted.bestCandidateScore).not.toBeNull();
+      expect(numericConflicted.warmHitClass).toBe("weak");
+      expect(openConflicted.warmHitClass).toBe("miss");
+      expect(numericConflicted.bestCandidateScore!).toBeGreaterThan(openConflicted.bestCandidateScore!);
+      expect(openConflicted.mismatchReason).toBe("warm_miss_conflict_penalized");
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  it("applies earlier stale protection to open warm entries than numeric ones", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    const originalNow = Date.now;
+    const baseNow = 1_700_000_300_000;
+    Date.now = jest.fn(() => baseNow);
+    try {
+      registry.markGeometricContext({
+        chunkId: "chunk-stale-num-1",
+        source: "spectral_manifold",
+        regionId: "go to line",
+        commandClass: "parameterized",
+        parameterType: "numeric",
+        atlasVersion: "v1",
+        atlasSchema: "h3_command_atlas_v1",
+        confidence: 0.95,
+        frameCount: 88,
+      });
+      registry.registerFromGovernedExecution({
+        chunkId: "chunk-stale-num-1",
+        transcript: "go to line fifty two",
+        policyGranted: true,
+        h23StepCount: 4,
+        h24FinalGranted: true,
+      });
+
+      registry.markGeometricContext({
+        chunkId: "chunk-stale-open-1",
+        source: "spectral_manifold",
+        regionId: "open",
+        commandClass: "parameterized",
+        parameterType: "open",
+        atlasVersion: "v1",
+        atlasSchema: "h3_command_atlas_v1",
+        confidence: 0.95,
+        frameCount: 88,
+      });
+      registry.registerFromGovernedExecution({
+        chunkId: "chunk-stale-open-1",
+        transcript: "open wikipedia dot org",
+        policyGranted: true,
+        h23StepCount: 4,
+        h24FinalGranted: true,
+      });
+
+      expect(VOICE_SEMANTIC_WARM_OPEN_STALE_MS).toBeLessThan(VOICE_SEMANTIC_WARM_STALE_MS);
+      Date.now = jest.fn(() => baseNow + VOICE_SEMANTIC_WARM_OPEN_STALE_MS + 1);
+
+      const openLookup = registry.lookup({
+        chunkId: "chunk-stale-open-2",
+        regionId: "open",
+        parameterType: "open",
+        transcriptTailHint: "wikipedia.org",
+      });
+      const numericLookup = registry.lookup({
+        chunkId: "chunk-stale-num-2",
+        regionId: "go to line",
+        parameterType: "numeric",
+        transcriptTailHint: "52",
+      });
+
+      expect(openLookup.warmHitClass).toBe("miss");
+      expect(openLookup.staleProtectionApplied).toBe(true);
+      expect(openLookup.mismatchReason).toBe("warm_miss_stale_protection");
+      expect(numericLookup.staleProtectionApplied).toBe(false);
+      expect(numericLookup.warmHitClass).not.toBe("miss");
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
   it("demotes warm confidence after a recent live-truth override conflict", () => {
     const registry = new VoiceSemanticAddressRegistry();
     registry.markGeometricContext({
@@ -322,8 +493,8 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     expect(conflicted.recentConflictPenaltyApplied).toBe(true);
     expect(conflicted.staleProtectionApplied).toBe(false);
-    expect(conflicted.weakThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD);
-    expect(conflicted.strongThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD);
+    expect(conflicted.weakThreshold).toBe(VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD);
+    expect(conflicted.strongThreshold).toBe(VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD);
     expect(conflicted.bestCandidateId).toBe(record!.semanticAddressId);
     expect(conflicted.bestCandidateScore).not.toBeNull();
     expect(conflicted.bestCandidateScore!).toBeLessThan(baseline.bestCandidateScore!);
