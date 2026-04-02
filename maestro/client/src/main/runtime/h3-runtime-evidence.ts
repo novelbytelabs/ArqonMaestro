@@ -53,6 +53,26 @@ export interface H3RuntimeEvidenceEvent {
   warmDiscardReason: string | null;
   liveEvidenceOverride: boolean | null;
   lookupPath: string | null;
+  focusContextSchemaVersion: string | null;
+  focusContextEligible: boolean | null;
+  focusSnapshotFresh: boolean | null;
+  focusAuthorityType: string | null;
+  focusAppId: string | null;
+  focusWindowId: string | null;
+  focusRegionId: string | null;
+  focusSubregionId: string | null;
+  focusControlId: string | null;
+  focusHasSelection: boolean | null;
+  focusSelectionTextLength: number | null;
+  focusCaretOffset: number | null;
+  focusSnapshotAgeMs: number | null;
+  focusConfidence: number | null;
+  focusRecentDeltaCount: number | null;
+  focusRecentTaskHistoryCount: number | null;
+  focusDeicticResolutionEligible: boolean | null;
+  focusRankingEligible: boolean | null;
+  focusLegalityEligible: boolean | null;
+  focusReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -114,6 +134,26 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     warmDiscardReason: input.warmDiscardReason ?? null,
     liveEvidenceOverride: input.liveEvidenceOverride ?? null,
     lookupPath: input.lookupPath ?? null,
+    focusContextSchemaVersion: input.focusContextSchemaVersion ?? null,
+    focusContextEligible: input.focusContextEligible ?? null,
+    focusSnapshotFresh: input.focusSnapshotFresh ?? null,
+    focusAuthorityType: input.focusAuthorityType ?? null,
+    focusAppId: input.focusAppId ?? null,
+    focusWindowId: input.focusWindowId ?? null,
+    focusRegionId: input.focusRegionId ?? null,
+    focusSubregionId: input.focusSubregionId ?? null,
+    focusControlId: input.focusControlId ?? null,
+    focusHasSelection: input.focusHasSelection ?? null,
+    focusSelectionTextLength: input.focusSelectionTextLength ?? null,
+    focusCaretOffset: input.focusCaretOffset ?? null,
+    focusSnapshotAgeMs: input.focusSnapshotAgeMs ?? null,
+    focusConfidence: input.focusConfidence ?? null,
+    focusRecentDeltaCount: input.focusRecentDeltaCount ?? null,
+    focusRecentTaskHistoryCount: input.focusRecentTaskHistoryCount ?? null,
+    focusDeicticResolutionEligible: input.focusDeicticResolutionEligible ?? null,
+    focusRankingEligible: input.focusRankingEligible ?? null,
+    focusLegalityEligible: input.focusLegalityEligible ?? null,
+    focusReasonCodes: input.focusReasonCodes ?? null,
   };
 }
 

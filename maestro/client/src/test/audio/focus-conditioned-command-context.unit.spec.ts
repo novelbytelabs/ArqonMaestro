@@ -4,6 +4,7 @@ import {
   DEFAULT_FOCUS_CONTEXT_MAX_TASK_HISTORY,
   buildFocusConditionedCommandContext,
   deriveFocusContextAdvisoryHints,
+  deriveFocusContextEvidenceFields,
 } from "../../main/runtime/focus-conditioned-command-context";
 
 describe("FocusConditionedCommandContext", () => {
@@ -99,5 +100,60 @@ describe("FocusConditionedCommandContext", () => {
     expect(hints.rankingEligible).toBe(false);
     expect(hints.legalityEligible).toBe(false);
     expect(hints.deicticResolutionEligible).toBe(false);
+  });
+
+  it("derives bounded evidence fields from an eligible envelope", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "code",
+        windowId: "window-1",
+        regionId: "editor",
+        subregionId: "primary",
+        controlId: "text-buffer",
+        caretOffset: 42,
+        hasSelection: true,
+        selectionTextLength: 6,
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 150,
+      },
+      focusDelta: [{ kind: "selection_change", fromId: "old", toId: "new", ageMs: 12 }],
+      taskHistoryDelta: [
+        { semanticAddressId: "sa-1", mergedText: "rename symbol", outcome: "success", ageMs: 30 },
+      ],
+    });
+
+    const fields = deriveFocusContextEvidenceFields(envelope);
+    expect(fields).toEqual(
+      expect.objectContaining({
+        focusContextSchemaVersion: "h3_focus_command_context_v1",
+        focusContextEligible: true,
+        focusSnapshotFresh: true,
+        focusAuthorityType: "verified",
+        focusAppId: "code",
+        focusWindowId: "window-1",
+        focusRegionId: "editor",
+        focusSubregionId: "primary",
+        focusControlId: "text-buffer",
+        focusHasSelection: true,
+        focusSelectionTextLength: 6,
+        focusCaretOffset: 42,
+        focusSnapshotAgeMs: 150,
+        focusConfidence: 0.94,
+        focusRecentDeltaCount: 1,
+        focusRecentTaskHistoryCount: 1,
+        focusDeicticResolutionEligible: true,
+        focusRankingEligible: true,
+        focusLegalityEligible: true,
+        focusReasonCodes: [],
+      })
+    );
+  });
+
+  it("returns null evidence fields when no envelope is present", () => {
+    const fields = deriveFocusContextEvidenceFields(null);
+    expect(fields.focusContextSchemaVersion).toBeNull();
+    expect(fields.focusRankingEligible).toBeNull();
+    expect(fields.focusReasonCodes).toBeNull();
   });
 });

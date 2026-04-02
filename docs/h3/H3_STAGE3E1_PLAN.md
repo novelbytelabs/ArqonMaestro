@@ -1,6 +1,6 @@
 # H3 Stage 3E1 Plan
 
-Status: Slice S1 contract bundle
+Status: Slice S2 evidence plumbing bundle
 Scope: Focus-Conditioned Command Geometry, starting with a bounded observational/advisory context envelope only
 
 ## Objective
@@ -21,7 +21,7 @@ Focus context may not authorize execution.
 
 ## Slice S1
 
-Slice S1 implemented in this bundle:
+Slice S1 implemented previously:
 - define the `h3_focus_command_context_v1` envelope contract
 - model three layers:
   - Focus Snapshot
@@ -34,29 +34,35 @@ Slice S1 implemented in this bundle:
   - deictic resolution eligible
 - keep the slice observational only with no runtime routing or execution changes
 
+## Slice S2
+
+Slice S2 implemented in this bundle:
+- carry bounded focus-context metadata into H3 runtime evidence
+- derive observational evidence fields from the context envelope summary and advisory hints
+- attach focus metadata per chunk without changing routing, governance, or execution behavior
+- keep null evidence fields when no focus envelope is attached
+
 ## Bounded Defaults
 
-Initial bounded defaults in Slice S1:
+Initial bounded defaults retained through S2:
 - freshness window: `60 seconds`
 - minimum focus confidence: `0.75`
 - max focus-delta entries: `8`
 - max task-history entries: `8`
 - verified authority required for context eligibility
 
-## Acceptance Criteria for S1
+## Acceptance Criteria for S2
 
-Slice S1 is acceptable only if:
-- the contract is pure and bounded
-- stale or low-confidence focus snapshots become ineligible
-- heuristic/unverified authority does not become eligible
-- missing snapshot remains observational only
+Slice S2 is acceptable only if:
+- focus context remains advisory only
+- evidence fields are emitted for attached eligible/ineligible envelopes
+- missing focus context emits null focus evidence fields
 - no execution path is changed
 - no ranking/governance bypass is introduced
 
 ## Follow-on Slices
 
-Planned next slices after S1:
-- S2: carry context envelope metadata into H3 runtime evidence
+Planned next slices after S2:
 - S3: narrow ranking reshaping pilot for `open`, `go to`, and `focus`
 - S4: legality shaping pilot for deictic commands such as `open it` / `go there`
 - S5: task-history delta pilot with bounded workflow momentum

@@ -38,3 +38,27 @@ Stage 3D3 confidence-policy evidence fields:
 - `candidateAgeMs`
 - `recentConflictPenaltyApplied`
 - `staleProtectionApplied`
+
+Stage 3E1 focus-context evidence fields:
+- `focusContextSchemaVersion`
+- `focusContextEligible`
+- `focusSnapshotFresh`
+- `focusAuthorityType`
+- `focusAppId`
+- `focusWindowId`
+- `focusRegionId`
+- `focusSubregionId`
+- `focusControlId`
+- `focusHasSelection`
+- `focusSelectionTextLength`
+- `focusCaretOffset`
+- `focusSnapshotAgeMs`
+- `focusConfidence`
+- `focusRecentDeltaCount`
+- `focusRecentTaskHistoryCount`
+- `focusDeicticResolutionEligible`
+- `focusRankingEligible`
+- `focusLegalityEligible`
+- `focusReasonCodes`
+
+Stage 3E1-S2 is observational only. These fields may describe advisory focus context, but they may not authorize execution and may not bypass H23/H24.

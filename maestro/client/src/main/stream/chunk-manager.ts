@@ -42,6 +42,10 @@ import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-prov
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 import GeometricRoutingService from "./geometric-routing-service";
 import { emitH3RuntimeEvidence } from "../runtime/h3-runtime-evidence";
+import {
+  FocusConditionedCommandContextEnvelope,
+  deriveFocusContextEvidenceFields,
+} from "../runtime/focus-conditioned-command-context";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -163,6 +167,7 @@ export default class ChunkManager {
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
   >();
+  private chunkH3FocusContextEnvelope = new Map<string, FocusConditionedCommandContextEnvelope>();
 
   listening: boolean = false;
 
@@ -1308,6 +1313,25 @@ export default class ChunkManager {
     return receivedAt ? Date.now() - receivedAt : Date.now();
   }
 
+  setFocusConditionedCommandContextForChunk(
+    chunkId: string,
+    envelope: FocusConditionedCommandContextEnvelope | null | undefined
+  ): void {
+    if (!envelope) {
+      this.chunkH3FocusContextEnvelope.delete(chunkId);
+      return;
+    }
+    this.chunkH3FocusContextEnvelope.set(chunkId, envelope);
+  }
+
+  clearFocusConditionedCommandContextForChunk(chunkId: string): void {
+    this.chunkH3FocusContextEnvelope.delete(chunkId);
+  }
+
+  private getFocusContextEvidenceFields(chunkId: string) {
+    return deriveFocusContextEvidenceFields(this.chunkH3FocusContextEnvelope.get(chunkId) ?? null);
+  }
+
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
@@ -1362,6 +1386,7 @@ export default class ChunkManager {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     const trace = h23Recorder.getTraceSnapshot(chunkId);
     const decision = h23Recorder.getLatestDecision(chunkId);
+    const focusFields = this.getFocusContextEvidenceFields(chunkId);
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
@@ -1414,6 +1439,26 @@ export default class ChunkManager {
       warmDiscardReason: overrides.warmDiscardReason ?? null,
       liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
       lookupPath: overrides.lookupPath ?? null,
+      focusContextSchemaVersion: focusFields.focusContextSchemaVersion,
+      focusContextEligible: focusFields.focusContextEligible,
+      focusSnapshotFresh: focusFields.focusSnapshotFresh,
+      focusAuthorityType: focusFields.focusAuthorityType,
+      focusAppId: focusFields.focusAppId,
+      focusWindowId: focusFields.focusWindowId,
+      focusRegionId: focusFields.focusRegionId,
+      focusSubregionId: focusFields.focusSubregionId,
+      focusControlId: focusFields.focusControlId,
+      focusHasSelection: focusFields.focusHasSelection,
+      focusSelectionTextLength: focusFields.focusSelectionTextLength,
+      focusCaretOffset: focusFields.focusCaretOffset,
+      focusSnapshotAgeMs: focusFields.focusSnapshotAgeMs,
+      focusConfidence: focusFields.focusConfidence,
+      focusRecentDeltaCount: focusFields.focusRecentDeltaCount,
+      focusRecentTaskHistoryCount: focusFields.focusRecentTaskHistoryCount,
+      focusDeicticResolutionEligible: focusFields.focusDeicticResolutionEligible,
+      focusRankingEligible: focusFields.focusRankingEligible,
+      focusLegalityEligible: focusFields.focusLegalityEligible,
+      focusReasonCodes: focusFields.focusReasonCodes,
     });
   }
 
@@ -2375,6 +2420,7 @@ export default class ChunkManager {
       this.chunkH3OpenStrategyEnabled.delete(chunk.id);
       this.chunkH3LatestTailHintText.delete(chunk.id);
       this.chunkH3WarmLookup?.delete(chunk.id);
+      this.chunkH3FocusContextEnvelope.delete(chunk.id);
       voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
@@ -2606,6 +2652,7 @@ export default class ChunkManager {
     this.chunkH3OpenStrategyEnabled.delete(id);
     this.chunkH3LatestTailHintText.delete(id);
     this.chunkH3WarmLookup?.delete(id);
+    this.chunkH3FocusContextEnvelope.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:
@@ -2704,6 +2751,7 @@ export default class ChunkManager {
     this.chunkH3TailDecodeActive.clear();
     this.chunkH3TailAudioFrames.clear();
     this.chunkH3LatestGeometricEvent.clear();
+    this.chunkH3FocusContextEnvelope.clear();
     this.chunkH3TailCaptureStartMs.clear();
     this.chunkH3LastGeometricSignature.clear();
     this.chunkH3NumericStrategyEnabled.clear();

@@ -79,6 +79,29 @@ export interface FocusContextAdvisoryHints {
   reasonCodes: string[];
 }
 
+export interface FocusContextEvidenceFields {
+  focusContextSchemaVersion: string | null;
+  focusContextEligible: boolean | null;
+  focusSnapshotFresh: boolean | null;
+  focusAuthorityType: FocusAuthorityType | null;
+  focusAppId: string | null;
+  focusWindowId: string | null;
+  focusRegionId: string | null;
+  focusSubregionId: string | null;
+  focusControlId: string | null;
+  focusHasSelection: boolean | null;
+  focusSelectionTextLength: number | null;
+  focusCaretOffset: number | null;
+  focusSnapshotAgeMs: number | null;
+  focusConfidence: number | null;
+  focusRecentDeltaCount: number | null;
+  focusRecentTaskHistoryCount: number | null;
+  focusDeicticResolutionEligible: boolean | null;
+  focusRankingEligible: boolean | null;
+  focusLegalityEligible: boolean | null;
+  focusReasonCodes: string[] | null;
+}
+
 export const FOCUS_COMMAND_CONTEXT_SCHEMA_VERSION = "h3_focus_command_context_v1" as const;
 export const DEFAULT_FOCUS_CONTEXT_FRESHNESS_WINDOW_MS = 60_000;
 export const DEFAULT_FOCUS_CONTEXT_MIN_CONFIDENCE = 0.75;
@@ -151,6 +174,61 @@ export function deriveFocusContextAdvisoryHints(
     legalityEligible: envelope.contextEligible,
     deicticResolutionEligible: envelope.summary.deicticResolutionEligible,
     reasonCodes: [...envelope.ineligibilityReasons],
+  };
+}
+
+export function deriveFocusContextEvidenceFields(
+  envelope: FocusConditionedCommandContextEnvelope | null | undefined
+): FocusContextEvidenceFields {
+  if (!envelope) {
+    return {
+      focusContextSchemaVersion: null,
+      focusContextEligible: null,
+      focusSnapshotFresh: null,
+      focusAuthorityType: null,
+      focusAppId: null,
+      focusWindowId: null,
+      focusRegionId: null,
+      focusSubregionId: null,
+      focusControlId: null,
+      focusHasSelection: null,
+      focusSelectionTextLength: null,
+      focusCaretOffset: null,
+      focusSnapshotAgeMs: null,
+      focusConfidence: null,
+      focusRecentDeltaCount: null,
+      focusRecentTaskHistoryCount: null,
+      focusDeicticResolutionEligible: null,
+      focusRankingEligible: null,
+      focusLegalityEligible: null,
+      focusReasonCodes: null,
+    };
+  }
+
+  const hints = deriveFocusContextAdvisoryHints(envelope);
+  const snapshot = envelope.snapshot;
+
+  return {
+    focusContextSchemaVersion: envelope.schemaVersion,
+    focusContextEligible: envelope.contextEligible,
+    focusSnapshotFresh: envelope.snapshotFresh,
+    focusAuthorityType: snapshot?.authorityType ?? null,
+    focusAppId: snapshot?.appId ?? null,
+    focusWindowId: snapshot?.windowId ?? null,
+    focusRegionId: snapshot?.regionId ?? null,
+    focusSubregionId: snapshot?.subregionId ?? null,
+    focusControlId: snapshot?.controlId ?? null,
+    focusHasSelection: snapshot?.hasSelection ?? null,
+    focusSelectionTextLength: snapshot?.selectionTextLength ?? null,
+    focusCaretOffset: snapshot?.caretOffset ?? null,
+    focusSnapshotAgeMs: snapshot?.snapshotAgeMs ?? null,
+    focusConfidence: snapshot?.focusConfidence ?? null,
+    focusRecentDeltaCount: envelope.summary.recentFocusDeltaCount,
+    focusRecentTaskHistoryCount: envelope.summary.recentTaskHistoryCount,
+    focusDeicticResolutionEligible: envelope.summary.deicticResolutionEligible,
+    focusRankingEligible: hints.rankingEligible,
+    focusLegalityEligible: hints.legalityEligible,
+    focusReasonCodes: [...hints.reasonCodes],
   };
 }
 
