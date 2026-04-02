@@ -44,6 +44,12 @@ export interface H3RuntimeEvidenceEvent {
   successCount: number | null;
   warmApplied: boolean | null;
   warmAppliedStage: string | null;
+  confidencePolicyVersion: string | null;
+  weakThreshold: number | null;
+  strongThreshold: number | null;
+  candidateAgeMs: number | null;
+  recentConflictPenaltyApplied: boolean | null;
+  staleProtectionApplied: boolean | null;
   warmDiscardReason: string | null;
   liveEvidenceOverride: boolean | null;
   lookupPath: string | null;
@@ -99,6 +105,12 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     successCount: input.successCount ?? null,
     warmApplied: input.warmApplied ?? null,
     warmAppliedStage: input.warmAppliedStage ?? null,
+    confidencePolicyVersion: input.confidencePolicyVersion ?? null,
+    weakThreshold: input.weakThreshold ?? null,
+    strongThreshold: input.strongThreshold ?? null,
+    candidateAgeMs: input.candidateAgeMs ?? null,
+    recentConflictPenaltyApplied: input.recentConflictPenaltyApplied ?? null,
+    staleProtectionApplied: input.staleProtectionApplied ?? null,
     warmDiscardReason: input.warmDiscardReason ?? null,
     liveEvidenceOverride: input.liveEvidenceOverride ?? null,
     lookupPath: input.lookupPath ?? null,

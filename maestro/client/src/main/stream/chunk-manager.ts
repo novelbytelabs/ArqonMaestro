@@ -153,6 +153,12 @@ export default class ChunkManager {
       bestCandidateScore: number | null;
       bestCanonicalMergedText: string | null;
       lookupPath: string;
+      confidencePolicyVersion: string;
+      weakThreshold: number;
+      strongThreshold: number;
+      candidateAgeMs: number | null;
+      recentConflictPenaltyApplied: boolean;
+      staleProtectionApplied: boolean;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -799,6 +805,12 @@ export default class ChunkManager {
         canonicalMergedText: semanticLookup.bestCanonicalMergedText,
         warmHitClass: semanticLookup.warmHitClass,
         lookupPath: semanticLookup.lookupPath,
+        confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+        weakThreshold: semanticLookup.weakThreshold,
+        strongThreshold: semanticLookup.strongThreshold,
+        candidateAgeMs: semanticLookup.candidateAgeMs,
+        recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+        staleProtectionApplied: semanticLookup.staleProtectionApplied,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -823,6 +835,12 @@ export default class ChunkManager {
           canonicalMergedText: semanticLookup.bestCanonicalMergedText,
           warmHitClass: semanticLookup.warmHitClass,
           lookupPath: semanticLookup.lookupPath,
+          confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+          weakThreshold: semanticLookup.weakThreshold,
+          strongThreshold: semanticLookup.strongThreshold,
+          candidateAgeMs: semanticLookup.candidateAgeMs,
+          recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+          staleProtectionApplied: semanticLookup.staleProtectionApplied,
           governanceRequired: true,
           reason:
             semanticLookup.mismatchReason ??
@@ -864,6 +882,12 @@ export default class ChunkManager {
         bestCandidateScore: semanticLookup.bestCandidateScore,
         bestCanonicalMergedText: semanticLookup.bestCanonicalMergedText,
         lookupPath: semanticLookup.lookupPath,
+        confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+        weakThreshold: semanticLookup.weakThreshold,
+        strongThreshold: semanticLookup.strongThreshold,
+        candidateAgeMs: semanticLookup.candidateAgeMs,
+        recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+        staleProtectionApplied: semanticLookup.staleProtectionApplied,
         warmApplied,
         warmAppliedStage,
       });
@@ -882,6 +906,12 @@ export default class ChunkManager {
           bestCandidateId: semanticLookup.bestCandidateId,
           bestCandidateScore: semanticLookup.bestCandidateScore,
           lookupPath: semanticLookup.lookupPath,
+          confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+          weakThreshold: semanticLookup.weakThreshold,
+          strongThreshold: semanticLookup.strongThreshold,
+          candidateAgeMs: semanticLookup.candidateAgeMs,
+          recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+          staleProtectionApplied: semanticLookup.staleProtectionApplied,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1213,6 +1243,12 @@ export default class ChunkManager {
         warmHitClass: warmLookup?.warmHitClass ?? null,
         warmApplied: warmLookup?.warmApplied ?? null,
         warmAppliedStage: warmLookup?.warmAppliedStage ?? null,
+        confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? null,
+        weakThreshold: warmLookup?.weakThreshold ?? null,
+        strongThreshold: warmLookup?.strongThreshold ?? null,
+        candidateAgeMs: warmLookup?.candidateAgeMs ?? null,
+        recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? null,
+        staleProtectionApplied: warmLookup?.staleProtectionApplied ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1240,6 +1276,12 @@ export default class ChunkManager {
       warmHitClass: warmLookup?.warmHitClass ?? null,
       warmApplied: warmLookup?.warmApplied ?? null,
       warmAppliedStage: warmLookup?.warmAppliedStage ?? null,
+      confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? null,
+      weakThreshold: warmLookup?.weakThreshold ?? null,
+      strongThreshold: warmLookup?.strongThreshold ?? null,
+      candidateAgeMs: warmLookup?.candidateAgeMs ?? null,
+      recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? null,
+      staleProtectionApplied: warmLookup?.staleProtectionApplied ?? null,
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
       lookupPath: warmLookup?.lookupPath ?? null,
@@ -1306,6 +1348,12 @@ export default class ChunkManager {
       successCount: number | null;
       warmApplied: boolean | null;
       warmAppliedStage: string | null;
+      confidencePolicyVersion: string | null;
+      weakThreshold: number | null;
+      strongThreshold: number | null;
+      candidateAgeMs: number | null;
+      recentConflictPenaltyApplied: boolean | null;
+      staleProtectionApplied: boolean | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1357,6 +1405,12 @@ export default class ChunkManager {
       successCount: overrides.successCount ?? null,
       warmApplied: overrides.warmApplied ?? null,
       warmAppliedStage: overrides.warmAppliedStage ?? null,
+      confidencePolicyVersion: overrides.confidencePolicyVersion ?? null,
+      weakThreshold: overrides.weakThreshold ?? null,
+      strongThreshold: overrides.strongThreshold ?? null,
+      candidateAgeMs: overrides.candidateAgeMs ?? null,
+      recentConflictPenaltyApplied: overrides.recentConflictPenaltyApplied ?? null,
+      staleProtectionApplied: overrides.staleProtectionApplied ?? null,
       warmDiscardReason: overrides.warmDiscardReason ?? null,
       liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
       lookupPath: overrides.lookupPath ?? null,

@@ -175,6 +175,12 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       bestCandidateScore: 0.98,
       bestCanonicalMergedText: "go to line 51",
       lookupPath: "slot_signature_index",
+      confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+      weakThreshold: 0.78,
+      strongThreshold: 0.93,
+      candidateAgeMs: 7300,
+      recentConflictPenaltyApplied: true,
+      staleProtectionApplied: false,
       warmApplied: true,
       warmAppliedStage: "tail_strategy_prearm",
     });
@@ -192,6 +198,12 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       expect.objectContaining({
         semanticAddressId: "semantic-warm-1",
         canonicalMergedText: "go to line 51",
+        confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+        weakThreshold: 0.78,
+        strongThreshold: 0.93,
+        candidateAgeMs: 7300,
+        recentConflictPenaltyApplied: true,
+        staleProtectionApplied: false,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
       })
@@ -201,7 +213,105 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       "merged_transcript_emitted",
       expect.objectContaining({
         mergedText: "go to line 52",
+        confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+        weakThreshold: 0.78,
+        strongThreshold: 0.93,
+        candidateAgeMs: 7300,
+        recentConflictPenaltyApplied: true,
+        staleProtectionApplied: false,
         liveEvidenceOverride: true,
+      })
+    );
+  });
+
+
+  it("emits confidence-policy metadata during warm lookup evidence", () => {
+    const manager = makeBareManager();
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const ChunkManager = require("../../main/stream/chunk-manager.ts").default;
+    manager.observeH3GeometricEvent = ChunkManager.prototype.observeH3GeometricEvent.bind(manager);
+    manager.chunkH3TailDecodeActive.set("chunk-2", false);
+    manager.chunkH3Route.set("chunk-2", "legacy_text");
+    manager.chunkH3StepIndex.set("chunk-2", 0);
+    manager.chunkH3TailAudioFrames.set("chunk-2", []);
+    manager.h3GeometricGovernor = {
+      observe: jest.fn(() => ({ commandClass: "parameterized", structurallyStable: true })),
+    };
+    manager.h3GeometricRoutingService = {
+      decide: jest.fn(() => ({ route: "geometric_prefix_asr_tail", reason: "parameterized" })),
+    };
+    const lookupSpy = jest.spyOn(voiceSemanticAddressRegistry, "lookup").mockReturnValue({
+      lookupCandidateCount: 1,
+      bestCandidateId: "semantic-warm-2",
+      bestCandidateScore: 0.91,
+      bestCanonicalMergedText: "go to line 52",
+      warmHitClass: "weak",
+      lookupPath: "slot_signature_index",
+      slotSignature: "goto_line:52",
+      atlasCompatible: true,
+      mismatchReason: null,
+      confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+      weakThreshold: 0.78,
+      strongThreshold: 0.93,
+      candidateAgeMs: 4200,
+      recentConflictPenaltyApplied: true,
+      staleProtectionApplied: false,
+    });
+
+    manager.observeH3GeometricEvent(
+      "chunk-2",
+      {
+        source: "spectral_manifold",
+        regionId: "go to line",
+        commandClass: "parameterized",
+        parameterType: "numeric",
+        atlasBacked: true,
+        atlasVersion: "v1",
+        atlasSchema: "h3_command_atlas_v1",
+        confidence: 0.9,
+        frameCount: 99,
+        timestampMs: 200,
+      },
+      false,
+      "52"
+    );
+
+    expect(lookupSpy).toHaveBeenCalled();
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-2",
+      "voice_semantic_address_lookup_completed",
+      expect.objectContaining({
+        confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+        weakThreshold: 0.78,
+        strongThreshold: 0.93,
+        candidateAgeMs: 4200,
+        recentConflictPenaltyApplied: true,
+        staleProtectionApplied: false,
+      })
+    );
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-2",
+      "voice_semantic_address_warm_hit",
+      expect.objectContaining({
+        confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+        weakThreshold: 0.78,
+        strongThreshold: 0.93,
+        candidateAgeMs: 4200,
+        recentConflictPenaltyApplied: true,
+        staleProtectionApplied: false,
+      })
+    );
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-2",
+      "voice_semantic_address_warm_applied",
+      expect.objectContaining({
+        confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+        weakThreshold: 0.78,
+        strongThreshold: 0.93,
+        candidateAgeMs: 4200,
+        recentConflictPenaltyApplied: true,
+        staleProtectionApplied: false,
+        warmAppliedStage: "shortlist_only",
       })
     );
   });

@@ -97,8 +97,21 @@ Slice S1 is acceptable only if:
 ## Follow-on Slices
 
 Potential later Stage 3D3 slices:
-- S2: evidence-surface enrichment for confidence-policy metadata in runtime reports
 - S3: family-specific confidence tuning for numeric vs open tails
 - S4: bounded in-memory eviction / reheating heuristics
 
 None of those are included in this bundle.
+
+
+## Slice S2
+
+Slice S2 implemented in this bundle:
+- surface confidence-policy metadata into H3 runtime evidence events
+- preserve advisory-only doctrine while making warm-hit reasoning auditable in reports
+- carry threshold, age, stale-protection, and recent-conflict flags through pre-dispatch and finalize-stage evidence
+
+Slice S2 must prove:
+- lookup-completed evidence exposes the active confidence-policy metadata
+- warm-hit / warm-discard evidence carries the same metadata for auditability
+- live override + merged-transcript evidence preserve the carried metadata without granting warm authority
+- all policy metadata remains observational only

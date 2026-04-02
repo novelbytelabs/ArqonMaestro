@@ -80,6 +80,8 @@ export interface LookupResult {
   atlasCompatible: boolean;
   mismatchReason: string | null;
   confidencePolicyVersion: string;
+  weakThreshold: number;
+  strongThreshold: number;
   candidateAgeMs: number | null;
   recentConflictPenaltyApplied: boolean;
   staleProtectionApplied: boolean;
@@ -160,6 +162,8 @@ export class VoiceSemanticAddressRegistry {
               atlasCompatible: false,
               mismatchReason: "warm_miss_atlas_incompatible",
               confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+              weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+              strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
               candidateAgeMs: Math.max(0, Date.now() - indexedRecord.updatedAtMs),
               recentConflictPenaltyApplied: false,
               staleProtectionApplied: false,
@@ -177,6 +181,8 @@ export class VoiceSemanticAddressRegistry {
             atlasCompatible: true,
             mismatchReason: policy.mismatchReason,
             confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+            weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+            strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
             candidateAgeMs: policy.ageMs,
             recentConflictPenaltyApplied: policy.recentConflictPenaltyApplied,
             staleProtectionApplied: policy.staleProtectionApplied,
@@ -200,6 +206,8 @@ export class VoiceSemanticAddressRegistry {
         atlasCompatible: true,
         mismatchReason: null,
         confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+        weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+        strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
         candidateAgeMs: null,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: false,
@@ -242,6 +250,8 @@ export class VoiceSemanticAddressRegistry {
         atlasCompatible: false,
         mismatchReason: "warm_miss_atlas_incompatible",
         confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+        weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+        strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
         candidateAgeMs: null,
         recentConflictPenaltyApplied: false,
         staleProtectionApplied: false,
@@ -259,6 +269,8 @@ export class VoiceSemanticAddressRegistry {
       atlasCompatible: true,
       mismatchReason: bestPolicy.mismatchReason,
       confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+      weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+      strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
       candidateAgeMs: bestPolicy.ageMs,
       recentConflictPenaltyApplied: bestPolicy.recentConflictPenaltyApplied,
       staleProtectionApplied: bestPolicy.staleProtectionApplied,

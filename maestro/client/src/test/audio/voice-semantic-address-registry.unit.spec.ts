@@ -46,6 +46,9 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.bestCanonicalMergedText).toBe("go to line 52");
     expect(lookup.warmHitClass === "strong" || lookup.warmHitClass === "weak").toBe(true);
     expect(lookup.lookupPath).toBe("slot_signature_index");
+    expect(lookup.confidencePolicyVersion).toBe(VOICE_SEMANTIC_WARM_POLICY_VERSION);
+    expect(lookup.weakThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD);
+    expect(lookup.strongThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD);
   });
 
   it("does not register when governance is not granted", () => {
@@ -319,6 +322,8 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     expect(conflicted.recentConflictPenaltyApplied).toBe(true);
     expect(conflicted.staleProtectionApplied).toBe(false);
+    expect(conflicted.weakThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD);
+    expect(conflicted.strongThreshold).toBe(VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD);
     expect(conflicted.bestCandidateId).toBe(record!.semanticAddressId);
     expect(conflicted.bestCandidateScore).not.toBeNull();
     expect(conflicted.bestCandidateScore!).toBeLessThan(baseline.bestCandidateScore!);
@@ -360,6 +365,7 @@ describe("VoiceSemanticAddressRegistry", () => {
       expect(stale.mismatchReason).toBe("warm_miss_stale_protection");
       expect(stale.staleProtectionApplied).toBe(true);
       expect(stale.recentConflictPenaltyApplied).toBe(false);
+      expect(stale.confidencePolicyVersion).toBe(VOICE_SEMANTIC_WARM_POLICY_VERSION);
       expect(stale.candidateAgeMs).toBeGreaterThanOrEqual(VOICE_SEMANTIC_WARM_STALE_MS);
     } finally {
       Date.now = originalNow;

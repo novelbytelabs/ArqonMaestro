@@ -30,3 +30,11 @@ Target checkpoint chain:
 8. `merged_transcript_emitted`
 9. `h23_trace_written`
 10. `h24_proof_written`
+
+Stage 3D3 confidence-policy evidence fields:
+- `confidencePolicyVersion`
+- `weakThreshold`
+- `strongThreshold`
+- `candidateAgeMs`
+- `recentConflictPenaltyApplied`
+- `staleProtectionApplied`
