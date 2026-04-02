@@ -29,6 +29,19 @@ export interface H3RuntimeEvidenceEvent {
   openParseConfidence: number | null;
   openStrategyVersion: string | null;
   openTargetKind: string | null;
+  semanticAddressId: string | null;
+  canonicalMergedText: string | null;
+  slotSignature: string | null;
+  atlasVersion: string | null;
+  lookupCandidateCount: number | null;
+  bestCandidateId: string | null;
+  bestCandidateScore: number | null;
+  warmHitClass: string | null;
+  governanceRequired: boolean | null;
+  governanceQualified: boolean | null;
+  h23StepCount: number | null;
+  h24FinalGranted: boolean | null;
+  successCount: number | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -66,6 +79,19 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     openParseConfidence: input.openParseConfidence ?? null,
     openStrategyVersion: input.openStrategyVersion ?? null,
     openTargetKind: input.openTargetKind ?? null,
+    semanticAddressId: input.semanticAddressId ?? null,
+    canonicalMergedText: input.canonicalMergedText ?? null,
+    slotSignature: input.slotSignature ?? null,
+    atlasVersion: input.atlasVersion ?? null,
+    lookupCandidateCount: input.lookupCandidateCount ?? null,
+    bestCandidateId: input.bestCandidateId ?? null,
+    bestCandidateScore: input.bestCandidateScore ?? null,
+    warmHitClass: input.warmHitClass ?? null,
+    governanceRequired: input.governanceRequired ?? null,
+    governanceQualified: input.governanceQualified ?? null,
+    h23StepCount: input.h23StepCount ?? null,
+    h24FinalGranted: input.h24FinalGranted ?? null,
+    successCount: input.successCount ?? null,
   };
 }
 
