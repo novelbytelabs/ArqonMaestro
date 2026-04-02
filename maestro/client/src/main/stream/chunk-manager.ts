@@ -151,6 +151,7 @@ export default class ChunkManager {
       warmHitClass: "strong" | "weak" | "miss";
       bestCandidateId: string | null;
       bestCandidateScore: number | null;
+      bestCanonicalMergedText: string | null;
       lookupPath: string;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
@@ -795,6 +796,7 @@ export default class ChunkManager {
         lookupCandidateCount: semanticLookup.lookupCandidateCount,
         bestCandidateId: semanticLookup.bestCandidateId,
         bestCandidateScore: semanticLookup.bestCandidateScore,
+        canonicalMergedText: semanticLookup.bestCanonicalMergedText,
         warmHitClass: semanticLookup.warmHitClass,
         lookupPath: semanticLookup.lookupPath,
         governanceRequired: true,
@@ -818,6 +820,7 @@ export default class ChunkManager {
           lookupCandidateCount: semanticLookup.lookupCandidateCount,
           bestCandidateId: semanticLookup.bestCandidateId,
           bestCandidateScore: semanticLookup.bestCandidateScore,
+          canonicalMergedText: semanticLookup.bestCanonicalMergedText,
           warmHitClass: semanticLookup.warmHitClass,
           lookupPath: semanticLookup.lookupPath,
           governanceRequired: true,
@@ -859,6 +862,7 @@ export default class ChunkManager {
         warmHitClass: semanticLookup.warmHitClass,
         bestCandidateId: semanticLookup.bestCandidateId,
         bestCandidateScore: semanticLookup.bestCandidateScore,
+        bestCanonicalMergedText: semanticLookup.bestCanonicalMergedText,
         lookupPath: semanticLookup.lookupPath,
         warmApplied,
         warmAppliedStage,
@@ -873,6 +877,8 @@ export default class ChunkManager {
           commandClass: event.commandClass,
           parameterType: event.parameterType ?? null,
           warmHitClass: semanticLookup.warmHitClass,
+          semanticAddressId: semanticLookup.bestCandidateId,
+          canonicalMergedText: semanticLookup.bestCanonicalMergedText,
           bestCandidateId: semanticLookup.bestCandidateId,
           bestCandidateScore: semanticLookup.bestCandidateScore,
           lookupPath: semanticLookup.lookupPath,
@@ -1192,6 +1198,29 @@ export default class ChunkManager {
         openTargetKind: normalized.targetKind,
       });
     }
+    const warmLookup = this.chunkH3WarmLookup?.get(chunkId);
+    const liveEvidenceOverride = Boolean(
+      warmLookup?.warmApplied &&
+        warmLookup.bestCanonicalMergedText &&
+        warmLookup.bestCanonicalMergedText.trim().toLowerCase() !== mergedTranscript.trim().toLowerCase()
+    );
+    if (liveEvidenceOverride) {
+      this.emitH3Evidence(chunkId, "voice_semantic_address_warm_discarded", {
+        semanticAddressId: warmLookup?.bestCandidateId ?? null,
+        canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? null,
+        bestCandidateId: warmLookup?.bestCandidateId ?? null,
+        bestCandidateScore: warmLookup?.bestCandidateScore ?? null,
+        warmHitClass: warmLookup?.warmHitClass ?? null,
+        warmApplied: warmLookup?.warmApplied ?? null,
+        warmAppliedStage: warmLookup?.warmAppliedStage ?? null,
+        warmDiscardReason: "live_geometric_evidence_override",
+        liveEvidenceOverride: true,
+        lookupPath: warmLookup?.lookupPath ?? null,
+        reason: "live_geometric_evidence_override",
+      });
+      this.chunkH3WarmLookup?.delete(chunkId);
+    }
+
     const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
     this.observeH3GeometricEvent(chunkId, geometricEvent, true, tailResult.transcript);
     const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
@@ -1201,6 +1230,16 @@ export default class ChunkManager {
       routeAfter: "geometric_prefix_asr_tail",
       tailText: tailResult.transcript,
       mergedText: mergedTranscript,
+      semanticAddressId: warmLookup?.bestCandidateId ?? null,
+      canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? null,
+      bestCandidateId: warmLookup?.bestCandidateId ?? null,
+      bestCandidateScore: warmLookup?.bestCandidateScore ?? null,
+      warmHitClass: warmLookup?.warmHitClass ?? null,
+      warmApplied: warmLookup?.warmApplied ?? null,
+      warmAppliedStage: warmLookup?.warmAppliedStage ?? null,
+      warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
+      liveEvidenceOverride,
+      lookupPath: warmLookup?.lookupPath ?? null,
       reason: "merged_from_geometric_prefix_and_asr_tail",
       parameterType: numericStrategyEnabled ? "numeric" : openStrategyEnabled ? "open" : null,
       numericRaw: numericStrategyEnabled ? tailResult.transcript : null,

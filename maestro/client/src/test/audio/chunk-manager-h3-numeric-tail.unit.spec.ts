@@ -48,6 +48,7 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     manager.chunkH3LastGeometricSignature = new Map<string, any>();
     manager.chunkH3NumericStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
+    manager.chunkH3WarmLookup = new Map<string, any>();
     manager.chunkH3TailDecodeActive.set("chunk-1", true);
     manager.chunkH3TailAudioFrames.set("chunk-1", [Buffer.from([1, 2, 3, 4])]);
     manager.chunkH3Route.set("chunk-1", "geometric_prefix_asr_tail");
@@ -160,6 +161,45 @@ describe("ChunkManager H3 numeric tail specialization", () => {
       expect(handled).toBe(true);
     }
     expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
+  });
+
+  it("emits live-evidence override when warm memory conflicts with numeric merged truth", async () => {
+    const manager = makeBareManager();
+    manager.chunkH3WarmLookup.set("chunk-1", {
+      warmHitClass: "strong",
+      bestCandidateId: "semantic-warm-1",
+      bestCandidateScore: 0.98,
+      bestCanonicalMergedText: "go to line 51",
+      lookupPath: "slot_signature_index",
+      warmApplied: true,
+      warmAppliedStage: "tail_strategy_prearm",
+    });
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.recordFinal = jest.fn();
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+
+    const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
+    expect(handled).toBe(true);
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-1",
+      "voice_semantic_address_warm_discarded",
+      expect.objectContaining({
+        semanticAddressId: "semantic-warm-1",
+        canonicalMergedText: "go to line 51",
+        warmDiscardReason: "live_geometric_evidence_override",
+        liveEvidenceOverride: true,
+      })
+    );
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-1",
+      "merged_transcript_emitted",
+      expect.objectContaining({
+        mergedText: "go to line 52",
+        liveEvidenceOverride: true,
+      })
+    );
+    expect(manager.chunkH3WarmLookup.has("chunk-1")).toBe(false);
+    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("go to line 52", true, "chunk-1");
   });
 
   it("selects numeric strategy only after atlas-backed numeric prefix event", () => {

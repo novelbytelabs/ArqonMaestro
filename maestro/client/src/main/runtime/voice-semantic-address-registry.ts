@@ -71,6 +71,7 @@ export interface LookupResult {
   lookupCandidateCount: number;
   bestCandidateId: string | null;
   bestCandidateScore: number | null;
+  bestCanonicalMergedText: string | null;
   warmHitClass: "strong" | "weak" | "miss";
   lookupPath: "slot_signature_index" | "candidate_scan" | "none";
   slotSignature: string | null;
@@ -140,6 +141,7 @@ export class VoiceSemanticAddressRegistry {
               lookupCandidateCount: 1,
               bestCandidateId: indexedRecord.semanticAddressId,
               bestCandidateScore: null,
+              bestCanonicalMergedText: indexedRecord.canonicalMergedText,
               warmHitClass: "miss",
               lookupPath: "slot_signature_index",
               slotSignature: derivedSlotSignature,
@@ -152,6 +154,7 @@ export class VoiceSemanticAddressRegistry {
             lookupCandidateCount: 1,
             bestCandidateId: indexedRecord.semanticAddressId,
             bestCandidateScore: Number(score.toFixed(3)),
+            bestCanonicalMergedText: indexedRecord.canonicalMergedText,
             warmHitClass: this.classifyWarmHit(score),
             lookupPath: "slot_signature_index",
             slotSignature: derivedSlotSignature,
@@ -170,6 +173,7 @@ export class VoiceSemanticAddressRegistry {
         lookupCandidateCount: 0,
         bestCandidateId: null,
         bestCandidateScore: null,
+        bestCanonicalMergedText: null,
         warmHitClass: "miss",
         lookupPath: "none",
         slotSignature: derivedSlotSignature,
@@ -195,6 +199,7 @@ export class VoiceSemanticAddressRegistry {
         lookupCandidateCount: candidates.length,
         bestCandidateId: null,
         bestCandidateScore: null,
+        bestCanonicalMergedText: null,
         warmHitClass: "miss",
         lookupPath: "candidate_scan",
         slotSignature: derivedSlotSignature,
@@ -207,6 +212,7 @@ export class VoiceSemanticAddressRegistry {
       lookupCandidateCount: candidates.length,
       bestCandidateId: best?.semanticAddressId ?? null,
       bestCandidateScore: best ? Number(bestScore.toFixed(3)) : null,
+      bestCanonicalMergedText: best?.canonicalMergedText ?? null,
       warmHitClass: this.classifyWarmHit(bestScore),
       lookupPath: "candidate_scan",
       slotSignature: derivedSlotSignature,

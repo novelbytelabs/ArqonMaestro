@@ -40,6 +40,7 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     expect(lookup.lookupCandidateCount).toBeGreaterThan(0);
     expect(lookup.bestCandidateId).toBe(first?.semanticAddressId);
+    expect(lookup.bestCanonicalMergedText).toBe("go to line 52");
     expect(lookup.warmHitClass === "strong" || lookup.warmHitClass === "weak").toBe(true);
     expect(lookup.lookupPath).toBe("slot_signature_index");
   });
@@ -154,6 +155,7 @@ describe("VoiceSemanticAddressRegistry", () => {
       atlasSchema: "h3_command_atlas_v1",
     });
     expect(mismatch.warmHitClass).toBe("miss");
+    expect(mismatch.bestCanonicalMergedText).toBe("pause");
     expect(mismatch.mismatchReason).toBe("warm_miss_atlas_incompatible");
     expect(mismatch.lookupPath).toBe("slot_signature_index");
   });

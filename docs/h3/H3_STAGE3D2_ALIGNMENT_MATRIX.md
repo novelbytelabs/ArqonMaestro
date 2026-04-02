@@ -7,7 +7,7 @@ Source-of-truth rule: runtime code + tests outrank pack prose when conflict exis
 | doctrine requirement | PM/pack claim | code evidence | test evidence | status | required action |
 |---|---|---|---|---|---|
 | warm hit is advisory-only | warm may accelerate, may not authorize | warm apply/discard emitted in `chunk-manager.ts` with advisory reasons; no cache dispatch path | registry + chunk-manager focused tests pass | aligned | keep |
-| live geometric evidence outranks warmed memory | explicit override/discard path claims in delta | `liveEvidenceOverride` field exists, but current emitted value is fixed `false`; no explicit final-merge conflict override reason wired | no explicit test proving live-overrides-warm conflict path end-to-end | conflict | small implementation gap |
+| live geometric evidence outranks warmed memory | explicit override/discard path claims in delta | override path now compares warmed canonical expectation vs final merged truth and emits discard with `liveEvidenceOverride=true` on mismatch | numeric-tail test explicitly proves warm-memory conflict is overridden by live truth | aligned | keep |
 | no H23/H24 bypass | governance remains sacred | registration occurs post-governed success (`h24-policy-proof-recorder.ts`); warm lookup emits `governanceRequired=true` | Stage 3D1/3D2 tests cover registration gates | aligned | keep |
 | no Stage 3A activation drift | stage 3A remains unchanged | route activation still geometric-first in `chunk-manager.ts`; warm logic is additive | existing numeric/open tail tests still green | aligned | keep |
 | no persistence/distributed cache | no persistence | semantic registry remains in-memory only | no persistence artifacts introduced | aligned | keep |
@@ -20,7 +20,7 @@ Source-of-truth rule: runtime code + tests outrank pack prose when conflict exis
 - `doc fix only`:
   - any prose that describes features already present but with wording drift.
 - `small implementation gap`:
-  - explicit live-truth override/discard semantics (`liveEvidenceOverride=true` and discard reason on warmed-vs-final mismatch).
+  - none currently open for Stage 3D2 Slice B doctrine lock.
 - `defer`:
   - any persistence/distributed cache or non-v1 expansion requests.
 
@@ -34,6 +34,6 @@ Source-of-truth rule: runtime code + tests outrank pack prose when conflict exis
 
 ### Slice B (behavior gap only if approved)
 
-- minimally implement the explicit live-truth override/discard path if missing.
-- add targeted tests that assert warmed expectation is discarded on final live-truth conflict.
+- implemented explicit live-truth override/discard path.
+- added targeted test proving warmed expectation is discarded on final live-truth conflict.
 - rerun `tsc`, targeted jest, and timing validator.
