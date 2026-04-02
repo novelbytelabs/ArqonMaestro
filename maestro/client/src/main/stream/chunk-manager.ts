@@ -63,7 +63,7 @@ interface Request {
 
 type H3Route = "legacy_text" | "geometric_only" | "geometric_prefix_asr_tail";
 const H3_NUMERIC_STRATEGY_VERSION = "3b1-numeric-v1";
-const H3_OPEN_STRATEGY_VERSION = "3b2a-open-v1";
+const H3_OPEN_STRATEGY_VERSION = "3b2b-open-v1";
 const H3_OPEN_TARGET_LIKENESS_FLOOR = 0.72;
 
 /**
@@ -792,7 +792,7 @@ export default class ChunkManager {
       routeAfter === "geometric_prefix_asr_tail" &&
       step.structurallyStable &&
       event.regionId &&
-      (event.regionId === "go to line" || event.regionId === "go to")
+      (event.regionId === "go to line" || event.regionId === "go to" || event.regionId === "open")
     ) {
       this.chunkH3ParameterizedPrefix.set(chunkId, event.regionId);
       const numericStrategyEnabled =
@@ -801,7 +801,7 @@ export default class ChunkManager {
         event.parameterType === "numeric" &&
         event.atlasBacked === true;
       const openStrategyEnabled =
-        event.regionId === "go to" &&
+        (event.regionId === "go to" || event.regionId === "open") &&
         event.commandClass === "parameterized" &&
         event.parameterType === "open" &&
         event.atlasBacked === true;
@@ -821,7 +821,7 @@ export default class ChunkManager {
           numericParseConfidence: event.confidence,
           numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
         });
-      } else if (event.regionId === "go to") {
+      } else if (event.regionId === "go to" || event.regionId === "open") {
         this.emitH3Evidence(chunkId, "open_tail_strategy_selected", {
           source: event.source,
           regionId: event.regionId,
@@ -925,6 +925,7 @@ export default class ChunkManager {
         : null,
     });
     let mergedTranscript = this.composeH3MergedTranscript(prefix, tailResult.transcript);
+    let openTailNormalization: ReturnType<typeof normalizeOpenTail> | null = null;
     const numericStrategyEnabled = this.chunkH3NumericStrategyEnabled.get(chunkId) === true;
     if (numericStrategyEnabled && prefix === "go to line") {
       const normalized = normalizeNumericTail(tailResult.transcript);
@@ -970,8 +971,11 @@ export default class ChunkManager {
       mergedTranscript = `${prefix} ${normalized.normalized}`.trim();
     }
     const openStrategyEnabled = this.chunkH3OpenStrategyEnabled.get(chunkId) === true;
-    if (openStrategyEnabled && prefix === "go to") {
-      const normalized = normalizeOpenTail(tailResult.transcript);
+    if (openStrategyEnabled && (prefix === "go to" || prefix === "open")) {
+      const normalized = normalizeOpenTail(tailResult.transcript, {
+        commandPrefix: prefix === "open" ? "open" : "go to",
+      });
+      openTailNormalization = normalized;
       const openTailClass = normalized.status === "ok" ? "ok" : normalized.status === "partial" ? "partial" : "invalid";
       const openTailOk =
         normalized.status === "ok" &&
@@ -1034,14 +1038,14 @@ export default class ChunkManager {
       tailText: tailResult.transcript,
       mergedText: mergedTranscript,
       reason: "merged_from_geometric_prefix_and_asr_tail",
-      parameterType: numericStrategyEnabled ? "numeric" : null,
+      parameterType: numericStrategyEnabled ? "numeric" : openStrategyEnabled ? "open" : null,
       numericRaw: numericStrategyEnabled ? tailResult.transcript : null,
       numericNormalized: numericStrategyEnabled ? mergedTranscript.slice(prefix.length).trim() : null,
       numericStrategyVersion: numericStrategyEnabled ? H3_NUMERIC_STRATEGY_VERSION : null,
       openRaw: openStrategyEnabled ? tailResult.transcript : null,
       openNormalized: openStrategyEnabled ? mergedTranscript.slice(prefix.length).trim() : null,
       openStrategyVersion: openStrategyEnabled ? H3_OPEN_STRATEGY_VERSION : null,
-      openTargetKind: openStrategyEnabled ? (normalizeOpenTail(tailResult.transcript).targetKind ?? "unknown") : null,
+      openTargetKind: openStrategyEnabled ? (openTailNormalization?.targetKind ?? "unknown") : null,
     });
 
     this.log.logVerbose(

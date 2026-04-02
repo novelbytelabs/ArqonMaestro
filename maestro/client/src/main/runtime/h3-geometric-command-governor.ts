@@ -134,6 +134,14 @@ const COMMAND_ATLAS: Record<string, GeometricCommandSpec> = {
     captureThreshold: 0.76,
     paramType: "open",
   },
+  open: {
+    canonical: "open",
+    commandClass: "parameterized",
+    structuralPrefix: "open",
+    minFrames: 2,
+    captureThreshold: 0.76,
+    paramType: "open",
+  },
 };
 
 export default class H3GeometricCommandGovernor {
@@ -287,6 +295,15 @@ export default class H3GeometricCommandGovernor {
         required_slots_present: Boolean(normalized),
       };
     }
+    if (spec.structuralPrefix === "open") {
+      const normalized = trimmed.replace(/ dot /g, ".");
+      return {
+        command_family: "open_target",
+        target_raw: trimmed,
+        target: normalized || null,
+        required_slots_present: Boolean(normalized),
+      };
+    }
 
     return { command_family: null, required_slots_present: false };
   }
@@ -304,6 +321,8 @@ export default class H3GeometricCommandGovernor {
         return slots.line_number != null ? `goto_line:${String(slots.line_number)}` : null;
       case "goto_open":
         return slots.target ? `goto_open:${String(slots.target)}` : null;
+      case "open_target":
+        return slots.target ? `open_target:${String(slots.target)}` : null;
       default:
         return null;
     }

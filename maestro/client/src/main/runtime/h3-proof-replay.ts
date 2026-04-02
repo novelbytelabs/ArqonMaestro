@@ -25,6 +25,8 @@ function regionForTranscript(transcript: string): { regionId: string | null; tai
   if (t === "go to line") return { regionId: "go to line" };
   if (t.startsWith("go to ")) return { regionId: "go to", tail: t.slice("go to".length).trim() };
   if (t === "go to") return { regionId: "go to" };
+  if (t.startsWith("open ")) return { regionId: "open", tail: t.slice("open".length).trim() };
+  if (t === "open") return { regionId: "open" };
   return { regionId: null };
 }
 

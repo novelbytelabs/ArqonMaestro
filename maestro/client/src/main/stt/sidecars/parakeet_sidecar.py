@@ -37,7 +37,7 @@ PARAKEET_MODEL = None
 PARAKEET_DEVICE = "cpu"
 PARAKEET_MODEL_ERROR = ""
 H3_GEOMETRIC_DETECTOR = None
-H3_VALIDATED_V1_REGIONS = {"pause", "new tab", "focus chrome", "go to line"}
+H3_VALIDATED_V1_REGIONS = {"pause", "new tab", "focus chrome", "go to line", "go to", "open"}
 
 
 def emit_h3_evidence(

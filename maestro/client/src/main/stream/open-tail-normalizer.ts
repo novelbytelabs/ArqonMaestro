@@ -9,6 +9,10 @@ export interface OpenTailNormalizationResult {
   reason: string;
 }
 
+export interface OpenTailNormalizationOptions {
+  commandPrefix?: "go to" | "open";
+}
+
 const FILLER_ONLY = new Set(["uh", "um", "er", "ah"]);
 const CONNECTOR_ONLY = new Set(["and", "or", "then"]);
 const KNOWN_TLDS = new Set([
@@ -78,7 +82,7 @@ function normalizeDomainLike(text: string): OpenTailNormalizationResult {
       status: "invalid",
       normalized: null,
       confidence: 0.0,
-      targetKind: "unknown",
+      targetKind: "domain",
       reason: "open_tail_domain_pattern_invalid",
     };
   }
@@ -87,7 +91,7 @@ function normalizeDomainLike(text: string): OpenTailNormalizationResult {
       status: "invalid",
       normalized: null,
       confidence: 0.0,
-      targetKind: "unknown",
+      targetKind: "domain",
       reason: "open_tail_domain_label_invalid",
     };
   }
@@ -100,7 +104,14 @@ function normalizeDomainLike(text: string): OpenTailNormalizationResult {
   };
 }
 
-function normalizeTextLike(text: string): OpenTailNormalizationResult {
+function isOpenAppLikeAmbiguous(text: string): boolean {
+  return text === "stack over" || text === "set things";
+}
+
+function normalizeTextLike(
+  text: string,
+  options: OpenTailNormalizationOptions
+): OpenTailNormalizationResult {
   const toks = tokens(text);
   if (toks.length === 0) {
     return {
@@ -138,6 +149,15 @@ function normalizeTextLike(text: string): OpenTailNormalizationResult {
       reason: "open_tail_ambiguous_target",
     };
   }
+  if (options.commandPrefix === "open" && isOpenAppLikeAmbiguous(toks.join(" "))) {
+    return {
+      status: "partial",
+      normalized: null,
+      confidence: 0.42,
+      targetKind: "text",
+      reason: "open_tail_app_like_ambiguous_partial",
+    };
+  }
   return {
     status: "ok",
     normalized: toks.join(" "),
@@ -147,7 +167,10 @@ function normalizeTextLike(text: string): OpenTailNormalizationResult {
   };
 }
 
-export function normalizeOpenTail(rawTail: string): OpenTailNormalizationResult {
+export function normalizeOpenTail(
+  rawTail: string,
+  options: OpenTailNormalizationOptions = {}
+): OpenTailNormalizationResult {
   const cleaned = cleanText(rawTail);
   if (!cleaned) {
     return {
@@ -163,8 +186,9 @@ export function normalizeOpenTail(rawTail: string): OpenTailNormalizationResult 
   if (domainAttempt.status === "ok") {
     return domainAttempt;
   }
-  if (cleaned.includes(" dot ") || cleaned.includes(".")) {
+  const cleanedTokens = tokens(cleaned);
+  if (cleanedTokens.includes("dot") || cleaned.includes(".")) {
     return domainAttempt;
   }
-  return normalizeTextLike(cleaned);
+  return normalizeTextLike(cleaned, options);
 }
