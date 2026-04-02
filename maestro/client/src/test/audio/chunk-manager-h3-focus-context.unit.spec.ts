@@ -155,6 +155,12 @@ describe("ChunkManager H3 focus context evidence", () => {
       focusLegalityPenalty: 0,
       focusLegalityReasonCodes: ["focus_legality_not_applicable"],
       focusLegalityCommandKind: null,
+      focusTaskMomentumApplied: true,
+      focusTaskMomentumBoost: 0.03,
+      focusTaskMomentumPenaltyApplied: false,
+      focusTaskMomentumPenalty: 0,
+      focusTaskMomentumReasonCodes: ["recent_semantic_reuse"],
+      focusTaskMomentumMatchedSemanticAddressId: "semantic-1",
     });
     jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
 
@@ -201,6 +207,12 @@ describe("ChunkManager H3 focus context evidence", () => {
         focusRankingApplied: true,
         focusRankingBoost: 0.05,
         focusRankingReasonCodes: ["browser_navigation_focus_context", "recent_task_exact_match"],
+        focusTaskMomentumApplied: true,
+        focusTaskMomentumBoost: 0.03,
+        focusTaskMomentumPenaltyApplied: false,
+        focusTaskMomentumPenalty: 0,
+        focusTaskMomentumReasonCodes: ["recent_semantic_reuse"],
+        focusTaskMomentumMatchedSemanticAddressId: "semantic-1",
       })
     );
   });
@@ -256,6 +268,12 @@ describe("ChunkManager H3 focus context evidence", () => {
       focusLegalityPenalty: 0,
       focusLegalityReasonCodes: ["deictic_selection_anchor"],
       focusLegalityCommandKind: "open_it",
+      focusTaskMomentumApplied: false,
+      focusTaskMomentumBoost: 0,
+      focusTaskMomentumPenaltyApplied: false,
+      focusTaskMomentumPenalty: 0,
+      focusTaskMomentumReasonCodes: ["focus_task_momentum_no_match"],
+      focusTaskMomentumMatchedSemanticAddressId: null,
     });
     jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
 
@@ -334,4 +352,107 @@ describe("ChunkManager H3 focus context evidence", () => {
       })
     );
   });
+
+  it("carries advisory task-history momentum metadata into runtime evidence", () => {
+    const { ChunkManager, manager } = makeBareManager();
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+    const evidenceSpy = jest
+      .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+      .mockImplementation((event: any) => event);
+    manager.h3GeometricEnabled = true;
+    manager.chunkH3LastGeometricSignature = new Map<string, any>();
+    manager.chunkH3LatestTailHintText = new Map<string, string>();
+    manager.chunkH3StepIndex = new Map<string, number>();
+    manager.chunkH3NumericStrategyEnabled = new Map<string, boolean>();
+    manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
+    manager.chunkH3WarmLookup = new Map<string, any>();
+    manager.chunkH3TailDecodeActive = new Map<string, boolean>();
+    manager.chunkH3TailCaptureStartMs = new Map<string, number>();
+    manager.chunkH3Route.set("chunk-1", "legacy_text");
+    manager.tracking = { getChunkMetrics: jest.fn(() => ({ received_at: Date.now() - 5 })) };
+    manager.h3GeometricGovernor = {
+      observe: jest.fn(() => ({ commandClass: "parameterized", structurallyStable: false })),
+    };
+    manager.h3GeometricRoutingService = {
+      decide: jest.fn(() => ({ route: "geometric_prefix_asr_tail", reason: "focus_context_task_momentum_pilot" })),
+    };
+    manager.chunkH3TailDecodeActive.set("chunk-1", false);
+
+    jest.spyOn(voiceSemanticAddressRegistry, "lookup").mockReturnValue({
+      lookupCandidateCount: 1,
+      bestCandidateId: "semantic-1",
+      bestCandidateScore: 0.854,
+      bestCanonicalMergedText: "open github.com",
+      warmHitClass: "weak",
+      lookupPath: "candidate_scan",
+      slotSignature: null,
+      atlasCompatible: true,
+      mismatchReason: null,
+      confidencePolicyVersion: "3d3_conflict_aware_warm_confidence_v1",
+      weakThreshold: 0.82,
+      strongThreshold: 0.95,
+      candidateAgeMs: 210,
+      recentConflictPenaltyApplied: false,
+      staleProtectionApplied: false,
+      focusRankingApplied: true,
+      focusRankingBoost: 0.04,
+      focusRankingReasonCodes: ["browser_navigation_focus_context"],
+      focusLegalityApplied: false,
+      focusLegalityLawful: null,
+      focusLegalityPenaltyApplied: false,
+      focusLegalityPenalty: 0,
+      focusLegalityReasonCodes: ["focus_legality_not_applicable"],
+      focusLegalityCommandKind: null,
+      focusTaskMomentumApplied: true,
+      focusTaskMomentumBoost: 0.03,
+      focusTaskMomentumPenaltyApplied: false,
+      focusTaskMomentumPenalty: 0,
+      focusTaskMomentumReasonCodes: ["recent_semantic_reuse"],
+      focusTaskMomentumMatchedSemanticAddressId: "semantic-1",
+    });
+    jest.spyOn(voiceSemanticAddressRegistry, "markGeometricContext").mockImplementation(() => undefined);
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.91,
+        authorityType: "verified",
+        snapshotAgeMs: 120,
+      },
+      taskHistoryDelta: [
+        { semanticAddressId: "semantic-1", mergedText: "open github.com", outcome: "success", ageMs: 40 },
+      ],
+    });
+
+    ChunkManager.prototype.setFocusConditionedCommandContextForChunk.call(manager, "chunk-1", envelope);
+    ChunkManager.prototype.observeH3GeometricEvent.call(manager, "chunk-1", {
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      atlasBacked: true,
+      confidence: 0.92,
+      frameCount: 40,
+      timestampMs: 100,
+    }, false, "github.com");
+
+    expect(evidenceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "voice_semantic_address_lookup_completed",
+        focusTaskMomentumApplied: true,
+        focusTaskMomentumBoost: 0.03,
+        focusTaskMomentumPenaltyApplied: false,
+        focusTaskMomentumPenalty: 0,
+        focusTaskMomentumReasonCodes: ["recent_semantic_reuse"],
+        focusTaskMomentumMatchedSemanticAddressId: "semantic-1",
+      })
+    );
+  });
+
 });

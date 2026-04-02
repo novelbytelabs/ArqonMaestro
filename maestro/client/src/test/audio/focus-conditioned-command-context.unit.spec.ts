@@ -8,6 +8,7 @@ import {
   deriveFocusContextEvidenceFields,
   deriveFocusContextLegalityAssessment,
   deriveFocusContextRankingAdjustment,
+  deriveFocusContextTaskMomentumAssessment,
 } from "../../main/runtime/focus-conditioned-command-context";
 
 describe("FocusConditionedCommandContext", () => {
@@ -272,4 +273,75 @@ describe("FocusConditionedCommandContext", () => {
     expect(fields.focusLegalityCommandKind).toBeNull();
     expect(fields.focusReasonCodes).toBeNull();
   });
+
+  it("derives bounded workflow momentum for recent semantic-address reuse", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "code",
+        regionId: "editor",
+        controlId: "text-buffer",
+        focusConfidence: 0.96,
+        authorityType: "verified",
+        snapshotAgeMs: 30,
+      },
+      taskHistoryDelta: [
+        {
+          semanticAddressId: "sa-open-github",
+          mergedText: "open github.com",
+          outcome: "success",
+          ageMs: 120,
+        },
+      ],
+    });
+
+    const assessment = deriveFocusContextTaskMomentumAssessment(envelope, {
+      semanticAddressId: "sa-open-github",
+      regionId: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+      commandFamily: "parameterized_open",
+    });
+
+    expect(assessment.focusTaskMomentumApplied).toBe(true);
+    expect(assessment.focusTaskMomentumBoost).toBeGreaterThan(0);
+    expect(assessment.focusTaskMomentumPenaltyApplied).toBe(false);
+    expect(assessment.focusTaskMomentumMatchedSemanticAddressId).toBe("sa-open-github");
+    expect(assessment.focusTaskMomentumReasonCodes).toContain("recent_semantic_reuse");
+  });
+
+  it("derives an advisory penalty when recent task history shows the same action was undone", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "code",
+        regionId: "editor",
+        controlId: "text-buffer",
+        focusConfidence: 0.96,
+        authorityType: "verified",
+        snapshotAgeMs: 30,
+      },
+      taskHistoryDelta: [
+        {
+          semanticAddressId: "sa-go-line-52",
+          mergedText: "go to line 52",
+          outcome: "undone",
+          ageMs: 90,
+        },
+      ],
+    });
+
+    const assessment = deriveFocusContextTaskMomentumAssessment(envelope, {
+      semanticAddressId: "sa-go-line-52",
+      regionId: "go to line",
+      canonicalPrefix: "go to line",
+      canonicalMergedText: "go to line 52",
+      commandFamily: "parameterized_numeric",
+    });
+
+    expect(assessment.focusTaskMomentumApplied).toBe(true);
+    expect(assessment.focusTaskMomentumBoost).toBe(0);
+    expect(assessment.focusTaskMomentumPenaltyApplied).toBe(true);
+    expect(assessment.focusTaskMomentumPenalty).toBeGreaterThan(0);
+    expect(assessment.focusTaskMomentumReasonCodes).toContain("recent_undo_inhibits_reuse");
+  });
+
 });

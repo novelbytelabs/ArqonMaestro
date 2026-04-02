@@ -1,6 +1,6 @@
 # H3 Stage 3E1 Plan
 
-Status: Slice S4 legality shaping pilot bundle
+Status: Slice S5 task-history momentum pilot bundle
 Scope: Focus-Conditioned Command Geometry, starting with a bounded observational/advisory context envelope only
 
 ## Objective
@@ -95,7 +95,24 @@ Slice S4 is acceptable only if:
 - H23/H24 remain final authority
 - no persistence/distributed cache is introduced
 
+## Slice S5
+
+Slice S5 implemented in this bundle:
+- add bounded advisory task-history momentum shaping for recent workflow continuity
+- use recent success/undo outcomes to add a bounded boost or penalty during warm candidate scoring
+- keep the pilot constrained to v1 parameterized-open and parameterized-numeric families
+- emit advisory task-momentum metadata through lookup/warm/merged evidence
+
+## Acceptance Criteria for S5
+
+Slice S5 is acceptable only if:
+- workflow momentum stays bounded and advisory-only
+- recent undo can inhibit warm reuse without blocking execution authority
+- recent successful semantic-address reuse can add bounded continuity boost
+- live geometry and H23/H24 remain the only execution authority
+- no persistence/distributed cache is introduced
+
 ## Follow-on Slices
 
-Planned next slices after S4:
-- S5: task-history delta pilot with bounded workflow momentum
+Planned next slices after S5:
+- S6: closure/validation bundle for Stage 3E1

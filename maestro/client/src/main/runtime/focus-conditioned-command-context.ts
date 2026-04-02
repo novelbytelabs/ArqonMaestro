@@ -139,6 +139,23 @@ export interface FocusContextEvidenceFields {
   focusLegalityCommandKind: string | null;
 }
 
+export interface FocusContextTaskMomentumCandidate {
+  semanticAddressId: string | null;
+  regionId: string | null;
+  canonicalPrefix: string | null;
+  canonicalMergedText: string | null;
+  commandFamily: string | null;
+}
+
+export interface FocusContextTaskMomentumAssessment {
+  focusTaskMomentumApplied: boolean;
+  focusTaskMomentumBoost: number;
+  focusTaskMomentumPenaltyApplied: boolean;
+  focusTaskMomentumPenalty: number;
+  focusTaskMomentumReasonCodes: string[];
+  focusTaskMomentumMatchedSemanticAddressId: string | null;
+}
+
 export const FOCUS_COMMAND_CONTEXT_SCHEMA_VERSION = "h3_focus_command_context_v1" as const;
 export const DEFAULT_FOCUS_CONTEXT_FRESHNESS_WINDOW_MS = 60_000;
 export const DEFAULT_FOCUS_CONTEXT_MIN_CONFIDENCE = 0.75;
@@ -146,6 +163,9 @@ export const DEFAULT_FOCUS_CONTEXT_MAX_FOCUS_DELTA = 8;
 export const DEFAULT_FOCUS_CONTEXT_MAX_TASK_HISTORY = 8;
 export const FOCUS_CONTEXT_RANKING_MAX_BOOST = 0.06;
 export const FOCUS_CONTEXT_LEGALITY_UNLAWFUL_PENALTY = 0.08;
+export const FOCUS_CONTEXT_TASK_MOMENTUM_WINDOW_MS = 90_000;
+export const FOCUS_CONTEXT_TASK_MOMENTUM_MAX_BOOST = 0.045;
+export const FOCUS_CONTEXT_TASK_MOMENTUM_UNDONE_PENALTY = 0.035;
 
 export function buildFocusConditionedCommandContext(
   input: BuildFocusConditionedCommandContextInput = {}
@@ -460,6 +480,132 @@ export function deriveFocusContextRankingAdjustment(
     focusRankingApplied: boundedBoost > 0,
     focusRankingBoost: boundedBoost,
     focusRankingReasonCodes: boundedBoost > 0 ? reasons : ["focus_ranking_no_match"],
+  };
+}
+
+
+export function deriveFocusContextTaskMomentumAssessment(
+  envelope: FocusConditionedCommandContextEnvelope | null | undefined,
+  candidate: FocusContextTaskMomentumCandidate
+): FocusContextTaskMomentumAssessment {
+  if (!envelope || !envelope.contextEligible) {
+    return {
+      focusTaskMomentumApplied: false,
+      focusTaskMomentumBoost: 0,
+      focusTaskMomentumPenaltyApplied: false,
+      focusTaskMomentumPenalty: 0,
+      focusTaskMomentumReasonCodes: ["focus_context_ineligible"],
+      focusTaskMomentumMatchedSemanticAddressId: null,
+    };
+  }
+
+  if (
+    candidate.commandFamily !== "parameterized_open" &&
+    candidate.commandFamily !== "parameterized_numeric"
+  ) {
+    return {
+      focusTaskMomentumApplied: false,
+      focusTaskMomentumBoost: 0,
+      focusTaskMomentumPenaltyApplied: false,
+      focusTaskMomentumPenalty: 0,
+      focusTaskMomentumReasonCodes: ["focus_task_momentum_not_applicable"],
+      focusTaskMomentumMatchedSemanticAddressId: null,
+    };
+  }
+
+  const candidateSemanticAddressId = normalizeComparableValue(candidate.semanticAddressId);
+  const candidateMergedText = normalizeComparableValue(candidate.canonicalMergedText);
+  const candidatePrefix = normalizeComparableValue(candidate.canonicalPrefix);
+  const recentEntries = [...envelope.taskHistoryDelta]
+    .filter((entry) => entry.ageMs != null && entry.ageMs <= FOCUS_CONTEXT_TASK_MOMENTUM_WINDOW_MS)
+    .sort((left, right) => (left.ageMs ?? Number.MAX_SAFE_INTEGER) - (right.ageMs ?? Number.MAX_SAFE_INTEGER));
+
+  if (recentEntries.length === 0) {
+    return {
+      focusTaskMomentumApplied: false,
+      focusTaskMomentumBoost: 0,
+      focusTaskMomentumPenaltyApplied: false,
+      focusTaskMomentumPenalty: 0,
+      focusTaskMomentumReasonCodes: ["focus_task_momentum_no_recent_history"],
+      focusTaskMomentumMatchedSemanticAddressId: null,
+    };
+  }
+
+  const undoneMatch = recentEntries.find((entry) => {
+    if (entry.outcome !== "undone") {
+      return false;
+    }
+    const entrySemanticAddressId = normalizeComparableValue(entry.semanticAddressId);
+    const entryMergedText = normalizeComparableValue(entry.mergedText);
+    return (
+      (candidateSemanticAddressId && entrySemanticAddressId === candidateSemanticAddressId) ||
+      (candidateMergedText && entryMergedText === candidateMergedText)
+    );
+  });
+  if (undoneMatch) {
+    return {
+      focusTaskMomentumApplied: true,
+      focusTaskMomentumBoost: 0,
+      focusTaskMomentumPenaltyApplied: true,
+      focusTaskMomentumPenalty: FOCUS_CONTEXT_TASK_MOMENTUM_UNDONE_PENALTY,
+      focusTaskMomentumReasonCodes: ["recent_undo_inhibits_reuse"],
+      focusTaskMomentumMatchedSemanticAddressId: undoneMatch.semanticAddressId ?? null,
+    };
+  }
+
+  let boost = 0;
+  const reasons: string[] = [];
+  let matchedSemanticAddressId: string | null = null;
+
+  const exactSemanticReuse = recentEntries.find((entry) => {
+    if (entry.outcome !== "success") {
+      return false;
+    }
+    const entrySemanticAddressId = normalizeComparableValue(entry.semanticAddressId);
+    return Boolean(candidateSemanticAddressId && entrySemanticAddressId === candidateSemanticAddressId);
+  });
+  if (exactSemanticReuse) {
+    boost += 0.03;
+    reasons.push("recent_semantic_reuse");
+    matchedSemanticAddressId = exactSemanticReuse.semanticAddressId ?? null;
+  } else {
+    const exactMergedReuse = recentEntries.find((entry) => {
+      if (entry.outcome !== "success") {
+        return false;
+      }
+      const entryMergedText = normalizeComparableValue(entry.mergedText);
+      return Boolean(candidateMergedText && entryMergedText === candidateMergedText);
+    });
+    if (exactMergedReuse) {
+      boost += 0.025;
+      reasons.push("recent_task_exact_reuse");
+      matchedSemanticAddressId = exactMergedReuse.semanticAddressId ?? null;
+    }
+  }
+
+  if (boost === 0 && candidatePrefix) {
+    const prefixContinuation = recentEntries.find((entry) => {
+      if (entry.outcome !== "success") {
+        return false;
+      }
+      const entryMergedText = normalizeComparableValue(entry.mergedText);
+      return Boolean(entryMergedText && entryMergedText.startsWith(candidatePrefix + " "));
+    });
+    if (prefixContinuation) {
+      boost += 0.015;
+      reasons.push("recent_prefix_workflow_continuation");
+      matchedSemanticAddressId = prefixContinuation.semanticAddressId ?? null;
+    }
+  }
+
+  const boundedBoost = Number(Math.min(FOCUS_CONTEXT_TASK_MOMENTUM_MAX_BOOST, boost).toFixed(3));
+  return {
+    focusTaskMomentumApplied: boundedBoost > 0,
+    focusTaskMomentumBoost: boundedBoost,
+    focusTaskMomentumPenaltyApplied: false,
+    focusTaskMomentumPenalty: 0,
+    focusTaskMomentumReasonCodes: boundedBoost > 0 ? reasons : ["focus_task_momentum_no_match"],
+    focusTaskMomentumMatchedSemanticAddressId: matchedSemanticAddressId,
   };
 }
 

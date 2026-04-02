@@ -829,4 +829,131 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.focusLegalityReasonCodes).toContain("focus_legality_not_evaluated");
   });
 
+
+  it("uses task-history momentum to favor recent semantic-address reuse during lookup", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-momentum-open-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    const record1 = registry.registerFromGovernedExecution({
+      chunkId: "chunk-momentum-open-1",
+      transcript: "open github dot com",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+    registry.markGeometricContext({
+      chunkId: "chunk-momentum-open-2",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.91,
+      frameCount: 60,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-momentum-open-2",
+      transcript: "open docs dot python dot org",
+      policyGranted: true,
+      h23StepCount: 3,
+      h24FinalGranted: true,
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-momentum-open-lookup",
+      regionId: "open",
+      parameterType: "open",
+      forceCandidateScan: true,
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "chrome",
+          regionId: "address-bar",
+          controlId: "omnibox",
+          focusConfidence: 0.94,
+          authorityType: "verified",
+          snapshotAgeMs: 35,
+        },
+        taskHistoryDelta: [
+          {
+            semanticAddressId: record1!.semanticAddressId,
+            mergedText: "open github.com",
+            outcome: "success",
+            ageMs: 40,
+          },
+        ],
+      }),
+    });
+
+    expect(lookup.bestCanonicalMergedText).toBe("open github.com");
+    expect(lookup.focusTaskMomentumApplied).toBe(true);
+    expect(lookup.focusTaskMomentumBoost).toBeGreaterThan(0);
+    expect(lookup.focusTaskMomentumPenaltyApplied).toBe(false);
+    expect(lookup.focusTaskMomentumMatchedSemanticAddressId).toBe(record1!.semanticAddressId);
+    expect(lookup.focusTaskMomentumReasonCodes).toContain("recent_semantic_reuse");
+  });
+
+  it("applies a bounded task-history momentum penalty when the same action was recently undone", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-momentum-numeric-1",
+      source: "spectral_manifold",
+      regionId: "go to line",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.94,
+      frameCount: 80,
+    });
+    const record = registry.registerFromGovernedExecution({
+      chunkId: "chunk-momentum-numeric-1",
+      transcript: "go to line fifty two",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-momentum-numeric-lookup",
+      regionId: "go to line",
+      parameterType: "numeric",
+      transcriptTailHint: "52",
+      focusContextEnvelope: buildFocusConditionedCommandContext({
+        snapshot: {
+          appId: "code",
+          regionId: "editor",
+          controlId: "text-buffer",
+          focusConfidence: 0.96,
+          authorityType: "verified",
+          snapshotAgeMs: 20,
+        },
+        taskHistoryDelta: [
+          {
+            semanticAddressId: record!.semanticAddressId,
+            mergedText: "go to line 52",
+            outcome: "undone",
+            ageMs: 30,
+          },
+        ],
+      }),
+    });
+
+    expect(lookup.bestCanonicalMergedText).toBe("go to line 52");
+    expect(lookup.focusTaskMomentumApplied).toBe(true);
+    expect(lookup.focusTaskMomentumBoost).toBe(0);
+    expect(lookup.focusTaskMomentumPenaltyApplied).toBe(true);
+    expect(lookup.focusTaskMomentumPenalty).toBeGreaterThan(0);
+    expect(lookup.focusTaskMomentumReasonCodes).toContain("recent_undo_inhibits_reuse");
+  });
+
 });

@@ -59,6 +59,12 @@ export interface H3RuntimeEvidenceEvent {
   focusLegalityPenalty: number | null;
   focusLegalityReasonCodes: string[] | null;
   focusLegalityCommandKind: string | null;
+  focusTaskMomentumApplied: boolean | null;
+  focusTaskMomentumBoost: number | null;
+  focusTaskMomentumPenaltyApplied: boolean | null;
+  focusTaskMomentumPenalty: number | null;
+  focusTaskMomentumReasonCodes: string[] | null;
+  focusTaskMomentumMatchedSemanticAddressId: string | null;
   warmDiscardReason: string | null;
   liveEvidenceOverride: boolean | null;
   lookupPath: string | null;
@@ -149,6 +155,12 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
     focusLegalityPenalty: input.focusLegalityPenalty ?? null,
     focusLegalityReasonCodes: input.focusLegalityReasonCodes ?? null,
     focusLegalityCommandKind: input.focusLegalityCommandKind ?? null,
+    focusTaskMomentumApplied: input.focusTaskMomentumApplied ?? null,
+    focusTaskMomentumBoost: input.focusTaskMomentumBoost ?? null,
+    focusTaskMomentumPenaltyApplied: input.focusTaskMomentumPenaltyApplied ?? null,
+    focusTaskMomentumPenalty: input.focusTaskMomentumPenalty ?? null,
+    focusTaskMomentumReasonCodes: input.focusTaskMomentumReasonCodes ?? null,
+    focusTaskMomentumMatchedSemanticAddressId: input.focusTaskMomentumMatchedSemanticAddressId ?? null,
     warmDiscardReason: input.warmDiscardReason ?? null,
     liveEvidenceOverride: input.liveEvidenceOverride ?? null,
     lookupPath: input.lookupPath ?? null,

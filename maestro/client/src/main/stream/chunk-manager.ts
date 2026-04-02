@@ -172,6 +172,12 @@ export default class ChunkManager {
       focusLegalityPenalty: number;
       focusLegalityReasonCodes: string[];
       focusLegalityCommandKind: string | null;
+      focusTaskMomentumApplied?: boolean;
+      focusTaskMomentumBoost?: number;
+      focusTaskMomentumPenaltyApplied?: boolean;
+      focusTaskMomentumPenalty?: number;
+      focusTaskMomentumReasonCodes?: string[];
+      focusTaskMomentumMatchedSemanticAddressId?: string | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -835,6 +841,12 @@ export default class ChunkManager {
         focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
         focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
         focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+        focusTaskMomentumApplied: semanticLookup.focusTaskMomentumApplied ?? false,
+        focusTaskMomentumBoost: semanticLookup.focusTaskMomentumBoost ?? 0,
+        focusTaskMomentumPenaltyApplied: semanticLookup.focusTaskMomentumPenaltyApplied ?? false,
+        focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
+        focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? null,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -930,6 +942,12 @@ export default class ChunkManager {
         focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
         focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
         focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+        focusTaskMomentumApplied: semanticLookup.focusTaskMomentumApplied ?? false,
+        focusTaskMomentumBoost: semanticLookup.focusTaskMomentumBoost ?? 0,
+        focusTaskMomentumPenaltyApplied: semanticLookup.focusTaskMomentumPenaltyApplied ?? false,
+        focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
+        focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? null,
         warmApplied,
         warmAppliedStage,
       });
@@ -1309,6 +1327,12 @@ export default class ChunkManager {
         focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? null,
         focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? null,
         focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? null,
+        focusTaskMomentumApplied: warmLookup?.focusTaskMomentumApplied ?? null,
+        focusTaskMomentumBoost: warmLookup?.focusTaskMomentumBoost ?? null,
+        focusTaskMomentumPenaltyApplied: warmLookup?.focusTaskMomentumPenaltyApplied ?? null,
+        focusTaskMomentumPenalty: warmLookup?.focusTaskMomentumPenalty ?? null,
+        focusTaskMomentumReasonCodes: warmLookup?.focusTaskMomentumReasonCodes ?? null,
+        focusTaskMomentumMatchedSemanticAddressId: warmLookup?.focusTaskMomentumMatchedSemanticAddressId ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1451,6 +1475,12 @@ export default class ChunkManager {
       focusLegalityPenalty: number | null;
       focusLegalityReasonCodes: string[] | null;
       focusLegalityCommandKind: string | null;
+      focusTaskMomentumApplied: boolean | null;
+      focusTaskMomentumBoost: number | null;
+      focusTaskMomentumPenaltyApplied: boolean | null;
+      focusTaskMomentumPenalty: number | null;
+      focusTaskMomentumReasonCodes: string[] | null;
+      focusTaskMomentumMatchedSemanticAddressId: string | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1518,6 +1548,12 @@ export default class ChunkManager {
       focusLegalityPenalty: overrides.focusLegalityPenalty ?? focusFields.focusLegalityPenalty,
       focusLegalityReasonCodes: overrides.focusLegalityReasonCodes ?? focusFields.focusLegalityReasonCodes,
       focusLegalityCommandKind: overrides.focusLegalityCommandKind ?? focusFields.focusLegalityCommandKind,
+      focusTaskMomentumApplied: overrides.focusTaskMomentumApplied ?? null,
+      focusTaskMomentumBoost: overrides.focusTaskMomentumBoost ?? null,
+      focusTaskMomentumPenaltyApplied: overrides.focusTaskMomentumPenaltyApplied ?? null,
+      focusTaskMomentumPenalty: overrides.focusTaskMomentumPenalty ?? null,
+      focusTaskMomentumReasonCodes: overrides.focusTaskMomentumReasonCodes ?? null,
+      focusTaskMomentumMatchedSemanticAddressId: overrides.focusTaskMomentumMatchedSemanticAddressId ?? null,
       warmDiscardReason: overrides.warmDiscardReason ?? null,
       liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
       lookupPath: overrides.lookupPath ?? null,

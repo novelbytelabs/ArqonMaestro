@@ -77,3 +77,16 @@ Stage 3E1-S3 keeps focus-conditioned ranking advisory-only. Focus may reshape wa
 
 
 Stage 3E1-S4 keeps deictic legality shaping advisory-only. Focus may penalize bounded deictic warm candidates such as `open it` and `go there` when the focus envelope is not lawful enough to resolve them, but focus may not authorize execution and may not bypass H23/H24.
+
+
+## Stage 3E1 Slice S5 fields
+
+Advisory workflow-momentum metadata carried through H3 lookup/warm/merged evidence:
+- `focusTaskMomentumApplied`
+- `focusTaskMomentumBoost`
+- `focusTaskMomentumPenaltyApplied`
+- `focusTaskMomentumPenalty`
+- `focusTaskMomentumReasonCodes`
+- `focusTaskMomentumMatchedSemanticAddressId`
+
+These fields are advisory only. They do not authorize execution and do not bypass H23/H24.

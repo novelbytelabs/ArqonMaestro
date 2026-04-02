@@ -5,6 +5,7 @@ import {
   FocusConditionedCommandContextEnvelope,
   deriveFocusContextLegalityAssessment,
   deriveFocusContextRankingAdjustment,
+  deriveFocusContextTaskMomentumAssessment,
 } from "./focus-conditioned-command-context";
 
 export type SemanticCommandFamily =
@@ -108,6 +109,12 @@ export interface LookupResult {
   focusLegalityPenalty: number;
   focusLegalityReasonCodes: string[];
   focusLegalityCommandKind: string | null;
+  focusTaskMomentumApplied?: boolean;
+  focusTaskMomentumBoost?: number;
+  focusTaskMomentumPenaltyApplied?: boolean;
+  focusTaskMomentumPenalty?: number;
+  focusTaskMomentumReasonCodes?: string[];
+  focusTaskMomentumMatchedSemanticAddressId?: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -214,18 +221,27 @@ export class VoiceSemanticAddressRegistry {
               focusLegalityPenalty: 0,
               focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
               focusLegalityCommandKind: null,
+              focusTaskMomentumApplied: false,
+              focusTaskMomentumBoost: 0,
+              focusTaskMomentumPenaltyApplied: false,
+              focusTaskMomentumPenalty: 0,
+              focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
+              focusTaskMomentumMatchedSemanticAddressId: null,
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
           const focusAdjustment = this.deriveFocusRankingAdjustment(input, indexedRecord);
           const focusLegality = this.deriveFocusLegalityAssessment(input, indexedRecord);
+          const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, indexedRecord);
           const indexedBaseScore = Math.max(
             0,
             Math.min(
               0.999,
               this.scoreCandidate(indexedRecord, normalizedHint) +
                 focusAdjustment.focusRankingBoost -
-                focusLegality.focusLegalityPenalty
+                focusLegality.focusLegalityPenalty +
+                focusTaskMomentum.focusTaskMomentumBoost -
+                focusTaskMomentum.focusTaskMomentumPenalty
             )
           );
           const policy = this.applyConfidencePolicy(indexedRecord, indexedBaseScore, indexedProfile);
@@ -254,6 +270,12 @@ export class VoiceSemanticAddressRegistry {
             focusLegalityPenalty: focusLegality.focusLegalityPenalty,
             focusLegalityReasonCodes: focusLegality.focusLegalityReasonCodes,
             focusLegalityCommandKind: focusLegality.focusLegalityCommandKind,
+            focusTaskMomentumApplied: focusTaskMomentum.focusTaskMomentumApplied,
+            focusTaskMomentumBoost: focusTaskMomentum.focusTaskMomentumBoost,
+            focusTaskMomentumPenaltyApplied: focusTaskMomentum.focusTaskMomentumPenaltyApplied,
+            focusTaskMomentumPenalty: focusTaskMomentum.focusTaskMomentumPenalty,
+            focusTaskMomentumReasonCodes: focusTaskMomentum.focusTaskMomentumReasonCodes,
+            focusTaskMomentumMatchedSemanticAddressId: focusTaskMomentum.focusTaskMomentumMatchedSemanticAddressId,
           };
         }
       }
@@ -288,6 +310,12 @@ export class VoiceSemanticAddressRegistry {
         focusLegalityPenalty: 0,
         focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
         focusLegalityCommandKind: null,
+        focusTaskMomentumApplied: false,
+        focusTaskMomentumBoost: 0,
+        focusTaskMomentumPenaltyApplied: false,
+        focusTaskMomentumPenalty: 0,
+        focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: null,
       };
     }
 
@@ -309,6 +337,12 @@ export class VoiceSemanticAddressRegistry {
           focusLegalityPenalty: number;
           focusLegalityReasonCodes: string[];
           focusLegalityCommandKind: string | null;
+          focusTaskMomentumApplied: boolean;
+          focusTaskMomentumBoost: number;
+          focusTaskMomentumPenaltyApplied: boolean;
+          focusTaskMomentumPenalty: number;
+          focusTaskMomentumReasonCodes: string[];
+          focusTaskMomentumMatchedSemanticAddressId: string | null;
         }
       | null = null;
     let bestComparableScore = -2;
@@ -319,13 +353,16 @@ export class VoiceSemanticAddressRegistry {
       const candidateProfile = this.getWarmPolicyProfileForCommandFamily(candidate.commandFamily);
       const focusAdjustment = this.deriveFocusRankingAdjustment(input, candidate);
       const focusLegality = this.deriveFocusLegalityAssessment(input, candidate);
+      const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, candidate);
       const candidateBaseScore = Math.max(
         0,
         Math.min(
           0.999,
           this.scoreCandidate(candidate, normalizedHint) +
             focusAdjustment.focusRankingBoost -
-            focusLegality.focusLegalityPenalty
+            focusLegality.focusLegalityPenalty +
+            focusTaskMomentum.focusTaskMomentumBoost -
+            focusTaskMomentum.focusTaskMomentumPenalty
         )
       );
       const basePolicy = this.applyConfidencePolicy(candidate, candidateBaseScore, candidateProfile);
@@ -340,6 +377,12 @@ export class VoiceSemanticAddressRegistry {
         focusLegalityPenalty: focusLegality.focusLegalityPenalty,
         focusLegalityReasonCodes: focusLegality.focusLegalityReasonCodes,
         focusLegalityCommandKind: focusLegality.focusLegalityCommandKind,
+        focusTaskMomentumApplied: focusTaskMomentum.focusTaskMomentumApplied,
+        focusTaskMomentumBoost: focusTaskMomentum.focusTaskMomentumBoost,
+        focusTaskMomentumPenaltyApplied: focusTaskMomentum.focusTaskMomentumPenaltyApplied,
+        focusTaskMomentumPenalty: focusTaskMomentum.focusTaskMomentumPenalty,
+        focusTaskMomentumReasonCodes: focusTaskMomentum.focusTaskMomentumReasonCodes,
+        focusTaskMomentumMatchedSemanticAddressId: focusTaskMomentum.focusTaskMomentumMatchedSemanticAddressId,
       };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
@@ -374,6 +417,12 @@ export class VoiceSemanticAddressRegistry {
         focusLegalityPenalty: 0,
         focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
         focusLegalityCommandKind: null,
+        focusTaskMomentumApplied: false,
+        focusTaskMomentumBoost: 0,
+        focusTaskMomentumPenaltyApplied: false,
+        focusTaskMomentumPenalty: 0,
+        focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: null,
       };
     }
 
@@ -402,6 +451,12 @@ export class VoiceSemanticAddressRegistry {
       focusLegalityPenalty: bestPolicy.focusLegalityPenalty,
       focusLegalityReasonCodes: bestPolicy.focusLegalityReasonCodes,
       focusLegalityCommandKind: bestPolicy.focusLegalityCommandKind,
+      focusTaskMomentumApplied: bestPolicy.focusTaskMomentumApplied,
+      focusTaskMomentumBoost: bestPolicy.focusTaskMomentumBoost,
+      focusTaskMomentumPenaltyApplied: bestPolicy.focusTaskMomentumPenaltyApplied,
+      focusTaskMomentumPenalty: bestPolicy.focusTaskMomentumPenalty,
+      focusTaskMomentumReasonCodes: bestPolicy.focusTaskMomentumReasonCodes,
+      focusTaskMomentumMatchedSemanticAddressId: bestPolicy.focusTaskMomentumMatchedSemanticAddressId,
     };
   }
 
@@ -574,6 +629,24 @@ export class VoiceSemanticAddressRegistry {
     focusLegalityCommandKind: string | null;
   } {
     return deriveFocusContextLegalityAssessment(input.focusContextEnvelope ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+    });
+  }
+
+
+  private deriveFocusTaskMomentumAssessment(input: LookupInput, candidate: SemanticAddressRecord): {
+    focusTaskMomentumApplied: boolean;
+    focusTaskMomentumBoost: number;
+    focusTaskMomentumPenaltyApplied: boolean;
+    focusTaskMomentumPenalty: number;
+    focusTaskMomentumReasonCodes: string[];
+    focusTaskMomentumMatchedSemanticAddressId: string | null;
+  } {
+    return deriveFocusContextTaskMomentumAssessment(input.focusContextEnvelope ?? null, {
+      semanticAddressId: candidate.semanticAddressId,
       regionId: candidate.regionId,
       canonicalPrefix: candidate.canonicalPrefix,
       canonicalMergedText: candidate.canonicalMergedText,
