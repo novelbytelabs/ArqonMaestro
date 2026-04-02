@@ -53,4 +53,39 @@ describe("normalizeOpenTail", () => {
       reason: "open_tail_connector_only",
     });
   });
+
+  it("keeps domain normalization conservative and classifies invalid domain-like tails", () => {
+    expect(normalizeOpenTail("github dot")).toMatchObject({
+      status: "invalid",
+      normalized: null,
+      targetKind: "domain",
+      reason: "open_tail_domain_pattern_invalid",
+    });
+    expect(normalizeOpenTail("docs python")).toMatchObject({
+      status: "ok",
+      normalized: "docs python",
+      targetKind: "text",
+    });
+  });
+
+  it("rejects app-like ambiguous tails for open-target strategy", () => {
+    expect(normalizeOpenTail("stack over", { commandPrefix: "open" })).toMatchObject({
+      status: "partial",
+      normalized: null,
+      targetKind: "text",
+      reason: "open_tail_app_like_ambiguous_partial",
+    });
+    expect(normalizeOpenTail("set things", { commandPrefix: "open" })).toMatchObject({
+      status: "partial",
+      normalized: null,
+      targetKind: "text",
+      reason: "open_tail_app_like_ambiguous_partial",
+    });
+    // Same phrase remains allowed outside open-target strict mode.
+    expect(normalizeOpenTail("stack over", { commandPrefix: "go to" })).toMatchObject({
+      status: "ok",
+      normalized: "stack over",
+      targetKind: "text",
+    });
+  });
 });
