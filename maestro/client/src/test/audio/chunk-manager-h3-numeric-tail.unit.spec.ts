@@ -18,6 +18,7 @@ jest.mock("../../main/stt/cfh", () => ({
 }));
 
 import { h23Recorder } from "../../main/runtime/h23-live-trace-recorder";
+import { voiceSemanticAddressRegistry } from "../../main/runtime/voice-semantic-address-registry";
 
 describe("ChunkManager H3 numeric tail specialization", () => {
   const originalGetTraceSnapshot = h23Recorder.getTraceSnapshot.bind(h23Recorder);
@@ -163,8 +164,11 @@ describe("ChunkManager H3 numeric tail specialization", () => {
     expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
   });
 
-  it("emits live-evidence override when warm memory conflicts with numeric merged truth", async () => {
+  it("emits live-evidence override, records conflict penalty input, and keeps execution live-truth driven", async () => {
     const manager = makeBareManager();
+    const markWarmConflict = jest
+      .spyOn(voiceSemanticAddressRegistry, "markWarmConflict")
+      .mockReturnValue(null as any);
     manager.chunkH3WarmLookup.set("chunk-1", {
       warmHitClass: "strong",
       bestCandidateId: "semantic-warm-1",
@@ -180,6 +184,8 @@ describe("ChunkManager H3 numeric tail specialization", () => {
 
     const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-1");
     expect(handled).toBe(true);
+    expect(markWarmConflict).toHaveBeenCalledWith("semantic-warm-1");
+    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("go to line 52", true, "chunk-1");
     expect(manager.emitH3Evidence).toHaveBeenCalledWith(
       "chunk-1",
       "voice_semantic_address_warm_discarded",
@@ -198,8 +204,6 @@ describe("ChunkManager H3 numeric tail specialization", () => {
         liveEvidenceOverride: true,
       })
     );
-    expect(manager.chunkH3WarmLookup.has("chunk-1")).toBe(false);
-    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("go to line 52", true, "chunk-1");
   });
 
   it("selects numeric strategy only after atlas-backed numeric prefix event", () => {

@@ -1218,6 +1218,9 @@ export default class ChunkManager {
         lookupPath: warmLookup?.lookupPath ?? null,
         reason: "live_geometric_evidence_override",
       });
+      if (warmLookup?.bestCandidateId) {
+        voiceSemanticAddressRegistry.markWarmConflict(warmLookup.bestCandidateId);
+      }
       this.chunkH3WarmLookup?.delete(chunkId);
     }
 

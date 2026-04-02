@@ -30,6 +30,8 @@ export interface SemanticAddressRecord {
   successCount: number;
   lastSuccessChunkId: string;
   lastSuccessSessionId: string | null;
+  conflictCount: number;
+  lastConflictAtMs: number | null;
   governanceVersion: { h23: string; h24: string };
   governanceQualified: boolean;
   evictionScore: number;
@@ -77,14 +79,24 @@ export interface LookupResult {
   slotSignature: string | null;
   atlasCompatible: boolean;
   mismatchReason: string | null;
+  confidencePolicyVersion: string;
+  candidateAgeMs: number | null;
+  recentConflictPenaltyApplied: boolean;
+  staleProtectionApplied: boolean;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
 const SCHEMA_VERSION = "h3_voice_semantic_address_v1" as const;
 const H23_VERSION = "h23_live_trace_v1";
 const H24_VERSION = "h24_policy_proof_v1";
+export const VOICE_SEMANTIC_WARM_POLICY_VERSION = "3d3_conflict_aware_warm_confidence_v1";
 export const VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD = 0.78;
 export const VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD = 0.93;
+export const VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS = 5 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_STALE_MS = 10 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_DECAY_FLOOR = 0.88;
+export const VOICE_SEMANTIC_WARM_RECENT_CONFLICT_WINDOW_MS = 2 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER = 0.84;
 
 export class VoiceSemanticAddressRegistry {
   private recordsById = new Map<string, SemanticAddressRecord>();
@@ -147,19 +159,27 @@ export class VoiceSemanticAddressRegistry {
               slotSignature: derivedSlotSignature,
               atlasCompatible: false,
               mismatchReason: "warm_miss_atlas_incompatible",
+              confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+              candidateAgeMs: Math.max(0, Date.now() - indexedRecord.updatedAtMs),
+              recentConflictPenaltyApplied: false,
+              staleProtectionApplied: false,
             };
           }
-          const score = this.scoreCandidate(indexedRecord, normalizedHint);
+          const policy = this.applyConfidencePolicy(indexedRecord, this.scoreCandidate(indexedRecord, normalizedHint));
           return {
             lookupCandidateCount: 1,
             bestCandidateId: indexedRecord.semanticAddressId,
-            bestCandidateScore: Number(score.toFixed(3)),
+            bestCandidateScore: policy.score,
             bestCanonicalMergedText: indexedRecord.canonicalMergedText,
-            warmHitClass: this.classifyWarmHit(score),
+            warmHitClass: policy.warmHitClass,
             lookupPath: "slot_signature_index",
             slotSignature: derivedSlotSignature,
             atlasCompatible: true,
-            mismatchReason: null,
+            mismatchReason: policy.mismatchReason,
+            confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+            candidateAgeMs: policy.ageMs,
+            recentConflictPenaltyApplied: policy.recentConflictPenaltyApplied,
+            staleProtectionApplied: policy.staleProtectionApplied,
           };
         }
       }
@@ -179,22 +199,38 @@ export class VoiceSemanticAddressRegistry {
         slotSignature: derivedSlotSignature,
         atlasCompatible: true,
         mismatchReason: null,
+        confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+        candidateAgeMs: null,
+        recentConflictPenaltyApplied: false,
+        staleProtectionApplied: false,
       };
     }
 
     let best: SemanticAddressRecord | null = null;
-    let bestScore = -1;
+    let bestPolicy:
+      | {
+          score: number | null;
+          warmHitClass: "strong" | "weak" | "miss";
+          mismatchReason: string | null;
+          ageMs: number;
+          recentConflictPenaltyApplied: boolean;
+          staleProtectionApplied: boolean;
+        }
+      | null = null;
+    let bestComparableScore = -2;
     for (const candidate of candidates) {
       if (!this.isAtlasCompatible(candidate, input)) {
         continue;
       }
-      const score = this.scoreCandidate(candidate, normalizedHint);
-      if (score > bestScore) {
+      const policy = this.applyConfidencePolicy(candidate, this.scoreCandidate(candidate, normalizedHint));
+      const comparableScore = policy.score ?? -1;
+      if (comparableScore > bestComparableScore) {
         best = candidate;
-        bestScore = score;
+        bestPolicy = policy;
+        bestComparableScore = comparableScore;
       }
     }
-    if (!best || bestScore < 0) {
+    if (!best || !bestPolicy) {
       return {
         lookupCandidateCount: candidates.length,
         bestCandidateId: null,
@@ -205,19 +241,27 @@ export class VoiceSemanticAddressRegistry {
         slotSignature: derivedSlotSignature,
         atlasCompatible: false,
         mismatchReason: "warm_miss_atlas_incompatible",
+        confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+        candidateAgeMs: null,
+        recentConflictPenaltyApplied: false,
+        staleProtectionApplied: false,
       };
     }
 
     return {
       lookupCandidateCount: candidates.length,
-      bestCandidateId: best?.semanticAddressId ?? null,
-      bestCandidateScore: best ? Number(bestScore.toFixed(3)) : null,
-      bestCanonicalMergedText: best?.canonicalMergedText ?? null,
-      warmHitClass: this.classifyWarmHit(bestScore),
+      bestCandidateId: best.semanticAddressId,
+      bestCandidateScore: bestPolicy.score,
+      bestCanonicalMergedText: best.canonicalMergedText,
+      warmHitClass: bestPolicy.warmHitClass,
       lookupPath: "candidate_scan",
       slotSignature: derivedSlotSignature,
       atlasCompatible: true,
-      mismatchReason: null,
+      mismatchReason: bestPolicy.mismatchReason,
+      confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+      candidateAgeMs: bestPolicy.ageMs,
+      recentConflictPenaltyApplied: bestPolicy.recentConflictPenaltyApplied,
+      staleProtectionApplied: bestPolicy.staleProtectionApplied,
     };
   }
 
@@ -264,6 +308,8 @@ export class VoiceSemanticAddressRegistry {
       successCount: (existing?.successCount ?? 0) + 1,
       lastSuccessChunkId: input.chunkId,
       lastSuccessSessionId: input.sessionId ?? null,
+      conflictCount: 0,
+      lastConflictAtMs: null,
       governanceVersion: { h23: H23_VERSION, h24: H24_VERSION },
       governanceQualified: input.h24FinalGranted === true,
       evictionScore: Math.max(0, input.h23StepCount - 1),
@@ -274,6 +320,20 @@ export class VoiceSemanticAddressRegistry {
     this.pendingByChunk.delete(input.chunkId);
     this.evictIfNeeded();
     return record;
+  }
+
+  markWarmConflict(semanticAddressId: string): SemanticAddressRecord | null {
+    const existing = this.recordsById.get(semanticAddressId);
+    if (!existing) {
+      return null;
+    }
+    const updated: SemanticAddressRecord = {
+      ...existing,
+      conflictCount: existing.conflictCount + 1,
+      lastConflictAtMs: Date.now(),
+    };
+    this.recordsById.set(semanticAddressId, updated);
+    return updated;
   }
 
   clearChunk(chunkId: string): void {
@@ -364,6 +424,55 @@ export class VoiceSemanticAddressRegistry {
       return 0.85;
     }
     return 0.72;
+  }
+
+  private applyConfidencePolicy(
+    candidate: SemanticAddressRecord,
+    baseScore: number
+  ): {
+    score: number | null;
+    warmHitClass: "strong" | "weak" | "miss";
+    mismatchReason: string | null;
+    ageMs: number;
+    recentConflictPenaltyApplied: boolean;
+    staleProtectionApplied: boolean;
+  } {
+    const ageMs = Math.max(0, Date.now() - candidate.updatedAtMs);
+    if (ageMs >= VOICE_SEMANTIC_WARM_STALE_MS) {
+      return {
+        score: null,
+        warmHitClass: "miss",
+        mismatchReason: "warm_miss_stale_protection",
+        ageMs,
+        recentConflictPenaltyApplied: false,
+        staleProtectionApplied: true,
+      };
+    }
+
+    const boundedAgeMs = Math.min(ageMs, VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS);
+    const freshnessMultiplier =
+      1 -
+      (boundedAgeMs / VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS) *
+        (1 - VOICE_SEMANTIC_WARM_DECAY_FLOOR);
+    const recentConflictPenaltyApplied =
+      candidate.lastConflictAtMs !== null &&
+      Date.now() - candidate.lastConflictAtMs <= VOICE_SEMANTIC_WARM_RECENT_CONFLICT_WINDOW_MS;
+    const conflictMultiplier = recentConflictPenaltyApplied
+      ? VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER
+      : 1;
+    const score = Number((baseScore * freshnessMultiplier * conflictMultiplier).toFixed(3));
+    const warmHitClass = this.classifyWarmHit(score);
+    return {
+      score,
+      warmHitClass,
+      mismatchReason:
+        warmHitClass === "miss" && recentConflictPenaltyApplied
+          ? "warm_miss_conflict_penalized"
+          : null,
+      ageMs,
+      recentConflictPenaltyApplied,
+      staleProtectionApplied: false,
+    };
   }
 
   private classifyWarmHit(score: number): "strong" | "weak" | "miss" {

@@ -1,6 +1,9 @@
 import {
+  VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS,
   VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
   VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+  VOICE_SEMANTIC_WARM_POLICY_VERSION,
+  VOICE_SEMANTIC_WARM_STALE_MS,
   VoiceSemanticAddressRegistry,
 } from "../../main/runtime/voice-semantic-address-registry";
 
@@ -273,4 +276,142 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(pauseSlotNs).toBeLessThan(pauseScanNs);
     expect(numericSlotNs).toBeLessThan(numericScanNs);
   });
+
+  it("demotes warm confidence after a recent live-truth override conflict", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-c1",
+      source: "spectral_manifold",
+      regionId: "go to line",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 99,
+    });
+
+    const record = registry.registerFromGovernedExecution({
+      chunkId: "chunk-c1",
+      transcript: "go to line fifty two",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    expect(record).not.toBeNull();
+    const baseline = registry.lookup({
+      chunkId: "chunk-c2",
+      regionId: "go to line",
+      parameterType: "numeric",
+      transcriptTailHint: "52",
+    });
+    expect(baseline.warmHitClass).toBe("strong");
+    expect(baseline.confidencePolicyVersion).toBe(VOICE_SEMANTIC_WARM_POLICY_VERSION);
+
+    registry.markWarmConflict(record!.semanticAddressId);
+
+    const conflicted = registry.lookup({
+      chunkId: "chunk-c3",
+      regionId: "go to line",
+      parameterType: "numeric",
+      transcriptTailHint: "52",
+    });
+    expect(conflicted.recentConflictPenaltyApplied).toBe(true);
+    expect(conflicted.staleProtectionApplied).toBe(false);
+    expect(conflicted.bestCandidateId).toBe(record!.semanticAddressId);
+    expect(conflicted.bestCandidateScore).not.toBeNull();
+    expect(conflicted.bestCandidateScore!).toBeLessThan(baseline.bestCandidateScore!);
+    expect(["weak", "miss"]).toContain(conflicted.warmHitClass);
+  });
+
+  it("treats stale warm entries as advisory miss with stale protection", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-s1",
+      source: "spectral_manifold",
+      regionId: "pause",
+      commandClass: "reflex",
+      parameterType: null,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.99,
+      frameCount: 20,
+    });
+
+    const originalNow = Date.now;
+    const baseNow = 1_700_000_000_000;
+    Date.now = jest.fn(() => baseNow);
+    try {
+      registry.registerFromGovernedExecution({
+        chunkId: "chunk-s1",
+        transcript: "pause",
+        policyGranted: true,
+        h23StepCount: 2,
+        h24FinalGranted: true,
+      });
+      Date.now = jest.fn(() => baseNow + VOICE_SEMANTIC_WARM_STALE_MS + 1);
+      const stale = registry.lookup({
+        chunkId: "chunk-s2",
+        regionId: "pause",
+        parameterType: null,
+      });
+      expect(stale.warmHitClass).toBe("miss");
+      expect(stale.mismatchReason).toBe("warm_miss_stale_protection");
+      expect(stale.staleProtectionApplied).toBe(true);
+      expect(stale.recentConflictPenaltyApplied).toBe(false);
+      expect(stale.candidateAgeMs).toBeGreaterThanOrEqual(VOICE_SEMANTIC_WARM_STALE_MS);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  it("applies bounded age decay before stale cutoff", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    const originalNow = Date.now;
+    const baseNow = 1_700_000_100_000;
+    Date.now = jest.fn(() => baseNow);
+    try {
+      registry.markGeometricContext({
+        chunkId: "chunk-d1",
+        source: "spectral_manifold",
+        regionId: "go to line",
+        commandClass: "parameterized",
+        parameterType: "numeric",
+        atlasVersion: "v1",
+        atlasSchema: "h3_command_atlas_v1",
+        confidence: 0.95,
+        frameCount: 88,
+      });
+      registry.registerFromGovernedExecution({
+        chunkId: "chunk-d1",
+        transcript: "go to line fifty two",
+        policyGranted: true,
+        h23StepCount: 4,
+        h24FinalGranted: true,
+      });
+
+      const fresh = registry.lookup({
+        chunkId: "chunk-d2",
+        regionId: "go to line",
+        parameterType: "numeric",
+        transcriptTailHint: "52",
+      });
+      Date.now = jest.fn(() => baseNow + VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS);
+      const decayed = registry.lookup({
+        chunkId: "chunk-d3",
+        regionId: "go to line",
+        parameterType: "numeric",
+        transcriptTailHint: "52",
+      });
+      expect(fresh.warmHitClass).toBe("strong");
+      expect(decayed.bestCandidateScore).not.toBeNull();
+      expect(decayed.bestCandidateScore!).toBeLessThan(fresh.bestCandidateScore!);
+      expect(decayed.staleProtectionApplied).toBe(false);
+      expect(decayed.mismatchReason).toBeNull();
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
 });
