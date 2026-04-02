@@ -3,6 +3,7 @@ import path from "path";
 import { H23DecisionSummary, h23Recorder } from "./h23-live-trace-recorder";
 import { H23TraceStep } from "./h23-command-governor";
 import { emitH3RuntimeEvidence } from "./h3-runtime-evidence";
+import { voiceSemanticAddressRegistry } from "./voice-semantic-address-registry";
 
 export type H24ExecutionClass =
   | "reflex"
@@ -131,6 +132,40 @@ export default class H24PolicyProofRecorder {
 
     this.records.set(input.chunkId, artifact);
     this.write(input.chunkId, artifact);
+    if (input.stage === "dispatch_complete") {
+      const semantic = voiceSemanticAddressRegistry.registerFromGovernedExecution({
+        chunkId: input.chunkId,
+        transcript: artifact.transcript,
+        policyGranted: artifact.policyGranted === true,
+        h23StepCount: artifact.h23Trace.length,
+        h24FinalGranted: artifact.policyGranted,
+      });
+      if (semantic) {
+        const eventName = semantic.successCount > 1
+          ? "voice_semantic_address_refreshed"
+          : "voice_semantic_address_registered";
+        emitH3RuntimeEvidence({
+          event: eventName,
+          chunkId: input.chunkId,
+          source: semantic.source,
+          regionId: semantic.regionId,
+          commandClass: semantic.commandClass,
+          parameterType: semantic.parameterType ?? null,
+          transcriptText: artifact.transcript,
+          mergedText: semantic.canonicalMergedText,
+          reason: "governed_execution_semantic_address_upserted",
+          semanticAddressId: semantic.semanticAddressId,
+          canonicalMergedText: semantic.canonicalMergedText,
+          slotSignature: semantic.slotSignature,
+          atlasVersion: semantic.atlasVersion,
+          governanceRequired: true,
+          governanceQualified: semantic.governanceQualified,
+          h23StepCount: artifact.h23Trace.length,
+          h24FinalGranted: artifact.policyGranted,
+          successCount: semantic.successCount,
+        });
+      }
+    }
     return artifact;
   }
 

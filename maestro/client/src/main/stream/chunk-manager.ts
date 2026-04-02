@@ -42,6 +42,7 @@ import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-prov
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 import GeometricRoutingService from "./geometric-routing-service";
 import { emitH3RuntimeEvidence } from "../runtime/h3-runtime-evidence";
+import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -65,6 +66,7 @@ type H3Route = "legacy_text" | "geometric_only" | "geometric_prefix_asr_tail";
 const H3_NUMERIC_STRATEGY_VERSION = "3b1-numeric-v1";
 const H3_OPEN_STRATEGY_VERSION = "3b2b-open-v1";
 const H3_OPEN_TARGET_LIKENESS_FLOOR = 0.72;
+const H3_SEMANTIC_V1_REGIONS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
 
 /**
  * When speaking, chunks go through the following states:
@@ -739,8 +741,76 @@ export default class ChunkManager {
     this.chunkH3LastGeometricSignature.set(chunkId, { signature, atMs: nowMs });
 
     this.chunkH3LatestGeometricEvent.set(chunkId, event);
+    voiceSemanticAddressRegistry.markGeometricContext({
+      chunkId,
+      source: event.source,
+      regionId: event.regionId,
+      commandClass: event.commandClass,
+      parameterType: event.parameterType,
+      atlasVersion: event.atlasVersion,
+      atlasSchema: event.atlasSchema,
+      confidence: event.confidence,
+      frameCount: event.frameCount,
+    });
     if (transcriptTail && transcriptTail.trim().length > 0) {
       this.chunkH3LatestTailHintText.set(chunkId, transcriptTail.trim().toLowerCase());
+    }
+    if (H3_SEMANTIC_V1_REGIONS.has(event.regionId)) {
+      this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_started", {
+        source: event.source,
+        regionId: event.regionId,
+        commandClass: event.commandClass,
+        hadTranscriptText: Boolean(transcriptTail && transcriptTail.trim().length > 0),
+        transcriptText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
+        parameterType: event.parameterType ?? null,
+        atlasVersion: event.atlasVersion ?? "unknown",
+        governanceRequired: true,
+        reason: "semantic_lookup_started_advisory_only",
+      });
+      const semanticLookup = voiceSemanticAddressRegistry.lookup({
+        chunkId,
+        regionId: event.regionId,
+        parameterType: event.parameterType ?? null,
+        transcriptTailHint: transcriptTail,
+      });
+      this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
+        source: event.source,
+        regionId: event.regionId,
+        commandClass: event.commandClass,
+        parameterType: event.parameterType ?? null,
+        atlasVersion: event.atlasVersion ?? "unknown",
+        lookupCandidateCount: semanticLookup.lookupCandidateCount,
+        bestCandidateId: semanticLookup.bestCandidateId,
+        bestCandidateScore: semanticLookup.bestCandidateScore,
+        warmHitClass: semanticLookup.warmHitClass,
+        governanceRequired: true,
+        reason:
+          semanticLookup.warmHitClass === "miss"
+            ? "semantic_lookup_miss_advisory_only"
+            : "semantic_lookup_hit_advisory_only",
+      });
+      this.emitH3Evidence(
+        chunkId,
+        semanticLookup.warmHitClass === "miss"
+          ? "voice_semantic_address_warm_miss"
+          : "voice_semantic_address_warm_hit",
+        {
+          source: event.source,
+          regionId: event.regionId,
+          commandClass: event.commandClass,
+          parameterType: event.parameterType ?? null,
+          atlasVersion: event.atlasVersion ?? "unknown",
+          lookupCandidateCount: semanticLookup.lookupCandidateCount,
+          bestCandidateId: semanticLookup.bestCandidateId,
+          bestCandidateScore: semanticLookup.bestCandidateScore,
+          warmHitClass: semanticLookup.warmHitClass,
+          governanceRequired: true,
+          reason:
+            semanticLookup.warmHitClass === "miss"
+              ? "warm_cache_miss_continue_normal_path"
+              : "warm_cache_hit_advisory_continue_governed_path",
+        }
+      );
     }
     const stepIndex = (this.chunkH3StepIndex.get(chunkId) ?? 0) + 1;
     this.chunkH3StepIndex.set(chunkId, stepIndex);
@@ -972,6 +1042,25 @@ export default class ChunkManager {
     }
     const openStrategyEnabled = this.chunkH3OpenStrategyEnabled.get(chunkId) === true;
     if (openStrategyEnabled && (prefix === "go to" || prefix === "open")) {
+      const tailHint = (this.chunkH3LatestTailHintText.get(chunkId) ?? "").trim().toLowerCase();
+      const openHintLooksConsistent = tailHint.length === 0 || tailHint === "open" || tailHint.startsWith("open ");
+      if (prefix === "open" && !openHintLooksConsistent) {
+        this.emitH3Evidence(chunkId, "open_tail_rejected", {
+          routeBefore: "geometric_prefix_asr_tail",
+          routeAfter: "geometric_prefix_asr_tail",
+          reason: "open_tail_prefix_hint_mismatch_fallback",
+          parameterType: "open",
+          openRaw: tailResult.transcript,
+          openNormalized: null,
+          openParseConfidence: 0.0,
+          openStrategyVersion: H3_OPEN_STRATEGY_VERSION,
+          openTargetKind: "unknown",
+        });
+        this.log.logVerbose(
+          `[Chunk][H3] Open tail fallback for ${chunkId}: prefix=open but hint="${tailHint}" mismatched; delegating to full finalize`
+        );
+        return false;
+      }
       const normalized = normalizeOpenTail(tailResult.transcript, {
         commandPrefix: prefix === "open" ? "open" : "go to",
       });
@@ -1085,6 +1174,19 @@ export default class ChunkManager {
       openParseConfidence: number | null;
       openStrategyVersion: string | null;
       openTargetKind: string | null;
+      semanticAddressId: string | null;
+      canonicalMergedText: string | null;
+      slotSignature: string | null;
+      atlasVersion: string | null;
+      lookupCandidateCount: number | null;
+      bestCandidateId: string | null;
+      bestCandidateScore: number | null;
+      warmHitClass: string | null;
+      governanceRequired: boolean | null;
+      governanceQualified: boolean | null;
+      h23StepCount: number | null;
+      h24FinalGranted: boolean | null;
+      successCount: number | null;
     }> = {}
   ): void {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
@@ -1118,6 +1220,19 @@ export default class ChunkManager {
       openParseConfidence: overrides.openParseConfidence ?? null,
       openStrategyVersion: overrides.openStrategyVersion ?? null,
       openTargetKind: overrides.openTargetKind ?? null,
+      semanticAddressId: overrides.semanticAddressId ?? null,
+      canonicalMergedText: overrides.canonicalMergedText ?? null,
+      slotSignature: overrides.slotSignature ?? null,
+      atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? null,
+      lookupCandidateCount: overrides.lookupCandidateCount ?? null,
+      bestCandidateId: overrides.bestCandidateId ?? null,
+      bestCandidateScore: overrides.bestCandidateScore ?? null,
+      warmHitClass: overrides.warmHitClass ?? null,
+      governanceRequired: overrides.governanceRequired ?? null,
+      governanceQualified: overrides.governanceQualified ?? null,
+      h23StepCount: overrides.h23StepCount ?? null,
+      h24FinalGranted: overrides.h24FinalGranted ?? null,
+      successCount: overrides.successCount ?? null,
     });
   }
 
@@ -2078,6 +2193,7 @@ export default class ChunkManager {
       this.chunkH3NumericStrategyEnabled.delete(chunk.id);
       this.chunkH3OpenStrategyEnabled.delete(chunk.id);
       this.chunkH3LatestTailHintText.delete(chunk.id);
+      voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
