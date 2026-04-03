@@ -55,9 +55,6 @@ import {
   deriveMultiResolutionAtlasEvidenceFields,
   deriveMultiResolutionAtlasPlan,
 } from "../runtime/multi-resolution-atlas";
-import {
-  deriveCounterfactualRepairEvidenceFields,
-} from "../runtime/counterfactual-repair-intelligence";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -930,8 +927,7 @@ export default class ChunkManager {
           semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
         multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-  
-      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
         governanceRequired: true,
         reason:
@@ -1082,8 +1078,7 @@ export default class ChunkManager {
           semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
         multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-  
-      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
         warmApplied,
         warmAppliedStage,
@@ -1150,8 +1145,7 @@ export default class ChunkManager {
             semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
           multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
             semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-    
-      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
             semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
           warmApplied,
           warmAppliedStage,
@@ -1511,8 +1505,8 @@ export default class ChunkManager {
         atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
         atlasShardNarrowingApplied: warmLookup?.atlasShardNarrowingApplied ?? null,
         atlasShardNarrowingFallbackUsed: warmLookup?.atlasShardNarrowingFallbackUsed ?? null,
-        atlasShardNarrowingCandidateCountBefore: warmLookup?.atlasShardNarrowingCandidateCountBefore ?? undefined,
-        atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingCandidateCountBefore: warmLookup?.atlasShardNarrowingCandidateCountBefore ?? null,
+        atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? null,
         atlasShardNarrowingReasonCodes: warmLookup?.atlasShardNarrowingReasonCodes ?? null,
         atlasShardNarrowingAllowedCandidateKinds: warmLookup?.atlasShardNarrowingAllowedCandidateKinds ?? null,
         multiResolutionAtlasFamilyRoutingApplied:
@@ -1543,8 +1537,7 @@ export default class ChunkManager {
           warmLookup?.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? null,
         multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
           warmLookup?.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-  
-      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
           warmLookup?.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
@@ -1684,25 +1677,6 @@ export default class ChunkManager {
     });
   }
 
-
-
-  private getCounterfactualRepairEvidenceFields(
-    chunkId: string,
-    seed: Partial<{ semanticAddressId: string | null; canonicalMergedText: string | null; regionId: string | null; commandClass: string | null; parameterType: string | null; transcriptText: string | null }> = {}
-  ) {
-    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
-    return deriveCounterfactualRepairEvidenceFields({
-      semanticAddressId: seed.semanticAddressId ?? null,
-      canonicalMergedText: seed.canonicalMergedText ?? null,
-      regionId: seed.regionId ?? latest?.regionId ?? null,
-      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
-      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
-        ? seed.parameterType
-        : (latest?.parameterType ?? null),
-      transcriptText: seed.transcriptText ?? null,
-    });
-  }
-
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
@@ -1799,17 +1773,6 @@ export default class ChunkManager {
       multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
       warmDiscardReason: string | null;
-      counterfactualRepairSchemaVersion: string | null;
-      counterfactualRepairPolicyVersion: string | null;
-      counterfactualRepairEligible: boolean | null;
-      counterfactualRepairPrimarySemanticAddressId: string | null;
-      counterfactualRepairNearestAlternativeSemanticAddressId: string | null;
-      counterfactualRepairNearestAlternativeCanonicalMergedText: string | null;
-      counterfactualRepairAmbiguityBand: string | null;
-      counterfactualRepairRepairEligible: boolean | null;
-      counterfactualRepairRepairSignal: string | null;
-      counterfactualRepairSource: string | null;
-      counterfactualRepairReasonCodes: string[] | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
     }> = {}
@@ -1824,14 +1787,6 @@ export default class ChunkManager {
       commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
       parameterType: overrides.parameterType ?? latest?.parameterType ?? null,
       canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? null,
-    });
-    const counterfactualRepairFields = this.getCounterfactualRepairEvidenceFields(chunkId, {
-      semanticAddressId: overrides.semanticAddressId ?? null,
-      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? null,
-      regionId: overrides.regionId ?? latest?.regionId ?? null,
-      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
-      parameterType: overrides.parameterType ?? latest?.parameterType ?? null,
-      transcriptText: overrides.transcriptText ?? null,
     });
     emitH3RuntimeEvidence({
       event: eventName,
@@ -1982,18 +1937,6 @@ export default class ChunkManager {
         overrides.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? null,
       multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-
-      counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
-      counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
-      counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,
-      counterfactualRepairPrimarySemanticAddressId: overrides.counterfactualRepairPrimarySemanticAddressId ?? counterfactualRepairFields.counterfactualRepairPrimarySemanticAddressId,
-      counterfactualRepairNearestAlternativeSemanticAddressId: overrides.counterfactualRepairNearestAlternativeSemanticAddressId ?? counterfactualRepairFields.counterfactualRepairNearestAlternativeSemanticAddressId,
-      counterfactualRepairNearestAlternativeCanonicalMergedText: overrides.counterfactualRepairNearestAlternativeCanonicalMergedText ?? counterfactualRepairFields.counterfactualRepairNearestAlternativeCanonicalMergedText,
-      counterfactualRepairAmbiguityBand: overrides.counterfactualRepairAmbiguityBand ?? counterfactualRepairFields.counterfactualRepairAmbiguityBand,
-      counterfactualRepairRepairEligible: overrides.counterfactualRepairRepairEligible ?? counterfactualRepairFields.counterfactualRepairRepairEligible,
-      counterfactualRepairRepairSignal: overrides.counterfactualRepairRepairSignal ?? counterfactualRepairFields.counterfactualRepairRepairSignal,
-      counterfactualRepairSource: overrides.counterfactualRepairSource ?? counterfactualRepairFields.counterfactualRepairSource,
-      counterfactualRepairReasonCodes: overrides.counterfactualRepairReasonCodes ?? counterfactualRepairFields.counterfactualRepairReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
     });

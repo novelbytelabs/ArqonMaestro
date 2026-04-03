@@ -128,17 +128,6 @@ export interface H3RuntimeEvidenceEvent {
   multiResolutionAtlasTailStrategyRoutingReasonCodes: string[] | null;
   multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
   multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
-  counterfactualRepairSchemaVersion: string | null;
-  counterfactualRepairPolicyVersion: string | null;
-  counterfactualRepairEligible: boolean | null;
-  counterfactualRepairPrimarySemanticAddressId: string | null;
-  counterfactualRepairNearestAlternativeSemanticAddressId: string | null;
-  counterfactualRepairNearestAlternativeCanonicalMergedText: string | null;
-  counterfactualRepairAmbiguityBand: string | null;
-  counterfactualRepairRepairEligible: boolean | null;
-  counterfactualRepairRepairSignal: string | null;
-  counterfactualRepairSource: string | null;
-  counterfactualRepairReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -288,20 +277,6 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
     multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
       input.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
-    counterfactualRepairSchemaVersion: input.counterfactualRepairSchemaVersion ?? null,
-    counterfactualRepairPolicyVersion: input.counterfactualRepairPolicyVersion ?? null,
-    counterfactualRepairEligible: input.counterfactualRepairEligible ?? null,
-    counterfactualRepairPrimarySemanticAddressId:
-      input.counterfactualRepairPrimarySemanticAddressId ?? null,
-    counterfactualRepairNearestAlternativeSemanticAddressId:
-      input.counterfactualRepairNearestAlternativeSemanticAddressId ?? null,
-    counterfactualRepairNearestAlternativeCanonicalMergedText:
-      input.counterfactualRepairNearestAlternativeCanonicalMergedText ?? null,
-    counterfactualRepairAmbiguityBand: input.counterfactualRepairAmbiguityBand ?? null,
-    counterfactualRepairRepairEligible: input.counterfactualRepairRepairEligible ?? null,
-    counterfactualRepairRepairSignal: input.counterfactualRepairRepairSignal ?? null,
-    counterfactualRepairSource: input.counterfactualRepairSource ?? null,
-    counterfactualRepairReasonCodes: input.counterfactualRepairReasonCodes ?? null,
   };
 }
 

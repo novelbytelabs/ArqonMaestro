@@ -374,6 +374,9 @@ export default class RuntimeCommandDispatcher {
   ): Promise<void> {
     const dispatchStartedAt = Date.now();
     const plan = this.plan(response, sessionId);
+    console.log(
+      `[STREAM_TRACE] dispatch_plan chunkId="${response.chunkId || ""}" route="${plan.route}" family="${plan.dominantFamily}" reason="${plan.reason}" commandCount=${plan.commands.length}`
+    );
     phase3ABenchmarkService.recordHotPathStage("dispatch_plan_ms", Date.now() - dispatchStartedAt);
     onPlanned?.(plan);
     if (emitNormalizedCommands) {
@@ -498,6 +501,9 @@ export default class RuntimeCommandDispatcher {
       })}`
     );
     if (integration.status === "block") {
+      console.warn(
+        `[STREAM_TRACE] dispatch_blocked chunkId="${response.chunkId || ""}" gate="language_system" reason="${integration.reason}" route="${plan.route}" family="${plan.dominantFamily}"`
+      );
       const outcome = this.outcomeClassifier.classify(
         response,
         plan.route,
@@ -530,6 +536,9 @@ export default class RuntimeCommandDispatcher {
     if (policyDecision.decision === "block_route") {
       recordRouteDecision(false);
       recordDispatchTotal();
+      console.warn(
+        `[STREAM_TRACE] dispatch_blocked chunkId="${response.chunkId || ""}" gate="policy" reason="${policyDecision.explanation.summary}" route="${plan.route}" family="${plan.dominantFamily}"`
+      );
       console.warn(
         `[RuntimeCommandDispatcher] POLICY_BLOCK route=${plan.route} reason=${policyDecision.explanation.summary} interactionMode=${interactionMode} commandTypes=${plan.commands
           .map((command) => command.type)
@@ -568,6 +577,9 @@ export default class RuntimeCommandDispatcher {
     if (boundaryBlockReason) {
       recordRouteDecision(true);
       recordDispatchTotal();
+      console.warn(
+        `[STREAM_TRACE] dispatch_blocked chunkId="${response.chunkId || ""}" gate="boundary" reason="${boundaryBlockReason}" route="${plan.route}" family="${plan.dominantFamily}"`
+      );
       this.log.logVerbose(
         `[RuntimeCommandDispatcher] Boundary blocked ${executionOrigin} execution: ${boundaryBlockReason}`
       );
@@ -602,6 +614,9 @@ export default class RuntimeCommandDispatcher {
       plan.route === "focus_local" ||
       plan.route === "execution_local"
     ) {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="local_executor"`
+      );
       phase3ABenchmarkService.recordHotPathStage(
         "executor_handoff_ms",
         Date.now() - dispatchStartedAt
@@ -612,6 +627,9 @@ export default class RuntimeCommandDispatcher {
     }
 
     if (plan.route === "talon_fallback") {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="talon_fallback"`
+      );
       // Phase 1C Gap 2: Talon fallback route.
       // The policy engine has already approved this route (or blocked it above).
       // At this phase, we record the structured Talon handoff in the trace;
@@ -634,6 +652,9 @@ export default class RuntimeCommandDispatcher {
     }
 
     if (plan.route === "navigation_plugin") {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="plugin_assisted"`
+      );
       phase3ABenchmarkService.recordHotPathStage(
         "executor_handoff_ms",
         Date.now() - dispatchStartedAt
@@ -644,6 +665,9 @@ export default class RuntimeCommandDispatcher {
     }
 
     if (plan.route === "focus_plugin") {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="plugin_assisted"`
+      );
       phase3ABenchmarkService.recordHotPathStage(
         "executor_handoff_ms",
         Date.now() - dispatchStartedAt
@@ -654,6 +678,9 @@ export default class RuntimeCommandDispatcher {
     }
 
     if (plan.route === "editing_plugin") {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="plugin_assisted"`
+      );
       phase3ABenchmarkService.recordHotPathStage(
         "executor_handoff_ms",
         Date.now() - dispatchStartedAt
@@ -664,6 +691,9 @@ export default class RuntimeCommandDispatcher {
     }
 
     if (plan.route === "mixed_plugin_assisted") {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="plugin_assisted"`
+      );
       phase3ABenchmarkService.recordHotPathStage(
         "executor_handoff_ms",
         Date.now() - dispatchStartedAt
@@ -674,6 +704,9 @@ export default class RuntimeCommandDispatcher {
     }
 
     if (plan.route === "system_plugin") {
+      console.log(
+        `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="plugin_assisted"`
+      );
       phase3ABenchmarkService.recordHotPathStage(
         "executor_handoff_ms",
         Date.now() - dispatchStartedAt
@@ -688,6 +721,9 @@ export default class RuntimeCommandDispatcher {
       Date.now() - dispatchStartedAt
     );
     recordDispatchTotal();
+    console.log(
+      `[STREAM_TRACE] dispatch_execute chunkId="${response.chunkId || ""}" route="${plan.route}" mode="default_executor"`
+    );
     await this.executorPort.execute(response, updateRenderer);
   }
 

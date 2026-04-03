@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-04-02T15:58:43.312Z",
+  "stage": "3D1-S2",
+  "checks": {
+    "successful_registration": true,
+    "refresh_update_on_repeat_success": true,
+    "warm_hit": true,
+    "warm_miss": true,
+    "no_registration_on_rejected_non_executable": true
+  },
+  "records": [
+    {
+      "semanticAddressId": "ecffbfa755c67139",
+      "regionId": "go to line",
+      "parameterType": "numeric",
+      "canonicalMergedText": "go to line 52",
+      "slotSignature": "goto_line:52",
+      "successCount": 1
+    },
+    {
+      "semanticAddressId": "b248884f85fed03f",
+      "regionId": "open",
+      "parameterType": "open",
+      "canonicalMergedText": "open wikipedia.org",
+      "slotSignature": "open_target:wikipedia.org",
+      "successCount": 2
+    }
+  ],
+  "eventCount": 6
+}

@@ -56,6 +56,8 @@ describe("ChunkManager H3 open-tail specialization", () => {
     manager.chunkH3LastGeometricSignature = new Map<string, any>();
     manager.chunkH3NumericStrategyEnabled = new Map<string, boolean>();
     manager.chunkH3OpenStrategyEnabled = new Map<string, boolean>();
+    manager.chunkH3FocusContextEnvelope = new Map<string, any>();
+    manager.chunkH3AtlasShardHint = new Map<string, any>();
     manager.chunkH3TailDecodeActive.set(chunkId, true);
     manager.chunkH3TailAudioFrames.set(chunkId, [Buffer.from([1, 2, 3, 4])]);
     manager.chunkH3Route.set(chunkId, "geometric_prefix_asr_tail");
@@ -265,6 +267,32 @@ describe("ChunkManager H3 open-tail specialization", () => {
       "chunk-open-3",
       "merged_transcript_emitted",
       expect.anything()
+    );
+  });
+
+  it("falls back to full finalize when open prefix is armed but transcript hint mismatches", async () => {
+    const manager = makeBareManager({
+      chunkId: "chunk-open-fallback",
+      prefix: "open",
+      regionId: "open",
+      transcript: "pause",
+    });
+    manager.chunkH3LatestTailHintText.set("chunk-open-fallback", "pause");
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.recordFinal = jest.fn();
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+
+    const handled = await manager.tryHandleH3ParameterizedTailFinalize("chunk-open-fallback");
+    expect(handled).toBe(false);
+    expect(manager.stream.sendTextRequest).not.toHaveBeenCalled();
+    expect(manager.emitH3Evidence).toHaveBeenCalledWith(
+      "chunk-open-fallback",
+      "open_tail_rejected",
+      expect.objectContaining({
+        reason: "open_tail_prefix_hint_mismatch_fallback",
+        parameterType: "open",
+        openStrategyVersion: "3b2b-open-v1",
+      })
     );
   });
 
