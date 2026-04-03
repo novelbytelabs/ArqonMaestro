@@ -181,6 +181,18 @@ export interface H3RuntimeEvidenceEvent {
   counterfactualRepairRankingGuardrailSuggested: boolean | null;
   counterfactualRepairRankingGuardrailKind: string | null;
   counterfactualRepairRankingReasonCodes: string[] | null;
+  counterfactualRepairCounterexampleFormatVersion: string | null;
+  counterfactualRepairAntibodyPilotVersion: string | null;
+  counterfactualRepairAntibodyPilotApplied: boolean | null;
+  counterfactualRepairCounterexampleEventClass: string | null;
+  counterfactualRepairCounterexampleSignature: string | null;
+  counterfactualRepairCounterexampleTranscriptDigest: string | null;
+  counterfactualRepairAntibodyMintSuggested: boolean | null;
+  counterfactualRepairAntibodyMintKey: string | null;
+  counterfactualRepairAntibodyQuarantineSuggested: boolean | null;
+  counterfactualRepairAntibodyQuarantineBand: string | null;
+  counterfactualRepairAntibodyValidationGateHint: string | null;
+  counterfactualRepairAntibodyPilotReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -421,6 +433,30 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.counterfactualRepairRankingGuardrailKind ?? null,
     counterfactualRepairRankingReasonCodes:
       input.counterfactualRepairRankingReasonCodes ?? null,
+    counterfactualRepairCounterexampleFormatVersion:
+      input.counterfactualRepairCounterexampleFormatVersion ?? null,
+    counterfactualRepairAntibodyPilotVersion:
+      input.counterfactualRepairAntibodyPilotVersion ?? null,
+    counterfactualRepairAntibodyPilotApplied:
+      input.counterfactualRepairAntibodyPilotApplied ?? null,
+    counterfactualRepairCounterexampleEventClass:
+      input.counterfactualRepairCounterexampleEventClass ?? null,
+    counterfactualRepairCounterexampleSignature:
+      input.counterfactualRepairCounterexampleSignature ?? null,
+    counterfactualRepairCounterexampleTranscriptDigest:
+      input.counterfactualRepairCounterexampleTranscriptDigest ?? null,
+    counterfactualRepairAntibodyMintSuggested:
+      input.counterfactualRepairAntibodyMintSuggested ?? null,
+    counterfactualRepairAntibodyMintKey:
+      input.counterfactualRepairAntibodyMintKey ?? null,
+    counterfactualRepairAntibodyQuarantineSuggested:
+      input.counterfactualRepairAntibodyQuarantineSuggested ?? null,
+    counterfactualRepairAntibodyQuarantineBand:
+      input.counterfactualRepairAntibodyQuarantineBand ?? null,
+    counterfactualRepairAntibodyValidationGateHint:
+      input.counterfactualRepairAntibodyValidationGateHint ?? null,
+    counterfactualRepairAntibodyPilotReasonCodes:
+      input.counterfactualRepairAntibodyPilotReasonCodes ?? null,
   };
 }
 

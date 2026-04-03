@@ -1936,6 +1936,18 @@ export default class ChunkManager {
       counterfactualRepairRankingGuardrailSuggested: overrides.counterfactualRepairRankingGuardrailSuggested ?? counterfactualRepairFields.counterfactualRepairRankingGuardrailSuggested,
       counterfactualRepairRankingGuardrailKind: overrides.counterfactualRepairRankingGuardrailKind ?? counterfactualRepairFields.counterfactualRepairRankingGuardrailKind,
       counterfactualRepairRankingReasonCodes: overrides.counterfactualRepairRankingReasonCodes ?? counterfactualRepairFields.counterfactualRepairRankingReasonCodes,
+      counterfactualRepairCounterexampleFormatVersion: overrides.counterfactualRepairCounterexampleFormatVersion ?? counterfactualRepairFields.counterfactualRepairCounterexampleFormatVersion,
+      counterfactualRepairAntibodyPilotVersion: overrides.counterfactualRepairAntibodyPilotVersion ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotVersion,
+      counterfactualRepairAntibodyPilotApplied: overrides.counterfactualRepairAntibodyPilotApplied ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotApplied,
+      counterfactualRepairCounterexampleEventClass: overrides.counterfactualRepairCounterexampleEventClass ?? counterfactualRepairFields.counterfactualRepairCounterexampleEventClass,
+      counterfactualRepairCounterexampleSignature: overrides.counterfactualRepairCounterexampleSignature ?? counterfactualRepairFields.counterfactualRepairCounterexampleSignature,
+      counterfactualRepairCounterexampleTranscriptDigest: overrides.counterfactualRepairCounterexampleTranscriptDigest ?? counterfactualRepairFields.counterfactualRepairCounterexampleTranscriptDigest,
+      counterfactualRepairAntibodyMintSuggested: overrides.counterfactualRepairAntibodyMintSuggested ?? counterfactualRepairFields.counterfactualRepairAntibodyMintSuggested,
+      counterfactualRepairAntibodyMintKey: overrides.counterfactualRepairAntibodyMintKey ?? counterfactualRepairFields.counterfactualRepairAntibodyMintKey,
+      counterfactualRepairAntibodyQuarantineSuggested: overrides.counterfactualRepairAntibodyQuarantineSuggested ?? counterfactualRepairFields.counterfactualRepairAntibodyQuarantineSuggested,
+      counterfactualRepairAntibodyQuarantineBand: overrides.counterfactualRepairAntibodyQuarantineBand ?? counterfactualRepairFields.counterfactualRepairAntibodyQuarantineBand,
+      counterfactualRepairAntibodyValidationGateHint: overrides.counterfactualRepairAntibodyValidationGateHint ?? counterfactualRepairFields.counterfactualRepairAntibodyValidationGateHint,
+      counterfactualRepairAntibodyPilotReasonCodes: overrides.counterfactualRepairAntibodyPilotReasonCodes ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
     });

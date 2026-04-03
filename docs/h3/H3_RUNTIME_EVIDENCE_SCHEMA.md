@@ -66,3 +66,24 @@ Meaning:
 - `counterfactualRepairRankingGuardrailSuggested`
 - `counterfactualRepairRankingGuardrailKind`
 - `counterfactualRepairRankingReasonCodes`
+
+
+## Stage 3G-S5 counterexample / antibody pilot
+- `counterfactualRepairCounterexampleFormatVersion`
+- `counterfactualRepairAntibodyPilotVersion`
+- `counterfactualRepairAntibodyPilotApplied`
+- `counterfactualRepairCounterexampleEventClass`
+- `counterfactualRepairCounterexampleSignature`
+- `counterfactualRepairCounterexampleTranscriptDigest`
+- `counterfactualRepairAntibodyMintSuggested`
+- `counterfactualRepairAntibodyMintKey`
+- `counterfactualRepairAntibodyQuarantineSuggested`
+- `counterfactualRepairAntibodyQuarantineBand`
+- `counterfactualRepairAntibodyValidationGateHint`
+- `counterfactualRepairAntibodyPilotReasonCodes`
+
+Notes:
+- bounded advisory pilot only
+- no persistence / registry minting yet
+- no antibody gate activation yet
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

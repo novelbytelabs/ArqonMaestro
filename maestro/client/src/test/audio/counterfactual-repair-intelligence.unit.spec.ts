@@ -61,8 +61,39 @@ describe("counterfactual repair intelligence", () => {
     expect(result.counterfactualRepairCounterexampleKind).toBe("recognition_rejection");
     expect(result.counterfactualRepairAntibodyEligible).toBe(true);
     expect(result.counterfactualRepairAntibodyHint).toBe("antibody_placeholder_recognition_rejection");
+    expect(result.counterfactualRepairCounterexampleFormatVersion).toBe("3g_counterexample_format_v1");
+    expect(result.counterfactualRepairAntibodyPilotVersion).toBe("3g_antibody_counterexample_pilot_v1");
+    expect(result.counterfactualRepairAntibodyPilotApplied).toBe(true);
+    expect(result.counterfactualRepairCounterexampleEventClass).toBe("recognition_rejection");
+    expect(result.counterfactualRepairAntibodyMintSuggested).toBe(true);
+    expect(result.counterfactualRepairAntibodyMintKey).toContain("antibody_recognition_rejection_");
+    expect(result.counterfactualRepairAntibodyQuarantineSuggested).toBe(false);
+    expect(result.counterfactualRepairAntibodyQuarantineBand).toBe("degraded");
+    expect(result.counterfactualRepairAntibodyValidationGateHint).toBe("protocol_gate");
     expect(result.counterfactualRepairStressBand).toBe("critical");
     expect(result.counterfactualRepairSource).toBe("failure_observer");
+  });
+
+
+  it("derives antibody pilot quarantine metadata for recognition failure paths", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: null,
+      canonicalMergedText: null,
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      transcriptText: "open stack overflow",
+      eventName: "open_tail_failed",
+      reason: "recognition_failed_decoder",
+      finalGranted: false,
+    });
+
+    expect(result.counterfactualRepairCounterexampleKind).toBe("recognition_failure");
+    expect(result.counterfactualRepairAntibodyPilotApplied).toBe(true);
+    expect(result.counterfactualRepairCounterexampleEventClass).toBe("recognition_failure");
+    expect(result.counterfactualRepairAntibodyQuarantineSuggested).toBe(true);
+    expect(result.counterfactualRepairAntibodyQuarantineBand).toBe("quarantine");
+    expect(result.counterfactualRepairAntibodyValidationGateHint).toBe("negative_gate");
   });
 
   it("derives ambiguity pilot escalation for close nearest alternatives", () => {
@@ -102,6 +133,8 @@ describe("counterfactual repair intelligence", () => {
     expect(result.counterfactualRepairDeadDetected).toBe(true);
     expect(result.counterfactualRepairCounterexampleCaptured).toBe(false);
     expect(result.counterfactualRepairAntibodyEligible).toBe(false);
+    expect(result.counterfactualRepairAntibodyPilotApplied).toBe(false);
+    expect(result.counterfactualRepairAntibodyMintSuggested).toBe(false);
     expect(result.counterfactualRepairStressEvent).toBe("metabolic_repair_observed");
   });
 

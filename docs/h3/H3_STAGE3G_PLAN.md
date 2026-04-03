@@ -39,9 +39,9 @@ Stage 3G introduces **Counterfactual + Repair Intelligence** on top of the close
 - add regression coverage so DEAD restart paths do not auto-mint counterexample/antibody metadata
 - no repair actuation, no authority change
 
-## S4 — Next
-- bounded counterfactual ranking / guardrail pilot
+## S4 — Bounded counterfactual ranking / guardrail pilot (implemented)
 - advisory-only candidate-competition shaping
+- ranking/guardrail synthesis from ambiguity + repair + stress
 - no repair actuation yet
 
 ## Internal communication note
@@ -49,11 +49,11 @@ Stage 3G introduces **Counterfactual + Repair Intelligence** on top of the close
 - JSON is reserved for human-facing artifacts and reports
 
 
-## Stage 3G-S4
-- bounded counterfactual ranking / guardrail pilot
-- advisory-only Selection Function–style ranking synthesis
-- no authority change
-
-## Stage 3G-S5
+## Stage 3G-S5 (implemented)
 - bounded antibody / counterexample pilot
-- command-recognition counterexample formatting and minting placeholders remain governed and non-authorizing
+- command-recognition counterexample formatting and minting suggestions remain governed and non-authorizing
+- no persistence or antibody gate activation yet
+
+## Stage 3G-S6
+- closure / validation
+- freeze 3G doctrine and report validated pilot surfaces

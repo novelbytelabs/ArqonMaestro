@@ -19,7 +19,9 @@ const cfhMockFactory = () => ({
 
 describe("ChunkManager H3 counterfactual repair evidence", () => {
   afterEach(() => {
+    jest.dontMock("../../main/stt/cfh");
     jest.restoreAllMocks();
+    jest.resetModules();
   });
 
   function makeBareManager(): any {
@@ -122,6 +124,14 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
         counterfactualRepairCounterexampleCaptured: true,
         counterfactualRepairCounterexampleKind: "recognition_rejection",
         counterfactualRepairAntibodyEligible: true,
+        counterfactualRepairCounterexampleFormatVersion: "3g_counterexample_format_v1",
+        counterfactualRepairAntibodyPilotVersion: "3g_antibody_counterexample_pilot_v1",
+        counterfactualRepairAntibodyPilotApplied: true,
+        counterfactualRepairCounterexampleEventClass: "recognition_rejection",
+        counterfactualRepairAntibodyMintSuggested: true,
+        counterfactualRepairAntibodyQuarantineSuggested: false,
+        counterfactualRepairAntibodyQuarantineBand: "degraded",
+        counterfactualRepairAntibodyValidationGateHint: "protocol_gate",
         counterfactualRepairStressEvent: "metabolic_stress_observed",
         counterfactualRepairOuroborosEvent: "ouroboros_failure_observed",
         counterfactualRepairSource: "failure_observer",

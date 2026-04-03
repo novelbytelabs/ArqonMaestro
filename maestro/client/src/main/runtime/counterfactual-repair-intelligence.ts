@@ -5,6 +5,8 @@ export const COUNTERFACTUAL_AMBIGUITY_PILOT_VERSION = "3g_nearest_alternative_am
 export const COUNTERFACTUAL_AMBIGUITY_MAX_SCORE_GAP = 0.12 as const;
 export const COUNTERFACTUAL_REPAIR_SIGNAL_PILOT_VERSION = "3g_repair_signal_pilot_v1" as const;
 export const COUNTERFACTUAL_RANKING_GUARDRAIL_PILOT_VERSION = "3g_counterfactual_ranking_guardrail_v1" as const;
+export const COUNTERFACTUAL_COUNTEREXAMPLE_FORMAT_VERSION = "3g_counterexample_format_v1" as const;
+export const COUNTERFACTUAL_ANTIBODY_PILOT_VERSION = "3g_antibody_counterexample_pilot_v1" as const;
 
 export interface CounterfactualRepairSeed {
   semanticAddressId: string | null;
@@ -54,6 +56,19 @@ interface CounterfactualRankingGuardrailPilot {
   repairAdjusted: boolean;
   guardrailSuggested: boolean;
   guardrailKind: "hold_for_repair" | "request_disambiguation" | "continue_observing" | null;
+  reasonCodes: string[];
+}
+
+interface CounterfactualAntibodyPilot {
+  applied: boolean;
+  counterexampleEventClass: "recognition_rejection" | "recognition_failure" | null;
+  counterexampleSignature: string | null;
+  counterexampleTranscriptDigest: string | null;
+  antibodyMintSuggested: boolean;
+  antibodyMintKey: string | null;
+  antibodyQuarantineSuggested: boolean;
+  antibodyQuarantineBand: "degraded" | "quarantine" | null;
+  antibodyValidationGateHint: "protocol_gate" | "negative_gate" | null;
   reasonCodes: string[];
 }
 
@@ -111,6 +126,18 @@ export interface CounterfactualRepairEvidenceFields {
   counterfactualRepairRankingGuardrailSuggested: boolean | null;
   counterfactualRepairRankingGuardrailKind: string | null;
   counterfactualRepairRankingReasonCodes: string[] | null;
+  counterfactualRepairCounterexampleFormatVersion: string | null;
+  counterfactualRepairAntibodyPilotVersion: string | null;
+  counterfactualRepairAntibodyPilotApplied: boolean | null;
+  counterfactualRepairCounterexampleEventClass: string | null;
+  counterfactualRepairCounterexampleSignature: string | null;
+  counterfactualRepairCounterexampleTranscriptDigest: string | null;
+  counterfactualRepairAntibodyMintSuggested: boolean | null;
+  counterfactualRepairAntibodyMintKey: string | null;
+  counterfactualRepairAntibodyQuarantineSuggested: boolean | null;
+  counterfactualRepairAntibodyQuarantineBand: string | null;
+  counterfactualRepairAntibodyValidationGateHint: string | null;
+  counterfactualRepairAntibodyPilotReasonCodes: string[] | null;
 }
 
 export function deriveCounterfactualRepairEvidenceFields(
@@ -188,6 +215,20 @@ export function deriveCounterfactualRepairEvidenceFields(
       counterfactualRepairRankingGuardrailSuggested: false,
       counterfactualRepairRankingGuardrailKind: null,
       counterfactualRepairRankingReasonCodes: hasFailureObservation ? ['counterfactual_ranking_not_eligible'] : null,
+      counterfactualRepairCounterexampleFormatVersion: hasFailureObservation ? COUNTERFACTUAL_COUNTEREXAMPLE_FORMAT_VERSION : null,
+      counterfactualRepairAntibodyPilotVersion: hasFailureObservation ? COUNTERFACTUAL_ANTIBODY_PILOT_VERSION : null,
+      counterfactualRepairAntibodyPilotApplied: hasFailureObservation && counterexampleCaptured,
+      counterfactualRepairCounterexampleEventClass: counterexampleKind,
+      counterfactualRepairCounterexampleSignature: counterexampleCaptured ? buildCounterexampleSignature(counterexampleKind, transcriptText, reason) : null,
+      counterfactualRepairCounterexampleTranscriptDigest: counterexampleCaptured ? buildCounterexampleTranscriptDigest(transcriptText) : null,
+      counterfactualRepairAntibodyMintSuggested: counterexampleCaptured,
+      counterfactualRepairAntibodyMintKey: counterexampleCaptured ? buildAntibodyMintKey(counterexampleKind, transcriptText) : null,
+      counterfactualRepairAntibodyQuarantineSuggested: counterexampleKind === 'recognition_failure',
+      counterfactualRepairAntibodyQuarantineBand: counterexampleKind === 'recognition_failure' ? 'quarantine' : counterexampleCaptured ? 'degraded' : null,
+      counterfactualRepairAntibodyValidationGateHint: counterexampleKind === 'recognition_failure' ? 'negative_gate' : counterexampleCaptured ? 'protocol_gate' : null,
+      counterfactualRepairAntibodyPilotReasonCodes: hasFailureObservation
+        ? deriveCounterfactualAntibodyPilot(counterexampleKind, transcriptText, reason).reasonCodes
+        : null,
     };
   }
 
@@ -208,6 +249,7 @@ export function deriveCounterfactualRepairEvidenceFields(
   const ambiguityPilot = deriveAmbiguityPilot(population, ambiguityBand, repairSignal);
   const repairSignalPilot = deriveRepairSignalPilot(repairSignal, deadObservation);
   const rankingGuardrailPilot = deriveCounterfactualRankingGuardrailPilot(population, ambiguityPilot, repairSignalPilot, stressBand);
+  const antibodyPilot = deriveCounterfactualAntibodyPilot(counterexampleKind, transcriptText, reason);
 
   return {
     counterfactualRepairSchemaVersion: COUNTERFACTUAL_REPAIR_SCHEMA_VERSION,
@@ -276,6 +318,18 @@ export function deriveCounterfactualRepairEvidenceFields(
     counterfactualRepairRankingGuardrailSuggested: rankingGuardrailPilot.guardrailSuggested,
     counterfactualRepairRankingGuardrailKind: rankingGuardrailPilot.guardrailKind,
     counterfactualRepairRankingReasonCodes: rankingGuardrailPilot.reasonCodes,
+    counterfactualRepairCounterexampleFormatVersion: COUNTERFACTUAL_COUNTEREXAMPLE_FORMAT_VERSION,
+    counterfactualRepairAntibodyPilotVersion: COUNTERFACTUAL_ANTIBODY_PILOT_VERSION,
+    counterfactualRepairAntibodyPilotApplied: antibodyPilot.applied,
+    counterfactualRepairCounterexampleEventClass: antibodyPilot.counterexampleEventClass,
+    counterfactualRepairCounterexampleSignature: antibodyPilot.counterexampleSignature,
+    counterfactualRepairCounterexampleTranscriptDigest: antibodyPilot.counterexampleTranscriptDigest,
+    counterfactualRepairAntibodyMintSuggested: antibodyPilot.antibodyMintSuggested,
+    counterfactualRepairAntibodyMintKey: antibodyPilot.antibodyMintKey,
+    counterfactualRepairAntibodyQuarantineSuggested: antibodyPilot.antibodyQuarantineSuggested,
+    counterfactualRepairAntibodyQuarantineBand: antibodyPilot.antibodyQuarantineBand,
+    counterfactualRepairAntibodyValidationGateHint: antibodyPilot.antibodyValidationGateHint,
+    counterfactualRepairAntibodyPilotReasonCodes: antibodyPilot.reasonCodes,
   };
 }
 
@@ -549,6 +603,83 @@ function deriveCounterexampleKind(
     return 'recognition_failure';
   }
   return null;
+}
+
+function deriveCounterfactualAntibodyPilot(
+  counterexampleKind: string | null,
+  transcriptText: string | null,
+  reason: string | null
+): CounterfactualAntibodyPilot {
+  if (!counterexampleKind) {
+    return {
+      applied: false,
+      counterexampleEventClass: null,
+      counterexampleSignature: null,
+      counterexampleTranscriptDigest: null,
+      antibodyMintSuggested: false,
+      antibodyMintKey: null,
+      antibodyQuarantineSuggested: false,
+      antibodyQuarantineBand: null,
+      antibodyValidationGateHint: null,
+      reasonCodes: ['counterfactual_antibody_not_eligible'],
+    };
+  }
+
+  const counterexampleEventClass = counterexampleKind === 'recognition_failure'
+    ? 'recognition_failure'
+    : 'recognition_rejection';
+  const counterexampleSignature = buildCounterexampleSignature(counterexampleKind, transcriptText, reason);
+  const counterexampleTranscriptDigest = buildCounterexampleTranscriptDigest(transcriptText);
+  const antibodyMintKey = buildAntibodyMintKey(counterexampleKind, transcriptText);
+  const antibodyQuarantineSuggested = counterexampleEventClass === 'recognition_failure';
+  const antibodyQuarantineBand = antibodyQuarantineSuggested ? 'quarantine' : 'degraded';
+  const antibodyValidationGateHint = antibodyQuarantineSuggested ? 'negative_gate' : 'protocol_gate';
+
+  return {
+    applied: true,
+    counterexampleEventClass,
+    counterexampleSignature,
+    counterexampleTranscriptDigest,
+    antibodyMintSuggested: true,
+    antibodyMintKey,
+    antibodyQuarantineSuggested,
+    antibodyQuarantineBand,
+    antibodyValidationGateHint,
+    reasonCodes: [
+      `counterfactual_antibody_event_${normalizeReasonToken(counterexampleEventClass)}`,
+      `counterfactual_antibody_gate_${normalizeReasonToken(antibodyValidationGateHint)}`,
+      `counterfactual_antibody_band_${normalizeReasonToken(antibodyQuarantineBand)}`,
+    ],
+  };
+}
+
+function buildCounterexampleSignature(
+  counterexampleKind: string | null,
+  transcriptText: string | null,
+  reason: string | null
+): string | null {
+  if (!counterexampleKind) {
+    return null;
+  }
+  const transcriptDigest = buildCounterexampleTranscriptDigest(transcriptText) ?? 'none';
+  const reasonToken = normalizeReasonToken(reason);
+  return `${normalizeReasonToken(counterexampleKind)}|${transcriptDigest}|${reasonToken}`;
+}
+
+function buildCounterexampleTranscriptDigest(transcriptText: string | null): string | null {
+  const normalized = (transcriptText ?? '').toLowerCase().trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return null;
+  }
+  return normalizeReasonToken(normalized).slice(0, 32) || null;
+}
+
+function buildAntibodyMintKey(counterexampleKind: string | null, transcriptText: string | null): string | null {
+  if (!counterexampleKind) {
+    return null;
+  }
+  const digest = buildCounterexampleTranscriptDigest(transcriptText) ?? 'none';
+  return `antibody_${normalizeReasonToken(counterexampleKind)}_${digest}`;
 }
 
 function deriveStressBand(
