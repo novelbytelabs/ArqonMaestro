@@ -39,3 +39,20 @@ Current v1 shard hints:
 - `editor_symbolic`
 - `terminal_session`
 - `global_default`
+
+
+## Stage 3F multi-resolution atlas fields
+
+The H3 runtime evidence event now carries advisory multi-resolution atlas route metadata:
+
+- `multiResolutionAtlasSchemaVersion`
+- `multiResolutionAtlasPolicyVersion`
+- `multiResolutionAtlasEligible`
+- `multiResolutionAtlasCoarseRegionId`
+- `multiResolutionAtlasFamilyAtlasId`
+- `multiResolutionAtlasPrefixBandId`
+- `multiResolutionAtlasTailStrategyId`
+- `multiResolutionAtlasSource`
+- `multiResolutionAtlasReasonCodes`
+
+These fields are observational in `S1`. They do not authorize execution and do not alter H23/H24 governance.

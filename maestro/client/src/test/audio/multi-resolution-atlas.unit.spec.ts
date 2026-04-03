@@ -1,0 +1,79 @@
+import { buildFocusConditionedCommandContext } from "../../main/runtime/focus-conditioned-command-context";
+import { derivePolicyShapedAtlasShardHint } from "../../main/runtime/policy-shaped-atlas-shards";
+import {
+  deriveMultiResolutionAtlasPlan,
+  deriveMultiResolutionAtlasEvidenceFields,
+  MULTI_RESOLUTION_ATLAS_POLICY_VERSION,
+} from "../../main/runtime/multi-resolution-atlas";
+
+describe("multi-resolution atlas", () => {
+  it("derives browser/open route plan from an eligible browser shard hint", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    expect(plan.policyVersion).toBe(MULTI_RESOLUTION_ATLAS_POLICY_VERSION);
+    expect(plan.multiResolutionAtlasEligible).toBe(true);
+    expect(plan.multiResolutionAtlasCoarseRegionId).toBe("browser_surface");
+    expect(plan.multiResolutionAtlasFamilyAtlasId).toBe("parameterized_open_family");
+    expect(plan.multiResolutionAtlasPrefixBandId).toBe("prefix_open");
+    expect(plan.multiResolutionAtlasTailStrategyId).toBe("open_tail_v1");
+  });
+
+  it("derives editor/numeric route plan from an eligible editor shard hint", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "code",
+        windowId: "window-1",
+        regionId: "editor",
+        controlId: "editor",
+        focusConfidence: 0.96,
+        authorityType: "verified",
+        snapshotAgeMs: 40,
+      },
+    });
+
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const fields = deriveMultiResolutionAtlasEvidenceFields(hint, {
+      regionId: "go to line",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      canonicalMergedText: "go to line 52",
+    });
+
+    expect(fields.multiResolutionAtlasEligible).toBe(true);
+    expect(fields.multiResolutionAtlasCoarseRegionId).toBe("editor_surface");
+    expect(fields.multiResolutionAtlasFamilyAtlasId).toBe("parameterized_numeric_family");
+    expect(fields.multiResolutionAtlasPrefixBandId).toBe("prefix_go_to_line");
+    expect(fields.multiResolutionAtlasTailStrategyId).toBe("numeric_tail_v1");
+  });
+
+  it("returns not-eligible route fields when shard hint is absent", () => {
+    const fields = deriveMultiResolutionAtlasEvidenceFields(null, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    expect(fields.multiResolutionAtlasEligible).toBe(false);
+    expect(fields.multiResolutionAtlasCoarseRegionId).toBeNull();
+    expect(fields.multiResolutionAtlasReasonCodes).toEqual(["multi_resolution_atlas_not_eligible"]);
+  });
+});

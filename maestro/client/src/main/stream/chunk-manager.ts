@@ -51,6 +51,7 @@ import {
   derivePolicyShapedAtlasShardEvidenceFields,
   derivePolicyShapedAtlasShardHint,
 } from "../runtime/policy-shaped-atlas-shards";
+import { deriveMultiResolutionAtlasEvidenceFields } from "../runtime/multi-resolution-atlas";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -919,8 +920,8 @@ export default class ChunkManager {
           atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
           atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
           atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
-          atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? null,
-          atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? null,
+          atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
+          atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
           atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
           atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
           governanceRequired: true,
@@ -1492,6 +1493,21 @@ export default class ChunkManager {
     return derivePolicyShapedAtlasShardEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? null);
   }
 
+  private getMultiResolutionAtlasEvidenceFields(
+    chunkId: string,
+    seed: Partial<{ regionId: string | null; commandClass: string | null; parameterType: string | null; canonicalMergedText: string | null }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveMultiResolutionAtlasEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? null, {
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      canonicalMergedText: seed.canonicalMergedText ?? null,
+    });
+  }
+
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
@@ -1563,6 +1579,15 @@ export default class ChunkManager {
       atlasShardNarrowingCandidateCountAfter: number | null;
       atlasShardNarrowingReasonCodes: string[] | null;
       atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+      multiResolutionAtlasSchemaVersion: string | null;
+      multiResolutionAtlasPolicyVersion: string | null;
+      multiResolutionAtlasEligible: boolean | null;
+      multiResolutionAtlasCoarseRegionId: string | null;
+      multiResolutionAtlasFamilyAtlasId: string | null;
+      multiResolutionAtlasPrefixBandId: string | null;
+      multiResolutionAtlasTailStrategyId: string | null;
+      multiResolutionAtlasSource: string | null;
+      multiResolutionAtlasReasonCodes: string[] | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1573,6 +1598,12 @@ export default class ChunkManager {
     const decision = h23Recorder.getLatestDecision(chunkId);
     const focusFields = this.getFocusContextEvidenceFields(chunkId);
     const atlasShardFields = this.getAtlasShardEvidenceFields(chunkId);
+    const multiResolutionAtlasFields = this.getMultiResolutionAtlasEvidenceFields(chunkId, {
+      regionId: overrides.regionId ?? latest?.regionId ?? null,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? null,
+      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? null,
+    });
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
@@ -1676,6 +1707,24 @@ export default class ChunkManager {
       atlasShardNarrowingCandidateCountAfter: overrides.atlasShardNarrowingCandidateCountAfter ?? null,
       atlasShardNarrowingReasonCodes: overrides.atlasShardNarrowingReasonCodes ?? null,
       atlasShardNarrowingAllowedCandidateKinds: overrides.atlasShardNarrowingAllowedCandidateKinds ?? null,
+      multiResolutionAtlasSchemaVersion:
+        overrides.multiResolutionAtlasSchemaVersion ?? multiResolutionAtlasFields.multiResolutionAtlasSchemaVersion,
+      multiResolutionAtlasPolicyVersion:
+        overrides.multiResolutionAtlasPolicyVersion ?? multiResolutionAtlasFields.multiResolutionAtlasPolicyVersion,
+      multiResolutionAtlasEligible:
+        overrides.multiResolutionAtlasEligible ?? multiResolutionAtlasFields.multiResolutionAtlasEligible,
+      multiResolutionAtlasCoarseRegionId:
+        overrides.multiResolutionAtlasCoarseRegionId ?? multiResolutionAtlasFields.multiResolutionAtlasCoarseRegionId,
+      multiResolutionAtlasFamilyAtlasId:
+        overrides.multiResolutionAtlasFamilyAtlasId ?? multiResolutionAtlasFields.multiResolutionAtlasFamilyAtlasId,
+      multiResolutionAtlasPrefixBandId:
+        overrides.multiResolutionAtlasPrefixBandId ?? multiResolutionAtlasFields.multiResolutionAtlasPrefixBandId,
+      multiResolutionAtlasTailStrategyId:
+        overrides.multiResolutionAtlasTailStrategyId ?? multiResolutionAtlasFields.multiResolutionAtlasTailStrategyId,
+      multiResolutionAtlasSource:
+        overrides.multiResolutionAtlasSource ?? multiResolutionAtlasFields.multiResolutionAtlasSource,
+      multiResolutionAtlasReasonCodes:
+        overrides.multiResolutionAtlasReasonCodes ?? multiResolutionAtlasFields.multiResolutionAtlasReasonCodes,
     });
   }
 
