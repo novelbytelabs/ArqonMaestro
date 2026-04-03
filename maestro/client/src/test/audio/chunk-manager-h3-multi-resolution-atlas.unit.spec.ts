@@ -86,7 +86,7 @@ describe("ChunkManager H3 multi-resolution atlas evidence", () => {
       multiResolutionAtlasCoarseRegionId: "browser_surface",
       multiResolutionAtlasFamilyAtlasId: "parameterized_open_family",
       multiResolutionAtlasPrefixBandId: "prefix_open",
-      multiResolutionAtlasTailStrategyId: "open_tail_v1",
+      multiResolutionAtlasTailStrategyId: "open_locator_tail_v1",
       multiResolutionAtlasSource: "atlas_shard_hint",
     }));
   });
@@ -172,6 +172,35 @@ describe("ChunkManager H3 multi-resolution atlas evidence", () => {
       multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_match"],
       multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: "prefix_open",
       multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: "prefix_open",
+    }));
+  });
+
+
+  it("emits tail-strategy routing metadata on lookup-completed evidence when provided", () => {
+    const { ChunkManager, manager } = makeBareManager();
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+    const evidenceSpy = jest.spyOn(runtimeEvidence, "emitH3RuntimeEvidence").mockImplementation((event: any) => event);
+
+    ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+      multiResolutionAtlasTailStrategyRoutingApplied: true,
+      multiResolutionAtlasTailStrategyRoutingBoost: 0.02,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_match"],
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: "open_locator_tail_v1",
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: "open_locator_tail_v1",
+      reason: "multi_resolution_tail_strategy_routing_lookup",
+    });
+
+    expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
+      multiResolutionAtlasTailStrategyRoutingApplied: true,
+      multiResolutionAtlasTailStrategyRoutingBoost: 0.02,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_match"],
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: "open_locator_tail_v1",
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: "open_locator_tail_v1",
     }));
   });
 

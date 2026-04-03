@@ -5,9 +5,11 @@ import {
   deriveMultiResolutionAtlasEvidenceFields,
   deriveMultiResolutionAtlasFamilyRoutingAdjustment,
   deriveMultiResolutionAtlasPrefixBandRoutingAdjustment,
+  deriveMultiResolutionAtlasTailStrategyRoutingAdjustment,
   MULTI_RESOLUTION_ATLAS_POLICY_VERSION,
   MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST,
   MULTI_RESOLUTION_ATLAS_PREFIX_BAND_ROUTING_MAX_BOOST,
+  MULTI_RESOLUTION_ATLAS_TAIL_STRATEGY_ROUTING_MAX_BOOST,
 } from "../../main/runtime/multi-resolution-atlas";
 
 describe("multi-resolution atlas", () => {
@@ -37,7 +39,7 @@ describe("multi-resolution atlas", () => {
     expect(plan.multiResolutionAtlasCoarseRegionId).toBe("browser_surface");
     expect(plan.multiResolutionAtlasFamilyAtlasId).toBe("parameterized_open_family");
     expect(plan.multiResolutionAtlasPrefixBandId).toBe("prefix_open");
-    expect(plan.multiResolutionAtlasTailStrategyId).toBe("open_tail_v1");
+    expect(plan.multiResolutionAtlasTailStrategyId).toBe("open_locator_tail_v1");
   });
 
   it("derives editor/numeric route plan from an eligible editor shard hint", () => {
@@ -215,4 +217,72 @@ describe("multi-resolution atlas", () => {
       "multi_resolution_prefix_band_no_match"
     );
   });
+  it("applies bounded tail-strategy routing boost for matching locator-style open tail", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+    const routing = deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(plan, {
+      regionId: "open",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+    });
+    expect(routing.multiResolutionAtlasTailStrategyRoutingApplied).toBe(true);
+    expect(routing.multiResolutionAtlasTailStrategyRoutingBoost).toBe(
+      MULTI_RESOLUTION_ATLAS_TAIL_STRATEGY_ROUTING_MAX_BOOST
+    );
+    expect(routing.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId).toBe(
+      "open_locator_tail_v1"
+    );
+  });
+
+  it("keeps advisory no-boost when candidate tail strategy does not match route tail strategy", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+    const routing = deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(plan, {
+      regionId: "open",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open settings",
+    });
+    expect(routing.multiResolutionAtlasTailStrategyRoutingApplied).toBe(false);
+    expect(routing.multiResolutionAtlasTailStrategyRoutingBoost).toBe(0);
+    expect(routing.multiResolutionAtlasTailStrategyRoutingReasonCodes).toContain(
+      "multi_resolution_tail_strategy_no_match"
+    );
+  });
+
 });

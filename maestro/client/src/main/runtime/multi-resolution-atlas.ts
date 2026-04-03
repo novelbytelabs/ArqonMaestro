@@ -56,8 +56,25 @@ export interface MultiResolutionAtlasPrefixBandRoutingAdjustment {
   multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
 }
 
+export interface MultiResolutionAtlasTailStrategyRoutingCandidate {
+  regionId: string | null;
+  commandFamily: string | null;
+  parameterType?: "numeric" | "open" | null;
+  canonicalPrefix?: string | null;
+  canonicalMergedText?: string | null;
+}
+
+export interface MultiResolutionAtlasTailStrategyRoutingAdjustment {
+  multiResolutionAtlasTailStrategyRoutingApplied: boolean;
+  multiResolutionAtlasTailStrategyRoutingBoost: number;
+  multiResolutionAtlasTailStrategyRoutingReasonCodes: string[];
+  multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
+  multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
+}
+
 export const MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST = 0.035;
 export const MULTI_RESOLUTION_ATLAS_PREFIX_BAND_ROUTING_MAX_BOOST = 0.025;
+export const MULTI_RESOLUTION_ATLAS_TAIL_STRATEGY_ROUTING_MAX_BOOST = 0.02;
 
 export interface MultiResolutionAtlasEvidenceFields {
   multiResolutionAtlasSchemaVersion: string | null;
@@ -181,7 +198,11 @@ function tailStrategyIdForSeed(seed: MultiResolutionAtlasPlanSeed | null | undef
     return "numeric_tail_v1";
   }
   if (seed.parameterType === "open") {
-    return "open_tail_v1";
+    const normalizedTail = normalizeTailText(seed.canonicalMergedText, seed.regionId);
+    if (looksLikeLocatorTail(normalizedTail)) {
+      return "open_locator_tail_v1";
+    }
+    return "open_symbolic_tail_v1";
   }
   return "no_tail";
 }
@@ -222,6 +243,44 @@ export function deriveMultiResolutionAtlasCandidatePrefixBandId(
     return null;
   }
   return `prefix_${prefix.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
+}
+
+export function deriveMultiResolutionAtlasCandidateTailStrategyId(
+  candidate: MultiResolutionAtlasTailStrategyRoutingCandidate | null | undefined
+): string | null {
+  if (!candidate) {
+    return null;
+  }
+  if (candidate.parameterType === "numeric") {
+    return "numeric_tail_v1";
+  }
+  if (candidate.parameterType === "open") {
+    const normalizedTail = normalizeTailText(
+      candidate.canonicalMergedText,
+      candidate.canonicalPrefix || candidate.regionId || null
+    );
+    if (looksLikeLocatorTail(normalizedTail)) {
+      return "open_locator_tail_v1";
+    }
+    return "open_symbolic_tail_v1";
+  }
+  return "no_tail";
+}
+
+function normalizeTailText(text: string | null | undefined, prefix: string | null | undefined): string {
+  const raw = (text ?? "").trim().toLowerCase();
+  const trimmedPrefix = (prefix ?? "").trim().toLowerCase();
+  if (trimmedPrefix && raw.startsWith(trimmedPrefix)) {
+    return raw.slice(trimmedPrefix.length).trim();
+  }
+  return raw;
+}
+
+function looksLikeLocatorTail(tail: string): boolean {
+  if (!tail) {
+    return false;
+  }
+  return /[.:/]/.test(tail) || /^www\./.test(tail);
 }
 
 export function deriveMultiResolutionAtlasFamilyRoutingAdjustment(
@@ -323,5 +382,56 @@ export function deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(
     ],
     multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: plan.multiResolutionAtlasPrefixBandId,
     multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: candidatePrefixBandId,
+  };
+}
+
+export function deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(
+  plan: MultiResolutionAtlasPlan | null | undefined,
+  candidate: MultiResolutionAtlasTailStrategyRoutingCandidate | null | undefined
+): MultiResolutionAtlasTailStrategyRoutingAdjustment {
+  if (!plan || !plan.multiResolutionAtlasEligible || !plan.multiResolutionAtlasTailStrategyId) {
+    return {
+      multiResolutionAtlasTailStrategyRoutingApplied: false,
+      multiResolutionAtlasTailStrategyRoutingBoost: 0,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_eligible"],
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: deriveMultiResolutionAtlasCandidateTailStrategyId(candidate),
+    };
+  }
+
+  const candidateTailStrategyId = deriveMultiResolutionAtlasCandidateTailStrategyId(candidate);
+  if (!candidateTailStrategyId) {
+    return {
+      multiResolutionAtlasTailStrategyRoutingApplied: false,
+      multiResolutionAtlasTailStrategyRoutingBoost: 0,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_candidate_unknown"],
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: plan.multiResolutionAtlasTailStrategyId,
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
+    };
+  }
+
+  if (candidateTailStrategyId !== plan.multiResolutionAtlasTailStrategyId) {
+    return {
+      multiResolutionAtlasTailStrategyRoutingApplied: false,
+      multiResolutionAtlasTailStrategyRoutingBoost: 0,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes: [
+        "multi_resolution_tail_strategy_no_match",
+        `multi_resolution_tail_strategy_expected_${plan.multiResolutionAtlasTailStrategyId}`,
+        `multi_resolution_tail_strategy_candidate_${candidateTailStrategyId}`,
+      ],
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: plan.multiResolutionAtlasTailStrategyId,
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: candidateTailStrategyId,
+    };
+  }
+
+  return {
+    multiResolutionAtlasTailStrategyRoutingApplied: true,
+    multiResolutionAtlasTailStrategyRoutingBoost: MULTI_RESOLUTION_ATLAS_TAIL_STRATEGY_ROUTING_MAX_BOOST,
+    multiResolutionAtlasTailStrategyRoutingReasonCodes: [
+      "multi_resolution_tail_strategy_match",
+      `multi_resolution_tail_strategy_${candidateTailStrategyId}`,
+    ],
+    multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: plan.multiResolutionAtlasTailStrategyId,
+    multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: candidateTailStrategyId,
   };
 }

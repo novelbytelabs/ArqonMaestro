@@ -40,15 +40,16 @@ Scope:
 - keep advisory-only behavior and fallback-safe candidate selection
 
 ### S4 — Tail-strategy routing pilot
-Next.
+Implemented in this slice.
 
 Scope:
 - add bounded advisory tail-strategy routing for numeric vs open strategy alignment
+- refine open-tail routing into locator vs symbolic tail strategies for v1 only
 - propagate tail-strategy routing metadata through H3 evidence
 - keep advisory-only behavior
 
 ### S5 — Closure/validation
-Planned.
+Next.
 
 Scope:
 - docs/report closure

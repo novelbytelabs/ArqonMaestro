@@ -123,6 +123,11 @@ export interface H3RuntimeEvidenceEvent {
   multiResolutionAtlasPrefixBandRoutingReasonCodes: string[] | null;
   multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
   multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
+  multiResolutionAtlasTailStrategyRoutingApplied: boolean | null;
+  multiResolutionAtlasTailStrategyRoutingBoost: number | null;
+  multiResolutionAtlasTailStrategyRoutingReasonCodes: string[] | null;
+  multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
+  multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -262,6 +267,16 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
     multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
       input.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
+    multiResolutionAtlasTailStrategyRoutingApplied:
+      input.multiResolutionAtlasTailStrategyRoutingApplied ?? null,
+    multiResolutionAtlasTailStrategyRoutingBoost:
+      input.multiResolutionAtlasTailStrategyRoutingBoost ?? null,
+    multiResolutionAtlasTailStrategyRoutingReasonCodes:
+      input.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? null,
+    multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+      input.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
+    multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+      input.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
   };
 }
 

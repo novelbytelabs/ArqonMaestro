@@ -1478,4 +1478,142 @@ describe("VoiceSemanticAddressRegistry", () => {
     );
   });
 
+  it("uses tail-strategy routing to favor locator-style open candidates when base scores tie", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+
+    registry.markGeometricContext({
+      chunkId: "chunk-tail-open-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 88,
+    });
+    const locatorRecord = registry.registerFromGovernedExecution({
+      chunkId: "chunk-tail-open-1",
+      transcript: "open github.com",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    registry.markGeometricContext({
+      chunkId: "chunk-tail-open-2",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 88,
+    });
+    const symbolicRecord = registry.registerFromGovernedExecution({
+      chunkId: "chunk-tail-open-2",
+      transcript: "open settings",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    expect(locatorRecord).not.toBeNull();
+    expect(symbolicRecord).not.toBeNull();
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-tail-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 20,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "lookup-tail-open-1",
+      regionId: "open",
+      parameterType: "open",
+      transcriptTailHint: "",
+      forceCandidateScan: true,
+      multiResolutionAtlasPlan: plan,
+    });
+
+    expect(lookup.lookupPath).toBe("candidate_scan");
+    expect(lookup.bestCandidateId).toBe(locatorRecord?.semanticAddressId ?? null);
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingApplied).toBe(true);
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingBoost).toBeGreaterThan(0);
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId).toBe("open_locator_tail_v1");
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId).toBe("open_locator_tail_v1");
+  });
+
+  it("keeps tail-strategy routing advisory when no candidate tail strategy matches", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+
+    registry.markGeometricContext({
+      chunkId: "chunk-tail-open-3",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.95,
+      frameCount: 88,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-tail-open-3",
+      transcript: "open settings",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-tail-2",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 20,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "lookup-tail-open-2",
+      regionId: "open",
+      parameterType: "open",
+      transcriptTailHint: "",
+      forceCandidateScan: true,
+      multiResolutionAtlasPlan: plan,
+    });
+
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingApplied).toBe(false);
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingBoost).toBe(0);
+    expect(lookup.multiResolutionAtlasTailStrategyRoutingReasonCodes).toContain(
+      "multi_resolution_tail_strategy_no_match"
+    );
+    expect(lookup.bestCandidateId).not.toBeNull();
+  });
+
 });

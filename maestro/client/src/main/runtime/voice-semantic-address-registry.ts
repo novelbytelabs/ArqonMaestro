@@ -17,6 +17,7 @@ import {
   deriveMultiResolutionAtlasCandidateFamilyAtlasId,
   deriveMultiResolutionAtlasFamilyRoutingAdjustment as deriveMultiResolutionAtlasFamilyRoutingHelper,
   deriveMultiResolutionAtlasPrefixBandRoutingAdjustment as deriveMultiResolutionAtlasPrefixBandRoutingHelper,
+  deriveMultiResolutionAtlasTailStrategyRoutingAdjustment as deriveMultiResolutionAtlasTailStrategyRoutingHelper,
 } from "./multi-resolution-atlas";
 
 export type SemanticCommandFamily =
@@ -148,6 +149,11 @@ export interface LookupResult {
   multiResolutionAtlasPrefixBandRoutingReasonCodes?: string[];
   multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId?: string | null;
   multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId?: string | null;
+  multiResolutionAtlasTailStrategyRoutingApplied?: boolean;
+  multiResolutionAtlasTailStrategyRoutingBoost?: number;
+  multiResolutionAtlasTailStrategyRoutingReasonCodes?: string[];
+  multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId?: string | null;
+  multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId?: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -280,6 +286,11 @@ export class VoiceSemanticAddressRegistry {
               multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_evaluated"],
               multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
               multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+              multiResolutionAtlasTailStrategyRoutingApplied: false,
+              multiResolutionAtlasTailStrategyRoutingBoost: 0,
+              multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_evaluated"],
+              multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+              multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
@@ -291,6 +302,8 @@ export class VoiceSemanticAddressRegistry {
             this.deriveMultiResolutionAtlasFamilyRoutingAdjustment(input, indexedRecord);
           const multiResolutionAtlasPrefixBandRouting =
             this.deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(input, indexedRecord);
+          const multiResolutionAtlasTailStrategyRouting =
+            this.deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(input, indexedRecord);
           const indexedBaseScore = Math.max(
             0,
             Math.min(
@@ -302,7 +315,8 @@ export class VoiceSemanticAddressRegistry {
                 focusTaskMomentum.focusTaskMomentumPenalty +
                 atlasShardAdjustment.atlasShardRankingBoost +
                 multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost +
-                multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost
+                multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost +
+                multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost
             )
           );
           const policy = this.applyConfidencePolicy(indexedRecord, indexedBaseScore, indexedProfile);
@@ -367,6 +381,16 @@ export class VoiceSemanticAddressRegistry {
               multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId,
             multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
               multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId,
+            multiResolutionAtlasTailStrategyRoutingApplied:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingApplied,
+            multiResolutionAtlasTailStrategyRoutingBoost:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost,
+            multiResolutionAtlasTailStrategyRoutingReasonCodes:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingReasonCodes,
+            multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId,
+            multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId,
           };
         }
       }
@@ -427,11 +451,14 @@ export class VoiceSemanticAddressRegistry {
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
         multiResolutionAtlasPrefixBandRoutingApplied: false,
         multiResolutionAtlasPrefixBandRoutingBoost: 0,
-        multiResolutionAtlasPrefixBandRoutingReasonCodes: [
-          "multi_resolution_prefix_band_routing_not_evaluated",
-        ],
+        multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_evaluated"],
         multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
         multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+        multiResolutionAtlasTailStrategyRoutingApplied: false,
+        multiResolutionAtlasTailStrategyRoutingBoost: 0,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_evaluated"],
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
       };
     }
 
@@ -479,6 +506,11 @@ export class VoiceSemanticAddressRegistry {
           multiResolutionAtlasPrefixBandRoutingReasonCodes: string[];
           multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
           multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
+          multiResolutionAtlasTailStrategyRoutingApplied: boolean;
+          multiResolutionAtlasTailStrategyRoutingBoost: number;
+          multiResolutionAtlasTailStrategyRoutingReasonCodes: string[];
+          multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
+          multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
         }
       | null = null;
     let bestComparableScore = -2;
@@ -495,6 +527,8 @@ export class VoiceSemanticAddressRegistry {
         this.deriveMultiResolutionAtlasFamilyRoutingAdjustment(input, candidate);
       const multiResolutionAtlasPrefixBandRouting =
         this.deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(input, candidate);
+      const multiResolutionAtlasTailStrategyRouting =
+        this.deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(input, candidate);
       const candidateBaseScore = Math.max(
         0,
         Math.min(
@@ -506,7 +540,8 @@ export class VoiceSemanticAddressRegistry {
             focusTaskMomentum.focusTaskMomentumPenalty +
             atlasShardAdjustment.atlasShardRankingBoost +
             multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost +
-            multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost
+            multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost +
+            multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost
         )
       );
       const basePolicy = this.applyConfidencePolicy(candidate, candidateBaseScore, candidateProfile);
@@ -557,6 +592,16 @@ export class VoiceSemanticAddressRegistry {
           multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId,
         multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
           multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId,
+        multiResolutionAtlasTailStrategyRoutingApplied:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingApplied,
+        multiResolutionAtlasTailStrategyRoutingBoost:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingReasonCodes,
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId,
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId,
       };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
@@ -617,6 +662,11 @@ export class VoiceSemanticAddressRegistry {
         multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_evaluated"],
         multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
         multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+        multiResolutionAtlasTailStrategyRoutingApplied: false,
+        multiResolutionAtlasTailStrategyRoutingBoost: 0,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_evaluated"],
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
       };
     }
 
@@ -678,6 +728,16 @@ export class VoiceSemanticAddressRegistry {
         bestPolicy.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId,
       multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
         bestPolicy.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId,
+      multiResolutionAtlasTailStrategyRoutingApplied:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingApplied,
+      multiResolutionAtlasTailStrategyRoutingBoost:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingBoost,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingReasonCodes,
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId,
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId,
     };
   }
 
@@ -971,6 +1031,25 @@ export class VoiceSemanticAddressRegistry {
     multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
   } {
     return deriveMultiResolutionAtlasPrefixBandRoutingHelper(input.multiResolutionAtlasPlan ?? null, {
+      regionId: candidate.regionId,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+    });
+  }
+
+  private deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): {
+    multiResolutionAtlasTailStrategyRoutingApplied: boolean;
+    multiResolutionAtlasTailStrategyRoutingBoost: number;
+    multiResolutionAtlasTailStrategyRoutingReasonCodes: string[];
+    multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
+    multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
+  } {
+    return deriveMultiResolutionAtlasTailStrategyRoutingHelper(input.multiResolutionAtlasPlan ?? null, {
       regionId: candidate.regionId,
       commandFamily: candidate.commandFamily,
       parameterType: candidate.parameterType,

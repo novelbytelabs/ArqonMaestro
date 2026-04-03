@@ -48,9 +48,16 @@ Stage 3F-S3 prefix-band routing pilot:
 - `multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId`
 - `multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId`
 
+Stage 3F-S4 tail-strategy routing pilot:
+- `multiResolutionAtlasTailStrategyRoutingApplied`
+- `multiResolutionAtlasTailStrategyRoutingBoost`
+- `multiResolutionAtlasTailStrategyRoutingReasonCodes`
+- `multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId`
+- `multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId`
+
 Meaning:
 - multi-resolution atlas fields are derived from existing geometric and shard context only
-- family-atlas routing and prefix-band routing are capped advisory boosts only
+- family-atlas routing, prefix-band routing, and tail-strategy routing are capped advisory boosts only
 - family-atlas candidate pooling in candidate-scan lookup is bounded, fallback-safe, and may not authorize execution
 - live geometry, live tail normalization, and H23/H24 remain authoritative
 - no persistence or distributed cache is introduced
