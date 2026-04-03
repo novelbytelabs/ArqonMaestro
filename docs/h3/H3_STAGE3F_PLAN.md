@@ -9,7 +9,7 @@ Introduce a bounded, advisory multi-resolution atlas route model so H3 can reaso
 - prefix band
 - tail strategy
 
-The route model is observational first. It may shape later narrowing and ranking work, but it may not authorize execution.
+The route model is observational first. It may shape narrowing and ranking work, but it may not authorize execution.
 
 ## Doctrine lock
 
@@ -31,26 +31,42 @@ Implemented.
 Implemented.
 
 ### S3 — Prefix-band routing pilot
-Implemented in this slice.
-
-Scope:
-- add bounded advisory prefix-band routing boost during lookup scoring
-- allow family-atlas candidate pooling for candidate-scan lookup so prefix-band routing can discriminate within the family
-- propagate prefix-band routing metadata through lookup/warm/merged evidence
-- keep advisory-only behavior and fallback-safe candidate selection
+Implemented.
 
 ### S4 — Tail-strategy routing pilot
+Implemented.
+
+### S5 — Closure/validation
 Implemented in this slice.
 
 Scope:
-- add bounded advisory tail-strategy routing for numeric vs open strategy alignment
-- refine open-tail routing into locator vs symbolic tail strategies for v1 only
-- propagate tail-strategy routing metadata through H3 evidence
-- keep advisory-only behavior
-
-### S5 — Closure/validation
-Next.
-
-Scope:
-- docs/report closure
+- docs/report closure only
 - freeze doctrine + acceptance criteria
+- record Stage 3F closeout against the corrected merged S4 baseline
+
+## Stage acceptance criteria
+
+Stage 3F is considered closed when all of the following are true:
+
+- multi-resolution atlas observational route fields are present in H3 runtime evidence
+- family-atlas routing remains bounded and advisory-only
+- prefix-band routing remains bounded and advisory-only
+- tail-strategy routing remains bounded and advisory-only
+- candidate-scan family pooling remains bounded and fallback-safe
+- no execution authorization path is introduced from atlas routing
+- live geometric evidence, live tail normalization, and H23/H24 remain authoritative
+- no persistence/distributed cache is introduced
+- no Turbo/Tight/Ultra or non-v1 expansion is introduced
+
+## Effective closure baseline
+
+Stage 3F closure is assessed against the effective merged S4 baseline, including the small integration corrections required post-bundle:
+
+- test syntax hygiene fixes in Stage 3F-S4 test files
+- optional narrowing count fallback fields carried as `undefined` rather than `null` where the runtime shape is `number | undefined`
+- browser/open tail-strategy expectation aligned to `open_locator_tail_v1`
+- no architectural broadening beyond Stage 3F-S4 scope
+
+## Next stage
+
+Stage 3G — Counterfactual + Repair Intelligence
