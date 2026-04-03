@@ -3,7 +3,9 @@ import { derivePolicyShapedAtlasShardHint } from "../../main/runtime/policy-shap
 import {
   deriveMultiResolutionAtlasPlan,
   deriveMultiResolutionAtlasEvidenceFields,
+  deriveMultiResolutionAtlasFamilyRoutingAdjustment,
   MULTI_RESOLUTION_ATLAS_POLICY_VERSION,
+  MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST,
 } from "../../main/runtime/multi-resolution-atlas";
 
 describe("multi-resolution atlas", () => {
@@ -76,4 +78,73 @@ describe("multi-resolution atlas", () => {
     expect(fields.multiResolutionAtlasCoarseRegionId).toBeNull();
     expect(fields.multiResolutionAtlasReasonCodes).toEqual(["multi_resolution_atlas_not_eligible"]);
   });
+
+  it("applies bounded family-atlas routing boost for matching open family route", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+    const routing = deriveMultiResolutionAtlasFamilyRoutingAdjustment(plan, {
+      regionId: "open",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+    });
+    expect(routing.multiResolutionAtlasFamilyRoutingApplied).toBe(true);
+    expect(routing.multiResolutionAtlasFamilyRoutingBoost).toBe(
+      MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST
+    );
+    expect(routing.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId).toBe(
+      "parameterized_open_family"
+    );
+  });
+
+  it("falls back to advisory no-boost when candidate family does not match route family", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "code",
+        windowId: "window-1",
+        regionId: "editor",
+        controlId: "editor",
+        focusConfidence: 0.96,
+        authorityType: "verified",
+        snapshotAgeMs: 40,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "go to line",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      canonicalMergedText: "go to line 52",
+    });
+    const routing = deriveMultiResolutionAtlasFamilyRoutingAdjustment(plan, {
+      regionId: "open",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+    });
+    expect(routing.multiResolutionAtlasFamilyRoutingApplied).toBe(false);
+    expect(routing.multiResolutionAtlasFamilyRoutingBoost).toBe(0);
+    expect(routing.multiResolutionAtlasFamilyRoutingReasonCodes).toContain(
+      "multi_resolution_family_no_match"
+    );
+  });
+
 });

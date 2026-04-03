@@ -24,6 +24,24 @@ export interface MultiResolutionAtlasPlan {
   multiResolutionAtlasReasonCodes: string[];
 }
 
+
+export interface MultiResolutionAtlasFamilyRoutingCandidate {
+  regionId: string | null;
+  commandFamily: string | null;
+  parameterType?: "numeric" | "open" | null;
+  canonicalPrefix?: string | null;
+  canonicalMergedText?: string | null;
+}
+
+export interface MultiResolutionAtlasFamilyRoutingAdjustment {
+  multiResolutionAtlasFamilyRoutingApplied: boolean;
+  multiResolutionAtlasFamilyRoutingBoost: number;
+  multiResolutionAtlasFamilyRoutingReasonCodes: string[];
+  multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
+  multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
+}
+
+export const MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST = 0.035;
 export interface MultiResolutionAtlasEvidenceFields {
   multiResolutionAtlasSchemaVersion: string | null;
   multiResolutionAtlasPolicyVersion: string | null;
@@ -149,4 +167,84 @@ function tailStrategyIdForSeed(seed: MultiResolutionAtlasPlanSeed | null | undef
     return "open_tail_v1";
   }
   return "no_tail";
+}
+
+
+export function deriveMultiResolutionAtlasFamilyRoutingAdjustment(
+  plan: MultiResolutionAtlasPlan | null | undefined,
+  candidate: MultiResolutionAtlasFamilyRoutingCandidate | null | undefined
+): MultiResolutionAtlasFamilyRoutingAdjustment {
+  if (!plan || !plan.multiResolutionAtlasEligible || !plan.multiResolutionAtlasFamilyAtlasId) {
+    return {
+      multiResolutionAtlasFamilyRoutingApplied: false,
+      multiResolutionAtlasFamilyRoutingBoost: 0,
+      multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_eligible"],
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: candidateFamilyAtlasIdForCandidate(candidate),
+    };
+  }
+
+  const candidateFamilyAtlasId = candidateFamilyAtlasIdForCandidate(candidate);
+  if (!candidateFamilyAtlasId) {
+    return {
+      multiResolutionAtlasFamilyRoutingApplied: false,
+      multiResolutionAtlasFamilyRoutingBoost: 0,
+      multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_candidate_unknown"],
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: plan.multiResolutionAtlasFamilyAtlasId,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
+    };
+  }
+
+  if (candidateFamilyAtlasId !== plan.multiResolutionAtlasFamilyAtlasId) {
+    return {
+      multiResolutionAtlasFamilyRoutingApplied: false,
+      multiResolutionAtlasFamilyRoutingBoost: 0,
+      multiResolutionAtlasFamilyRoutingReasonCodes: [
+        "multi_resolution_family_no_match",
+        `multi_resolution_family_expected_${plan.multiResolutionAtlasFamilyAtlasId}`,
+        `multi_resolution_family_candidate_${candidateFamilyAtlasId}`,
+      ],
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: plan.multiResolutionAtlasFamilyAtlasId,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: candidateFamilyAtlasId,
+    };
+  }
+
+  return {
+    multiResolutionAtlasFamilyRoutingApplied: true,
+    multiResolutionAtlasFamilyRoutingBoost: MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST,
+    multiResolutionAtlasFamilyRoutingReasonCodes: [
+      "multi_resolution_family_match",
+      `multi_resolution_family_${candidateFamilyAtlasId}`,
+    ],
+    multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: plan.multiResolutionAtlasFamilyAtlasId,
+    multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: candidateFamilyAtlasId,
+  };
+}
+
+function candidateFamilyAtlasIdForCandidate(
+  candidate: MultiResolutionAtlasFamilyRoutingCandidate | null | undefined
+): string | null {
+  if (!candidate) {
+    return null;
+  }
+  const family = (candidate.commandFamily ?? "").toLowerCase();
+  if (family === "parameterized_numeric") {
+    return "parameterized_numeric_family";
+  }
+  if (family === "parameterized_open") {
+    return "parameterized_open_family";
+  }
+  if (family === "reflex") {
+    return "reflex_family";
+  }
+  if (family === "closed_structure") {
+    return "closed_structure_family";
+  }
+  if (candidate.parameterType === "numeric") {
+    return "parameterized_numeric_family";
+  }
+  if (candidate.parameterType === "open") {
+    return "parameterized_open_family";
+  }
+  return null;
 }

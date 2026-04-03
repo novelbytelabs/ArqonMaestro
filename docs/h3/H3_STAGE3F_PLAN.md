@@ -34,14 +34,15 @@ Scope:
 - no ranking/narrowing/authorization changes
 
 ### S2 — Family atlas routing pilot
-Next.
+Implemented in this slice.
 
 Scope:
 - use advisory route to expose family-atlas routing state during lookup
+- apply bounded advisory family-atlas routing boost during lookup scoring only
 - keep advisory-only behavior
 
 ### S3 — Prefix-band routing pilot
-Planned.
+Next.
 
 Scope:
 - add bounded prefix-band route reasoning for lookup/diagnostics

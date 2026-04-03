@@ -12,6 +12,10 @@ import {
   derivePolicyShapedAtlasShardLookupNarrowing,
   derivePolicyShapedAtlasShardRankingAdjustment,
 } from "./policy-shaped-atlas-shards";
+import {
+  MultiResolutionAtlasPlan,
+  deriveMultiResolutionAtlasFamilyRoutingAdjustment as deriveMultiResolutionAtlasFamilyRoutingHelper,
+} from "./multi-resolution-atlas";
 
 export type SemanticCommandFamily =
   | "reflex"
@@ -88,6 +92,7 @@ interface LookupInput {
   forceCandidateScan?: boolean;
   focusContextEnvelope?: FocusConditionedCommandContextEnvelope | null;
   atlasShardHint?: PolicyShapedAtlasShardHint | null;
+  multiResolutionAtlasPlan?: MultiResolutionAtlasPlan | null;
 }
 
 export interface LookupResult {
@@ -131,6 +136,11 @@ export interface LookupResult {
   atlasShardNarrowingCandidateCountAfter?: number;
   atlasShardNarrowingReasonCodes?: string[];
   atlasShardNarrowingAllowedCandidateKinds?: string[] | null;
+  multiResolutionAtlasFamilyRoutingApplied?: boolean;
+  multiResolutionAtlasFamilyRoutingBoost?: number;
+  multiResolutionAtlasFamilyRoutingReasonCodes?: string[];
+  multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId?: string | null;
+  multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId?: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
@@ -253,6 +263,11 @@ export class VoiceSemanticAddressRegistry {
               atlasShardNarrowingCandidateCountAfter: 1,
               atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_evaluated_slot_signature_index"],
               atlasShardNarrowingAllowedCandidateKinds: null,
+              multiResolutionAtlasFamilyRoutingApplied: false,
+              multiResolutionAtlasFamilyRoutingBoost: 0,
+              multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_evaluated"],
+              multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+              multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
             };
           }
           const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
@@ -260,6 +275,8 @@ export class VoiceSemanticAddressRegistry {
           const focusLegality = this.deriveFocusLegalityAssessment(input, indexedRecord);
           const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, indexedRecord);
           const atlasShardAdjustment = this.deriveAtlasShardRankingAdjustment(input, indexedRecord);
+          const multiResolutionAtlasFamilyRouting =
+            this.deriveMultiResolutionAtlasFamilyRoutingAdjustment(input, indexedRecord);
           const indexedBaseScore = Math.max(
             0,
             Math.min(
@@ -269,7 +286,8 @@ export class VoiceSemanticAddressRegistry {
                 focusLegality.focusLegalityPenalty +
                 focusTaskMomentum.focusTaskMomentumBoost -
                 focusTaskMomentum.focusTaskMomentumPenalty +
-                atlasShardAdjustment.atlasShardRankingBoost
+                atlasShardAdjustment.atlasShardRankingBoost +
+                multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost
             )
           );
           const policy = this.applyConfidencePolicy(indexedRecord, indexedBaseScore, indexedProfile);
@@ -314,6 +332,16 @@ export class VoiceSemanticAddressRegistry {
             atlasShardNarrowingCandidateCountAfter: 1,
             atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_evaluated_slot_signature_index"],
             atlasShardNarrowingAllowedCandidateKinds: null,
+            multiResolutionAtlasFamilyRoutingApplied:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingApplied,
+            multiResolutionAtlasFamilyRoutingBoost:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost,
+            multiResolutionAtlasFamilyRoutingReasonCodes:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingReasonCodes,
+            multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId,
+            multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId,
           };
         }
       }
@@ -366,6 +394,11 @@ export class VoiceSemanticAddressRegistry {
         atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
         atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
         atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
+        multiResolutionAtlasFamilyRoutingApplied: false,
+        multiResolutionAtlasFamilyRoutingBoost: 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
       };
     }
 
@@ -403,6 +436,11 @@ export class VoiceSemanticAddressRegistry {
           atlasShardNarrowingCandidateCountAfter: number;
           atlasShardNarrowingReasonCodes: string[];
           atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+          multiResolutionAtlasFamilyRoutingApplied: boolean;
+          multiResolutionAtlasFamilyRoutingBoost: number;
+          multiResolutionAtlasFamilyRoutingReasonCodes: string[];
+          multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
+          multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
         }
       | null = null;
     let bestComparableScore = -2;
@@ -415,6 +453,8 @@ export class VoiceSemanticAddressRegistry {
       const focusLegality = this.deriveFocusLegalityAssessment(input, candidate);
       const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, candidate);
       const atlasShardAdjustment = this.deriveAtlasShardRankingAdjustment(input, candidate);
+      const multiResolutionAtlasFamilyRouting =
+        this.deriveMultiResolutionAtlasFamilyRoutingAdjustment(input, candidate);
       const candidateBaseScore = Math.max(
         0,
         Math.min(
@@ -424,7 +464,8 @@ export class VoiceSemanticAddressRegistry {
             focusLegality.focusLegalityPenalty +
             focusTaskMomentum.focusTaskMomentumBoost -
             focusTaskMomentum.focusTaskMomentumPenalty +
-            atlasShardAdjustment.atlasShardRankingBoost
+            atlasShardAdjustment.atlasShardRankingBoost +
+            multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost
         )
       );
       const basePolicy = this.applyConfidencePolicy(candidate, candidateBaseScore, candidateProfile);
@@ -455,6 +496,16 @@ export class VoiceSemanticAddressRegistry {
         atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
         atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
         atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
+        multiResolutionAtlasFamilyRoutingApplied:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingApplied,
+        multiResolutionAtlasFamilyRoutingBoost:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingReasonCodes,
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId,
       };
       const comparableScore = policy.score ?? -1;
       if (comparableScore > bestComparableScore) {
@@ -505,6 +556,11 @@ export class VoiceSemanticAddressRegistry {
         atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
         atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
         atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
+        multiResolutionAtlasFamilyRoutingApplied: false,
+        multiResolutionAtlasFamilyRoutingBoost: 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
       };
     }
 
@@ -549,6 +605,13 @@ export class VoiceSemanticAddressRegistry {
       atlasShardNarrowingCandidateCountAfter: bestPolicy.atlasShardNarrowingCandidateCountAfter,
       atlasShardNarrowingReasonCodes: bestPolicy.atlasShardNarrowingReasonCodes,
       atlasShardNarrowingAllowedCandidateKinds: bestPolicy.atlasShardNarrowingAllowedCandidateKinds,
+      multiResolutionAtlasFamilyRoutingApplied: bestPolicy.multiResolutionAtlasFamilyRoutingApplied,
+      multiResolutionAtlasFamilyRoutingBoost: bestPolicy.multiResolutionAtlasFamilyRoutingBoost,
+      multiResolutionAtlasFamilyRoutingReasonCodes: bestPolicy.multiResolutionAtlasFamilyRoutingReasonCodes,
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+        bestPolicy.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+        bestPolicy.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId,
     };
   }
 
@@ -758,6 +821,25 @@ export class VoiceSemanticAddressRegistry {
       canonicalMergedText: candidate.canonicalMergedText,
       commandFamily: candidate.commandFamily,
       parameterType: candidate.parameterType,
+    });
+  }
+
+  private deriveMultiResolutionAtlasFamilyRoutingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): {
+    multiResolutionAtlasFamilyRoutingApplied: boolean;
+    multiResolutionAtlasFamilyRoutingBoost: number;
+    multiResolutionAtlasFamilyRoutingReasonCodes: string[];
+    multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
+    multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
+  } {
+    return deriveMultiResolutionAtlasFamilyRoutingHelper(input.multiResolutionAtlasPlan ?? null, {
+      regionId: candidate.regionId,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
     });
   }
 

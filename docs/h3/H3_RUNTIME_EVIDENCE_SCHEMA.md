@@ -56,3 +56,16 @@ The H3 runtime evidence event now carries advisory multi-resolution atlas route 
 - `multiResolutionAtlasReasonCodes`
 
 These fields are observational in `S1`. They do not authorize execution and do not alter H23/H24 governance.
+
+
+## Stage 3F-S2 family-atlas routing pilot fields
+
+The H3 runtime evidence event now carries advisory family-atlas routing metadata:
+
+- `multiResolutionAtlasFamilyRoutingApplied`
+- `multiResolutionAtlasFamilyRoutingBoost`
+- `multiResolutionAtlasFamilyRoutingReasonCodes`
+- `multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId`
+- `multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId`
+
+These fields remain advisory-only in `S2`. They may shape lookup scoring but may not authorize execution or bypass H23/H24.

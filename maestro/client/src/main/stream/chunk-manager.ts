@@ -51,7 +51,10 @@ import {
   derivePolicyShapedAtlasShardEvidenceFields,
   derivePolicyShapedAtlasShardHint,
 } from "../runtime/policy-shaped-atlas-shards";
-import { deriveMultiResolutionAtlasEvidenceFields } from "../runtime/multi-resolution-atlas";
+import {
+  deriveMultiResolutionAtlasEvidenceFields,
+  deriveMultiResolutionAtlasPlan,
+} from "../runtime/multi-resolution-atlas";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -194,6 +197,11 @@ export default class ChunkManager {
       atlasShardNarrowingCandidateCountAfter?: number;
       atlasShardNarrowingReasonCodes?: string[];
       atlasShardNarrowingAllowedCandidateKinds?: string[] | null;
+      multiResolutionAtlasFamilyRoutingApplied?: boolean;
+      multiResolutionAtlasFamilyRoutingBoost?: number;
+      multiResolutionAtlasFamilyRoutingReasonCodes?: string[];
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId?: string | null;
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId?: string | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -831,6 +839,12 @@ export default class ChunkManager {
         atlasSchema: event.atlasSchema,
         focusContextEnvelope: this.chunkH3FocusContextEnvelope.get(chunkId) ?? null,
         atlasShardHint: this.chunkH3AtlasShardHint.get(chunkId) ?? null,
+        multiResolutionAtlasPlan: this.getMultiResolutionAtlasPlan(chunkId, {
+          regionId: event.regionId,
+          commandClass: event.commandClass,
+          parameterType: event.parameterType ?? null,
+          canonicalMergedText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
+        }),
       });
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
@@ -875,6 +889,16 @@ export default class ChunkManager {
         atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
         atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
         atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
+        multiResolutionAtlasFamilyRoutingApplied:
+          semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
+        multiResolutionAtlasFamilyRoutingBoost:
+          semanticLookup.multiResolutionAtlasFamilyRoutingBoost ?? 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -996,6 +1020,16 @@ export default class ChunkManager {
         atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
         atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
         atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
+        multiResolutionAtlasFamilyRoutingApplied:
+          semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
+        multiResolutionAtlasFamilyRoutingBoost:
+          semanticLookup.multiResolutionAtlasFamilyRoutingBoost ?? 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
         warmApplied,
         warmAppliedStage,
       });
@@ -1033,6 +1067,16 @@ export default class ChunkManager {
           atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
           atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
           atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+          multiResolutionAtlasFamilyRoutingApplied:
+            semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
+          multiResolutionAtlasFamilyRoutingBoost:
+            semanticLookup.multiResolutionAtlasFamilyRoutingBoost ?? 0,
+          multiResolutionAtlasFamilyRoutingReasonCodes:
+            semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
+          multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+            semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+          multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+            semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1395,6 +1439,16 @@ export default class ChunkManager {
         atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? null,
         atlasShardNarrowingReasonCodes: warmLookup?.atlasShardNarrowingReasonCodes ?? null,
         atlasShardNarrowingAllowedCandidateKinds: warmLookup?.atlasShardNarrowingAllowedCandidateKinds ?? null,
+        multiResolutionAtlasFamilyRoutingApplied:
+          warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? null,
+        multiResolutionAtlasFamilyRoutingBoost:
+          warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? null,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? null,
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1441,6 +1495,16 @@ export default class ChunkManager {
       atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? null,
       atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? null,
       atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
+      multiResolutionAtlasFamilyRoutingApplied:
+        warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? null,
+      multiResolutionAtlasFamilyRoutingBoost:
+        warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? null,
+      multiResolutionAtlasFamilyRoutingReasonCodes:
+        warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? null,
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+        warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+        warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
       lookupPath: warmLookup?.lookupPath ?? null,
@@ -1499,6 +1563,21 @@ export default class ChunkManager {
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     return deriveMultiResolutionAtlasEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? null, {
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      canonicalMergedText: seed.canonicalMergedText ?? null,
+    });
+  }
+
+  private getMultiResolutionAtlasPlan(
+    chunkId: string,
+    seed: Partial<{ regionId: string | null; commandClass: string | null; parameterType: string | null; canonicalMergedText: string | null }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveMultiResolutionAtlasPlan(this.chunkH3AtlasShardHint.get(chunkId) ?? null, {
       regionId: seed.regionId ?? latest?.regionId ?? null,
       commandClass: seed.commandClass ?? latest?.commandClass ?? null,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
@@ -1588,6 +1667,11 @@ export default class ChunkManager {
       multiResolutionAtlasTailStrategyId: string | null;
       multiResolutionAtlasSource: string | null;
       multiResolutionAtlasReasonCodes: string[] | null;
+      multiResolutionAtlasFamilyRoutingApplied: boolean | null;
+      multiResolutionAtlasFamilyRoutingBoost: number | null;
+      multiResolutionAtlasFamilyRoutingReasonCodes: string[] | null;
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1725,6 +1809,16 @@ export default class ChunkManager {
         overrides.multiResolutionAtlasSource ?? multiResolutionAtlasFields.multiResolutionAtlasSource,
       multiResolutionAtlasReasonCodes:
         overrides.multiResolutionAtlasReasonCodes ?? multiResolutionAtlasFields.multiResolutionAtlasReasonCodes,
+      multiResolutionAtlasFamilyRoutingApplied:
+        overrides.multiResolutionAtlasFamilyRoutingApplied ?? null,
+      multiResolutionAtlasFamilyRoutingBoost:
+        overrides.multiResolutionAtlasFamilyRoutingBoost ?? null,
+      multiResolutionAtlasFamilyRoutingReasonCodes:
+        overrides.multiResolutionAtlasFamilyRoutingReasonCodes ?? null,
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+        overrides.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+        overrides.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
     });
   }
 

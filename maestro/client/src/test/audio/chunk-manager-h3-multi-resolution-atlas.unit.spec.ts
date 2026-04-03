@@ -117,4 +117,33 @@ describe("ChunkManager H3 multi-resolution atlas evidence", () => {
       multiResolutionAtlasReasonCodes: ["multi_resolution_atlas_not_eligible"],
     }));
   });
+
+  it("emits family-atlas routing metadata on lookup-completed evidence when provided", () => {
+    const { ChunkManager, manager } = makeBareManager();
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+    const evidenceSpy = jest.spyOn(runtimeEvidence, "emitH3RuntimeEvidence").mockImplementation((event: any) => event);
+
+    ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+      multiResolutionAtlasFamilyRoutingApplied: true,
+      multiResolutionAtlasFamilyRoutingBoost: 0.035,
+      multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_match"],
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: "parameterized_open_family",
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: "parameterized_open_family",
+      reason: "multi_resolution_family_routing_lookup",
+    });
+
+    expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
+      multiResolutionAtlasFamilyRoutingApplied: true,
+      multiResolutionAtlasFamilyRoutingBoost: 0.035,
+      multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_match"],
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: "parameterized_open_family",
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: "parameterized_open_family",
+    }));
+  });
+
 });

@@ -16,6 +16,7 @@ import {
   buildFocusConditionedCommandContext,
 } from "../../main/runtime/focus-conditioned-command-context";
 import { derivePolicyShapedAtlasShardHint } from "../../main/runtime/policy-shaped-atlas-shards";
+import { deriveMultiResolutionAtlasPlan } from "../../main/runtime/multi-resolution-atlas";
 
 describe("VoiceSemanticAddressRegistry", () => {
   it("registers governed v1 command trajectories and returns warm lookup hits", () => {
@@ -612,7 +613,7 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     registry.registerFromGovernedExecution({
       chunkId: "chunk-open-1",
-      transcript: "open github.com",
+      transcript: "open github dot com",
       policyGranted: true,
       h23StepCount: 3,
       h24FinalGranted: true,
@@ -825,6 +826,7 @@ describe("VoiceSemanticAddressRegistry", () => {
 
     expect(lookup.bestCanonicalMergedText).toBeNull();
     expect(lookup.focusLegalityApplied).toBe(false);
+    expect(lookup.focusLegalityLawful).toBeNull();
     expect(lookup.focusLegalityPenaltyApplied).toBe(false);
     expect(lookup.focusLegalityCommandKind).toBeNull();
     expect(lookup.focusLegalityReasonCodes).toContain("focus_legality_not_evaluated");
@@ -846,7 +848,7 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     const record1 = registry.registerFromGovernedExecution({
       chunkId: "chunk-momentum-open-1",
-      transcript: "open github dot com",
+      transcript: "open github.com",
       policyGranted: true,
       h23StepCount: 3,
       h24FinalGranted: true,
@@ -991,7 +993,7 @@ describe("VoiceSemanticAddressRegistry", () => {
     });
     registry.registerFromGovernedExecution({
       chunkId: "chunk-shard-browser-2",
-      transcript: "open stack overflow",
+      transcript: "open src/main.ts",
       policyGranted: true,
       h23StepCount: 4,
       h24FinalGranted: true,
@@ -1214,6 +1216,127 @@ describe("VoiceSemanticAddressRegistry", () => {
     expect(lookup.atlasShardNarrowingCandidateCountAfter).toBe(2);
     expect(lookup.atlasShardNarrowingReasonCodes).toContain("atlas_shard_narrowing_no_match_fallback");
     expect(lookup.bestCandidateId).not.toBeNull();
+  });
+
+  it("applies advisory family-atlas routing boost for matching browser open family", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-family-open-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.9,
+      frameCount: 32,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-family-open-1",
+      transcript: "open github.com",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 25,
+      },
+    });
+    const shardHint = derivePolicyShapedAtlasShardHint(envelope);
+    const routePlan = deriveMultiResolutionAtlasPlan(shardHint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-family-open-lookup",
+      regionId: "open",
+      parameterType: "open",
+      transcriptTailHint: "github.com",
+      forceCandidateScan: true,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: shardHint,
+      multiResolutionAtlasPlan: routePlan,
+    });
+
+    expect(lookup.multiResolutionAtlasFamilyRoutingApplied).toBe(true);
+    expect(lookup.multiResolutionAtlasFamilyRoutingBoost).toBeGreaterThan(0);
+    expect(lookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId).toBe(
+      "parameterized_open_family"
+    );
+    expect(lookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId).toBe(
+      "parameterized_open_family"
+    );
+  });
+
+  it("keeps advisory no-boost when multi-resolution family route does not match candidate family", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-family-num-1",
+      source: "spectral_manifold",
+      regionId: "go to line",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.9,
+      frameCount: 32,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-family-num-1",
+      transcript: "go to line fifty two",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 25,
+      },
+    });
+    const shardHint = derivePolicyShapedAtlasShardHint(envelope);
+    const routePlan = deriveMultiResolutionAtlasPlan(shardHint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-family-num-lookup",
+      regionId: "go to line",
+      parameterType: "numeric",
+      transcriptTailHint: "52",
+      forceCandidateScan: true,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: shardHint,
+      multiResolutionAtlasPlan: routePlan,
+    });
+
+    expect(lookup.multiResolutionAtlasFamilyRoutingApplied).toBe(false);
+    expect(lookup.multiResolutionAtlasFamilyRoutingBoost).toBe(0);
+    expect(lookup.multiResolutionAtlasFamilyRoutingReasonCodes).toContain(
+      "multi_resolution_family_no_match"
+    );
   });
 
 });
