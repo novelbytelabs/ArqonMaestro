@@ -846,7 +846,7 @@ export default class ChunkManager {
       const semanticLookup = voiceSemanticAddressRegistry.lookup({
         chunkId,
         regionId: event.regionId,
-        parameterType: event.parameterType ?? undefined,
+        parameterType: event.parameterType ?? null,
         transcriptTailHint: transcriptTail,
         atlasVersion: event.atlasVersion,
         atlasSchema: event.atlasSchema,
@@ -855,7 +855,7 @@ export default class ChunkManager {
         multiResolutionAtlasPlan: this.getMultiResolutionAtlasPlan(chunkId, {
           regionId: event.regionId,
           commandClass: event.commandClass,
-          parameterType: event.parameterType ?? undefined,
+          parameterType: event.parameterType ?? null,
           canonicalMergedText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
         }),
       });
@@ -863,7 +863,7 @@ export default class ChunkManager {
         source: event.source,
         regionId: event.regionId,
         commandClass: event.commandClass,
-        parameterType: event.parameterType ?? undefined,
+        parameterType: event.parameterType ?? null,
         atlasVersion: event.atlasVersion ?? "unknown",
         lookupCandidateCount: semanticLookup.lookupCandidateCount,
         bestCandidateId: semanticLookup.bestCandidateId,
@@ -949,7 +949,7 @@ export default class ChunkManager {
           source: event.source,
           regionId: event.regionId,
           commandClass: event.commandClass,
-          parameterType: event.parameterType ?? undefined,
+          parameterType: event.parameterType ?? null,
           atlasVersion: event.atlasVersion ?? "unknown",
           lookupCandidateCount: semanticLookup.lookupCandidateCount,
           bestCandidateId: semanticLookup.bestCandidateId,
@@ -1096,7 +1096,7 @@ export default class ChunkManager {
           source: event.source,
           regionId: event.regionId,
           commandClass: event.commandClass,
-          parameterType: event.parameterType ?? undefined,
+          parameterType: event.parameterType ?? null,
           warmHitClass: semanticLookup.warmHitClass,
           semanticAddressId: semanticLookup.bestCandidateId,
           canonicalMergedText: semanticLookup.bestCanonicalMergedText,
@@ -1239,7 +1239,7 @@ export default class ChunkManager {
           reason: numericStrategyEnabled
             ? "numeric_strategy_selected"
             : "numeric_strategy_not_selected",
-          parameterType: event.parameterType ?? undefined,
+          parameterType: event.parameterType ?? null,
           numericParseConfidence: event.confidence,
           numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
         });
@@ -1251,7 +1251,7 @@ export default class ChunkManager {
           routeBefore,
           routeAfter,
           reason: openStrategyEnabled ? "open_strategy_selected" : "open_strategy_not_selected",
-          parameterType: event.parameterType ?? undefined,
+          parameterType: event.parameterType ?? null,
           openParseConfidence: event.confidence,
           openStrategyVersion: H3_OPEN_STRATEGY_VERSION,
           openTargetKind: "unknown",
@@ -1660,12 +1660,12 @@ export default class ChunkManager {
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     return deriveMultiResolutionAtlasEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? undefined, {
-      regionId: seed.regionId ?? latest?.regionId ?? undefined,
-      commandClass: seed.commandClass ?? latest?.commandClass ?? undefined,
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
         ? seed.parameterType
         : (latest?.parameterType ?? null),
-      canonicalMergedText: seed.canonicalMergedText ?? undefined,
+      canonicalMergedText: seed.canonicalMergedText ?? null,
     });
   }
 
@@ -1675,12 +1675,12 @@ export default class ChunkManager {
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     return deriveMultiResolutionAtlasPlan(this.chunkH3AtlasShardHint.get(chunkId) ?? undefined, {
-      regionId: seed.regionId ?? latest?.regionId ?? undefined,
-      commandClass: seed.commandClass ?? latest?.commandClass ?? undefined,
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
         ? seed.parameterType
         : (latest?.parameterType ?? null),
-      canonicalMergedText: seed.canonicalMergedText ?? undefined,
+      canonicalMergedText: seed.canonicalMergedText ?? null,
     });
   }
 
@@ -1693,16 +1693,16 @@ export default class ChunkManager {
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     return deriveCounterfactualRepairEvidenceFields({
-      semanticAddressId: seed.semanticAddressId ?? undefined,
-      canonicalMergedText: seed.canonicalMergedText ?? undefined,
-      regionId: seed.regionId ?? latest?.regionId ?? undefined,
-      commandClass: seed.commandClass ?? latest?.commandClass ?? undefined,
+      semanticAddressId: seed.semanticAddressId ?? null,
+      canonicalMergedText: seed.canonicalMergedText ?? null,
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
         ? seed.parameterType
         : (latest?.parameterType ?? null),
-      transcriptText: seed.transcriptText ?? undefined,
+      transcriptText: seed.transcriptText ?? null,
       eventName,
-      reason: seed.reason ?? undefined,
+      reason: seed.reason ?? null,
       finalGranted: seed.finalGranted ?? undefined,
     });
   }

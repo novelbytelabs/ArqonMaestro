@@ -1,4 +1,4 @@
-jest.mock("../../main/stt/cfh", () => ({
+const cfhMockFactory = () => ({
   SIG_BYTES: 128,
   SIG_U64S: 16,
   SplitMix64: class {
@@ -15,23 +15,26 @@ jest.mock("../../main/stt/cfh", () => ({
   sigBytesToU64x16: () => new Array(16).fill(BigInt(0)),
   cfhScoreU64x16: () => 0,
   bucketFromSig: () => 0,
-}));
-
-import { h23Recorder } from "../../main/runtime/h23-live-trace-recorder";
-import * as runtimeEvidence from "../../main/runtime/h3-runtime-evidence";
+});
 
 describe("ChunkManager H3 counterfactual repair evidence", () => {
-  const originalGetTraceSnapshot = h23Recorder.getTraceSnapshot.bind(h23Recorder);
-  const originalGetLatestDecision = h23Recorder.getLatestDecision.bind(h23Recorder);
-
   afterEach(() => {
-    h23Recorder.getTraceSnapshot = originalGetTraceSnapshot;
-    h23Recorder.getLatestDecision = originalGetLatestDecision;
     jest.restoreAllMocks();
+    jest.resetModules();
   });
 
   function makeBareManager(): any {
-    const ChunkManager = require("../../main/stream/chunk-manager.ts").default;
+    let ChunkManager: any;
+    let h23Recorder: any;
+    let runtimeEvidence: any;
+
+    jest.isolateModules(() => {
+      jest.doMock("../../main/stt/cfh", cfhMockFactory);
+      ({ h23Recorder } = require("../../main/runtime/h23-live-trace-recorder"));
+      runtimeEvidence = require("../../main/runtime/h3-runtime-evidence");
+      ChunkManager = require("../../main/stream/chunk-manager.ts").default;
+    });
+
     const manager = Object.create(ChunkManager.prototype) as any;
     manager.chunkH3LatestGeometricEvent = new Map<string, any>();
     manager.chunkH3Route = new Map<string, any>();
@@ -47,14 +50,17 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
       parameterType: "open",
       atlasVersion: "v1",
     });
-    return { ChunkManager, manager };
+
+    return { ChunkManager, manager, h23Recorder, runtimeEvidence };
   }
 
   it("emits candidate population and ambiguity pilot metadata when semantic result is present", () => {
-    const { ChunkManager, manager } = makeBareManager();
+    const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
     h23Recorder.getTraceSnapshot = jest.fn(() => []);
     h23Recorder.getLatestDecision = jest.fn(() => null);
-    const evidenceSpy = jest.spyOn(runtimeEvidence, "emitH3RuntimeEvidence").mockImplementation((event: any) => event);
+    const evidenceSpy = jest
+      .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+      .mockImplementation((event: any) => event);
 
     ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
       regionId: "open",
@@ -66,24 +72,28 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
       reason: "counterfactual_repair_observational_only",
     });
 
-    expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
-      counterfactualRepairSelectionFunctionVersion: "3g_selection_function_v1",
-      counterfactualRepairCandidatePopulationSize: 2,
-      counterfactualRepairSelectionWinnerSemanticAddressId: "open_github",
-      counterfactualRepairDeadDetected: true,
-      counterfactualRepairDeadReason: "trajectory_restart_detected",
-      counterfactualRepairAmbiguityPilotVersion: "3g_nearest_alternative_ambiguity_v1",
-      counterfactualRepairAmbiguityPilotApplied: true,
-      counterfactualRepairAmbiguityEscalationSuggested: true,
-      counterfactualRepairAmbiguityEscalationKind: "request_disambiguation",
-    }));
+    expect(evidenceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        counterfactualRepairSelectionFunctionVersion: "3g_selection_function_v1",
+        counterfactualRepairCandidatePopulationSize: 2,
+        counterfactualRepairSelectionWinnerSemanticAddressId: "open_github",
+        counterfactualRepairDeadDetected: true,
+        counterfactualRepairDeadReason: "trajectory_restart_detected",
+        counterfactualRepairAmbiguityPilotVersion: "3g_nearest_alternative_ambiguity_v1",
+        counterfactualRepairAmbiguityPilotApplied: true,
+        counterfactualRepairAmbiguityEscalationSuggested: true,
+        counterfactualRepairAmbiguityEscalationKind: "request_disambiguation",
+      })
+    );
   });
 
   it("emits failure-observer placeholder fields on rejection path without semantic result", () => {
-    const { ChunkManager, manager } = makeBareManager();
+    const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
     h23Recorder.getTraceSnapshot = jest.fn(() => []);
     h23Recorder.getLatestDecision = jest.fn(() => ({ granted: false, reason: "recognition_failed_shadow_capture" } as any));
-    const evidenceSpy = jest.spyOn(runtimeEvidence, "emitH3RuntimeEvidence").mockImplementation((event: any) => event);
+    const evidenceSpy = jest
+      .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+      .mockImplementation((event: any) => event);
 
     ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "open_tail_rejected", {
       regionId: "open",
@@ -93,15 +103,17 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
       reason: "recognition_failed_shadow_capture",
     });
 
-    expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
-      counterfactualRepairEligible: true,
-      counterfactualRepairCounterexampleCaptured: true,
-      counterfactualRepairCounterexampleKind: "recognition_rejection",
-      counterfactualRepairAntibodyEligible: true,
-      counterfactualRepairStressEvent: "metabolic_stress_observed",
-      counterfactualRepairOuroborosEvent: "ouroboros_failure_observed",
-      counterfactualRepairSource: "failure_observer",
-      counterfactualRepairAmbiguityPilotApplied: false,
-    }));
+    expect(evidenceSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        counterfactualRepairEligible: true,
+        counterfactualRepairCounterexampleCaptured: true,
+        counterfactualRepairCounterexampleKind: "recognition_rejection",
+        counterfactualRepairAntibodyEligible: true,
+        counterfactualRepairStressEvent: "metabolic_stress_observed",
+        counterfactualRepairOuroborosEvent: "ouroboros_failure_observed",
+        counterfactualRepairSource: "failure_observer",
+        counterfactualRepairAmbiguityPilotApplied: false,
+      })
+    );
   });
 });

@@ -337,14 +337,8 @@ function deriveDeadObservation(
 function deriveCounterexampleKind(
   eventName: string | null,
   reason: string | null,
-  deadReason: string | null = null
+  _deadReason: string | null = null
 ): string | null {
-  if (deadReason === 'trajectory_restart_detected') {
-    return 'trajectory_restart';
-  }
-  if (deadReason === 'trajectory_reversal_detected') {
-    return 'trajectory_reversal';
-  }
   const normalizedEvent = (eventName ?? '').toLowerCase();
   const normalizedReason = (reason ?? '').toLowerCase();
   if (normalizedEvent.includes('rejected') || normalizedReason.includes('rejected')) {
