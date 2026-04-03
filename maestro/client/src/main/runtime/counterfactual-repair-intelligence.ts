@@ -4,6 +4,7 @@ export const COUNTERFACTUAL_SELECTION_FUNCTION_VERSION = "3g_selection_function_
 export const COUNTERFACTUAL_AMBIGUITY_PILOT_VERSION = "3g_nearest_alternative_ambiguity_v1" as const;
 export const COUNTERFACTUAL_AMBIGUITY_MAX_SCORE_GAP = 0.12 as const;
 export const COUNTERFACTUAL_REPAIR_SIGNAL_PILOT_VERSION = "3g_repair_signal_pilot_v1" as const;
+export const COUNTERFACTUAL_RANKING_GUARDRAIL_PILOT_VERSION = "3g_counterfactual_ranking_guardrail_v1" as const;
 
 export interface CounterfactualRepairSeed {
   semanticAddressId: string | null;
@@ -42,6 +43,17 @@ interface CounterfactualRepairSignalPilot {
   repairWindowOpen: boolean;
   escalationSuggested: boolean;
   escalationKind: "hold_for_repair" | "continue_observing" | "none" | null;
+  reasonCodes: string[];
+}
+interface CounterfactualRankingGuardrailPilot {
+  applied: boolean;
+  primaryScore: number | null;
+  alternativeScore: number | null;
+  scoreGap: number | null;
+  stressAdjusted: boolean;
+  repairAdjusted: boolean;
+  guardrailSuggested: boolean;
+  guardrailKind: "hold_for_repair" | "request_disambiguation" | "continue_observing" | null;
   reasonCodes: string[];
 }
 
@@ -89,6 +101,16 @@ export interface CounterfactualRepairEvidenceFields {
   counterfactualRepairSignalEscalationSuggested: boolean | null;
   counterfactualRepairSignalEscalationKind: string | null;
   counterfactualRepairSignalReasonCodes: string[] | null;
+  counterfactualRepairRankingPilotVersion: string | null;
+  counterfactualRepairRankingPilotApplied: boolean | null;
+  counterfactualRepairRankingPrimaryScore: number | null;
+  counterfactualRepairRankingAlternativeScore: number | null;
+  counterfactualRepairRankingScoreGap: number | null;
+  counterfactualRepairRankingStressAdjusted: boolean | null;
+  counterfactualRepairRankingRepairAdjusted: boolean | null;
+  counterfactualRepairRankingGuardrailSuggested: boolean | null;
+  counterfactualRepairRankingGuardrailKind: string | null;
+  counterfactualRepairRankingReasonCodes: string[] | null;
 }
 
 export function deriveCounterfactualRepairEvidenceFields(
@@ -156,6 +178,16 @@ export function deriveCounterfactualRepairEvidenceFields(
       counterfactualRepairSignalEscalationSuggested: false,
       counterfactualRepairSignalEscalationKind: null,
       counterfactualRepairSignalReasonCodes: hasFailureObservation ? ['counterfactual_repair_signal_not_eligible'] : null,
+      counterfactualRepairRankingPilotVersion: null,
+      counterfactualRepairRankingPilotApplied: false,
+      counterfactualRepairRankingPrimaryScore: null,
+      counterfactualRepairRankingAlternativeScore: null,
+      counterfactualRepairRankingScoreGap: null,
+      counterfactualRepairRankingStressAdjusted: false,
+      counterfactualRepairRankingRepairAdjusted: false,
+      counterfactualRepairRankingGuardrailSuggested: false,
+      counterfactualRepairRankingGuardrailKind: null,
+      counterfactualRepairRankingReasonCodes: hasFailureObservation ? ['counterfactual_ranking_not_eligible'] : null,
     };
   }
 
@@ -175,6 +207,7 @@ export function deriveCounterfactualRepairEvidenceFields(
   const ouroborosEvent = deriveOuroborosEvent(counterexampleCaptured, deadObservation.detected);
   const ambiguityPilot = deriveAmbiguityPilot(population, ambiguityBand, repairSignal);
   const repairSignalPilot = deriveRepairSignalPilot(repairSignal, deadObservation);
+  const rankingGuardrailPilot = deriveCounterfactualRankingGuardrailPilot(population, ambiguityPilot, repairSignalPilot, stressBand);
 
   return {
     counterfactualRepairSchemaVersion: COUNTERFACTUAL_REPAIR_SCHEMA_VERSION,
@@ -233,6 +266,16 @@ export function deriveCounterfactualRepairEvidenceFields(
     counterfactualRepairSignalEscalationSuggested: repairSignalPilot.escalationSuggested,
     counterfactualRepairSignalEscalationKind: repairSignalPilot.escalationKind,
     counterfactualRepairSignalReasonCodes: repairSignalPilot.reasonCodes,
+    counterfactualRepairRankingPilotVersion: COUNTERFACTUAL_RANKING_GUARDRAIL_PILOT_VERSION,
+    counterfactualRepairRankingPilotApplied: rankingGuardrailPilot.applied,
+    counterfactualRepairRankingPrimaryScore: rankingGuardrailPilot.primaryScore,
+    counterfactualRepairRankingAlternativeScore: rankingGuardrailPilot.alternativeScore,
+    counterfactualRepairRankingScoreGap: rankingGuardrailPilot.scoreGap,
+    counterfactualRepairRankingStressAdjusted: rankingGuardrailPilot.stressAdjusted,
+    counterfactualRepairRankingRepairAdjusted: rankingGuardrailPilot.repairAdjusted,
+    counterfactualRepairRankingGuardrailSuggested: rankingGuardrailPilot.guardrailSuggested,
+    counterfactualRepairRankingGuardrailKind: rankingGuardrailPilot.guardrailKind,
+    counterfactualRepairRankingReasonCodes: rankingGuardrailPilot.reasonCodes,
   };
 }
 
@@ -401,6 +444,76 @@ function deriveRepairSignalPilot(
       `counterfactual_repair_signal_${trajectoryState}`,
       abortedTrajectoryDetected ? 'counterfactual_repair_signal_dead_detected' : 'counterfactual_repair_signal_dead_not_detected',
       `counterfactual_repair_signal_escalation_${normalizeReasonToken(escalationKind)}`,
+    ],
+  };
+}
+
+function deriveCounterfactualRankingGuardrailPilot(
+  population: CounterfactualPopulationCandidate[],
+  ambiguityPilot: CounterfactualAmbiguityPilot,
+  repairSignalPilot: CounterfactualRepairSignalPilot,
+  stressBand: 'nominal' | 'elevated' | 'critical' | null
+): CounterfactualRankingGuardrailPilot {
+  const primary = population[0] ?? null;
+  const alternative = population[1] ?? null;
+  if (!primary || !alternative) {
+    return {
+      applied: false,
+      primaryScore: primary?.normalizedScore ?? null,
+      alternativeScore: null,
+      scoreGap: null,
+      stressAdjusted: false,
+      repairAdjusted: false,
+      guardrailSuggested: false,
+      guardrailKind: null,
+      reasonCodes: ['counterfactual_ranking_not_eligible'],
+    };
+  }
+
+  const scoreGap = Number((primary.normalizedScore - alternative.normalizedScore).toFixed(4));
+  const stressAdjusted = stressBand === 'elevated' || stressBand === 'critical';
+  const repairAdjusted = repairSignalPilot.applied;
+  const ambiguityAdjusted = ambiguityPilot.applied;
+  const applied = ambiguityAdjusted || repairAdjusted || stressAdjusted;
+
+  if (!applied) {
+    return {
+      applied: false,
+      primaryScore: primary.normalizedScore,
+      alternativeScore: alternative.normalizedScore,
+      scoreGap,
+      stressAdjusted,
+      repairAdjusted,
+      guardrailSuggested: false,
+      guardrailKind: null,
+      reasonCodes: ['counterfactual_ranking_not_applied'],
+    };
+  }
+
+  let guardrailKind: 'hold_for_repair' | 'request_disambiguation' | 'continue_observing' = 'continue_observing';
+  let guardrailSuggested = false;
+  if (repairAdjusted && repairSignalPilot.repairWindowOpen) {
+    guardrailKind = 'hold_for_repair';
+    guardrailSuggested = true;
+  } else if (ambiguityAdjusted || stressBand === 'critical') {
+    guardrailKind = 'request_disambiguation';
+    guardrailSuggested = true;
+  }
+
+  return {
+    applied: true,
+    primaryScore: primary.normalizedScore,
+    alternativeScore: alternative.normalizedScore,
+    scoreGap,
+    stressAdjusted,
+    repairAdjusted,
+    guardrailSuggested,
+    guardrailKind,
+    reasonCodes: [
+      ambiguityAdjusted ? 'counterfactual_ranking_ambiguity_adjusted' : 'counterfactual_ranking_ambiguity_not_adjusted',
+      repairAdjusted ? 'counterfactual_ranking_repair_adjusted' : 'counterfactual_ranking_repair_not_adjusted',
+      stressAdjusted ? `counterfactual_ranking_stress_${normalizeReasonToken(stressBand)}` : 'counterfactual_ranking_stress_not_adjusted',
+      `counterfactual_ranking_guardrail_${normalizeReasonToken(guardrailKind)}`,
     ],
   };
 }

@@ -1926,6 +1926,16 @@ export default class ChunkManager {
       counterfactualRepairSignalEscalationSuggested: overrides.counterfactualRepairSignalEscalationSuggested ?? counterfactualRepairFields.counterfactualRepairSignalEscalationSuggested,
       counterfactualRepairSignalEscalationKind: overrides.counterfactualRepairSignalEscalationKind ?? counterfactualRepairFields.counterfactualRepairSignalEscalationKind,
       counterfactualRepairSignalReasonCodes: overrides.counterfactualRepairSignalReasonCodes ?? counterfactualRepairFields.counterfactualRepairSignalReasonCodes,
+      counterfactualRepairRankingPilotVersion: overrides.counterfactualRepairRankingPilotVersion ?? counterfactualRepairFields.counterfactualRepairRankingPilotVersion,
+      counterfactualRepairRankingPilotApplied: overrides.counterfactualRepairRankingPilotApplied ?? counterfactualRepairFields.counterfactualRepairRankingPilotApplied,
+      counterfactualRepairRankingPrimaryScore: overrides.counterfactualRepairRankingPrimaryScore ?? counterfactualRepairFields.counterfactualRepairRankingPrimaryScore,
+      counterfactualRepairRankingAlternativeScore: overrides.counterfactualRepairRankingAlternativeScore ?? counterfactualRepairFields.counterfactualRepairRankingAlternativeScore,
+      counterfactualRepairRankingScoreGap: overrides.counterfactualRepairRankingScoreGap ?? counterfactualRepairFields.counterfactualRepairRankingScoreGap,
+      counterfactualRepairRankingStressAdjusted: overrides.counterfactualRepairRankingStressAdjusted ?? counterfactualRepairFields.counterfactualRepairRankingStressAdjusted,
+      counterfactualRepairRankingRepairAdjusted: overrides.counterfactualRepairRankingRepairAdjusted ?? counterfactualRepairFields.counterfactualRepairRankingRepairAdjusted,
+      counterfactualRepairRankingGuardrailSuggested: overrides.counterfactualRepairRankingGuardrailSuggested ?? counterfactualRepairFields.counterfactualRepairRankingGuardrailSuggested,
+      counterfactualRepairRankingGuardrailKind: overrides.counterfactualRepairRankingGuardrailKind ?? counterfactualRepairFields.counterfactualRepairRankingGuardrailKind,
+      counterfactualRepairRankingReasonCodes: overrides.counterfactualRepairRankingReasonCodes ?? counterfactualRepairFields.counterfactualRepairRankingReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
     });

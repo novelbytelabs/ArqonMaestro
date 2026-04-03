@@ -53,3 +53,16 @@ Meaning:
 
 - the repair-signal pilot observes restart/reversal/self-correction state and can suggest `hold_for_repair` advisory handling only
 - internal stage data remains type-directed and protobuf-aligned; JSON stays human-facing only
+
+
+## Stage 3G-S4 Counterfactual Ranking Guardrail Fields
+- `counterfactualRepairRankingPilotVersion`
+- `counterfactualRepairRankingPilotApplied`
+- `counterfactualRepairRankingPrimaryScore`
+- `counterfactualRepairRankingAlternativeScore`
+- `counterfactualRepairRankingScoreGap`
+- `counterfactualRepairRankingStressAdjusted`
+- `counterfactualRepairRankingRepairAdjusted`
+- `counterfactualRepairRankingGuardrailSuggested`
+- `counterfactualRepairRankingGuardrailKind`
+- `counterfactualRepairRankingReasonCodes`

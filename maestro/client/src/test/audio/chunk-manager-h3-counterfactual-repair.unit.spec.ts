@@ -19,9 +19,7 @@ const cfhMockFactory = () => ({
 
 describe("ChunkManager H3 counterfactual repair evidence", () => {
   afterEach(() => {
-    jest.dontMock("../../main/stt/cfh");
     jest.restoreAllMocks();
-    jest.resetModules();
   });
 
   function makeBareManager(): any {
@@ -29,6 +27,8 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
     let h23Recorder: any;
     let runtimeEvidence: any;
 
+    jest.resetModules();
+    jest.dontMock("../../main/stt/cfh");
     jest.isolateModules(() => {
       jest.doMock("../../main/stt/cfh", cfhMockFactory);
       ({ h23Recorder } = require("../../main/runtime/h23-live-trace-recorder"));
@@ -88,6 +88,10 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
         counterfactualRepairSignalRepairWindowOpen: true,
         counterfactualRepairSignalEscalationSuggested: true,
         counterfactualRepairSignalEscalationKind: "hold_for_repair",
+        counterfactualRepairRankingPilotVersion: "3g_counterfactual_ranking_guardrail_v1",
+        counterfactualRepairRankingPilotApplied: true,
+        counterfactualRepairRankingGuardrailSuggested: true,
+        counterfactualRepairRankingGuardrailKind: "hold_for_repair",
         counterfactualRepairAmbiguityPilotVersion: "3g_nearest_alternative_ambiguity_v1",
         counterfactualRepairAmbiguityPilotApplied: true,
         counterfactualRepairAmbiguityEscalationSuggested: true,
@@ -122,6 +126,7 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
         counterfactualRepairOuroborosEvent: "ouroboros_failure_observed",
         counterfactualRepairSource: "failure_observer",
         counterfactualRepairAmbiguityPilotApplied: false,
+        counterfactualRepairRankingPilotApplied: false,
       })
     );
   });

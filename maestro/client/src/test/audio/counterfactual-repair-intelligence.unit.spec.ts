@@ -147,4 +147,56 @@ describe("counterfactual repair intelligence", () => {
     expect(result.counterfactualRepairSignalEscalationKind).toBe("hold_for_repair");
   });
 
+  it("derives ranking guardrail disambiguation for close ambiguity gaps", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: "open_settings",
+      canonicalMergedText: "open settings",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      transcriptText: "open settings",
+      eventName: "voice_semantic_address_lookup_completed",
+    });
+
+    expect(result.counterfactualRepairRankingPilotVersion).toBe("3g_counterfactual_ranking_guardrail_v1");
+    expect(result.counterfactualRepairRankingPilotApplied).toBe(true);
+    expect(result.counterfactualRepairRankingGuardrailSuggested).toBe(true);
+    expect(result.counterfactualRepairRankingGuardrailKind).toBe("request_disambiguation");
+    expect(result.counterfactualRepairRankingReasonCodes).toContain("counterfactual_ranking_ambiguity_adjusted");
+  });
+
+  it("derives ranking guardrail repair hold on restart paths", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: "open_docs",
+      canonicalMergedText: "open docs.python.org",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      transcriptText: "open do- docs.python.org",
+      eventName: "voice_semantic_address_lookup_completed",
+    });
+
+    expect(result.counterfactualRepairRankingPilotApplied).toBe(true);
+    expect(result.counterfactualRepairRankingRepairAdjusted).toBe(true);
+    expect(result.counterfactualRepairRankingGuardrailSuggested).toBe(true);
+    expect(result.counterfactualRepairRankingGuardrailKind).toBe("hold_for_repair");
+  });
+
+  it("does not apply ranking guardrail on nominal wide-gap focus paths", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: "focus_terminal",
+      canonicalMergedText: "focus terminal",
+      regionId: "focus",
+      commandClass: "parameterized",
+      parameterType: null,
+      transcriptText: "focus terminal",
+      eventName: "voice_semantic_address_lookup_completed",
+    });
+
+    expect(result.counterfactualRepairRankingPilotApplied).toBe(false);
+    expect(result.counterfactualRepairRankingGuardrailSuggested).toBe(false);
+    expect(result.counterfactualRepairRankingGuardrailKind).toBeNull();
+    expect(result.counterfactualRepairRankingReasonCodes).toContain("counterfactual_ranking_not_applied");
+  });
+
 });

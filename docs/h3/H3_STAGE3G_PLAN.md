@@ -47,3 +47,13 @@ Stage 3G introduces **Counterfactual + Repair Intelligence** on top of the close
 ## Internal communication note
 - internal stage surfaces remain type-directed / protobuf-aligned
 - JSON is reserved for human-facing artifacts and reports
+
+
+## Stage 3G-S4
+- bounded counterfactual ranking / guardrail pilot
+- advisory-only Selection Function–style ranking synthesis
+- no authority change
+
+## Stage 3G-S5
+- bounded antibody / counterexample pilot
+- command-recognition counterexample formatting and minting placeholders remain governed and non-authorizing

@@ -171,6 +171,16 @@ export interface H3RuntimeEvidenceEvent {
   counterfactualRepairSignalEscalationSuggested: boolean | null;
   counterfactualRepairSignalEscalationKind: string | null;
   counterfactualRepairSignalReasonCodes: string[] | null;
+  counterfactualRepairRankingPilotVersion: string | null;
+  counterfactualRepairRankingPilotApplied: boolean | null;
+  counterfactualRepairRankingPrimaryScore: number | null;
+  counterfactualRepairRankingAlternativeScore: number | null;
+  counterfactualRepairRankingScoreGap: number | null;
+  counterfactualRepairRankingStressAdjusted: boolean | null;
+  counterfactualRepairRankingRepairAdjusted: boolean | null;
+  counterfactualRepairRankingGuardrailSuggested: boolean | null;
+  counterfactualRepairRankingGuardrailKind: string | null;
+  counterfactualRepairRankingReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -391,6 +401,26 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.counterfactualRepairSignalEscalationKind ?? null,
     counterfactualRepairSignalReasonCodes:
       input.counterfactualRepairSignalReasonCodes ?? null,
+    counterfactualRepairRankingPilotVersion:
+      input.counterfactualRepairRankingPilotVersion ?? null,
+    counterfactualRepairRankingPilotApplied:
+      input.counterfactualRepairRankingPilotApplied ?? null,
+    counterfactualRepairRankingPrimaryScore:
+      input.counterfactualRepairRankingPrimaryScore ?? null,
+    counterfactualRepairRankingAlternativeScore:
+      input.counterfactualRepairRankingAlternativeScore ?? null,
+    counterfactualRepairRankingScoreGap:
+      input.counterfactualRepairRankingScoreGap ?? null,
+    counterfactualRepairRankingStressAdjusted:
+      input.counterfactualRepairRankingStressAdjusted ?? null,
+    counterfactualRepairRankingRepairAdjusted:
+      input.counterfactualRepairRankingRepairAdjusted ?? null,
+    counterfactualRepairRankingGuardrailSuggested:
+      input.counterfactualRepairRankingGuardrailSuggested ?? null,
+    counterfactualRepairRankingGuardrailKind:
+      input.counterfactualRepairRankingGuardrailKind ?? null,
+    counterfactualRepairRankingReasonCodes:
+      input.counterfactualRepairRankingReasonCodes ?? null,
   };
 }
 
