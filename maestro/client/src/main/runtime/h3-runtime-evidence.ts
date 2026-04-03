@@ -128,6 +128,39 @@ export interface H3RuntimeEvidenceEvent {
   multiResolutionAtlasTailStrategyRoutingReasonCodes: string[] | null;
   multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
   multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
+  counterfactualRepairSchemaVersion: string | null;
+  counterfactualRepairPolicyVersion: string | null;
+  counterfactualRepairEligible: boolean | null;
+  counterfactualRepairPrimarySemanticAddressId: string | null;
+  counterfactualRepairNearestAlternativeSemanticAddressId: string | null;
+  counterfactualRepairNearestAlternativeCanonicalMergedText: string | null;
+  counterfactualRepairAmbiguityBand: string | null;
+  counterfactualRepairRepairEligible: boolean | null;
+  counterfactualRepairRepairSignal: string | null;
+  counterfactualRepairSelectionFunctionVersion: string | null;
+  counterfactualRepairCandidatePopulationSize: number | null;
+  counterfactualRepairTopCandidateSemanticAddressIds: string[] | null;
+  counterfactualRepairTopCandidateNormalizedScores: number[] | null;
+  counterfactualRepairSelectionWinnerSemanticAddressId: string | null;
+  counterfactualRepairDeadDetected: boolean | null;
+  counterfactualRepairDeadReason: string | null;
+  counterfactualRepairCounterexampleCaptured: boolean | null;
+  counterfactualRepairCounterexampleKind: string | null;
+  counterfactualRepairAntibodyEligible: boolean | null;
+  counterfactualRepairAntibodyHint: string | null;
+  counterfactualRepairStressEvent: string | null;
+  counterfactualRepairStressBand: string | null;
+  counterfactualRepairOuroborosEvent: string | null;
+  counterfactualRepairSource: string | null;
+  counterfactualRepairReasonCodes: string[] | null;
+  counterfactualRepairAmbiguityPilotVersion: string | null;
+  counterfactualRepairAmbiguityPilotApplied: boolean | null;
+  counterfactualRepairAmbiguityPrimaryScore: number | null;
+  counterfactualRepairAmbiguityAlternativeScore: number | null;
+  counterfactualRepairAmbiguityScoreGap: number | null;
+  counterfactualRepairAmbiguityEscalationSuggested: boolean | null;
+  counterfactualRepairAmbiguityEscalationKind: string | null;
+  counterfactualRepairAmbiguityReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -277,6 +310,57 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
     multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
       input.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
+    counterfactualRepairSchemaVersion: input.counterfactualRepairSchemaVersion ?? null,
+    counterfactualRepairPolicyVersion: input.counterfactualRepairPolicyVersion ?? null,
+    counterfactualRepairEligible: input.counterfactualRepairEligible ?? null,
+    counterfactualRepairPrimarySemanticAddressId: input.counterfactualRepairPrimarySemanticAddressId ?? null,
+    counterfactualRepairNearestAlternativeSemanticAddressId:
+      input.counterfactualRepairNearestAlternativeSemanticAddressId ?? null,
+    counterfactualRepairNearestAlternativeCanonicalMergedText:
+      input.counterfactualRepairNearestAlternativeCanonicalMergedText ?? null,
+    counterfactualRepairAmbiguityBand: input.counterfactualRepairAmbiguityBand ?? null,
+    counterfactualRepairRepairEligible: input.counterfactualRepairRepairEligible ?? null,
+    counterfactualRepairRepairSignal: input.counterfactualRepairRepairSignal ?? null,
+    counterfactualRepairSelectionFunctionVersion:
+      input.counterfactualRepairSelectionFunctionVersion ?? null,
+    counterfactualRepairCandidatePopulationSize:
+      input.counterfactualRepairCandidatePopulationSize ?? null,
+    counterfactualRepairTopCandidateSemanticAddressIds:
+      input.counterfactualRepairTopCandidateSemanticAddressIds ?? null,
+    counterfactualRepairTopCandidateNormalizedScores:
+      input.counterfactualRepairTopCandidateNormalizedScores ?? null,
+    counterfactualRepairSelectionWinnerSemanticAddressId:
+      input.counterfactualRepairSelectionWinnerSemanticAddressId ?? null,
+    counterfactualRepairDeadDetected: input.counterfactualRepairDeadDetected ?? null,
+    counterfactualRepairDeadReason: input.counterfactualRepairDeadReason ?? null,
+    counterfactualRepairCounterexampleCaptured:
+      input.counterfactualRepairCounterexampleCaptured ?? null,
+    counterfactualRepairCounterexampleKind:
+      input.counterfactualRepairCounterexampleKind ?? null,
+    counterfactualRepairAntibodyEligible:
+      input.counterfactualRepairAntibodyEligible ?? null,
+    counterfactualRepairAntibodyHint: input.counterfactualRepairAntibodyHint ?? null,
+    counterfactualRepairStressEvent: input.counterfactualRepairStressEvent ?? null,
+    counterfactualRepairStressBand: input.counterfactualRepairStressBand ?? null,
+    counterfactualRepairOuroborosEvent: input.counterfactualRepairOuroborosEvent ?? null,
+    counterfactualRepairSource: input.counterfactualRepairSource ?? null,
+    counterfactualRepairReasonCodes: input.counterfactualRepairReasonCodes ?? null,
+    counterfactualRepairAmbiguityPilotVersion:
+      input.counterfactualRepairAmbiguityPilotVersion ?? null,
+    counterfactualRepairAmbiguityPilotApplied:
+      input.counterfactualRepairAmbiguityPilotApplied ?? null,
+    counterfactualRepairAmbiguityPrimaryScore:
+      input.counterfactualRepairAmbiguityPrimaryScore ?? null,
+    counterfactualRepairAmbiguityAlternativeScore:
+      input.counterfactualRepairAmbiguityAlternativeScore ?? null,
+    counterfactualRepairAmbiguityScoreGap:
+      input.counterfactualRepairAmbiguityScoreGap ?? null,
+    counterfactualRepairAmbiguityEscalationSuggested:
+      input.counterfactualRepairAmbiguityEscalationSuggested ?? null,
+    counterfactualRepairAmbiguityEscalationKind:
+      input.counterfactualRepairAmbiguityEscalationKind ?? null,
+    counterfactualRepairAmbiguityReasonCodes:
+      input.counterfactualRepairAmbiguityReasonCodes ?? null,
   };
 }
 

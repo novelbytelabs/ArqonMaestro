@@ -1,4 +1,3 @@
-
 jest.mock("../../main/stt/cfh", () => ({
   SIG_BYTES: 128,
   SIG_U64S: 16,
@@ -51,7 +50,7 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
     return { ChunkManager, manager };
   }
 
-  it("emits advisory counterfactual repair fields when semantic lookup result is present", () => {
+  it("emits candidate population and ambiguity pilot metadata when semantic result is present", () => {
     const { ChunkManager, manager } = makeBareManager();
     h23Recorder.getTraceSnapshot = jest.fn(() => []);
     h23Recorder.getLatestDecision = jest.fn(() => null);
@@ -68,38 +67,41 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
     });
 
     expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
-      counterfactualRepairSchemaVersion: "h3_counterfactual_repair_v1",
-      counterfactualRepairPolicyVersion: "3g_counterfactual_repair_v1",
-      counterfactualRepairEligible: true,
-      counterfactualRepairPrimarySemanticAddressId: "open_github",
-      counterfactualRepairNearestAlternativeCanonicalMergedText: "go to github.com",
-      counterfactualRepairAmbiguityBand: "high",
-      counterfactualRepairRepairSignal: "self_correction_hint",
-      counterfactualRepairSource: "heuristic_shadow",
+      counterfactualRepairSelectionFunctionVersion: "3g_selection_function_v1",
+      counterfactualRepairCandidatePopulationSize: 2,
+      counterfactualRepairSelectionWinnerSemanticAddressId: "open_github",
+      counterfactualRepairDeadDetected: true,
+      counterfactualRepairDeadReason: "trajectory_restart_detected",
+      counterfactualRepairAmbiguityPilotVersion: "3g_nearest_alternative_ambiguity_v1",
+      counterfactualRepairAmbiguityPilotApplied: true,
+      counterfactualRepairAmbiguityEscalationSuggested: true,
+      counterfactualRepairAmbiguityEscalationKind: "request_disambiguation",
     }));
   });
 
-  it("emits not-eligible counterfactual repair fields when no semantic result exists", () => {
+  it("emits failure-observer placeholder fields on rejection path without semantic result", () => {
     const { ChunkManager, manager } = makeBareManager();
     h23Recorder.getTraceSnapshot = jest.fn(() => []);
-    h23Recorder.getLatestDecision = jest.fn(() => null);
+    h23Recorder.getLatestDecision = jest.fn(() => ({ granted: false, reason: "recognition_failed_shadow_capture" } as any));
     const evidenceSpy = jest.spyOn(runtimeEvidence, "emitH3RuntimeEvidence").mockImplementation((event: any) => event);
 
-    ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_started", {
+    ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "open_tail_rejected", {
       regionId: "open",
       commandClass: "parameterized",
       parameterType: "open",
-      reason: "counterfactual_absent",
+      transcriptText: "open settings",
+      reason: "recognition_failed_shadow_capture",
     });
 
     expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
-      counterfactualRepairSchemaVersion: "h3_counterfactual_repair_v1",
-      counterfactualRepairPolicyVersion: "3g_counterfactual_repair_v1",
-      counterfactualRepairEligible: false,
-      counterfactualRepairPrimarySemanticAddressId: null,
-      counterfactualRepairNearestAlternativeSemanticAddressId: null,
-      counterfactualRepairSource: "none",
-      counterfactualRepairReasonCodes: ["counterfactual_not_eligible"],
+      counterfactualRepairEligible: true,
+      counterfactualRepairCounterexampleCaptured: true,
+      counterfactualRepairCounterexampleKind: "recognition_rejection",
+      counterfactualRepairAntibodyEligible: true,
+      counterfactualRepairStressEvent: "metabolic_stress_observed",
+      counterfactualRepairOuroborosEvent: "ouroboros_failure_observed",
+      counterfactualRepairSource: "failure_observer",
+      counterfactualRepairAmbiguityPilotApplied: false,
     }));
   });
 });

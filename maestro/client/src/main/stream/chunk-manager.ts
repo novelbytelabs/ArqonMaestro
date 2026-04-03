@@ -55,6 +55,9 @@ import {
   deriveMultiResolutionAtlasEvidenceFields,
   deriveMultiResolutionAtlasPlan,
 } from "../runtime/multi-resolution-atlas";
+import {
+  deriveCounterfactualRepairEvidenceFields,
+} from "../runtime/counterfactual-repair-intelligence";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -843,16 +846,16 @@ export default class ChunkManager {
       const semanticLookup = voiceSemanticAddressRegistry.lookup({
         chunkId,
         regionId: event.regionId,
-        parameterType: event.parameterType ?? null,
+        parameterType: event.parameterType ?? undefined,
         transcriptTailHint: transcriptTail,
         atlasVersion: event.atlasVersion,
         atlasSchema: event.atlasSchema,
-        focusContextEnvelope: this.chunkH3FocusContextEnvelope.get(chunkId) ?? null,
-        atlasShardHint: this.chunkH3AtlasShardHint.get(chunkId) ?? null,
+        focusContextEnvelope: this.chunkH3FocusContextEnvelope.get(chunkId) ?? undefined,
+        atlasShardHint: this.chunkH3AtlasShardHint.get(chunkId) ?? undefined,
         multiResolutionAtlasPlan: this.getMultiResolutionAtlasPlan(chunkId, {
           regionId: event.regionId,
           commandClass: event.commandClass,
-          parameterType: event.parameterType ?? null,
+          parameterType: event.parameterType ?? undefined,
           canonicalMergedText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
         }),
       });
@@ -860,7 +863,7 @@ export default class ChunkManager {
         source: event.source,
         regionId: event.regionId,
         commandClass: event.commandClass,
-        parameterType: event.parameterType ?? null,
+        parameterType: event.parameterType ?? undefined,
         atlasVersion: event.atlasVersion ?? "unknown",
         lookupCandidateCount: semanticLookup.lookupCandidateCount,
         bestCandidateId: semanticLookup.bestCandidateId,
@@ -888,7 +891,7 @@ export default class ChunkManager {
         focusTaskMomentumPenaltyApplied: semanticLookup.focusTaskMomentumPenaltyApplied ?? false,
         focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
         focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
-        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? null,
+        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
         atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
         atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
         atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
@@ -898,7 +901,7 @@ export default class ChunkManager {
         atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
         atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
         atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
-        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
+        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
         multiResolutionAtlasFamilyRoutingApplied:
           semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
         multiResolutionAtlasFamilyRoutingBoost:
@@ -906,9 +909,9 @@ export default class ChunkManager {
         multiResolutionAtlasFamilyRoutingReasonCodes:
           semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
         multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
-          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
-          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
         multiResolutionAtlasPrefixBandRoutingApplied:
           semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
         multiResolutionAtlasPrefixBandRoutingBoost:
@@ -916,9 +919,9 @@ export default class ChunkManager {
         multiResolutionAtlasPrefixBandRoutingReasonCodes:
           semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
         multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
-          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
         multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
-          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
         multiResolutionAtlasTailStrategyRoutingApplied:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingApplied ?? false,
         multiResolutionAtlasTailStrategyRoutingBoost:
@@ -926,9 +929,10 @@ export default class ChunkManager {
         multiResolutionAtlasTailStrategyRoutingReasonCodes:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
         multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
-          semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
-          semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+  
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -945,7 +949,7 @@ export default class ChunkManager {
           source: event.source,
           regionId: event.regionId,
           commandClass: event.commandClass,
-          parameterType: event.parameterType ?? null,
+          parameterType: event.parameterType ?? undefined,
           atlasVersion: event.atlasVersion ?? "unknown",
           lookupCandidateCount: semanticLookup.lookupCandidateCount,
           bestCandidateId: semanticLookup.bestCandidateId,
@@ -977,7 +981,7 @@ export default class ChunkManager {
           atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
           atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
           atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
-          atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
+          atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
           governanceRequired: true,
           reason:
             semanticLookup.mismatchReason ??
@@ -1039,7 +1043,7 @@ export default class ChunkManager {
         focusTaskMomentumPenaltyApplied: semanticLookup.focusTaskMomentumPenaltyApplied ?? false,
         focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
         focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
-        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? null,
+        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
         atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
         atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
         atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
@@ -1049,7 +1053,7 @@ export default class ChunkManager {
         atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
         atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
         atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
-        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? null,
+        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
         multiResolutionAtlasFamilyRoutingApplied:
           semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
         multiResolutionAtlasFamilyRoutingBoost:
@@ -1057,9 +1061,9 @@ export default class ChunkManager {
         multiResolutionAtlasFamilyRoutingReasonCodes:
           semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
         multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
-          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
-          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
         multiResolutionAtlasPrefixBandRoutingApplied:
           semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
         multiResolutionAtlasPrefixBandRoutingBoost:
@@ -1067,9 +1071,9 @@ export default class ChunkManager {
         multiResolutionAtlasPrefixBandRoutingReasonCodes:
           semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
         multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
-          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
         multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
-          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
         multiResolutionAtlasTailStrategyRoutingApplied:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingApplied ?? false,
         multiResolutionAtlasTailStrategyRoutingBoost:
@@ -1077,9 +1081,10 @@ export default class ChunkManager {
         multiResolutionAtlasTailStrategyRoutingReasonCodes:
           semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
         multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
-          semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
-          semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+  
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
         warmApplied,
         warmAppliedStage,
       });
@@ -1091,7 +1096,7 @@ export default class ChunkManager {
           source: event.source,
           regionId: event.regionId,
           commandClass: event.commandClass,
-          parameterType: event.parameterType ?? null,
+          parameterType: event.parameterType ?? undefined,
           warmHitClass: semanticLookup.warmHitClass,
           semanticAddressId: semanticLookup.bestCandidateId,
           canonicalMergedText: semanticLookup.bestCanonicalMergedText,
@@ -1124,9 +1129,9 @@ export default class ChunkManager {
           multiResolutionAtlasFamilyRoutingReasonCodes:
             semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
           multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
-            semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+            semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
           multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
-            semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+            semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
           multiResolutionAtlasPrefixBandRoutingApplied:
             semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
           multiResolutionAtlasPrefixBandRoutingBoost:
@@ -1134,9 +1139,9 @@ export default class ChunkManager {
           multiResolutionAtlasPrefixBandRoutingReasonCodes:
             semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
           multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
-            semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
           multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
-            semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
           multiResolutionAtlasTailStrategyRoutingApplied:
             semanticLookup.multiResolutionAtlasTailStrategyRoutingApplied ?? false,
           multiResolutionAtlasTailStrategyRoutingBoost:
@@ -1144,9 +1149,10 @@ export default class ChunkManager {
           multiResolutionAtlasTailStrategyRoutingReasonCodes:
             semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
           multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
-            semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-          multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
-            semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+    
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1233,7 +1239,7 @@ export default class ChunkManager {
           reason: numericStrategyEnabled
             ? "numeric_strategy_selected"
             : "numeric_strategy_not_selected",
-          parameterType: event.parameterType ?? null,
+          parameterType: event.parameterType ?? undefined,
           numericParseConfidence: event.confidence,
           numericStrategyVersion: H3_NUMERIC_STRATEGY_VERSION,
         });
@@ -1245,7 +1251,7 @@ export default class ChunkManager {
           routeBefore,
           routeAfter,
           reason: openStrategyEnabled ? "open_strategy_selected" : "open_strategy_not_selected",
-          parameterType: event.parameterType ?? null,
+          parameterType: event.parameterType ?? undefined,
           openParseConfidence: event.confidence,
           openStrategyVersion: H3_OPEN_STRATEGY_VERSION,
           openTargetKind: "unknown",
@@ -1471,77 +1477,78 @@ export default class ChunkManager {
     );
     if (liveEvidenceOverride) {
       this.emitH3Evidence(chunkId, "voice_semantic_address_warm_discarded", {
-        semanticAddressId: warmLookup?.bestCandidateId ?? null,
-        canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? null,
-        bestCandidateId: warmLookup?.bestCandidateId ?? null,
-        bestCandidateScore: warmLookup?.bestCandidateScore ?? null,
-        warmHitClass: warmLookup?.warmHitClass ?? null,
-        warmApplied: warmLookup?.warmApplied ?? null,
-        warmAppliedStage: warmLookup?.warmAppliedStage ?? null,
-        confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? null,
-        weakThreshold: warmLookup?.weakThreshold ?? null,
-        strongThreshold: warmLookup?.strongThreshold ?? null,
-        candidateAgeMs: warmLookup?.candidateAgeMs ?? null,
-        recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? null,
-        staleProtectionApplied: warmLookup?.staleProtectionApplied ?? null,
-        focusRankingApplied: warmLookup?.focusRankingApplied ?? null,
-        focusRankingBoost: warmLookup?.focusRankingBoost ?? null,
-        focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? null,
-        focusLegalityApplied: warmLookup?.focusLegalityApplied ?? null,
-        focusLegalityLawful: warmLookup?.focusLegalityLawful ?? null,
-        focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? null,
-        focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? null,
-        focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? null,
-        focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? null,
-        focusTaskMomentumApplied: warmLookup?.focusTaskMomentumApplied ?? null,
-        focusTaskMomentumBoost: warmLookup?.focusTaskMomentumBoost ?? null,
-        focusTaskMomentumPenaltyApplied: warmLookup?.focusTaskMomentumPenaltyApplied ?? null,
-        focusTaskMomentumPenalty: warmLookup?.focusTaskMomentumPenalty ?? null,
-        focusTaskMomentumReasonCodes: warmLookup?.focusTaskMomentumReasonCodes ?? null,
-        focusTaskMomentumMatchedSemanticAddressId: warmLookup?.focusTaskMomentumMatchedSemanticAddressId ?? null,
-        atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? null,
-        atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? null,
-        atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? null,
-        atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
-        atlasShardNarrowingApplied: warmLookup?.atlasShardNarrowingApplied ?? null,
-        atlasShardNarrowingFallbackUsed: warmLookup?.atlasShardNarrowingFallbackUsed ?? null,
-        atlasShardNarrowingCandidateCountBefore: warmLookup?.atlasShardNarrowingCandidateCountBefore ?? null,
-        atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? null,
-        atlasShardNarrowingReasonCodes: warmLookup?.atlasShardNarrowingReasonCodes ?? null,
-        atlasShardNarrowingAllowedCandidateKinds: warmLookup?.atlasShardNarrowingAllowedCandidateKinds ?? null,
+        semanticAddressId: warmLookup?.bestCandidateId ?? undefined,
+        canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? undefined,
+        bestCandidateId: warmLookup?.bestCandidateId ?? undefined,
+        bestCandidateScore: warmLookup?.bestCandidateScore ?? undefined,
+        warmHitClass: warmLookup?.warmHitClass ?? undefined,
+        warmApplied: warmLookup?.warmApplied ?? undefined,
+        warmAppliedStage: warmLookup?.warmAppliedStage ?? undefined,
+        confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? undefined,
+        weakThreshold: warmLookup?.weakThreshold ?? undefined,
+        strongThreshold: warmLookup?.strongThreshold ?? undefined,
+        candidateAgeMs: warmLookup?.candidateAgeMs ?? undefined,
+        recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? undefined,
+        staleProtectionApplied: warmLookup?.staleProtectionApplied ?? undefined,
+        focusRankingApplied: warmLookup?.focusRankingApplied ?? undefined,
+        focusRankingBoost: warmLookup?.focusRankingBoost ?? undefined,
+        focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? undefined,
+        focusLegalityApplied: warmLookup?.focusLegalityApplied ?? undefined,
+        focusLegalityLawful: warmLookup?.focusLegalityLawful ?? undefined,
+        focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? undefined,
+        focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? undefined,
+        focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? undefined,
+        focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? undefined,
+        focusTaskMomentumApplied: warmLookup?.focusTaskMomentumApplied ?? undefined,
+        focusTaskMomentumBoost: warmLookup?.focusTaskMomentumBoost ?? undefined,
+        focusTaskMomentumPenaltyApplied: warmLookup?.focusTaskMomentumPenaltyApplied ?? undefined,
+        focusTaskMomentumPenalty: warmLookup?.focusTaskMomentumPenalty ?? undefined,
+        focusTaskMomentumReasonCodes: warmLookup?.focusTaskMomentumReasonCodes ?? undefined,
+        focusTaskMomentumMatchedSemanticAddressId: warmLookup?.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
+        atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? undefined,
+        atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? undefined,
+        atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? undefined,
+        atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? undefined,
+        atlasShardNarrowingApplied: warmLookup?.atlasShardNarrowingApplied ?? undefined,
+        atlasShardNarrowingFallbackUsed: warmLookup?.atlasShardNarrowingFallbackUsed ?? undefined,
+        atlasShardNarrowingCandidateCountBefore: warmLookup?.atlasShardNarrowingCandidateCountBefore ?? undefined,
+        atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingReasonCodes: warmLookup?.atlasShardNarrowingReasonCodes ?? undefined,
+        atlasShardNarrowingAllowedCandidateKinds: warmLookup?.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
         multiResolutionAtlasFamilyRoutingApplied:
-          warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? null,
+          warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? undefined,
         multiResolutionAtlasFamilyRoutingBoost:
-          warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? null,
+          warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? undefined,
         multiResolutionAtlasFamilyRoutingReasonCodes:
-          warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? null,
+          warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? undefined,
         multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
-          warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+          warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
-          warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+          warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
         multiResolutionAtlasPrefixBandRoutingApplied:
-          warmLookup?.multiResolutionAtlasPrefixBandRoutingApplied ?? null,
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingApplied ?? undefined,
         multiResolutionAtlasPrefixBandRoutingBoost:
-          warmLookup?.multiResolutionAtlasPrefixBandRoutingBoost ?? null,
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingBoost ?? undefined,
         multiResolutionAtlasPrefixBandRoutingReasonCodes:
-          warmLookup?.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? null,
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? undefined,
         multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
-          warmLookup?.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
         multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
-          warmLookup?.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
         multiResolutionAtlasTailStrategyRoutingApplied:
-          warmLookup?.multiResolutionAtlasTailStrategyRoutingApplied ?? null,
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingApplied ?? undefined,
         multiResolutionAtlasTailStrategyRoutingBoost:
-          warmLookup?.multiResolutionAtlasTailStrategyRoutingBoost ?? null,
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingBoost ?? undefined,
         multiResolutionAtlasTailStrategyRoutingReasonCodes:
-          warmLookup?.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? null,
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? undefined,
         multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
-          warmLookup?.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
-        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
-          warmLookup?.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+  
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
-        lookupPath: warmLookup?.lookupPath ?? null,
+        lookupPath: warmLookup?.lookupPath ?? undefined,
         reason: "live_geometric_evidence_override",
       });
       if (warmLookup?.bestCandidateId) {
@@ -1559,45 +1566,45 @@ export default class ChunkManager {
       routeAfter: "geometric_prefix_asr_tail",
       tailText: tailResult.transcript,
       mergedText: mergedTranscript,
-      semanticAddressId: warmLookup?.bestCandidateId ?? null,
-      canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? null,
-      bestCandidateId: warmLookup?.bestCandidateId ?? null,
-      bestCandidateScore: warmLookup?.bestCandidateScore ?? null,
-      warmHitClass: warmLookup?.warmHitClass ?? null,
-      warmApplied: warmLookup?.warmApplied ?? null,
-      warmAppliedStage: warmLookup?.warmAppliedStage ?? null,
-      confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? null,
-      weakThreshold: warmLookup?.weakThreshold ?? null,
-      strongThreshold: warmLookup?.strongThreshold ?? null,
-      candidateAgeMs: warmLookup?.candidateAgeMs ?? null,
-      recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? null,
-      staleProtectionApplied: warmLookup?.staleProtectionApplied ?? null,
-      focusRankingApplied: warmLookup?.focusRankingApplied ?? null,
-      focusRankingBoost: warmLookup?.focusRankingBoost ?? null,
-      focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? null,
-      focusLegalityApplied: warmLookup?.focusLegalityApplied ?? null,
-      focusLegalityLawful: warmLookup?.focusLegalityLawful ?? null,
-      focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? null,
-      focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? null,
-      focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? null,
-      focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? null,
-      atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? null,
-      atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? null,
-      atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? null,
-      atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? null,
+      semanticAddressId: warmLookup?.bestCandidateId ?? undefined,
+      canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? undefined,
+      bestCandidateId: warmLookup?.bestCandidateId ?? undefined,
+      bestCandidateScore: warmLookup?.bestCandidateScore ?? undefined,
+      warmHitClass: warmLookup?.warmHitClass ?? undefined,
+      warmApplied: warmLookup?.warmApplied ?? undefined,
+      warmAppliedStage: warmLookup?.warmAppliedStage ?? undefined,
+      confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? undefined,
+      weakThreshold: warmLookup?.weakThreshold ?? undefined,
+      strongThreshold: warmLookup?.strongThreshold ?? undefined,
+      candidateAgeMs: warmLookup?.candidateAgeMs ?? undefined,
+      recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? undefined,
+      staleProtectionApplied: warmLookup?.staleProtectionApplied ?? undefined,
+      focusRankingApplied: warmLookup?.focusRankingApplied ?? undefined,
+      focusRankingBoost: warmLookup?.focusRankingBoost ?? undefined,
+      focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? undefined,
+      focusLegalityApplied: warmLookup?.focusLegalityApplied ?? undefined,
+      focusLegalityLawful: warmLookup?.focusLegalityLawful ?? undefined,
+      focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? undefined,
+      focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? undefined,
+      focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? undefined,
+      focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? undefined,
+      atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? undefined,
+      atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? undefined,
+      atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? undefined,
+      atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? undefined,
       multiResolutionAtlasFamilyRoutingApplied:
-        warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? null,
+        warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? undefined,
       multiResolutionAtlasFamilyRoutingBoost:
-        warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? null,
+        warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? undefined,
       multiResolutionAtlasFamilyRoutingReasonCodes:
-        warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? null,
+        warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? undefined,
       multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
-        warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+        warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
       multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
-        warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+        warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
-      lookupPath: warmLookup?.lookupPath ?? null,
+      lookupPath: warmLookup?.lookupPath ?? undefined,
       reason: "merged_from_geometric_prefix_and_asr_tail",
       parameterType: numericStrategyEnabled ? "numeric" : openStrategyEnabled ? "open" : null,
       numericRaw: numericStrategyEnabled ? tailResult.transcript : null,
@@ -1652,13 +1659,13 @@ export default class ChunkManager {
     seed: Partial<{ regionId: string | null; commandClass: string | null; parameterType: string | null; canonicalMergedText: string | null }> = {}
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
-    return deriveMultiResolutionAtlasEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? null, {
-      regionId: seed.regionId ?? latest?.regionId ?? null,
-      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+    return deriveMultiResolutionAtlasEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? undefined, {
+      regionId: seed.regionId ?? latest?.regionId ?? undefined,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? undefined,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
         ? seed.parameterType
         : (latest?.parameterType ?? null),
-      canonicalMergedText: seed.canonicalMergedText ?? null,
+      canonicalMergedText: seed.canonicalMergedText ?? undefined,
     });
   }
 
@@ -1667,115 +1674,43 @@ export default class ChunkManager {
     seed: Partial<{ regionId: string | null; commandClass: string | null; parameterType: string | null; canonicalMergedText: string | null }> = {}
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
-    return deriveMultiResolutionAtlasPlan(this.chunkH3AtlasShardHint.get(chunkId) ?? null, {
-      regionId: seed.regionId ?? latest?.regionId ?? null,
-      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+    return deriveMultiResolutionAtlasPlan(this.chunkH3AtlasShardHint.get(chunkId) ?? undefined, {
+      regionId: seed.regionId ?? latest?.regionId ?? undefined,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? undefined,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
         ? seed.parameterType
         : (latest?.parameterType ?? null),
-      canonicalMergedText: seed.canonicalMergedText ?? null,
+      canonicalMergedText: seed.canonicalMergedText ?? undefined,
+    });
+  }
+
+
+
+  private getCounterfactualRepairEvidenceFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{ semanticAddressId: string | null; canonicalMergedText: string | null; regionId: string | null; commandClass: string | null; parameterType: string | null; transcriptText: string | null; reason: string | null; finalGranted: boolean | null }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: seed.semanticAddressId ?? undefined,
+      canonicalMergedText: seed.canonicalMergedText ?? undefined,
+      regionId: seed.regionId ?? latest?.regionId ?? undefined,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? undefined,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      transcriptText: seed.transcriptText ?? undefined,
+      eventName,
+      reason: seed.reason ?? undefined,
+      finalGranted: seed.finalGranted ?? undefined,
     });
   }
 
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
-    overrides: Partial<{
-      source: string;
-      regionId: string;
-      commandClass: string;
-      hadTranscriptText: boolean;
-      transcriptText: string | null;
-      routeBefore: string;
-      routeAfter: string;
-      tailEndMs: number;
-      tailText: string;
-      mergedText: string;
-      reason: string;
-      parameterType: string | null;
-      numericRaw: string | null;
-      numericNormalized: string | null;
-      numericParseConfidence: number | null;
-      numericStrategyVersion: string | null;
-      openRaw: string | null;
-      openNormalized: string | null;
-      openParseConfidence: number | null;
-      openStrategyVersion: string | null;
-      openTargetKind: string | null;
-      semanticAddressId: string | null;
-      canonicalMergedText: string | null;
-      slotSignature: string | null;
-      atlasVersion: string | null;
-      lookupCandidateCount: number | null;
-      bestCandidateId: string | null;
-      bestCandidateScore: number | null;
-      warmHitClass: string | null;
-      governanceRequired: boolean | null;
-      governanceQualified: boolean | null;
-      h23StepCount: number | null;
-      h24FinalGranted: boolean | null;
-      successCount: number | null;
-      warmApplied: boolean | null;
-      warmAppliedStage: string | null;
-      confidencePolicyVersion: string | null;
-      weakThreshold: number | null;
-      strongThreshold: number | null;
-      candidateAgeMs: number | null;
-      recentConflictPenaltyApplied: boolean | null;
-      staleProtectionApplied: boolean | null;
-      focusRankingApplied: boolean | null;
-      focusRankingBoost: number | null;
-      focusRankingReasonCodes: string[] | null;
-      focusLegalityApplied: boolean | null;
-      focusLegalityLawful: boolean | null;
-      focusLegalityPenaltyApplied: boolean | null;
-      focusLegalityPenalty: number | null;
-      focusLegalityReasonCodes: string[] | null;
-      focusLegalityCommandKind: string | null;
-      focusTaskMomentumApplied: boolean | null;
-      focusTaskMomentumBoost: number | null;
-      focusTaskMomentumPenaltyApplied: boolean | null;
-      focusTaskMomentumPenalty: number | null;
-      focusTaskMomentumReasonCodes: string[] | null;
-      focusTaskMomentumMatchedSemanticAddressId: string | null;
-      atlasShardRankingApplied: boolean | null;
-      atlasShardRankingBoost: number | null;
-      atlasShardRankingReasonCodes: string[] | null;
-      atlasShardRankingCandidateKind: string | null;
-      atlasShardNarrowingApplied: boolean | null;
-      atlasShardNarrowingFallbackUsed: boolean | null;
-      atlasShardNarrowingCandidateCountBefore: number | null;
-      atlasShardNarrowingCandidateCountAfter: number | null;
-      atlasShardNarrowingReasonCodes: string[] | null;
-      atlasShardNarrowingAllowedCandidateKinds: string[] | null;
-      multiResolutionAtlasSchemaVersion: string | null;
-      multiResolutionAtlasPolicyVersion: string | null;
-      multiResolutionAtlasEligible: boolean | null;
-      multiResolutionAtlasCoarseRegionId: string | null;
-      multiResolutionAtlasFamilyAtlasId: string | null;
-      multiResolutionAtlasPrefixBandId: string | null;
-      multiResolutionAtlasTailStrategyId: string | null;
-      multiResolutionAtlasSource: string | null;
-      multiResolutionAtlasReasonCodes: string[] | null;
-      multiResolutionAtlasFamilyRoutingApplied: boolean | null;
-      multiResolutionAtlasFamilyRoutingBoost: number | null;
-      multiResolutionAtlasFamilyRoutingReasonCodes: string[] | null;
-      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
-      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
-      multiResolutionAtlasPrefixBandRoutingApplied: boolean | null;
-      multiResolutionAtlasPrefixBandRoutingBoost: number | null;
-      multiResolutionAtlasPrefixBandRoutingReasonCodes: string[] | null;
-      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
-      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
-      multiResolutionAtlasTailStrategyRoutingApplied: boolean | null;
-      multiResolutionAtlasTailStrategyRoutingBoost: number | null;
-      multiResolutionAtlasTailStrategyRoutingReasonCodes: string[] | null;
-      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
-      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
-      warmDiscardReason: string | null;
-      liveEvidenceOverride: boolean | null;
-      lookupPath: string | null;
-    }> = {}
+    overrides: Record<string, any> = {}
   ): void {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     const trace = h23Recorder.getTraceSnapshot(chunkId);
@@ -1783,78 +1718,88 @@ export default class ChunkManager {
     const focusFields = this.getFocusContextEvidenceFields(chunkId);
     const atlasShardFields = this.getAtlasShardEvidenceFields(chunkId);
     const multiResolutionAtlasFields = this.getMultiResolutionAtlasEvidenceFields(chunkId, {
-      regionId: overrides.regionId ?? latest?.regionId ?? null,
-      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
-      parameterType: overrides.parameterType ?? latest?.parameterType ?? null,
-      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? null,
+      regionId: overrides.regionId ?? latest?.regionId ?? undefined,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? undefined,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? undefined,
+      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? undefined,
+    });
+    const counterfactualRepairFields = this.getCounterfactualRepairEvidenceFields(chunkId, eventName, {
+      semanticAddressId: overrides.semanticAddressId ?? undefined,
+      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? undefined,
+      regionId: overrides.regionId ?? latest?.regionId ?? undefined,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? undefined,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? undefined,
+      transcriptText: overrides.transcriptText ?? undefined,
+      reason: (overrides as any).reason ?? undefined,
+      finalGranted: decision?.granted ?? undefined,
     });
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
       timestampMs: this.relativeChunkNowMs(chunkId),
-      source: overrides.source ?? latest?.source ?? null,
-      regionId: overrides.regionId ?? latest?.regionId ?? null,
-      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
-      hadTranscriptText: overrides.hadTranscriptText ?? null,
-      transcriptText: overrides.transcriptText ?? null,
-      routeBefore: overrides.routeBefore ?? this.chunkH3Route.get(chunkId) ?? null,
-      routeAfter: overrides.routeAfter ?? this.chunkH3Route.get(chunkId) ?? null,
-      tailStartMs: this.chunkH3TailCaptureStartMs.get(chunkId) ?? null,
-      tailEndMs: overrides.tailEndMs ?? null,
-      tailText: overrides.tailText ?? null,
-      mergedText: overrides.mergedText ?? null,
+      source: overrides.source ?? latest?.source ?? undefined,
+      regionId: overrides.regionId ?? latest?.regionId ?? undefined,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? undefined,
+      hadTranscriptText: overrides.hadTranscriptText ?? undefined,
+      transcriptText: overrides.transcriptText ?? undefined,
+      routeBefore: overrides.routeBefore ?? this.chunkH3Route.get(chunkId) ?? undefined,
+      routeAfter: overrides.routeAfter ?? this.chunkH3Route.get(chunkId) ?? undefined,
+      tailStartMs: this.chunkH3TailCaptureStartMs.get(chunkId) ?? undefined,
+      tailEndMs: overrides.tailEndMs ?? undefined,
+      tailText: overrides.tailText ?? undefined,
+      mergedText: overrides.mergedText ?? undefined,
       stepCount: trace.length,
-      finalGranted: decision?.granted ?? null,
-      reason: overrides.reason ?? decision?.reason ?? null,
-      parameterType: overrides.parameterType ?? null,
-      numericRaw: overrides.numericRaw ?? null,
-      numericNormalized: overrides.numericNormalized ?? null,
-      numericParseConfidence: overrides.numericParseConfidence ?? null,
-      numericStrategyVersion: overrides.numericStrategyVersion ?? null,
-      openRaw: overrides.openRaw ?? null,
-      openNormalized: overrides.openNormalized ?? null,
-      openParseConfidence: overrides.openParseConfidence ?? null,
-      openStrategyVersion: overrides.openStrategyVersion ?? null,
-      openTargetKind: overrides.openTargetKind ?? null,
-      semanticAddressId: overrides.semanticAddressId ?? null,
-      canonicalMergedText: overrides.canonicalMergedText ?? null,
-      slotSignature: overrides.slotSignature ?? null,
-      atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? null,
-      lookupCandidateCount: overrides.lookupCandidateCount ?? null,
-      bestCandidateId: overrides.bestCandidateId ?? null,
-      bestCandidateScore: overrides.bestCandidateScore ?? null,
-      warmHitClass: overrides.warmHitClass ?? null,
-      governanceRequired: overrides.governanceRequired ?? null,
-      governanceQualified: overrides.governanceQualified ?? null,
-      h23StepCount: overrides.h23StepCount ?? null,
-      h24FinalGranted: overrides.h24FinalGranted ?? null,
-      successCount: overrides.successCount ?? null,
-      warmApplied: overrides.warmApplied ?? null,
-      warmAppliedStage: overrides.warmAppliedStage ?? null,
-      confidencePolicyVersion: overrides.confidencePolicyVersion ?? null,
-      weakThreshold: overrides.weakThreshold ?? null,
-      strongThreshold: overrides.strongThreshold ?? null,
-      candidateAgeMs: overrides.candidateAgeMs ?? null,
-      recentConflictPenaltyApplied: overrides.recentConflictPenaltyApplied ?? null,
-      staleProtectionApplied: overrides.staleProtectionApplied ?? null,
-      focusRankingApplied: overrides.focusRankingApplied ?? null,
-      focusRankingBoost: overrides.focusRankingBoost ?? null,
-      focusRankingReasonCodes: overrides.focusRankingReasonCodes ?? null,
+      finalGranted: decision?.granted ?? undefined,
+      reason: overrides.reason ?? decision?.reason ?? undefined,
+      parameterType: overrides.parameterType ?? undefined,
+      numericRaw: overrides.numericRaw ?? undefined,
+      numericNormalized: overrides.numericNormalized ?? undefined,
+      numericParseConfidence: overrides.numericParseConfidence ?? undefined,
+      numericStrategyVersion: overrides.numericStrategyVersion ?? undefined,
+      openRaw: overrides.openRaw ?? undefined,
+      openNormalized: overrides.openNormalized ?? undefined,
+      openParseConfidence: overrides.openParseConfidence ?? undefined,
+      openStrategyVersion: overrides.openStrategyVersion ?? undefined,
+      openTargetKind: overrides.openTargetKind ?? undefined,
+      semanticAddressId: overrides.semanticAddressId ?? undefined,
+      canonicalMergedText: overrides.canonicalMergedText ?? undefined,
+      slotSignature: overrides.slotSignature ?? undefined,
+      atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? undefined,
+      lookupCandidateCount: overrides.lookupCandidateCount ?? undefined,
+      bestCandidateId: overrides.bestCandidateId ?? undefined,
+      bestCandidateScore: overrides.bestCandidateScore ?? undefined,
+      warmHitClass: overrides.warmHitClass ?? undefined,
+      governanceRequired: overrides.governanceRequired ?? undefined,
+      governanceQualified: overrides.governanceQualified ?? undefined,
+      h23StepCount: overrides.h23StepCount ?? undefined,
+      h24FinalGranted: overrides.h24FinalGranted ?? undefined,
+      successCount: overrides.successCount ?? undefined,
+      warmApplied: overrides.warmApplied ?? undefined,
+      warmAppliedStage: overrides.warmAppliedStage ?? undefined,
+      confidencePolicyVersion: overrides.confidencePolicyVersion ?? undefined,
+      weakThreshold: overrides.weakThreshold ?? undefined,
+      strongThreshold: overrides.strongThreshold ?? undefined,
+      candidateAgeMs: overrides.candidateAgeMs ?? undefined,
+      recentConflictPenaltyApplied: overrides.recentConflictPenaltyApplied ?? undefined,
+      staleProtectionApplied: overrides.staleProtectionApplied ?? undefined,
+      focusRankingApplied: overrides.focusRankingApplied ?? undefined,
+      focusRankingBoost: overrides.focusRankingBoost ?? undefined,
+      focusRankingReasonCodes: overrides.focusRankingReasonCodes ?? undefined,
       focusLegalityApplied: overrides.focusLegalityApplied ?? focusFields.focusLegalityApplied,
       focusLegalityLawful: overrides.focusLegalityLawful ?? focusFields.focusLegalityLawful,
       focusLegalityPenaltyApplied: overrides.focusLegalityPenaltyApplied ?? focusFields.focusLegalityPenaltyApplied,
       focusLegalityPenalty: overrides.focusLegalityPenalty ?? focusFields.focusLegalityPenalty,
       focusLegalityReasonCodes: overrides.focusLegalityReasonCodes ?? focusFields.focusLegalityReasonCodes,
       focusLegalityCommandKind: overrides.focusLegalityCommandKind ?? focusFields.focusLegalityCommandKind,
-      focusTaskMomentumApplied: overrides.focusTaskMomentumApplied ?? null,
-      focusTaskMomentumBoost: overrides.focusTaskMomentumBoost ?? null,
-      focusTaskMomentumPenaltyApplied: overrides.focusTaskMomentumPenaltyApplied ?? null,
-      focusTaskMomentumPenalty: overrides.focusTaskMomentumPenalty ?? null,
-      focusTaskMomentumReasonCodes: overrides.focusTaskMomentumReasonCodes ?? null,
-      focusTaskMomentumMatchedSemanticAddressId: overrides.focusTaskMomentumMatchedSemanticAddressId ?? null,
-      warmDiscardReason: overrides.warmDiscardReason ?? null,
-      liveEvidenceOverride: overrides.liveEvidenceOverride ?? null,
-      lookupPath: overrides.lookupPath ?? null,
+      focusTaskMomentumApplied: overrides.focusTaskMomentumApplied ?? undefined,
+      focusTaskMomentumBoost: overrides.focusTaskMomentumBoost ?? undefined,
+      focusTaskMomentumPenaltyApplied: overrides.focusTaskMomentumPenaltyApplied ?? undefined,
+      focusTaskMomentumPenalty: overrides.focusTaskMomentumPenalty ?? undefined,
+      focusTaskMomentumReasonCodes: overrides.focusTaskMomentumReasonCodes ?? undefined,
+      focusTaskMomentumMatchedSemanticAddressId: overrides.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
+      warmDiscardReason: overrides.warmDiscardReason ?? undefined,
+      liveEvidenceOverride: overrides.liveEvidenceOverride ?? undefined,
+      lookupPath: overrides.lookupPath ?? undefined,
       focusContextSchemaVersion: focusFields.focusContextSchemaVersion,
       focusContextEligible: focusFields.focusContextEligible,
       focusSnapshotFresh: focusFields.focusSnapshotFresh,
@@ -1881,16 +1826,16 @@ export default class ChunkManager {
       atlasShardHintSource: atlasShardFields.atlasShardHintSource,
       atlasShardHintPriority: atlasShardFields.atlasShardHintPriority,
       atlasShardReasonCodes: atlasShardFields.atlasShardReasonCodes,
-      atlasShardRankingApplied: overrides.atlasShardRankingApplied ?? null,
-      atlasShardRankingBoost: overrides.atlasShardRankingBoost ?? null,
-      atlasShardRankingReasonCodes: overrides.atlasShardRankingReasonCodes ?? null,
-      atlasShardRankingCandidateKind: overrides.atlasShardRankingCandidateKind ?? null,
-      atlasShardNarrowingApplied: overrides.atlasShardNarrowingApplied ?? null,
-      atlasShardNarrowingFallbackUsed: overrides.atlasShardNarrowingFallbackUsed ?? null,
-      atlasShardNarrowingCandidateCountBefore: overrides.atlasShardNarrowingCandidateCountBefore ?? null,
-      atlasShardNarrowingCandidateCountAfter: overrides.atlasShardNarrowingCandidateCountAfter ?? null,
-      atlasShardNarrowingReasonCodes: overrides.atlasShardNarrowingReasonCodes ?? null,
-      atlasShardNarrowingAllowedCandidateKinds: overrides.atlasShardNarrowingAllowedCandidateKinds ?? null,
+      atlasShardRankingApplied: overrides.atlasShardRankingApplied ?? undefined,
+      atlasShardRankingBoost: overrides.atlasShardRankingBoost ?? undefined,
+      atlasShardRankingReasonCodes: overrides.atlasShardRankingReasonCodes ?? undefined,
+      atlasShardRankingCandidateKind: overrides.atlasShardRankingCandidateKind ?? undefined,
+      atlasShardNarrowingApplied: overrides.atlasShardNarrowingApplied ?? undefined,
+      atlasShardNarrowingFallbackUsed: overrides.atlasShardNarrowingFallbackUsed ?? undefined,
+      atlasShardNarrowingCandidateCountBefore: overrides.atlasShardNarrowingCandidateCountBefore ?? undefined,
+      atlasShardNarrowingCandidateCountAfter: overrides.atlasShardNarrowingCandidateCountAfter ?? undefined,
+      atlasShardNarrowingReasonCodes: overrides.atlasShardNarrowingReasonCodes ?? undefined,
+      atlasShardNarrowingAllowedCandidateKinds: overrides.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
       multiResolutionAtlasSchemaVersion:
         overrides.multiResolutionAtlasSchemaVersion ?? multiResolutionAtlasFields.multiResolutionAtlasSchemaVersion,
       multiResolutionAtlasPolicyVersion:
@@ -1910,35 +1855,69 @@ export default class ChunkManager {
       multiResolutionAtlasReasonCodes:
         overrides.multiResolutionAtlasReasonCodes ?? multiResolutionAtlasFields.multiResolutionAtlasReasonCodes,
       multiResolutionAtlasFamilyRoutingApplied:
-        overrides.multiResolutionAtlasFamilyRoutingApplied ?? null,
+        overrides.multiResolutionAtlasFamilyRoutingApplied ?? undefined,
       multiResolutionAtlasFamilyRoutingBoost:
-        overrides.multiResolutionAtlasFamilyRoutingBoost ?? null,
+        overrides.multiResolutionAtlasFamilyRoutingBoost ?? undefined,
       multiResolutionAtlasFamilyRoutingReasonCodes:
-        overrides.multiResolutionAtlasFamilyRoutingReasonCodes ?? null,
+        overrides.multiResolutionAtlasFamilyRoutingReasonCodes ?? undefined,
       multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
-        overrides.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
+        overrides.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
       multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
-        overrides.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+        overrides.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
       multiResolutionAtlasPrefixBandRoutingApplied:
-        overrides.multiResolutionAtlasPrefixBandRoutingApplied ?? null,
+        overrides.multiResolutionAtlasPrefixBandRoutingApplied ?? undefined,
       multiResolutionAtlasPrefixBandRoutingBoost:
-        overrides.multiResolutionAtlasPrefixBandRoutingBoost ?? null,
+        overrides.multiResolutionAtlasPrefixBandRoutingBoost ?? undefined,
       multiResolutionAtlasPrefixBandRoutingReasonCodes:
-        overrides.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? null,
+        overrides.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? undefined,
       multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
-        overrides.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+        overrides.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
       multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
-        overrides.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
+        overrides.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
       multiResolutionAtlasTailStrategyRoutingApplied:
-        overrides.multiResolutionAtlasTailStrategyRoutingApplied ?? null,
+        overrides.multiResolutionAtlasTailStrategyRoutingApplied ?? undefined,
       multiResolutionAtlasTailStrategyRoutingBoost:
-        overrides.multiResolutionAtlasTailStrategyRoutingBoost ?? null,
+        overrides.multiResolutionAtlasTailStrategyRoutingBoost ?? undefined,
       multiResolutionAtlasTailStrategyRoutingReasonCodes:
-        overrides.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? null,
+        overrides.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? undefined,
       multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
-        overrides.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? null,
+        overrides.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+
+      counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
+      counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
+      counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,
+      counterfactualRepairPrimarySemanticAddressId: overrides.counterfactualRepairPrimarySemanticAddressId ?? counterfactualRepairFields.counterfactualRepairPrimarySemanticAddressId,
+      counterfactualRepairNearestAlternativeSemanticAddressId: overrides.counterfactualRepairNearestAlternativeSemanticAddressId ?? counterfactualRepairFields.counterfactualRepairNearestAlternativeSemanticAddressId,
+      counterfactualRepairNearestAlternativeCanonicalMergedText: overrides.counterfactualRepairNearestAlternativeCanonicalMergedText ?? counterfactualRepairFields.counterfactualRepairNearestAlternativeCanonicalMergedText,
+      counterfactualRepairAmbiguityBand: overrides.counterfactualRepairAmbiguityBand ?? counterfactualRepairFields.counterfactualRepairAmbiguityBand,
+      counterfactualRepairRepairEligible: overrides.counterfactualRepairRepairEligible ?? counterfactualRepairFields.counterfactualRepairRepairEligible,
+      counterfactualRepairRepairSignal: overrides.counterfactualRepairRepairSignal ?? counterfactualRepairFields.counterfactualRepairRepairSignal,
+      counterfactualRepairSelectionFunctionVersion: overrides.counterfactualRepairSelectionFunctionVersion ?? counterfactualRepairFields.counterfactualRepairSelectionFunctionVersion,
+      counterfactualRepairCandidatePopulationSize: overrides.counterfactualRepairCandidatePopulationSize ?? counterfactualRepairFields.counterfactualRepairCandidatePopulationSize,
+      counterfactualRepairTopCandidateSemanticAddressIds: overrides.counterfactualRepairTopCandidateSemanticAddressIds ?? counterfactualRepairFields.counterfactualRepairTopCandidateSemanticAddressIds,
+      counterfactualRepairTopCandidateNormalizedScores: overrides.counterfactualRepairTopCandidateNormalizedScores ?? counterfactualRepairFields.counterfactualRepairTopCandidateNormalizedScores,
+      counterfactualRepairSelectionWinnerSemanticAddressId: overrides.counterfactualRepairSelectionWinnerSemanticAddressId ?? counterfactualRepairFields.counterfactualRepairSelectionWinnerSemanticAddressId,
+      counterfactualRepairDeadDetected: overrides.counterfactualRepairDeadDetected ?? counterfactualRepairFields.counterfactualRepairDeadDetected,
+      counterfactualRepairDeadReason: overrides.counterfactualRepairDeadReason ?? counterfactualRepairFields.counterfactualRepairDeadReason,
+      counterfactualRepairCounterexampleCaptured: overrides.counterfactualRepairCounterexampleCaptured ?? counterfactualRepairFields.counterfactualRepairCounterexampleCaptured,
+      counterfactualRepairCounterexampleKind: overrides.counterfactualRepairCounterexampleKind ?? counterfactualRepairFields.counterfactualRepairCounterexampleKind,
+      counterfactualRepairAntibodyEligible: overrides.counterfactualRepairAntibodyEligible ?? counterfactualRepairFields.counterfactualRepairAntibodyEligible,
+      counterfactualRepairAntibodyHint: overrides.counterfactualRepairAntibodyHint ?? counterfactualRepairFields.counterfactualRepairAntibodyHint,
+      counterfactualRepairStressEvent: overrides.counterfactualRepairStressEvent ?? counterfactualRepairFields.counterfactualRepairStressEvent,
+      counterfactualRepairStressBand: overrides.counterfactualRepairStressBand ?? counterfactualRepairFields.counterfactualRepairStressBand,
+      counterfactualRepairOuroborosEvent: overrides.counterfactualRepairOuroborosEvent ?? counterfactualRepairFields.counterfactualRepairOuroborosEvent,
+      counterfactualRepairSource: overrides.counterfactualRepairSource ?? counterfactualRepairFields.counterfactualRepairSource,
+      counterfactualRepairReasonCodes: overrides.counterfactualRepairReasonCodes ?? counterfactualRepairFields.counterfactualRepairReasonCodes,
+      counterfactualRepairAmbiguityPilotVersion: overrides.counterfactualRepairAmbiguityPilotVersion ?? counterfactualRepairFields.counterfactualRepairAmbiguityPilotVersion,
+      counterfactualRepairAmbiguityPilotApplied: overrides.counterfactualRepairAmbiguityPilotApplied ?? counterfactualRepairFields.counterfactualRepairAmbiguityPilotApplied,
+      counterfactualRepairAmbiguityPrimaryScore: overrides.counterfactualRepairAmbiguityPrimaryScore ?? counterfactualRepairFields.counterfactualRepairAmbiguityPrimaryScore,
+      counterfactualRepairAmbiguityAlternativeScore: overrides.counterfactualRepairAmbiguityAlternativeScore ?? counterfactualRepairFields.counterfactualRepairAmbiguityAlternativeScore,
+      counterfactualRepairAmbiguityScoreGap: overrides.counterfactualRepairAmbiguityScoreGap ?? counterfactualRepairFields.counterfactualRepairAmbiguityScoreGap,
+      counterfactualRepairAmbiguityEscalationSuggested: overrides.counterfactualRepairAmbiguityEscalationSuggested ?? counterfactualRepairFields.counterfactualRepairAmbiguityEscalationSuggested,
+      counterfactualRepairAmbiguityEscalationKind: overrides.counterfactualRepairAmbiguityEscalationKind ?? counterfactualRepairFields.counterfactualRepairAmbiguityEscalationKind,
+      counterfactualRepairAmbiguityReasonCodes: overrides.counterfactualRepairAmbiguityReasonCodes ?? counterfactualRepairFields.counterfactualRepairAmbiguityReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
-        overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? null,
+        overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
     });
   }
 
