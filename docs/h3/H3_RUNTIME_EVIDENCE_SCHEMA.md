@@ -1,22 +1,17 @@
 # H3 Runtime Evidence Schema
 
-Stage 3E2 adds advisory policy-shaped atlas shard telemetry to the existing H3 runtime evidence chain.
+## Stage 3E2 advisory shard fields
 
-Shard hint fields:
 - `atlasShardPolicyVersion`
 - `atlasShardHintId`
 - `atlasShardHintEligible`
 - `atlasShardHintSource`
 - `atlasShardHintPriority`
 - `atlasShardReasonCodes`
-
-Stage 3E2-S2 shard-aware ranking pilot fields:
 - `atlasShardRankingApplied`
 - `atlasShardRankingBoost`
 - `atlasShardRankingReasonCodes`
 - `atlasShardRankingCandidateKind`
-
-Stage 3E2-S3 policy-conditioned lookup narrowing pilot fields:
 - `atlasShardNarrowingApplied`
 - `atlasShardNarrowingFallbackUsed`
 - `atlasShardNarrowingCandidateCountBefore`
@@ -24,27 +19,11 @@ Stage 3E2-S3 policy-conditioned lookup narrowing pilot fields:
 - `atlasShardNarrowingReasonCodes`
 - `atlasShardNarrowingAllowedCandidateKinds`
 
-Meaning:
-- shard hints are derived from validated focus context only
-- shard-aware ranking is bounded and advisory only
-- shard-aware lookup narrowing is bounded and advisory only
-- shard-aware lookup narrowing may reduce candidate-scan breadth only when a v1 shard-kind match exists
-- shard-aware lookup narrowing must fall back instead of eliminating the candidate set
-- shard-aware shaping may not authorize execution
-- shard-aware shaping does not bypass live geometry, live tail normalization, or H23/H24
-- shard-aware shaping does not add persistence or distributed cache
-
-Current v1 shard hints:
-- `browser_navigation`
-- `editor_symbolic`
-- `terminal_session`
-- `global_default`
-
+These fields remain bounded and advisory-only. They may shape lookup behavior but may not authorize execution or bypass H23/H24.
 
 ## Stage 3F multi-resolution atlas fields
 
-The H3 runtime evidence event now carries advisory multi-resolution atlas route metadata:
-
+Observational route contract:
 - `multiResolutionAtlasSchemaVersion`
 - `multiResolutionAtlasPolicyVersion`
 - `multiResolutionAtlasEligible`
@@ -55,17 +34,23 @@ The H3 runtime evidence event now carries advisory multi-resolution atlas route 
 - `multiResolutionAtlasSource`
 - `multiResolutionAtlasReasonCodes`
 
-These fields are observational in `S1`. They do not authorize execution and do not alter H23/H24 governance.
-
-
-## Stage 3F-S2 family-atlas routing pilot fields
-
-The H3 runtime evidence event now carries advisory family-atlas routing metadata:
-
+Stage 3F-S2 family-atlas routing pilot:
 - `multiResolutionAtlasFamilyRoutingApplied`
 - `multiResolutionAtlasFamilyRoutingBoost`
 - `multiResolutionAtlasFamilyRoutingReasonCodes`
 - `multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId`
 - `multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId`
 
-These fields remain advisory-only in `S2`. They may shape lookup scoring but may not authorize execution or bypass H23/H24.
+Stage 3F-S3 prefix-band routing pilot:
+- `multiResolutionAtlasPrefixBandRoutingApplied`
+- `multiResolutionAtlasPrefixBandRoutingBoost`
+- `multiResolutionAtlasPrefixBandRoutingReasonCodes`
+- `multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId`
+- `multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId`
+
+Meaning:
+- multi-resolution atlas fields are derived from existing geometric and shard context only
+- family-atlas routing and prefix-band routing are capped advisory boosts only
+- family-atlas candidate pooling in candidate-scan lookup is bounded, fallback-safe, and may not authorize execution
+- live geometry, live tail normalization, and H23/H24 remain authoritative
+- no persistence or distributed cache is introduced

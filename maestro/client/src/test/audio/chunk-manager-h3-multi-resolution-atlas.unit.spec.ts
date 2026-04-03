@@ -146,4 +146,33 @@ describe("ChunkManager H3 multi-resolution atlas evidence", () => {
     }));
   });
 
+
+  it("emits prefix-band routing metadata on lookup-completed evidence when provided", () => {
+    const { ChunkManager, manager } = makeBareManager();
+    h23Recorder.getTraceSnapshot = jest.fn(() => []);
+    h23Recorder.getLatestDecision = jest.fn(() => null);
+    const evidenceSpy = jest.spyOn(runtimeEvidence, "emitH3RuntimeEvidence").mockImplementation((event: any) => event);
+
+    ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+      multiResolutionAtlasPrefixBandRoutingApplied: true,
+      multiResolutionAtlasPrefixBandRoutingBoost: 0.025,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_match"],
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: "prefix_open",
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: "prefix_open",
+      reason: "multi_resolution_prefix_band_routing_lookup",
+    });
+
+    expect(evidenceSpy).toHaveBeenCalledWith(expect.objectContaining({
+      multiResolutionAtlasPrefixBandRoutingApplied: true,
+      multiResolutionAtlasPrefixBandRoutingBoost: 0.025,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_match"],
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: "prefix_open",
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: "prefix_open",
+    }));
+  });
+
 });

@@ -9,7 +9,7 @@ Introduce a bounded, advisory multi-resolution atlas route model so H3 can reaso
 - prefix band
 - tail strategy
 
-The route model is observational first. It may shape later narrowing/ranking work, but it may not authorize execution.
+The route model is observational first. It may shape later narrowing and ranking work, but it may not authorize execution.
 
 ## Doctrine lock
 
@@ -25,30 +25,29 @@ The route model is observational first. It may shape later narrowing/ranking wor
 ## Slice plan
 
 ### S1 — Observational route contract
-Implemented in this slice.
-
-Scope:
-- define a multi-resolution atlas plan contract
-- derive advisory route fields from shard hint + geometric event shape
-- emit route fields in H3 evidence
-- no ranking/narrowing/authorization changes
+Implemented.
 
 ### S2 — Family atlas routing pilot
+Implemented.
+
+### S3 — Prefix-band routing pilot
 Implemented in this slice.
 
 Scope:
-- use advisory route to expose family-atlas routing state during lookup
-- apply bounded advisory family-atlas routing boost during lookup scoring only
-- keep advisory-only behavior
+- add bounded advisory prefix-band routing boost during lookup scoring
+- allow family-atlas candidate pooling for candidate-scan lookup so prefix-band routing can discriminate within the family
+- propagate prefix-band routing metadata through lookup/warm/merged evidence
+- keep advisory-only behavior and fallback-safe candidate selection
 
-### S3 — Prefix-band routing pilot
+### S4 — Tail-strategy routing pilot
 Next.
 
 Scope:
-- add bounded prefix-band route reasoning for lookup/diagnostics
-- no authority change
+- add bounded advisory tail-strategy routing for numeric vs open strategy alignment
+- propagate tail-strategy routing metadata through H3 evidence
+- keep advisory-only behavior
 
-### S4 — Closure/validation
+### S5 — Closure/validation
 Planned.
 
 Scope:

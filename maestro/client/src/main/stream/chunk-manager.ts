@@ -202,6 +202,11 @@ export default class ChunkManager {
       multiResolutionAtlasFamilyRoutingReasonCodes?: string[];
       multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId?: string | null;
       multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId?: string | null;
+      multiResolutionAtlasPrefixBandRoutingApplied?: boolean;
+      multiResolutionAtlasPrefixBandRoutingBoost?: number;
+      multiResolutionAtlasPrefixBandRoutingReasonCodes?: string[];
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId?: string | null;
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId?: string | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
     }
@@ -899,6 +904,16 @@ export default class ChunkManager {
           semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
           semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingBoost ?? 0,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
         governanceRequired: true,
         reason:
           semanticLookup.mismatchReason ??
@@ -1030,6 +1045,16 @@ export default class ChunkManager {
           semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
           semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingBoost ?? 0,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
         warmApplied,
         warmAppliedStage,
       });
@@ -1077,6 +1102,16 @@ export default class ChunkManager {
             semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
           multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
             semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+          multiResolutionAtlasPrefixBandRoutingApplied:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
+          multiResolutionAtlasPrefixBandRoutingBoost:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingBoost ?? 0,
+          multiResolutionAtlasPrefixBandRoutingReasonCodes:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
+          multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+          multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
           warmApplied,
           warmAppliedStage,
           warmDiscardReason,
@@ -1449,6 +1484,16 @@ export default class ChunkManager {
           warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
         multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
           warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingApplied ?? null,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingBoost ?? null,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? null,
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
         warmDiscardReason: "live_geometric_evidence_override",
         liveEvidenceOverride: true,
         lookupPath: warmLookup?.lookupPath ?? null,
@@ -1672,6 +1717,11 @@ export default class ChunkManager {
       multiResolutionAtlasFamilyRoutingReasonCodes: string[] | null;
       multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
       multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
+      multiResolutionAtlasPrefixBandRoutingApplied: boolean | null;
+      multiResolutionAtlasPrefixBandRoutingBoost: number | null;
+      multiResolutionAtlasPrefixBandRoutingReasonCodes: string[] | null;
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
       warmDiscardReason: string | null;
       liveEvidenceOverride: boolean | null;
       lookupPath: string | null;
@@ -1819,6 +1869,16 @@ export default class ChunkManager {
         overrides.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? null,
       multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
         overrides.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? null,
+      multiResolutionAtlasPrefixBandRoutingApplied:
+        overrides.multiResolutionAtlasPrefixBandRoutingApplied ?? null,
+      multiResolutionAtlasPrefixBandRoutingBoost:
+        overrides.multiResolutionAtlasPrefixBandRoutingBoost ?? null,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes:
+        overrides.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? null,
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+        overrides.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? null,
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+        overrides.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? null,
     });
   }
 

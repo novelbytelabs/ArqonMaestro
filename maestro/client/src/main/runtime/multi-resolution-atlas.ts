@@ -24,7 +24,6 @@ export interface MultiResolutionAtlasPlan {
   multiResolutionAtlasReasonCodes: string[];
 }
 
-
 export interface MultiResolutionAtlasFamilyRoutingCandidate {
   regionId: string | null;
   commandFamily: string | null;
@@ -41,7 +40,25 @@ export interface MultiResolutionAtlasFamilyRoutingAdjustment {
   multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
 }
 
+export interface MultiResolutionAtlasPrefixBandRoutingCandidate {
+  regionId: string | null;
+  commandFamily: string | null;
+  parameterType?: "numeric" | "open" | null;
+  canonicalPrefix?: string | null;
+  canonicalMergedText?: string | null;
+}
+
+export interface MultiResolutionAtlasPrefixBandRoutingAdjustment {
+  multiResolutionAtlasPrefixBandRoutingApplied: boolean;
+  multiResolutionAtlasPrefixBandRoutingBoost: number;
+  multiResolutionAtlasPrefixBandRoutingReasonCodes: string[];
+  multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
+  multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
+}
+
 export const MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST = 0.035;
+export const MULTI_RESOLUTION_ATLAS_PREFIX_BAND_ROUTING_MAX_BOOST = 0.025;
+
 export interface MultiResolutionAtlasEvidenceFields {
   multiResolutionAtlasSchemaVersion: string | null;
   multiResolutionAtlasPolicyVersion: string | null;
@@ -169,6 +186,43 @@ function tailStrategyIdForSeed(seed: MultiResolutionAtlasPlanSeed | null | undef
   return "no_tail";
 }
 
+export function deriveMultiResolutionAtlasCandidateFamilyAtlasId(
+  candidate: MultiResolutionAtlasFamilyRoutingCandidate | null | undefined
+): string | null {
+  if (!candidate) {
+    return null;
+  }
+  const family = (candidate.commandFamily ?? "").toLowerCase();
+  if (family === "parameterized_numeric") {
+    return "parameterized_numeric_family";
+  }
+  if (family === "parameterized_open") {
+    return "parameterized_open_family";
+  }
+  if (family === "reflex") {
+    return "reflex_family";
+  }
+  if (family === "closed_structure") {
+    return "closed_structure_family";
+  }
+  if (candidate.parameterType === "numeric") {
+    return "parameterized_numeric_family";
+  }
+  if (candidate.parameterType === "open") {
+    return "parameterized_open_family";
+  }
+  return null;
+}
+
+export function deriveMultiResolutionAtlasCandidatePrefixBandId(
+  candidate: MultiResolutionAtlasPrefixBandRoutingCandidate | null | undefined
+): string | null {
+  const prefix = candidate?.canonicalPrefix?.trim() || candidate?.regionId?.trim() || "";
+  if (!prefix) {
+    return null;
+  }
+  return `prefix_${prefix.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
+}
 
 export function deriveMultiResolutionAtlasFamilyRoutingAdjustment(
   plan: MultiResolutionAtlasPlan | null | undefined,
@@ -180,11 +234,11 @@ export function deriveMultiResolutionAtlasFamilyRoutingAdjustment(
       multiResolutionAtlasFamilyRoutingBoost: 0,
       multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_eligible"],
       multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
-      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: candidateFamilyAtlasIdForCandidate(candidate),
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: deriveMultiResolutionAtlasCandidateFamilyAtlasId(candidate),
     };
   }
 
-  const candidateFamilyAtlasId = candidateFamilyAtlasIdForCandidate(candidate);
+  const candidateFamilyAtlasId = deriveMultiResolutionAtlasCandidateFamilyAtlasId(candidate);
   if (!candidateFamilyAtlasId) {
     return {
       multiResolutionAtlasFamilyRoutingApplied: false,
@@ -221,30 +275,53 @@ export function deriveMultiResolutionAtlasFamilyRoutingAdjustment(
   };
 }
 
-function candidateFamilyAtlasIdForCandidate(
-  candidate: MultiResolutionAtlasFamilyRoutingCandidate | null | undefined
-): string | null {
-  if (!candidate) {
-    return null;
+export function deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(
+  plan: MultiResolutionAtlasPlan | null | undefined,
+  candidate: MultiResolutionAtlasPrefixBandRoutingCandidate | null | undefined
+): MultiResolutionAtlasPrefixBandRoutingAdjustment {
+  if (!plan || !plan.multiResolutionAtlasEligible || !plan.multiResolutionAtlasPrefixBandId) {
+    return {
+      multiResolutionAtlasPrefixBandRoutingApplied: false,
+      multiResolutionAtlasPrefixBandRoutingBoost: 0,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_eligible"],
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: deriveMultiResolutionAtlasCandidatePrefixBandId(candidate),
+    };
   }
-  const family = (candidate.commandFamily ?? "").toLowerCase();
-  if (family === "parameterized_numeric") {
-    return "parameterized_numeric_family";
+
+  const candidatePrefixBandId = deriveMultiResolutionAtlasCandidatePrefixBandId(candidate);
+  if (!candidatePrefixBandId) {
+    return {
+      multiResolutionAtlasPrefixBandRoutingApplied: false,
+      multiResolutionAtlasPrefixBandRoutingBoost: 0,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_candidate_unknown"],
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: plan.multiResolutionAtlasPrefixBandId,
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+    };
   }
-  if (family === "parameterized_open") {
-    return "parameterized_open_family";
+
+  if (candidatePrefixBandId !== plan.multiResolutionAtlasPrefixBandId) {
+    return {
+      multiResolutionAtlasPrefixBandRoutingApplied: false,
+      multiResolutionAtlasPrefixBandRoutingBoost: 0,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes: [
+        "multi_resolution_prefix_band_no_match",
+        `multi_resolution_prefix_band_expected_${plan.multiResolutionAtlasPrefixBandId}`,
+        `multi_resolution_prefix_band_candidate_${candidatePrefixBandId}`,
+      ],
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: plan.multiResolutionAtlasPrefixBandId,
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: candidatePrefixBandId,
+    };
   }
-  if (family === "reflex") {
-    return "reflex_family";
-  }
-  if (family === "closed_structure") {
-    return "closed_structure_family";
-  }
-  if (candidate.parameterType === "numeric") {
-    return "parameterized_numeric_family";
-  }
-  if (candidate.parameterType === "open") {
-    return "parameterized_open_family";
-  }
-  return null;
+
+  return {
+    multiResolutionAtlasPrefixBandRoutingApplied: true,
+    multiResolutionAtlasPrefixBandRoutingBoost: MULTI_RESOLUTION_ATLAS_PREFIX_BAND_ROUTING_MAX_BOOST,
+    multiResolutionAtlasPrefixBandRoutingReasonCodes: [
+      "multi_resolution_prefix_band_match",
+      `multi_resolution_prefix_band_${candidatePrefixBandId}`,
+    ],
+    multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: plan.multiResolutionAtlasPrefixBandId,
+    multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: candidatePrefixBandId,
+  };
 }

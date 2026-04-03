@@ -4,8 +4,10 @@ import {
   deriveMultiResolutionAtlasPlan,
   deriveMultiResolutionAtlasEvidenceFields,
   deriveMultiResolutionAtlasFamilyRoutingAdjustment,
+  deriveMultiResolutionAtlasPrefixBandRoutingAdjustment,
   MULTI_RESOLUTION_ATLAS_POLICY_VERSION,
   MULTI_RESOLUTION_ATLAS_FAMILY_ROUTING_MAX_BOOST,
+  MULTI_RESOLUTION_ATLAS_PREFIX_BAND_ROUTING_MAX_BOOST,
 } from "../../main/runtime/multi-resolution-atlas";
 
 describe("multi-resolution atlas", () => {
@@ -147,4 +149,70 @@ describe("multi-resolution atlas", () => {
     );
   });
 
+  it("applies bounded prefix-band routing boost for matching open prefix band", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+    const routing = deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(plan, {
+      regionId: "open",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+      canonicalPrefix: "open",
+      canonicalMergedText: "open github.com",
+    });
+    expect(routing.multiResolutionAtlasPrefixBandRoutingApplied).toBe(true);
+    expect(routing.multiResolutionAtlasPrefixBandRoutingBoost).toBe(
+      MULTI_RESOLUTION_ATLAS_PREFIX_BAND_ROUTING_MAX_BOOST
+    );
+    expect(routing.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId).toBe("prefix_open");
+    expect(routing.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId).toBe("prefix_open");
+  });
+
+  it("keeps advisory no-boost when candidate prefix band does not match route prefix band", () => {
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        windowId: "window-1",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.94,
+        authorityType: "verified",
+        snapshotAgeMs: 50,
+      },
+    });
+    const hint = derivePolicyShapedAtlasShardHint(envelope);
+    const plan = deriveMultiResolutionAtlasPlan(hint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+    const routing = deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(plan, {
+      regionId: "go to",
+      commandFamily: "parameterized_open",
+      parameterType: "open",
+      canonicalPrefix: "go to",
+      canonicalMergedText: "go to github.com",
+    });
+    expect(routing.multiResolutionAtlasPrefixBandRoutingApplied).toBe(false);
+    expect(routing.multiResolutionAtlasPrefixBandRoutingBoost).toBe(0);
+    expect(routing.multiResolutionAtlasPrefixBandRoutingReasonCodes).toContain(
+      "multi_resolution_prefix_band_no_match"
+    );
+  });
 });

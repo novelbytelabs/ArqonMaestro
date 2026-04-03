@@ -1339,4 +1339,143 @@ describe("VoiceSemanticAddressRegistry", () => {
     );
   });
 
+
+  it("applies advisory prefix-band routing boost when family-atlas candidate pool contains matching open prefix", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-prefix-open-1",
+      source: "spectral_manifold",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.9,
+      frameCount: 32,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-prefix-open-1",
+      transcript: "open github dot com",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+    registry.markGeometricContext({
+      chunkId: "chunk-prefix-open-2",
+      source: "spectral_manifold",
+      regionId: "go to",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.9,
+      frameCount: 32,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-prefix-open-2",
+      transcript: "go to github dot com",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 25,
+      },
+    });
+    const shardHint = derivePolicyShapedAtlasShardHint(envelope);
+    const routePlan = deriveMultiResolutionAtlasPlan(shardHint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open github.com",
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-prefix-open-lookup",
+      regionId: "open",
+      parameterType: "open",
+      transcriptTailHint: "github.com",
+      forceCandidateScan: true,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: shardHint,
+      multiResolutionAtlasPlan: routePlan,
+    });
+
+    expect(lookup.lookupCandidateCount).toBeGreaterThanOrEqual(2);
+    expect(lookup.bestCanonicalMergedText).toBe("open github.com");
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingApplied).toBe(true);
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingBoost).toBeGreaterThan(0);
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId).toBe("prefix_open");
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId).toBe("prefix_open");
+  });
+
+  it("keeps advisory no-boost when prefix band does not match candidate in family-atlas pool", () => {
+    const registry = new VoiceSemanticAddressRegistry();
+    registry.markGeometricContext({
+      chunkId: "chunk-prefix-go-1",
+      source: "spectral_manifold",
+      regionId: "go to",
+      commandClass: "parameterized",
+      parameterType: "open",
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      confidence: 0.9,
+      frameCount: 32,
+    });
+    registry.registerFromGovernedExecution({
+      chunkId: "chunk-prefix-go-1",
+      transcript: "go to docs.python.org",
+      policyGranted: true,
+      h23StepCount: 4,
+      h24FinalGranted: true,
+    });
+
+    const envelope = buildFocusConditionedCommandContext({
+      snapshot: {
+        appId: "chrome",
+        regionId: "address-bar",
+        controlId: "omnibox",
+        focusConfidence: 0.95,
+        authorityType: "verified",
+        snapshotAgeMs: 25,
+      },
+    });
+    const shardHint = derivePolicyShapedAtlasShardHint(envelope);
+    const routePlan = deriveMultiResolutionAtlasPlan(shardHint, {
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      canonicalMergedText: "open docs.python.org",
+    });
+
+    const lookup = registry.lookup({
+      chunkId: "chunk-prefix-go-lookup",
+      regionId: "open",
+      parameterType: "open",
+      transcriptTailHint: "docs.python.org",
+      forceCandidateScan: true,
+      atlasVersion: "v1",
+      atlasSchema: "h3_command_atlas_v1",
+      focusContextEnvelope: envelope,
+      atlasShardHint: shardHint,
+      multiResolutionAtlasPlan: routePlan,
+    });
+
+    expect(lookup.bestCanonicalMergedText).toBe("go to docs.python.org");
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingApplied).toBe(false);
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingBoost).toBe(0);
+    expect(lookup.multiResolutionAtlasPrefixBandRoutingReasonCodes).toContain(
+      "multi_resolution_prefix_band_no_match"
+    );
+  });
+
 });
