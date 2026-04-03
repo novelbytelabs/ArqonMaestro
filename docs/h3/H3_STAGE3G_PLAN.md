@@ -32,7 +32,18 @@ Stage 3G introduces **Counterfactual + Repair Intelligence** on top of the close
 - surface `hold_for_tail` vs `request_disambiguation` as observational guidance only
 - no lookup authority change, no repair actuation, no execution shortcut
 
-## S3 — Next
-- bounded repair-signal pilot
-- advisory-only repair trajectory shaping
+## S3 — Bounded repair-signal pilot (implemented)
+- derive bounded repair-signal pilot metadata for restart/reversal/self-correction cases
+- surface advisory `hold_for_repair` vs `continue_observing` guidance only
+- keep DEAD detection observational and non-actuating
+- add regression coverage so DEAD restart paths do not auto-mint counterexample/antibody metadata
+- no repair actuation, no authority change
+
+## S4 — Next
+- bounded counterfactual ranking / guardrail pilot
+- advisory-only candidate-competition shaping
 - no repair actuation yet
+
+## Internal communication note
+- internal stage surfaces remain type-directed / protobuf-aligned
+- JSON is reserved for human-facing artifacts and reports

@@ -3,6 +3,7 @@ export const COUNTERFACTUAL_REPAIR_POLICY_VERSION = "3g_counterfactual_repair_v1
 export const COUNTERFACTUAL_SELECTION_FUNCTION_VERSION = "3g_selection_function_v1" as const;
 export const COUNTERFACTUAL_AMBIGUITY_PILOT_VERSION = "3g_nearest_alternative_ambiguity_v1" as const;
 export const COUNTERFACTUAL_AMBIGUITY_MAX_SCORE_GAP = 0.12 as const;
+export const COUNTERFACTUAL_REPAIR_SIGNAL_PILOT_VERSION = "3g_repair_signal_pilot_v1" as const;
 
 export interface CounterfactualRepairSeed {
   semanticAddressId: string | null;
@@ -29,6 +30,18 @@ interface CounterfactualAmbiguityPilot {
   scoreGap: number | null;
   escalationSuggested: boolean;
   escalationKind: "hold_for_tail" | "request_disambiguation" | "none" | null;
+  reasonCodes: string[];
+}
+
+interface CounterfactualRepairSignalPilot {
+  applied: boolean;
+  trajectoryState: "restart" | "reversal" | "steady" | null;
+  abortedTrajectoryDetected: boolean;
+  directionReversalDetected: boolean;
+  selfCorrectionDetected: boolean;
+  repairWindowOpen: boolean;
+  escalationSuggested: boolean;
+  escalationKind: "hold_for_repair" | "continue_observing" | "none" | null;
   reasonCodes: string[];
 }
 
@@ -66,6 +79,16 @@ export interface CounterfactualRepairEvidenceFields {
   counterfactualRepairAmbiguityEscalationSuggested: boolean | null;
   counterfactualRepairAmbiguityEscalationKind: string | null;
   counterfactualRepairAmbiguityReasonCodes: string[] | null;
+  counterfactualRepairSignalPilotVersion: string | null;
+  counterfactualRepairSignalPilotApplied: boolean | null;
+  counterfactualRepairSignalTrajectoryState: string | null;
+  counterfactualRepairSignalAbortedTrajectoryDetected: boolean | null;
+  counterfactualRepairSignalDirectionReversalDetected: boolean | null;
+  counterfactualRepairSignalSelfCorrectionDetected: boolean | null;
+  counterfactualRepairSignalRepairWindowOpen: boolean | null;
+  counterfactualRepairSignalEscalationSuggested: boolean | null;
+  counterfactualRepairSignalEscalationKind: string | null;
+  counterfactualRepairSignalReasonCodes: string[] | null;
 }
 
 export function deriveCounterfactualRepairEvidenceFields(
@@ -123,6 +146,16 @@ export function deriveCounterfactualRepairEvidenceFields(
       counterfactualRepairAmbiguityEscalationSuggested: false,
       counterfactualRepairAmbiguityEscalationKind: null,
       counterfactualRepairAmbiguityReasonCodes: hasFailureObservation ? ['counterfactual_ambiguity_not_eligible'] : null,
+      counterfactualRepairSignalPilotVersion: hasFailureObservation ? COUNTERFACTUAL_REPAIR_SIGNAL_PILOT_VERSION : null,
+      counterfactualRepairSignalPilotApplied: false,
+      counterfactualRepairSignalTrajectoryState: null,
+      counterfactualRepairSignalAbortedTrajectoryDetected: false,
+      counterfactualRepairSignalDirectionReversalDetected: false,
+      counterfactualRepairSignalSelfCorrectionDetected: false,
+      counterfactualRepairSignalRepairWindowOpen: false,
+      counterfactualRepairSignalEscalationSuggested: false,
+      counterfactualRepairSignalEscalationKind: null,
+      counterfactualRepairSignalReasonCodes: hasFailureObservation ? ['counterfactual_repair_signal_not_eligible'] : null,
     };
   }
 
@@ -141,6 +174,7 @@ export function deriveCounterfactualRepairEvidenceFields(
   const stressEvent = deriveStressEvent(counterexampleCaptured, deadObservation.detected, ambiguityBand);
   const ouroborosEvent = deriveOuroborosEvent(counterexampleCaptured, deadObservation.detected);
   const ambiguityPilot = deriveAmbiguityPilot(population, ambiguityBand, repairSignal);
+  const repairSignalPilot = deriveRepairSignalPilot(repairSignal, deadObservation);
 
   return {
     counterfactualRepairSchemaVersion: COUNTERFACTUAL_REPAIR_SCHEMA_VERSION,
@@ -189,6 +223,16 @@ export function deriveCounterfactualRepairEvidenceFields(
     counterfactualRepairAmbiguityEscalationSuggested: ambiguityPilot.escalationSuggested,
     counterfactualRepairAmbiguityEscalationKind: ambiguityPilot.escalationKind,
     counterfactualRepairAmbiguityReasonCodes: ambiguityPilot.reasonCodes,
+    counterfactualRepairSignalPilotVersion: COUNTERFACTUAL_REPAIR_SIGNAL_PILOT_VERSION,
+    counterfactualRepairSignalPilotApplied: repairSignalPilot.applied,
+    counterfactualRepairSignalTrajectoryState: repairSignalPilot.trajectoryState,
+    counterfactualRepairSignalAbortedTrajectoryDetected: repairSignalPilot.abortedTrajectoryDetected,
+    counterfactualRepairSignalDirectionReversalDetected: repairSignalPilot.directionReversalDetected,
+    counterfactualRepairSignalSelfCorrectionDetected: repairSignalPilot.selfCorrectionDetected,
+    counterfactualRepairSignalRepairWindowOpen: repairSignalPilot.repairWindowOpen,
+    counterfactualRepairSignalEscalationSuggested: repairSignalPilot.escalationSuggested,
+    counterfactualRepairSignalEscalationKind: repairSignalPilot.escalationKind,
+    counterfactualRepairSignalReasonCodes: repairSignalPilot.reasonCodes,
   };
 }
 
@@ -225,11 +269,11 @@ function deriveRepairSignal(transcriptText: string | null, canonicalMergedText: 
     return null;
   }
   const normalizedTranscript = transcriptText.toLowerCase();
-  if (/(?:^|\s)\w{1,8}[-—]\s*\w+/.test(normalizedTranscript)) {
-    return 'self_correction_hint';
-  }
   if (normalizedTranscript.includes(' no ') || normalizedTranscript.includes(' actually ')) {
     return 'spoken_reversal_hint';
+  }
+  if (/(?:^|\s)\w{1,8}[-—]\s*\w+/.test(normalizedTranscript)) {
+    return 'self_correction_hint';
   }
   if (normalizedTranscript.trim() && normalizedTranscript.trim() !== canonicalMergedText) {
     return 'transcript_merge_divergence';
@@ -313,6 +357,50 @@ function deriveAmbiguityPilot(
       closeEnough ? 'counterfactual_ambiguity_close_gap' : 'counterfactual_ambiguity_wide_gap',
       `counterfactual_ambiguity_band_${ambiguityBand}`,
       `counterfactual_ambiguity_escalation_${normalizeReasonToken(escalationKind)}`,
+    ],
+  };
+}
+
+function deriveRepairSignalPilot(
+  repairSignal: string | null,
+  deadObservation: { detected: boolean; reason: string | null }
+): CounterfactualRepairSignalPilot {
+  const selfCorrectionDetected = repairSignal === 'self_correction_hint';
+  const directionReversalDetected = repairSignal === 'spoken_reversal_hint';
+  const abortedTrajectoryDetected = deadObservation.detected;
+  const applied = selfCorrectionDetected || directionReversalDetected || abortedTrajectoryDetected;
+  if (!applied) {
+    return {
+      applied: false,
+      trajectoryState: null,
+      abortedTrajectoryDetected: false,
+      directionReversalDetected: false,
+      selfCorrectionDetected: false,
+      repairWindowOpen: false,
+      escalationSuggested: false,
+      escalationKind: null,
+      reasonCodes: ['counterfactual_repair_signal_not_eligible'],
+    };
+  }
+  const trajectoryState = selfCorrectionDetected
+    ? 'restart'
+    : directionReversalDetected
+      ? 'reversal'
+      : 'steady';
+  const escalationKind = selfCorrectionDetected || directionReversalDetected ? 'hold_for_repair' : 'continue_observing';
+  return {
+    applied: true,
+    trajectoryState,
+    abortedTrajectoryDetected,
+    directionReversalDetected,
+    selfCorrectionDetected,
+    repairWindowOpen: abortedTrajectoryDetected,
+    escalationSuggested: true,
+    escalationKind,
+    reasonCodes: [
+      `counterfactual_repair_signal_${trajectoryState}`,
+      abortedTrajectoryDetected ? 'counterfactual_repair_signal_dead_detected' : 'counterfactual_repair_signal_dead_not_detected',
+      `counterfactual_repair_signal_escalation_${normalizeReasonToken(escalationKind)}`,
     ],
   };
 }

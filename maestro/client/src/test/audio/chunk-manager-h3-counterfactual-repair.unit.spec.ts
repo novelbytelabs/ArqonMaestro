@@ -19,6 +19,7 @@ const cfhMockFactory = () => ({
 
 describe("ChunkManager H3 counterfactual repair evidence", () => {
   afterEach(() => {
+    jest.dontMock("../../main/stt/cfh");
     jest.restoreAllMocks();
     jest.resetModules();
   });
@@ -79,6 +80,14 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
         counterfactualRepairSelectionWinnerSemanticAddressId: "open_github",
         counterfactualRepairDeadDetected: true,
         counterfactualRepairDeadReason: "trajectory_restart_detected",
+        counterfactualRepairCounterexampleCaptured: false,
+        counterfactualRepairAntibodyEligible: false,
+        counterfactualRepairSignalPilotVersion: "3g_repair_signal_pilot_v1",
+        counterfactualRepairSignalPilotApplied: true,
+        counterfactualRepairSignalTrajectoryState: "restart",
+        counterfactualRepairSignalRepairWindowOpen: true,
+        counterfactualRepairSignalEscalationSuggested: true,
+        counterfactualRepairSignalEscalationKind: "hold_for_repair",
         counterfactualRepairAmbiguityPilotVersion: "3g_nearest_alternative_ambiguity_v1",
         counterfactualRepairAmbiguityPilotApplied: true,
         counterfactualRepairAmbiguityEscalationSuggested: true,

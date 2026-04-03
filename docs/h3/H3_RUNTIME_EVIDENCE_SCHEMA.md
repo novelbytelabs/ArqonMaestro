@@ -30,6 +30,18 @@ Stage 3G-S2 adds bounded nearest-alternative ambiguity pilot fields in `3g_neare
 - `counterfactualRepairAmbiguityEscalationKind`
 - `counterfactualRepairAmbiguityReasonCodes`
 
+Stage 3G-S3 adds bounded repair-signal pilot fields in `3g_repair_signal_pilot_v1`:
+- `counterfactualRepairSignalPilotVersion`
+- `counterfactualRepairSignalPilotApplied`
+- `counterfactualRepairSignalTrajectoryState`
+- `counterfactualRepairSignalAbortedTrajectoryDetected`
+- `counterfactualRepairSignalDirectionReversalDetected`
+- `counterfactualRepairSignalSelfCorrectionDetected`
+- `counterfactualRepairSignalRepairWindowOpen`
+- `counterfactualRepairSignalEscalationSuggested`
+- `counterfactualRepairSignalEscalationKind`
+- `counterfactualRepairSignalReasonCodes`
+
 Meaning:
 - nearest-alternative is surfaced as a bounded observational candidate population with normalized scores
 - a deterministic observational Selection Function contract picks the current winner
@@ -38,3 +50,6 @@ Meaning:
 - the ambiguity pilot observes when the top-2 nearest alternatives are close enough to justify advisory escalation
 - `hold_for_tail` vs `request_disambiguation` remains advisory-only in this slice
 - Stage 3G-S2 remains advisory-only and may not alter lookup authority, governance, or execution rights
+
+- the repair-signal pilot observes restart/reversal/self-correction state and can suggest `hold_for_repair` advisory handling only
+- internal stage data remains type-directed and protobuf-aligned; JSON stays human-facing only

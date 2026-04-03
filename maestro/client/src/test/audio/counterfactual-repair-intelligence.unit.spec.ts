@@ -86,4 +86,65 @@ describe("counterfactual repair intelligence", () => {
     expect(result.counterfactualRepairAmbiguityEscalationKind).toBe("request_disambiguation");
     expect(result.counterfactualRepairAmbiguityReasonCodes).toContain("counterfactual_ambiguity_close_gap");
   });
+
+
+  it("does not auto-mint counterexample metadata for DEAD restart observations", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: "open_docs",
+      canonicalMergedText: "open docs.python.org",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      transcriptText: "open do- docs.python.org",
+      eventName: "voice_semantic_address_lookup_completed",
+    });
+
+    expect(result.counterfactualRepairDeadDetected).toBe(true);
+    expect(result.counterfactualRepairCounterexampleCaptured).toBe(false);
+    expect(result.counterfactualRepairAntibodyEligible).toBe(false);
+    expect(result.counterfactualRepairStressEvent).toBe("metabolic_repair_observed");
+  });
+
+  it("derives repair-signal pilot metadata for self-correction restarts", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: "open_docs",
+      canonicalMergedText: "open docs.python.org",
+      regionId: "open",
+      commandClass: "parameterized",
+      parameterType: "open",
+      transcriptText: "open do- docs.python.org",
+      eventName: "voice_semantic_address_lookup_completed",
+    });
+
+    expect(result.counterfactualRepairSignalPilotVersion).toBe("3g_repair_signal_pilot_v1");
+    expect(result.counterfactualRepairSignalPilotApplied).toBe(true);
+    expect(result.counterfactualRepairSignalTrajectoryState).toBe("restart");
+    expect(result.counterfactualRepairSignalAbortedTrajectoryDetected).toBe(true);
+    expect(result.counterfactualRepairSignalSelfCorrectionDetected).toBe(true);
+    expect(result.counterfactualRepairSignalDirectionReversalDetected).toBe(false);
+    expect(result.counterfactualRepairSignalRepairWindowOpen).toBe(true);
+    expect(result.counterfactualRepairSignalEscalationSuggested).toBe(true);
+    expect(result.counterfactualRepairSignalEscalationKind).toBe("hold_for_repair");
+    expect(result.counterfactualRepairSignalReasonCodes).toContain("counterfactual_repair_signal_restart");
+  });
+
+  it("derives repair-signal pilot metadata for spoken reversals", () => {
+    const result = deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: "go_to_line_52",
+      canonicalMergedText: "go to line 52",
+      regionId: "go_to",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      transcriptText: "go to li- no go to line 52",
+      eventName: "voice_semantic_address_lookup_completed",
+    });
+
+    expect(result.counterfactualRepairRepairSignal).toBe("spoken_reversal_hint");
+    expect(result.counterfactualRepairSignalPilotApplied).toBe(true);
+    expect(result.counterfactualRepairSignalTrajectoryState).toBe("reversal");
+    expect(result.counterfactualRepairSignalDirectionReversalDetected).toBe(true);
+    expect(result.counterfactualRepairSignalSelfCorrectionDetected).toBe(false);
+    expect(result.counterfactualRepairSignalEscalationKind).toBe("hold_for_repair");
+  });
+
 });

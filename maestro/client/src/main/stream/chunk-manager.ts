@@ -1916,6 +1916,16 @@ export default class ChunkManager {
       counterfactualRepairAmbiguityEscalationSuggested: overrides.counterfactualRepairAmbiguityEscalationSuggested ?? counterfactualRepairFields.counterfactualRepairAmbiguityEscalationSuggested,
       counterfactualRepairAmbiguityEscalationKind: overrides.counterfactualRepairAmbiguityEscalationKind ?? counterfactualRepairFields.counterfactualRepairAmbiguityEscalationKind,
       counterfactualRepairAmbiguityReasonCodes: overrides.counterfactualRepairAmbiguityReasonCodes ?? counterfactualRepairFields.counterfactualRepairAmbiguityReasonCodes,
+      counterfactualRepairSignalPilotVersion: overrides.counterfactualRepairSignalPilotVersion ?? counterfactualRepairFields.counterfactualRepairSignalPilotVersion,
+      counterfactualRepairSignalPilotApplied: overrides.counterfactualRepairSignalPilotApplied ?? counterfactualRepairFields.counterfactualRepairSignalPilotApplied,
+      counterfactualRepairSignalTrajectoryState: overrides.counterfactualRepairSignalTrajectoryState ?? counterfactualRepairFields.counterfactualRepairSignalTrajectoryState,
+      counterfactualRepairSignalAbortedTrajectoryDetected: overrides.counterfactualRepairSignalAbortedTrajectoryDetected ?? counterfactualRepairFields.counterfactualRepairSignalAbortedTrajectoryDetected,
+      counterfactualRepairSignalDirectionReversalDetected: overrides.counterfactualRepairSignalDirectionReversalDetected ?? counterfactualRepairFields.counterfactualRepairSignalDirectionReversalDetected,
+      counterfactualRepairSignalSelfCorrectionDetected: overrides.counterfactualRepairSignalSelfCorrectionDetected ?? counterfactualRepairFields.counterfactualRepairSignalSelfCorrectionDetected,
+      counterfactualRepairSignalRepairWindowOpen: overrides.counterfactualRepairSignalRepairWindowOpen ?? counterfactualRepairFields.counterfactualRepairSignalRepairWindowOpen,
+      counterfactualRepairSignalEscalationSuggested: overrides.counterfactualRepairSignalEscalationSuggested ?? counterfactualRepairFields.counterfactualRepairSignalEscalationSuggested,
+      counterfactualRepairSignalEscalationKind: overrides.counterfactualRepairSignalEscalationKind ?? counterfactualRepairFields.counterfactualRepairSignalEscalationKind,
+      counterfactualRepairSignalReasonCodes: overrides.counterfactualRepairSignalReasonCodes ?? counterfactualRepairFields.counterfactualRepairSignalReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
     });

@@ -161,6 +161,16 @@ export interface H3RuntimeEvidenceEvent {
   counterfactualRepairAmbiguityEscalationSuggested: boolean | null;
   counterfactualRepairAmbiguityEscalationKind: string | null;
   counterfactualRepairAmbiguityReasonCodes: string[] | null;
+  counterfactualRepairSignalPilotVersion: string | null;
+  counterfactualRepairSignalPilotApplied: boolean | null;
+  counterfactualRepairSignalTrajectoryState: string | null;
+  counterfactualRepairSignalAbortedTrajectoryDetected: boolean | null;
+  counterfactualRepairSignalDirectionReversalDetected: boolean | null;
+  counterfactualRepairSignalSelfCorrectionDetected: boolean | null;
+  counterfactualRepairSignalRepairWindowOpen: boolean | null;
+  counterfactualRepairSignalEscalationSuggested: boolean | null;
+  counterfactualRepairSignalEscalationKind: string | null;
+  counterfactualRepairSignalReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -361,6 +371,26 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.counterfactualRepairAmbiguityEscalationKind ?? null,
     counterfactualRepairAmbiguityReasonCodes:
       input.counterfactualRepairAmbiguityReasonCodes ?? null,
+    counterfactualRepairSignalPilotVersion:
+      input.counterfactualRepairSignalPilotVersion ?? null,
+    counterfactualRepairSignalPilotApplied:
+      input.counterfactualRepairSignalPilotApplied ?? null,
+    counterfactualRepairSignalTrajectoryState:
+      input.counterfactualRepairSignalTrajectoryState ?? null,
+    counterfactualRepairSignalAbortedTrajectoryDetected:
+      input.counterfactualRepairSignalAbortedTrajectoryDetected ?? null,
+    counterfactualRepairSignalDirectionReversalDetected:
+      input.counterfactualRepairSignalDirectionReversalDetected ?? null,
+    counterfactualRepairSignalSelfCorrectionDetected:
+      input.counterfactualRepairSignalSelfCorrectionDetected ?? null,
+    counterfactualRepairSignalRepairWindowOpen:
+      input.counterfactualRepairSignalRepairWindowOpen ?? null,
+    counterfactualRepairSignalEscalationSuggested:
+      input.counterfactualRepairSignalEscalationSuggested ?? null,
+    counterfactualRepairSignalEscalationKind:
+      input.counterfactualRepairSignalEscalationKind ?? null,
+    counterfactualRepairSignalReasonCodes:
+      input.counterfactualRepairSignalReasonCodes ?? null,
   };
 }
 
