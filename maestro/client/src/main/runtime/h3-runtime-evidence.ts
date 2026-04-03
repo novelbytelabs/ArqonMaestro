@@ -193,6 +193,18 @@ export interface H3RuntimeEvidenceEvent {
   counterfactualRepairAntibodyQuarantineBand: string | null;
   counterfactualRepairAntibodyValidationGateHint: string | null;
   counterfactualRepairAntibodyPilotReasonCodes: string[] | null;
+  dynamicPrecisionSchemaVersion: string | null;
+  dynamicPrecisionPolicyVersion: string | null;
+  dynamicPrecisionEligible: boolean | null;
+  dynamicPrecisionObservedFamily: string | null;
+  dynamicPrecisionBaselineRegime: string | null;
+  dynamicPrecisionSuggestedRegime: string | null;
+  dynamicPrecisionEscalationEligible: boolean | null;
+  dynamicPrecisionObservedAmbiguityBand: string | null;
+  dynamicPrecisionObservedRepairWindowOpen: boolean | null;
+  dynamicPrecisionObservedStressBand: string | null;
+  dynamicPrecisionSource: string | null;
+  dynamicPrecisionReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -457,6 +469,30 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.counterfactualRepairAntibodyValidationGateHint ?? null,
     counterfactualRepairAntibodyPilotReasonCodes:
       input.counterfactualRepairAntibodyPilotReasonCodes ?? null,
+    dynamicPrecisionSchemaVersion:
+      input.dynamicPrecisionSchemaVersion ?? null,
+    dynamicPrecisionPolicyVersion:
+      input.dynamicPrecisionPolicyVersion ?? null,
+    dynamicPrecisionEligible:
+      input.dynamicPrecisionEligible ?? null,
+    dynamicPrecisionObservedFamily:
+      input.dynamicPrecisionObservedFamily ?? null,
+    dynamicPrecisionBaselineRegime:
+      input.dynamicPrecisionBaselineRegime ?? null,
+    dynamicPrecisionSuggestedRegime:
+      input.dynamicPrecisionSuggestedRegime ?? null,
+    dynamicPrecisionEscalationEligible:
+      input.dynamicPrecisionEscalationEligible ?? null,
+    dynamicPrecisionObservedAmbiguityBand:
+      input.dynamicPrecisionObservedAmbiguityBand ?? null,
+    dynamicPrecisionObservedRepairWindowOpen:
+      input.dynamicPrecisionObservedRepairWindowOpen ?? null,
+    dynamicPrecisionObservedStressBand:
+      input.dynamicPrecisionObservedStressBand ?? null,
+    dynamicPrecisionSource:
+      input.dynamicPrecisionSource ?? null,
+    dynamicPrecisionReasonCodes:
+      input.dynamicPrecisionReasonCodes ?? null,
   };
 }
 

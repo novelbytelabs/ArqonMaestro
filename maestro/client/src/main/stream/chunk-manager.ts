@@ -58,6 +58,9 @@ import {
 import {
   deriveCounterfactualRepairEvidenceFields,
 } from "../runtime/counterfactual-repair-intelligence";
+import {
+  deriveDynamicPrecisionRegimeObservation,
+} from "../runtime/dynamic-precision-regimes";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
@@ -1707,6 +1710,37 @@ export default class ChunkManager {
     });
   }
 
+  private getDynamicPrecisionEvidenceFields(
+    chunkId: string,
+    seed: Partial<{
+      regionId: string | null;
+      commandClass: string | null;
+      parameterType: string | null;
+      ambiguityBand: string | null;
+      repairWindowOpen: boolean | null;
+      stressBand: string | null;
+    }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveDynamicPrecisionRegimeObservation({
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      ambiguityBand:
+        seed.ambiguityBand === "low" || seed.ambiguityBand === "medium" || seed.ambiguityBand === "high"
+          ? seed.ambiguityBand
+          : null,
+      repairWindowOpen: seed.repairWindowOpen ?? null,
+      stressBand:
+        seed.stressBand === "nominal" || seed.stressBand === "elevated" || seed.stressBand === "critical"
+          ? seed.stressBand
+          : null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
@@ -1732,6 +1766,14 @@ export default class ChunkManager {
       transcriptText: overrides.transcriptText ?? undefined,
       reason: (overrides as any).reason ?? undefined,
       finalGranted: decision?.granted ?? undefined,
+    });
+    const dynamicPrecisionFields = this.getDynamicPrecisionEvidenceFields(chunkId, {
+      regionId: overrides.regionId ?? latest?.regionId ?? null,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? null,
+      ambiguityBand: counterfactualRepairFields.counterfactualRepairAmbiguityBand,
+      repairWindowOpen: counterfactualRepairFields.counterfactualRepairSignalRepairWindowOpen,
+      stressBand: counterfactualRepairFields.counterfactualRepairStressBand,
     });
     emitH3RuntimeEvidence({
       event: eventName,
@@ -1950,6 +1992,30 @@ export default class ChunkManager {
       counterfactualRepairAntibodyPilotReasonCodes: overrides.counterfactualRepairAntibodyPilotReasonCodes ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
+      dynamicPrecisionSchemaVersion:
+        overrides.dynamicPrecisionSchemaVersion ?? dynamicPrecisionFields.dynamicPrecisionSchemaVersion,
+      dynamicPrecisionPolicyVersion:
+        overrides.dynamicPrecisionPolicyVersion ?? dynamicPrecisionFields.dynamicPrecisionPolicyVersion,
+      dynamicPrecisionEligible:
+        overrides.dynamicPrecisionEligible ?? dynamicPrecisionFields.dynamicPrecisionEligible,
+      dynamicPrecisionObservedFamily:
+        overrides.dynamicPrecisionObservedFamily ?? dynamicPrecisionFields.dynamicPrecisionObservedFamily,
+      dynamicPrecisionBaselineRegime:
+        overrides.dynamicPrecisionBaselineRegime ?? dynamicPrecisionFields.dynamicPrecisionBaselineRegime,
+      dynamicPrecisionSuggestedRegime:
+        overrides.dynamicPrecisionSuggestedRegime ?? dynamicPrecisionFields.dynamicPrecisionSuggestedRegime,
+      dynamicPrecisionEscalationEligible:
+        overrides.dynamicPrecisionEscalationEligible ?? dynamicPrecisionFields.dynamicPrecisionEscalationEligible,
+      dynamicPrecisionObservedAmbiguityBand:
+        overrides.dynamicPrecisionObservedAmbiguityBand ?? dynamicPrecisionFields.dynamicPrecisionObservedAmbiguityBand,
+      dynamicPrecisionObservedRepairWindowOpen:
+        overrides.dynamicPrecisionObservedRepairWindowOpen ?? dynamicPrecisionFields.dynamicPrecisionObservedRepairWindowOpen,
+      dynamicPrecisionObservedStressBand:
+        overrides.dynamicPrecisionObservedStressBand ?? dynamicPrecisionFields.dynamicPrecisionObservedStressBand,
+      dynamicPrecisionSource:
+        overrides.dynamicPrecisionSource ?? dynamicPrecisionFields.dynamicPrecisionSource,
+      dynamicPrecisionReasonCodes:
+        overrides.dynamicPrecisionReasonCodes ?? dynamicPrecisionFields.dynamicPrecisionReasonCodes,
     });
   }
 

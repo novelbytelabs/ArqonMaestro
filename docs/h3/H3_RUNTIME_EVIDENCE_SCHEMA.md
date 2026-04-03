@@ -87,3 +87,23 @@ Notes:
 - no persistence / registry minting yet
 - no antibody gate activation yet
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3H-S1 dynamic precision observational contract
+- `dynamicPrecisionSchemaVersion`
+- `dynamicPrecisionPolicyVersion`
+- `dynamicPrecisionEligible`
+- `dynamicPrecisionObservedFamily`
+- `dynamicPrecisionBaselineRegime`
+- `dynamicPrecisionSuggestedRegime`
+- `dynamicPrecisionEscalationEligible`
+- `dynamicPrecisionObservedAmbiguityBand`
+- `dynamicPrecisionObservedRepairWindowOpen`
+- `dynamicPrecisionObservedStressBand`
+- `dynamicPrecisionSource`
+- `dynamicPrecisionReasonCodes`
+
+Notes:
+- observational contract only
+- no live Turbo/Tight/Ultra switching yet
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

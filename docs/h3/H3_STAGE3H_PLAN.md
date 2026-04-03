@@ -7,7 +7,7 @@ Stage:
 3H — Dynamic Precision Regimes
 
 Status:
-Planned, not yet implemented
+S1 implemented, S2 next
 
 Audience:
 - engineers
@@ -96,12 +96,24 @@ ArqonHPO acts as the primary actuation engine.
 ## Slice plan
 
 ### 3H-S1 — regime observational contract
+Status:
+Implemented
+
 Scope:
 - add regime evidence surface only
 - define regime identifiers, sources, reasons, and state fields
 - no live switching yet
 
+Delivered:
+- observational regime evidence derived from 3G ambiguity / repair / stress signals
+- family-aware baseline regime mapping for reflex / bounded / numeric / open
+- protobuf/type-directed internal note preserved
+- no live regime switching or authority change
+
 ### 3H-S2 — bounded escalation trigger pilot
+Status:
+Next
+
 Scope:
 - use ambiguity and instability signals to propose regime escalation
 - no autonomous authority change

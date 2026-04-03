@@ -1,3 +1,5 @@
+export {};
+
 const cfhMockFactory = () => ({
   SIG_BYTES: 128,
   SIG_U64S: 16,
