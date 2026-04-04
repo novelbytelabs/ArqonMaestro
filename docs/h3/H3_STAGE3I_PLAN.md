@@ -55,18 +55,29 @@ Delivered:
 
 ### 3I-S2 — bounded continuity ranking pilot
 Status:
+Implemented
+
+Delivered:
+- session-local continuity prior derivation from previously seen governed transitions
+- bounded continuity-ranking metadata on best-candidate / semantic-address evidence surfaces
+- no authority change
+- no persistence
+
+### 3I-S3 — continuity-assisted candidate ordering hookup
+Status:
 Next
 
 Intended direction:
-- advisory-only ranking reshaping from previously seen governed transitions
-- bounded continuity priors into candidate ordering only
+- connect bounded workflow-memory continuity priors into candidate-pool ordering inside governed lookup
+- keep continuity shaping advisory-only and ranking-scoped
 - no authority change
 
 ## Explicit non-goals at stage opening
 
-Not in 3I-S1:
+Not in 3I-S2:
 - persistent learned workflow memory
 - distributed workflow memory
 - macro recording / playback
 - hidden action chaining
 - authority changes
+- candidate-pool ordering hookup beyond emitted ranking metadata

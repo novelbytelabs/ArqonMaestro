@@ -159,4 +159,108 @@ describe("ChunkManager H3 workflow memory evidence", () => {
       })
     );
   });
+
+
+it("emits bounded workflow-memory ranking metadata for a previously seen governed transition", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_rank_seed_1",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    semanticAddressId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_rank_seed_2",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_rank_seed_3",
+  });
+
+  decisionSpy.mockReturnValue({ granted: false });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    bestCandidateId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_rank_probe",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      workflowMemoryRankingVersion: "3i_bounded_continuity_ranking_v1",
+      workflowMemoryRankingEligible: true,
+      workflowMemoryRankingApplied: true,
+      workflowMemoryRankingBoost: 0.06,
+      workflowMemoryRankingPreviousSemanticAddressId: "open_file",
+      workflowMemoryRankingCandidateSemanticAddressId: "go_to_line",
+      workflowMemoryRankingMatchedTransitionKey: "open_file->go_to_line",
+      workflowMemoryRankingTransitionCount: 1,
+      workflowMemoryRankingSeenBefore: true,
+      workflowMemoryRankingSource: "h3_runtime_evidence",
+    })
+  );
+});
+
+it("keeps workflow-memory ranking metadata non-applied when no prior governed transition exists", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: false });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    bestCandidateId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_rank_unseeded",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      workflowMemoryRankingVersion: "3i_bounded_continuity_ranking_v1",
+      workflowMemoryRankingEligible: false,
+      workflowMemoryRankingApplied: false,
+      workflowMemoryRankingBoost: 0,
+      workflowMemoryRankingPreviousSemanticAddressId: null,
+      workflowMemoryRankingCandidateSemanticAddressId: "go_to_line",
+      workflowMemoryRankingMatchedTransitionKey: null,
+      workflowMemoryRankingSeenBefore: false,
+    })
+  );
+});
 });

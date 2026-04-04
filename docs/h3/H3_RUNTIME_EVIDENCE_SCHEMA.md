@@ -181,3 +181,24 @@ Notes:
 - no ranking actuation yet
 - no macro execution
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+## Stage 3I-S2 bounded continuity ranking pilot
+- workflowMemoryRankingVersion
+- workflowMemoryRankingEligible
+- workflowMemoryRankingApplied
+- workflowMemoryRankingBoost
+- workflowMemoryRankingPreviousSemanticAddressId
+- workflowMemoryRankingCandidateSemanticAddressId
+- workflowMemoryRankingMatchedTransitionKey
+- workflowMemoryRankingTransitionCount
+- workflowMemoryRankingSeenBefore
+- workflowMemoryRankingSource
+- workflowMemoryRankingReasonCodes
+
+Notes:
+- bounded advisory continuity-ranking pilot only
+- ranking prior is derived from previously seen governed transitions
+- the pilot currently emits continuity-ranking metadata on best-candidate / semantic-address evidence surfaces
+- no persistence / distributed cache
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

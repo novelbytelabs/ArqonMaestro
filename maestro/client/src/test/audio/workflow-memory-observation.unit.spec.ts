@@ -1,4 +1,5 @@
 import { deriveWorkflowMemoryObservation } from "../../main/runtime/workflow-memory-observation";
+import { deriveWorkflowMemoryContinuityRanking } from "../../main/runtime/workflow-memory-continuity-ranking";
 
 describe("workflow memory observation", () => {
   it("records first governed semantic address without continuity suggestion", () => {
@@ -82,5 +83,49 @@ describe("workflow memory observation", () => {
       })
     );
     expect(second.nextState.lastGovernedSemanticAddressId).toBe("open_file");
+  });
+});
+
+
+describe("workflow memory continuity ranking", () => {
+  it("applies a bounded boost for a previously seen governed transition", () => {
+    const fields = deriveWorkflowMemoryContinuityRanking({
+      previousSemanticAddressId: "open_file",
+      candidateSemanticAddressId: "go_to_line",
+      transitionCounts: { "open_file->go_to_line": 2 },
+      continuationSuggested: true,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryRankingVersion: "3i_bounded_continuity_ranking_v1",
+        workflowMemoryRankingEligible: true,
+        workflowMemoryRankingApplied: true,
+        workflowMemoryRankingBoost: 0.12,
+        workflowMemoryRankingMatchedTransitionKey: "open_file->go_to_line",
+        workflowMemoryRankingTransitionCount: 2,
+        workflowMemoryRankingSeenBefore: true,
+      })
+    );
+  });
+
+  it("stays non-applied when the transition has not been seen before", () => {
+    const fields = deriveWorkflowMemoryContinuityRanking({
+      previousSemanticAddressId: "open_file",
+      candidateSemanticAddressId: "go_to_line",
+      transitionCounts: {},
+      continuationSuggested: false,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryRankingEligible: false,
+        workflowMemoryRankingApplied: false,
+        workflowMemoryRankingBoost: 0,
+        workflowMemoryRankingMatchedTransitionKey: "open_file->go_to_line",
+        workflowMemoryRankingTransitionCount: 0,
+        workflowMemoryRankingSeenBefore: false,
+      })
+    );
   });
 });

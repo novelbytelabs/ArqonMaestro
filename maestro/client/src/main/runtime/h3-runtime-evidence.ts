@@ -240,6 +240,17 @@ export interface H3RuntimeEvidenceEvent {
   workflowMemoryGovernedStateUpdated: boolean | null;
   workflowMemorySource: string | null;
   workflowMemoryReasonCodes: string[] | null;
+  workflowMemoryRankingVersion: string | null;
+  workflowMemoryRankingEligible: boolean | null;
+  workflowMemoryRankingApplied: boolean | null;
+  workflowMemoryRankingBoost: number | null;
+  workflowMemoryRankingPreviousSemanticAddressId: string | null;
+  workflowMemoryRankingCandidateSemanticAddressId: string | null;
+  workflowMemoryRankingMatchedTransitionKey: string | null;
+  workflowMemoryRankingTransitionCount: number | null;
+  workflowMemoryRankingSeenBefore: boolean | null;
+  workflowMemoryRankingSource: string | null;
+  workflowMemoryRankingReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -598,6 +609,28 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowMemorySource ?? null,
     workflowMemoryReasonCodes:
       input.workflowMemoryReasonCodes ?? null,
+    workflowMemoryRankingVersion:
+      input.workflowMemoryRankingVersion ?? null,
+    workflowMemoryRankingEligible:
+      input.workflowMemoryRankingEligible ?? null,
+    workflowMemoryRankingApplied:
+      input.workflowMemoryRankingApplied ?? null,
+    workflowMemoryRankingBoost:
+      input.workflowMemoryRankingBoost ?? null,
+    workflowMemoryRankingPreviousSemanticAddressId:
+      input.workflowMemoryRankingPreviousSemanticAddressId ?? null,
+    workflowMemoryRankingCandidateSemanticAddressId:
+      input.workflowMemoryRankingCandidateSemanticAddressId ?? null,
+    workflowMemoryRankingMatchedTransitionKey:
+      input.workflowMemoryRankingMatchedTransitionKey ?? null,
+    workflowMemoryRankingTransitionCount:
+      input.workflowMemoryRankingTransitionCount ?? null,
+    workflowMemoryRankingSeenBefore:
+      input.workflowMemoryRankingSeenBefore ?? null,
+    workflowMemoryRankingSource:
+      input.workflowMemoryRankingSource ?? null,
+    workflowMemoryRankingReasonCodes:
+      input.workflowMemoryRankingReasonCodes ?? null,
   };
 }
 

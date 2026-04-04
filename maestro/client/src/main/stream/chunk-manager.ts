@@ -63,6 +63,7 @@ import {
 } from "../runtime/dynamic-precision-regimes";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { deriveWorkflowMemoryObservation } from "../runtime/workflow-memory-observation";
+import { deriveWorkflowMemoryContinuityRanking } from "../runtime/workflow-memory-continuity-ranking";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -1779,6 +1780,34 @@ export default class ChunkManager {
     return fields;
   }
 
+  private getWorkflowMemoryRankingFields(
+    seed: Partial<{
+      candidateSemanticAddressId: string | null;
+      continuationSuggested: boolean | null;
+    }> = {}
+  ) {
+    const workflowState = this.getWorkflowMemoryState();
+    const candidateSemanticAddressId = seed.candidateSemanticAddressId ?? null;
+    const previousSemanticAddressId = workflowState.lastGovernedSemanticAddressId ?? null;
+    const transitionKey =
+      previousSemanticAddressId &&
+      candidateSemanticAddressId &&
+      previousSemanticAddressId !== candidateSemanticAddressId
+        ? `${previousSemanticAddressId}->${candidateSemanticAddressId}`
+        : null;
+    const transitionCount = transitionKey ? (workflowState.transitionCounts[transitionKey] ?? 0) : 0;
+    const continuationSuggested =
+      seed.continuationSuggested ?? (transitionKey ? transitionCount > 0 : false);
+
+    return deriveWorkflowMemoryContinuityRanking({
+      previousSemanticAddressId,
+      candidateSemanticAddressId,
+      transitionCounts: workflowState.transitionCounts,
+      continuationSuggested,
+      source: "h3_runtime_evidence",
+    });
+  }
+
   private getDynamicPrecisionEvidenceFields(
     chunkId: string,
     seed: Partial<{
@@ -1877,6 +1906,11 @@ export default class ChunkManager {
     const workflowMemoryFields = this.getWorkflowMemoryEvidenceFields(chunkId, eventName, {
       semanticAddressId: overrides.semanticAddressId ?? null,
       finalGranted: decision?.granted ?? null,
+    });
+    const workflowMemoryRankingFields = this.getWorkflowMemoryRankingFields({
+      candidateSemanticAddressId:
+        overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
+      continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
     });
     emitH3RuntimeEvidence({
       event: eventName,
@@ -2122,6 +2156,28 @@ export default class ChunkManager {
         overrides.workflowMemorySource ?? workflowMemoryFields.workflowMemorySource,
       workflowMemoryReasonCodes:
         overrides.workflowMemoryReasonCodes ?? workflowMemoryFields.workflowMemoryReasonCodes,
+      workflowMemoryRankingVersion:
+        overrides.workflowMemoryRankingVersion ?? workflowMemoryRankingFields.workflowMemoryRankingVersion,
+      workflowMemoryRankingEligible:
+        overrides.workflowMemoryRankingEligible ?? workflowMemoryRankingFields.workflowMemoryRankingEligible,
+      workflowMemoryRankingApplied:
+        overrides.workflowMemoryRankingApplied ?? workflowMemoryRankingFields.workflowMemoryRankingApplied,
+      workflowMemoryRankingBoost:
+        overrides.workflowMemoryRankingBoost ?? workflowMemoryRankingFields.workflowMemoryRankingBoost,
+      workflowMemoryRankingPreviousSemanticAddressId:
+        overrides.workflowMemoryRankingPreviousSemanticAddressId ?? workflowMemoryRankingFields.workflowMemoryRankingPreviousSemanticAddressId,
+      workflowMemoryRankingCandidateSemanticAddressId:
+        overrides.workflowMemoryRankingCandidateSemanticAddressId ?? workflowMemoryRankingFields.workflowMemoryRankingCandidateSemanticAddressId,
+      workflowMemoryRankingMatchedTransitionKey:
+        overrides.workflowMemoryRankingMatchedTransitionKey ?? workflowMemoryRankingFields.workflowMemoryRankingMatchedTransitionKey,
+      workflowMemoryRankingTransitionCount:
+        overrides.workflowMemoryRankingTransitionCount ?? workflowMemoryRankingFields.workflowMemoryRankingTransitionCount,
+      workflowMemoryRankingSeenBefore:
+        overrides.workflowMemoryRankingSeenBefore ?? workflowMemoryRankingFields.workflowMemoryRankingSeenBefore,
+      workflowMemoryRankingSource:
+        overrides.workflowMemoryRankingSource ?? workflowMemoryRankingFields.workflowMemoryRankingSource,
+      workflowMemoryRankingReasonCodes:
+        overrides.workflowMemoryRankingReasonCodes ?? workflowMemoryRankingFields.workflowMemoryRankingReasonCodes,
 
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
