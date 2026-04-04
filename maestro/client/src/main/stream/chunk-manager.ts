@@ -62,6 +62,7 @@ import {
   deriveDynamicPrecisionRegimeObservation,
 } from "../runtime/dynamic-precision-regimes";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
+import { deriveWorkflowMemoryObservation } from "../runtime/workflow-memory-observation";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -1734,6 +1735,50 @@ export default class ChunkManager {
     return self.chunkH3DynamicPrecisionCooldownTicksRemaining as Map<string, number>;
   }
 
+  private getWorkflowMemoryState() {
+    const self = this as any;
+    if (!self.h3WorkflowMemoryState || typeof self.h3WorkflowMemoryState !== "object") {
+      self.h3WorkflowMemoryState = {
+        lastGovernedSemanticAddressId: null,
+        sequenceLength: 0,
+        consecutiveRepeatCount: 0,
+        transitionCounts: {},
+      };
+    }
+    return self.h3WorkflowMemoryState as {
+      lastGovernedSemanticAddressId: string | null;
+      sequenceLength: number;
+      consecutiveRepeatCount: number;
+      transitionCounts: Record<string, number>;
+    };
+  }
+
+  private getWorkflowMemoryEvidenceFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    const workflowState = this.getWorkflowMemoryState();
+    const fields = deriveWorkflowMemoryObservation({
+      semanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
+      source: "h3_runtime_evidence",
+      previousState: workflowState,
+    });
+
+    if (fields.workflowMemoryGovernedStateUpdated && fields.nextState) {
+      const self = this as any;
+      self.h3WorkflowMemoryState = fields.nextState;
+    }
+
+    return fields;
+  }
+
   private getDynamicPrecisionEvidenceFields(
     chunkId: string,
     seed: Partial<{
@@ -1828,6 +1873,10 @@ export default class ChunkManager {
       stressBand: counterfactualRepairFields.counterfactualRepairStressBand,
       guardrailSuggested: counterfactualRepairFields.counterfactualRepairRankingGuardrailSuggested,
       guardrailKind: counterfactualRepairFields.counterfactualRepairRankingGuardrailKind,
+    });
+    const workflowMemoryFields = this.getWorkflowMemoryEvidenceFields(chunkId, eventName, {
+      semanticAddressId: overrides.semanticAddressId ?? null,
+      finalGranted: decision?.granted ?? null,
     });
     emitH3RuntimeEvidence({
       event: eventName,
@@ -2041,6 +2090,38 @@ export default class ChunkManager {
         overrides.dynamicPrecisionStrategyProfileId ?? dynamicPrecisionFields.dynamicPrecisionStrategyProfileId,
       dynamicPrecisionReasonCodes:
         overrides.dynamicPrecisionReasonCodes ?? dynamicPrecisionFields.dynamicPrecisionReasonCodes,
+      workflowMemorySchemaVersion:
+        overrides.workflowMemorySchemaVersion ?? workflowMemoryFields.workflowMemorySchemaVersion,
+      workflowMemoryPolicyVersion:
+        overrides.workflowMemoryPolicyVersion ?? workflowMemoryFields.workflowMemoryPolicyVersion,
+      workflowMemoryEligible:
+        overrides.workflowMemoryEligible ?? workflowMemoryFields.workflowMemoryEligible,
+      workflowMemoryCurrentSemanticAddressId:
+        overrides.workflowMemoryCurrentSemanticAddressId ?? workflowMemoryFields.workflowMemoryCurrentSemanticAddressId,
+      workflowMemoryPreviousSemanticAddressId:
+        overrides.workflowMemoryPreviousSemanticAddressId ?? workflowMemoryFields.workflowMemoryPreviousSemanticAddressId,
+      workflowMemoryTransitionObserved:
+        overrides.workflowMemoryTransitionObserved ?? workflowMemoryFields.workflowMemoryTransitionObserved,
+      workflowMemoryTransitionKey:
+        overrides.workflowMemoryTransitionKey ?? workflowMemoryFields.workflowMemoryTransitionKey,
+      workflowMemoryTransitionSeenBefore:
+        overrides.workflowMemoryTransitionSeenBefore ?? workflowMemoryFields.workflowMemoryTransitionSeenBefore,
+      workflowMemoryTransitionCount:
+        overrides.workflowMemoryTransitionCount ?? workflowMemoryFields.workflowMemoryTransitionCount,
+      workflowMemorySequenceLength:
+        overrides.workflowMemorySequenceLength ?? workflowMemoryFields.workflowMemorySequenceLength,
+      workflowMemoryRepeatDetected:
+        overrides.workflowMemoryRepeatDetected ?? workflowMemoryFields.workflowMemoryRepeatDetected,
+      workflowMemoryRepeatCount:
+        overrides.workflowMemoryRepeatCount ?? workflowMemoryFields.workflowMemoryRepeatCount,
+      workflowMemoryContinuationSuggested:
+        overrides.workflowMemoryContinuationSuggested ?? workflowMemoryFields.workflowMemoryContinuationSuggested,
+      workflowMemoryGovernedStateUpdated:
+        overrides.workflowMemoryGovernedStateUpdated ?? workflowMemoryFields.workflowMemoryGovernedStateUpdated,
+      workflowMemorySource:
+        overrides.workflowMemorySource ?? workflowMemoryFields.workflowMemorySource,
+      workflowMemoryReasonCodes:
+        overrides.workflowMemoryReasonCodes ?? workflowMemoryFields.workflowMemoryReasonCodes,
 
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,

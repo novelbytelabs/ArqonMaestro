@@ -154,3 +154,30 @@ Schema freeze statement:
 - Stage 3H closes with the fields listed above
 - Stage 3H-S5 introduces no additional runtime evidence fields
 - future Dynamic Precision schema expansion must open under a new stage or a new bounded post-closure slice
+
+
+## Stage 3I-S1 workflow memory observational contract
+- workflowMemorySchemaVersion
+- workflowMemoryPolicyVersion
+- workflowMemoryEligible
+- workflowMemoryCurrentSemanticAddressId
+- workflowMemoryPreviousSemanticAddressId
+- workflowMemoryTransitionObserved
+- workflowMemoryTransitionKey
+- workflowMemoryTransitionSeenBefore
+- workflowMemoryTransitionCount
+- workflowMemorySequenceLength
+- workflowMemoryRepeatDetected
+- workflowMemoryRepeatCount
+- workflowMemoryContinuationSuggested
+- workflowMemoryGovernedStateUpdated
+- workflowMemorySource
+- workflowMemoryReasonCodes
+
+Notes:
+- session-local observational contract only
+- state advances only from governed semantic-address observations
+- no persistence / distributed cache
+- no ranking actuation yet
+- no macro execution
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

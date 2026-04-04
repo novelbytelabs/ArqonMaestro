@@ -224,6 +224,22 @@ export interface H3RuntimeEvidenceEvent {
   dynamicPrecisionSwitchApplied: boolean | null;
   dynamicPrecisionStrategyProfileId: string | null;
   dynamicPrecisionReasonCodes: string[] | null;
+  workflowMemorySchemaVersion: string | null;
+  workflowMemoryPolicyVersion: string | null;
+  workflowMemoryEligible: boolean | null;
+  workflowMemoryCurrentSemanticAddressId: string | null;
+  workflowMemoryPreviousSemanticAddressId: string | null;
+  workflowMemoryTransitionObserved: boolean | null;
+  workflowMemoryTransitionKey: string | null;
+  workflowMemoryTransitionSeenBefore: boolean | null;
+  workflowMemoryTransitionCount: number | null;
+  workflowMemorySequenceLength: number | null;
+  workflowMemoryRepeatDetected: boolean | null;
+  workflowMemoryRepeatCount: number | null;
+  workflowMemoryContinuationSuggested: boolean | null;
+  workflowMemoryGovernedStateUpdated: boolean | null;
+  workflowMemorySource: string | null;
+  workflowMemoryReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -550,6 +566,38 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.dynamicPrecisionStrategyProfileId ?? null,
     dynamicPrecisionReasonCodes:
       input.dynamicPrecisionReasonCodes ?? null,
+    workflowMemorySchemaVersion:
+      input.workflowMemorySchemaVersion ?? null,
+    workflowMemoryPolicyVersion:
+      input.workflowMemoryPolicyVersion ?? null,
+    workflowMemoryEligible:
+      input.workflowMemoryEligible ?? null,
+    workflowMemoryCurrentSemanticAddressId:
+      input.workflowMemoryCurrentSemanticAddressId ?? null,
+    workflowMemoryPreviousSemanticAddressId:
+      input.workflowMemoryPreviousSemanticAddressId ?? null,
+    workflowMemoryTransitionObserved:
+      input.workflowMemoryTransitionObserved ?? null,
+    workflowMemoryTransitionKey:
+      input.workflowMemoryTransitionKey ?? null,
+    workflowMemoryTransitionSeenBefore:
+      input.workflowMemoryTransitionSeenBefore ?? null,
+    workflowMemoryTransitionCount:
+      input.workflowMemoryTransitionCount ?? null,
+    workflowMemorySequenceLength:
+      input.workflowMemorySequenceLength ?? null,
+    workflowMemoryRepeatDetected:
+      input.workflowMemoryRepeatDetected ?? null,
+    workflowMemoryRepeatCount:
+      input.workflowMemoryRepeatCount ?? null,
+    workflowMemoryContinuationSuggested:
+      input.workflowMemoryContinuationSuggested ?? null,
+    workflowMemoryGovernedStateUpdated:
+      input.workflowMemoryGovernedStateUpdated ?? null,
+    workflowMemorySource:
+      input.workflowMemorySource ?? null,
+    workflowMemoryReasonCodes:
+      input.workflowMemoryReasonCodes ?? null,
   };
 }
 
