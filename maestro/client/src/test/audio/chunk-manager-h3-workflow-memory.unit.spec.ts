@@ -513,4 +513,130 @@ it("keeps candidate-pool ordering non-applied when fewer than two candidates are
   );
 });
 
+
+
+it("emits workflow reuse priors when a governed sequence repeats with a known next step", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_reuse_seed_1",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    semanticAddressId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_reuse_seed_2",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "edit",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "edit_symbol",
+    canonicalMergedText: "edit symbol",
+    transcriptText: "edit symbol",
+    reason: "workflow_memory_reuse_seed_3",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_reuse_seed_4",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    semanticAddressId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_reuse_probe",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      workflowMemoryReuseVersion: "3i_workflow_reuse_substrate_v1",
+      workflowMemoryReuseEligible: true,
+      workflowMemoryReuseApplied: true,
+      workflowMemoryReusePatternLength: 2,
+      workflowMemoryReuseMatchedSequenceSemanticAddressIds: ["open_file", "go_to_line"],
+      workflowMemoryReuseMatchedSequenceKey: "open_file->go_to_line",
+      workflowMemoryReuseSeenBefore: true,
+      workflowMemoryReuseOccurrenceCount: 1,
+      workflowMemoryReuseSuggestedNextSemanticAddressId: "edit_symbol",
+      workflowMemoryReuseSuggestedNextCount: 1,
+      workflowMemoryReuseSource: "h3_runtime_evidence",
+    })
+  );
+});
+
+it("keeps workflow reuse priors non-applied when no repeated governed sequence exists", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_reuse_unseeded_1",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    semanticAddressId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_reuse_unseeded_2",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      workflowMemoryReuseVersion: "3i_workflow_reuse_substrate_v1",
+      workflowMemoryReuseEligible: true,
+      workflowMemoryReuseApplied: false,
+      workflowMemoryReusePatternLength: null,
+      workflowMemoryReuseSuggestedNextSemanticAddressId: null,
+      workflowMemoryReuseSuggestedNextCount: 0,
+    })
+  );
+});
+
 });

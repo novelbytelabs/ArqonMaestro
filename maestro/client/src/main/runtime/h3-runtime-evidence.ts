@@ -278,6 +278,18 @@ export interface H3RuntimeEvidenceEvent {
   workflowMemoryCandidatePoolTopCandidateScoreAfter: number | null;
   workflowMemoryCandidatePoolSource: string | null;
   workflowMemoryCandidatePoolReasonCodes: string[] | null;
+  workflowMemoryReuseVersion: string | null;
+  workflowMemoryReuseEligible: boolean | null;
+  workflowMemoryReuseApplied: boolean | null;
+  workflowMemoryReusePatternLength: number | null;
+  workflowMemoryReuseMatchedSequenceSemanticAddressIds: string[] | null;
+  workflowMemoryReuseMatchedSequenceKey: string | null;
+  workflowMemoryReuseSeenBefore: boolean | null;
+  workflowMemoryReuseOccurrenceCount: number | null;
+  workflowMemoryReuseSuggestedNextSemanticAddressId: string | null;
+  workflowMemoryReuseSuggestedNextCount: number | null;
+  workflowMemoryReuseSource: string | null;
+  workflowMemoryReuseReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -712,6 +724,30 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowMemoryCandidatePoolSource ?? null,
     workflowMemoryCandidatePoolReasonCodes:
       input.workflowMemoryCandidatePoolReasonCodes ?? null,
+    workflowMemoryReuseVersion:
+      input.workflowMemoryReuseVersion ?? null,
+    workflowMemoryReuseEligible:
+      input.workflowMemoryReuseEligible ?? null,
+    workflowMemoryReuseApplied:
+      input.workflowMemoryReuseApplied ?? null,
+    workflowMemoryReusePatternLength:
+      input.workflowMemoryReusePatternLength ?? null,
+    workflowMemoryReuseMatchedSequenceSemanticAddressIds:
+      input.workflowMemoryReuseMatchedSequenceSemanticAddressIds ?? null,
+    workflowMemoryReuseMatchedSequenceKey:
+      input.workflowMemoryReuseMatchedSequenceKey ?? null,
+    workflowMemoryReuseSeenBefore:
+      input.workflowMemoryReuseSeenBefore ?? null,
+    workflowMemoryReuseOccurrenceCount:
+      input.workflowMemoryReuseOccurrenceCount ?? null,
+    workflowMemoryReuseSuggestedNextSemanticAddressId:
+      input.workflowMemoryReuseSuggestedNextSemanticAddressId ?? null,
+    workflowMemoryReuseSuggestedNextCount:
+      input.workflowMemoryReuseSuggestedNextCount ?? null,
+    workflowMemoryReuseSource:
+      input.workflowMemoryReuseSource ?? null,
+    workflowMemoryReuseReasonCodes:
+      input.workflowMemoryReuseReasonCodes ?? null,
   };
 }
 

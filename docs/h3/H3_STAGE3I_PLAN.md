@@ -86,12 +86,21 @@ Delivered:
 
 ### 3I-S5 — workflow reuse substrate
 Status:
+Implemented
+
+Delivered:
+- bounded workflow reuse substrate for repeated governed semantic-address sequences
+- session-local suggested next semantic-address prior when a repeated sequence has been seen before with a known next step
+- workflow reuse remains advisory-only and session-local
+- no macro execution
+
+### 3I-S6 — closure / validation
+Status:
 Next
 
 Intended direction:
-- lift repeated semantic-address sequences into bounded workflow reuse priors
-- remain session-local and advisory-only
-- keep macro execution out of scope for this slice
+- freeze Stage 3I doctrine and schema on the validated real baseline
+- record validation expectations and bounded non-goals before stage closure
 
 ## Explicit non-goals at current stage state
 

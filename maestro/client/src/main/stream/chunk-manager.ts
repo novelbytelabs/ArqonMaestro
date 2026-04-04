@@ -66,6 +66,7 @@ import { deriveWorkflowMemoryObservation } from "../runtime/workflow-memory-obse
 import { deriveWorkflowMemoryContinuityRanking } from "../runtime/workflow-memory-continuity-ranking";
 import { deriveWorkflowMemoryContinuityOrdering } from "../runtime/workflow-memory-continuity-ordering";
 import { deriveWorkflowMemoryCandidatePoolOrdering } from "../runtime/workflow-memory-candidate-pool-ordering";
+import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-reuse-substrate";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -228,6 +229,8 @@ export default class ChunkManager {
       workflowMemoryOrderingBoost?: number;
       workflowMemoryOrderingAdjustedScore?: number | null;
       workflowMemoryOrderingReasonCodes?: string[];
+      workflowMemoryReuseApplied?: boolean;
+      workflowMemoryReuseSuggestedNextSemanticAddressId?: string | null;
     }
   >();
   private chunkH3FocusContextEnvelope = new Map<string, FocusConditionedCommandContextEnvelope>();
@@ -1826,6 +1829,24 @@ export default class ChunkManager {
     };
   }
 
+  private getWorkflowReuseHistory() {
+    const self = this as any;
+    if (!Array.isArray(self.h3WorkflowReuseGovernedHistory)) {
+      self.h3WorkflowReuseGovernedHistory = [];
+    }
+    return self.h3WorkflowReuseGovernedHistory as string[];
+  }
+
+  private updateWorkflowReuseHistory(semanticAddressId: string | null): void {
+    if (!semanticAddressId) {
+      return;
+    }
+    const self = this as any;
+    const governedHistory = this.getWorkflowReuseHistory();
+    const nextHistory = [...governedHistory, semanticAddressId].slice(-16);
+    self.h3WorkflowReuseGovernedHistory = nextHistory;
+  }
+
   private getWorkflowMemoryEvidenceFields(
     chunkId: string,
     eventName: string,
@@ -1924,6 +1945,20 @@ export default class ChunkManager {
       candidateScores: seed.candidateScores ?? null,
       transitionCounts: workflowState.transitionCounts,
       continuationSuggested: seed.continuationSuggested ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
+  private getWorkflowMemoryReuseFields(
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    return deriveWorkflowMemoryReuseSubstrate({
+      governedHistory: this.getWorkflowReuseHistory(),
+      currentSemanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
       source: "h3_runtime_evidence",
     });
   }
@@ -2046,6 +2081,10 @@ export default class ChunkManager {
           overrides.workflowMemoryCandidatePoolScoresBefore ?? null,
         continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
       });
+    const workflowMemoryReuseFields = this.getWorkflowMemoryReuseFields({
+      semanticAddressId: overrides.semanticAddressId ?? null,
+      finalGranted: decision?.granted ?? null,
+    });
     const adjustedBestCandidateId =
       workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
       workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
@@ -2379,6 +2418,30 @@ export default class ChunkManager {
         overrides.workflowMemoryCandidatePoolSource ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSource,
       workflowMemoryCandidatePoolReasonCodes:
         overrides.workflowMemoryCandidatePoolReasonCodes ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolReasonCodes,
+      workflowMemoryReuseVersion:
+        overrides.workflowMemoryReuseVersion ?? workflowMemoryReuseFields.workflowMemoryReuseVersion,
+      workflowMemoryReuseEligible:
+        overrides.workflowMemoryReuseEligible ?? workflowMemoryReuseFields.workflowMemoryReuseEligible,
+      workflowMemoryReuseApplied:
+        overrides.workflowMemoryReuseApplied ?? workflowMemoryReuseFields.workflowMemoryReuseApplied,
+      workflowMemoryReusePatternLength:
+        overrides.workflowMemoryReusePatternLength ?? workflowMemoryReuseFields.workflowMemoryReusePatternLength,
+      workflowMemoryReuseMatchedSequenceSemanticAddressIds:
+        overrides.workflowMemoryReuseMatchedSequenceSemanticAddressIds ?? workflowMemoryReuseFields.workflowMemoryReuseMatchedSequenceSemanticAddressIds,
+      workflowMemoryReuseMatchedSequenceKey:
+        overrides.workflowMemoryReuseMatchedSequenceKey ?? workflowMemoryReuseFields.workflowMemoryReuseMatchedSequenceKey,
+      workflowMemoryReuseSeenBefore:
+        overrides.workflowMemoryReuseSeenBefore ?? workflowMemoryReuseFields.workflowMemoryReuseSeenBefore,
+      workflowMemoryReuseOccurrenceCount:
+        overrides.workflowMemoryReuseOccurrenceCount ?? workflowMemoryReuseFields.workflowMemoryReuseOccurrenceCount,
+      workflowMemoryReuseSuggestedNextSemanticAddressId:
+        overrides.workflowMemoryReuseSuggestedNextSemanticAddressId ?? workflowMemoryReuseFields.workflowMemoryReuseSuggestedNextSemanticAddressId,
+      workflowMemoryReuseSuggestedNextCount:
+        overrides.workflowMemoryReuseSuggestedNextCount ?? workflowMemoryReuseFields.workflowMemoryReuseSuggestedNextCount,
+      workflowMemoryReuseSource:
+        overrides.workflowMemoryReuseSource ?? workflowMemoryReuseFields.workflowMemoryReuseSource,
+      workflowMemoryReuseReasonCodes:
+        overrides.workflowMemoryReuseReasonCodes ?? workflowMemoryReuseFields.workflowMemoryReuseReasonCodes,
 
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
@@ -2448,6 +2511,10 @@ export default class ChunkManager {
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
     });
+
+    if (decision?.granted && typeof overrides.semanticAddressId === "string" && overrides.semanticAddressId.length > 0) {
+      this.updateWorkflowReuseHistory(overrides.semanticAddressId);
+    }
   }
 
   private async enqueue(request: Request, flush: boolean = true) {

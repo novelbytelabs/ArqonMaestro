@@ -2,6 +2,7 @@ import { deriveWorkflowMemoryObservation } from "../../main/runtime/workflow-mem
 import { deriveWorkflowMemoryContinuityRanking } from "../../main/runtime/workflow-memory-continuity-ranking";
 import { deriveWorkflowMemoryContinuityOrdering } from "../../main/runtime/workflow-memory-continuity-ordering";
 import { deriveWorkflowMemoryCandidatePoolOrdering } from "../../main/runtime/workflow-memory-candidate-pool-ordering";
+import { deriveWorkflowMemoryReuseSubstrate } from "../../main/runtime/workflow-memory-reuse-substrate";
 
 describe("workflow memory observation", () => {
   it("records first governed semantic address without continuity suggestion", () => {
@@ -235,6 +236,53 @@ describe("workflow memory candidate-pool ordering", () => {
         workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter: "go_to_line",
         workflowMemoryCandidatePoolTopCandidateScoreBefore: 0.68,
         workflowMemoryCandidatePoolTopCandidateScoreAfter: 0.68,
+      })
+    );
+  });
+});
+
+
+describe("workflow memory reuse substrate", () => {
+  it("suggests a next semantic address when a governed sequence repeats", () => {
+    const fields = deriveWorkflowMemoryReuseSubstrate({
+      governedHistory: [
+        "open_file",
+        "go_to_line",
+        "edit_symbol",
+        "open_file",
+        "go_to_line",
+      ],
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryReuseVersion: "3i_workflow_reuse_substrate_v1",
+        workflowMemoryReuseEligible: true,
+        workflowMemoryReuseApplied: true,
+        workflowMemoryReusePatternLength: 2,
+        workflowMemoryReuseMatchedSequenceSemanticAddressIds: ["open_file", "go_to_line"],
+        workflowMemoryReuseMatchedSequenceKey: "open_file->go_to_line",
+        workflowMemoryReuseSeenBefore: true,
+        workflowMemoryReuseOccurrenceCount: 1,
+        workflowMemoryReuseSuggestedNextSemanticAddressId: "edit_symbol",
+        workflowMemoryReuseSuggestedNextCount: 1,
+      })
+    );
+  });
+
+  it("stays non-applied when no repeated governed sequence with a next step exists", () => {
+    const fields = deriveWorkflowMemoryReuseSubstrate({
+      governedHistory: ["open_file", "go_to_line"],
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryReuseVersion: "3i_workflow_reuse_substrate_v1",
+        workflowMemoryReuseEligible: true,
+        workflowMemoryReuseApplied: false,
+        workflowMemoryReusePatternLength: null,
+        workflowMemoryReuseSuggestedNextSemanticAddressId: null,
+        workflowMemoryReuseSuggestedNextCount: 0,
       })
     );
   });

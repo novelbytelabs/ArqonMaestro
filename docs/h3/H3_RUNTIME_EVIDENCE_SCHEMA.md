@@ -252,3 +252,27 @@ Notes:
 - no persistence / distributed cache
 - live multi-candidate activation depends on the registry surfacing a candidate pool; when no multi-candidate pool is present these fields remain explicit pass-through / non-applied
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3I-S5 workflow reuse substrate
+- workflowMemoryReuseVersion
+- workflowMemoryReuseEligible
+- workflowMemoryReuseApplied
+- workflowMemoryReusePatternLength
+- workflowMemoryReuseMatchedSequenceSemanticAddressIds
+- workflowMemoryReuseMatchedSequenceKey
+- workflowMemoryReuseSeenBefore
+- workflowMemoryReuseOccurrenceCount
+- workflowMemoryReuseSuggestedNextSemanticAddressId
+- workflowMemoryReuseSuggestedNextCount
+- workflowMemoryReuseSource
+- workflowMemoryReuseReasonCodes
+
+Notes:
+- bounded advisory workflow reuse substrate only
+- repeated governed semantic-address sequences may surface a suggested next semantic address prior
+- workflow memory remains session-local only
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache
+- no macro execution or hidden action chaining
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
