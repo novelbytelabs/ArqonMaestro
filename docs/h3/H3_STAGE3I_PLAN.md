@@ -1,21 +1,48 @@
 # H3_STAGE3I_PLAN
 
 Date:
-April 3, 2026
+April 4, 2026
 
 Stage:
 3I — Memory-Conditioned Perception / Workflow Memory
 
 Status:
-Open
+Closed at S6
 
-Authoritative baseline opening this stage:
+Authoritative validated baseline:
+- repo: ArqonMaestro
 - branch: feature/h3
-- commit: cc385b1
-- prior stage closed: 3H
+- commit: 5207140
+- pushed: yes
+
+Audience:
+- engineers
+- PM AI
+- reviewers
+- research leads
 
 Purpose:
-Open the next mainline H3 band for session-local workflow memory and memory-conditioned perception.
+Define the execution plan for session-local workflow memory, bounded continuity shaping, candidate-pool ordering, and workflow reuse priors under strict governance.
+
+## Executive summary
+
+Stage 3I is now closed on a real validated repo baseline.
+
+3I established Workflow Memory as a bounded runtime capability rather than a hidden automation engine.
+The stage now has:
+- session-local governed sequence observation
+- bounded continuity ranking priors
+- bounded best-candidate ordering hookup
+- bounded candidate-pool before/after ordering evidence
+- bounded workflow reuse priors for repeated governed sequences
+- auditable runtime evidence surfaces
+- preserved governance boundaries
+
+Stage 3I did not grant new execution authority.
+Stage 3I did not bypass H23/H24.
+Stage 3I did not introduce Stage 3A drift.
+Stage 3I did not introduce persistence or distributed cache.
+Stage 3I did not introduce macro execution or hidden action chaining.
 
 ## Constitutional doctrine
 
@@ -25,19 +52,16 @@ Open the next mainline H3 band for session-local workflow memory and memory-cond
 - memory supplies priors
 - governance decides execution
 
-3I-specific doctrine at opening:
+3I-specific doctrine frozen at closure:
 - workflow memory may observe and suggest continuity
+- workflow memory may shape bounded ranking / ordering priors
 - workflow memory may not authorize execution
 - workflow memory may not bypass H23/H24
 - workflow memory may not create Stage 3A drift
 - workflow memory may not silently introduce persistence / distributed cache
+- workflow memory may not silently introduce macro execution or hidden chaining
 - internal communication remains protobuf / type-directed
 - JSON remains human-facing only
-
-## Stage opening decision
-
-3H is closed.
-3I is now the active next mainline band.
 
 ## Slice plan
 
@@ -45,69 +69,63 @@ Open the next mainline H3 band for session-local workflow memory and memory-cond
 Status:
 Implemented
 
-Delivered:
-- session-local workflow memory evidence fields
-- governed semantic-address sequence observation
-- transition / repeat / continuation suggestion surfaces
-- no ranking actuation
-- no persistence
-- no macro execution
-
 ### 3I-S2 — bounded continuity ranking pilot
 Status:
 Implemented
-
-Delivered:
-- session-local continuity prior derivation from previously seen governed transitions
-- bounded continuity-ranking metadata on best-candidate / semantic-address evidence surfaces
-- no authority change
-- no persistence
 
 ### 3I-S3 — continuity-assisted candidate ordering hookup
 Status:
 Implemented
 
-Delivered:
-- continuity-assisted ordering hookup on best-candidate score inside governed lookup evidence
-- bounded score adjustment from previously seen governed transitions only
-- continuity shaping remains advisory-only and ranking-scoped
-- no authority change
-
 ### 3I-S4 — candidate-pool-wide ordering expansion
 Status:
 Implemented
-
-Delivered:
-- bounded candidate-pool-wide ordering helper for session-local workflow continuity priors
-- candidate-pool before/after evidence surfaces
-- best-candidate update from reordered pool when a previously seen governed transition overtakes the earlier pool leader
-- continuity shaping remains advisory-only and ranking-scoped
-- no authority change
 
 ### 3I-S5 — workflow reuse substrate
 Status:
 Implemented
 
-Delivered:
-- bounded workflow reuse substrate for repeated governed semantic-address sequences
-- session-local suggested next semantic-address prior when a repeated sequence has been seen before with a known next step
-- workflow reuse remains advisory-only and session-local
-- no macro execution
-
 ### 3I-S6 — closure / validation
 Status:
-Next
+Implemented
 
-Intended direction:
-- freeze Stage 3I doctrine and schema on the validated real baseline
-- record validation expectations and bounded non-goals before stage closure
+Delivered:
+- stage closure report recorded against the authoritative green baseline
+- doctrine freeze recorded for Workflow Memory
+- validation gate expectations recorded for future regression discipline
+- no new runtime semantics introduced in S6
 
-## Explicit non-goals at current stage state
+## Real validation baseline at closure
 
-Not in 3I-S4:
+Validated on real repo:
+- TypeScript gate:
+    PASS
+- Full requested 15-suite runInBand Jest gate:
+    PASS
+- Timing validator:
+    PASS
+
+Counts at closure:
+- suites:
+    15 passed, 15 total
+- tests:
+    124 passed, 124 total
+
+Validation note:
+- the first Gate 2 attempt had a transient failure
+- the immediate exact rerun passed cleanly and is the closure baseline result
+
+## Explicit non-goals frozen at closure
+
+Not in Stage 3I:
 - persistent learned workflow memory
 - distributed workflow memory
 - macro recording / playback
-- hidden action chaining
+- automatic action chaining
 - authority changes
-- registry-wide multi-candidate shortlist export is not assumed; candidate-pool ordering activates only when a multi-candidate pool is surfaced
+- registry-guessed multi-candidate pools when the registry does not actually surface them
+
+## Stage closure statement
+
+Stage 3I is closed.
+Further Workflow Memory expansion must be opened as a new stage or a new bounded post-closure slice.
