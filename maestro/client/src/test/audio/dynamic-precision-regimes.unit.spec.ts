@@ -1,6 +1,8 @@
 import {
   deriveDynamicPrecisionRegimeObservation,
   DYNAMIC_PRECISION_ESCALATION_PILOT_VERSION,
+  DYNAMIC_PRECISION_FAMILY_SWITCHING_VERSION,
+  DYNAMIC_PRECISION_HYSTERESIS_VERSION,
   DYNAMIC_PRECISION_POLICY_VERSION,
   DYNAMIC_PRECISION_SCHEMA_VERSION,
 } from "../../main/runtime/dynamic-precision-regimes";
@@ -23,6 +25,8 @@ describe("Dynamic precision regime observation", () => {
         dynamicPrecisionSchemaVersion: DYNAMIC_PRECISION_SCHEMA_VERSION,
         dynamicPrecisionPolicyVersion: DYNAMIC_PRECISION_POLICY_VERSION,
         dynamicPrecisionEscalationPilotVersion: DYNAMIC_PRECISION_ESCALATION_PILOT_VERSION,
+        dynamicPrecisionFamilySwitchingVersion: DYNAMIC_PRECISION_FAMILY_SWITCHING_VERSION,
+        dynamicPrecisionHysteresisVersion: DYNAMIC_PRECISION_HYSTERESIS_VERSION,
         dynamicPrecisionEligible: true,
         dynamicPrecisionObservedFamily: "numeric",
         dynamicPrecisionBaselineRegime: "tight",
@@ -31,9 +35,17 @@ describe("Dynamic precision regime observation", () => {
         dynamicPrecisionProposedRegime: "tight",
         dynamicPrecisionEscalationEligible: false,
         dynamicPrecisionEscalationSuggested: false,
+        dynamicPrecisionDeescalationEligible: false,
+        dynamicPrecisionDeescalationSuggested: false,
         dynamicPrecisionFamilyPolicyId: "3h_family_policy_numeric_v1",
         dynamicPrecisionHysteresisState: "steady",
+        dynamicPrecisionStabilityTickCount: 1,
+        dynamicPrecisionCooldownTicksRemaining: 0,
         dynamicPrecisionTransitionAllowed: false,
+        dynamicPrecisionTransitionDecision: "steady",
+        dynamicPrecisionActiveRegime: "tight",
+        dynamicPrecisionSwitchApplied: false,
+        dynamicPrecisionStrategyProfileId: "3h_strategy_profile_numeric_adaptive_v1",
       })
     );
   });
@@ -68,7 +80,13 @@ describe("Dynamic precision regime observation", () => {
         dynamicPrecisionObservedGuardrailKind: "hold_for_tail",
         dynamicPrecisionFamilyPolicyId: "3h_family_policy_structured_v1",
         dynamicPrecisionHysteresisState: "escalation_armed",
-        dynamicPrecisionTransitionAllowed: false,
+        dynamicPrecisionStabilityTickCount: 0,
+        dynamicPrecisionCooldownTicksRemaining: 2,
+        dynamicPrecisionTransitionAllowed: true,
+        dynamicPrecisionTransitionDecision: "escalate_applied",
+        dynamicPrecisionActiveRegime: "tight",
+        dynamicPrecisionSwitchApplied: true,
+        dynamicPrecisionStrategyProfileId: "3h_strategy_profile_structured_v1",
       })
     );
   });
@@ -94,9 +112,83 @@ describe("Dynamic precision regime observation", () => {
         dynamicPrecisionProposedRegime: "ultra",
         dynamicPrecisionEscalationEligible: true,
         dynamicPrecisionEscalationSuggested: false,
+        dynamicPrecisionDeescalationEligible: false,
+        dynamicPrecisionDeescalationSuggested: false,
         dynamicPrecisionFamilyPolicyId: "3h_family_policy_open_tail_v1",
         dynamicPrecisionHysteresisState: "steady",
         dynamicPrecisionTransitionAllowed: false,
+        dynamicPrecisionTransitionDecision: "steady",
+        dynamicPrecisionActiveRegime: "ultra",
+        dynamicPrecisionSwitchApplied: false,
+        dynamicPrecisionStrategyProfileId: "3h_strategy_profile_open_tail_high_budget_v1",
+      })
+    );
+  });
+
+  it("holds numeric de-escalation behind cooldown on the first steady follow-up", () => {
+    const fields = deriveDynamicPrecisionRegimeObservation({
+      regionId: "line_nav",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      ambiguityBand: "low",
+      repairWindowOpen: false,
+      stressBand: "nominal",
+      guardrailSuggested: false,
+      source: "h3_runtime_evidence",
+      currentRegime: "ultra",
+      stabilityTickCount: 0,
+      cooldownTicksRemaining: 2,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        dynamicPrecisionEligible: true,
+        dynamicPrecisionObservedFamily: "numeric",
+        dynamicPrecisionCurrentRegime: "ultra",
+        dynamicPrecisionProposedRegime: "tight",
+        dynamicPrecisionDeescalationEligible: true,
+        dynamicPrecisionDeescalationSuggested: false,
+        dynamicPrecisionHysteresisState: "cooldown_active",
+        dynamicPrecisionStabilityTickCount: 1,
+        dynamicPrecisionCooldownTicksRemaining: 1,
+        dynamicPrecisionTransitionAllowed: false,
+        dynamicPrecisionTransitionDecision: "deescalation_cooldown_active",
+        dynamicPrecisionActiveRegime: "ultra",
+        dynamicPrecisionSwitchApplied: false,
+      })
+    );
+  });
+
+  it("applies numeric de-escalation after steady recovery clears cooldown and stability threshold", () => {
+    const fields = deriveDynamicPrecisionRegimeObservation({
+      regionId: "line_nav",
+      commandClass: "parameterized",
+      parameterType: "numeric",
+      ambiguityBand: "low",
+      repairWindowOpen: false,
+      stressBand: "nominal",
+      guardrailSuggested: false,
+      source: "h3_runtime_evidence",
+      currentRegime: "ultra",
+      stabilityTickCount: 1,
+      cooldownTicksRemaining: 1,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        dynamicPrecisionEligible: true,
+        dynamicPrecisionObservedFamily: "numeric",
+        dynamicPrecisionCurrentRegime: "ultra",
+        dynamicPrecisionProposedRegime: "tight",
+        dynamicPrecisionDeescalationEligible: true,
+        dynamicPrecisionDeescalationSuggested: true,
+        dynamicPrecisionHysteresisState: "deescalation_armed",
+        dynamicPrecisionStabilityTickCount: 2,
+        dynamicPrecisionCooldownTicksRemaining: 0,
+        dynamicPrecisionTransitionAllowed: true,
+        dynamicPrecisionTransitionDecision: "deescalate_applied",
+        dynamicPrecisionActiveRegime: "tight",
+        dynamicPrecisionSwitchApplied: true,
       })
     );
   });
@@ -121,7 +213,15 @@ describe("Dynamic precision regime observation", () => {
         dynamicPrecisionCurrentRegime: null,
         dynamicPrecisionProposedRegime: null,
         dynamicPrecisionEscalationSuggested: false,
+        dynamicPrecisionDeescalationEligible: false,
+        dynamicPrecisionDeescalationSuggested: false,
+        dynamicPrecisionStabilityTickCount: null,
+        dynamicPrecisionCooldownTicksRemaining: null,
         dynamicPrecisionTransitionAllowed: false,
+        dynamicPrecisionTransitionDecision: null,
+        dynamicPrecisionActiveRegime: null,
+        dynamicPrecisionSwitchApplied: false,
+        dynamicPrecisionStrategyProfileId: null,
       })
     );
   });

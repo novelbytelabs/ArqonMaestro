@@ -20,9 +20,15 @@ const cfhMockFactory = () => ({
 });
 
 describe("ChunkManager H3 counterfactual repair evidence", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.unmock("../../main/stt/cfh");
+  });
+
   afterEach(() => {
-    jest.dontMock("../../main/stt/cfh");
     jest.restoreAllMocks();
+    jest.clearAllMocks();
+    jest.unmock("../../main/stt/cfh");
   });
 
   function makeBareManager(): any {
@@ -30,7 +36,7 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
     let h23Recorder: any;
     let runtimeEvidence: any;
 
-    jest.dontMock("../../main/stt/cfh");
+    jest.unmock("../../main/stt/cfh");
     jest.isolateModules(() => {
       jest.doMock("../../main/stt/cfh", cfhMockFactory);
       ({ h23Recorder } = require("../../main/runtime/h23-live-trace-recorder"));
@@ -59,8 +65,8 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
 
   it("emits candidate population and ambiguity pilot metadata when semantic result is present", () => {
     const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
-    h23Recorder.getTraceSnapshot = jest.fn(() => []);
-    h23Recorder.getLatestDecision = jest.fn(() => null);
+    jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+    jest.spyOn(h23Recorder, "getLatestDecision").mockReturnValue(null);
     const evidenceSpy = jest
       .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
       .mockImplementation((event: any) => event);
@@ -104,8 +110,8 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
 
   it("emits failure-observer placeholder fields on rejection path without semantic result", () => {
     const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
-    h23Recorder.getTraceSnapshot = jest.fn(() => []);
-    h23Recorder.getLatestDecision = jest.fn(() => ({ granted: false, reason: "recognition_failed_shadow_capture" } as any));
+    jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+    jest.spyOn(h23Recorder, "getLatestDecision").mockReturnValue({ granted: false, reason: "recognition_failed_shadow_capture" } as any);
     const evidenceSpy = jest
       .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
       .mockImplementation((event: any) => event);

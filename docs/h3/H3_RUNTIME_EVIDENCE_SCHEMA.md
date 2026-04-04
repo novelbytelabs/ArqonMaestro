@@ -127,3 +127,36 @@ Notes:
 - no live Turbo/Tight/Ultra actuation yet
 - no authority change, no H23/H24 bypass, no Stage 3A drift
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+## Stage 3H-S3 family-aware regime switching
+- `dynamicPrecisionFamilySwitchingVersion`
+- `dynamicPrecisionTransitionDecision`
+- `dynamicPrecisionActiveRegime`
+- `dynamicPrecisionSwitchApplied`
+- `dynamicPrecisionStrategyProfileId`
+
+Notes:
+- bounded upward family-aware switching only
+- structured families may switch `turbo -> tight`
+- numeric families may switch `tight -> ultra`
+- open-tail families remain at their governed active regime in this slice
+- de-escalation is deferred until Stage 3H-S4
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache; active regime is runtime-local only in this slice
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3H-S4 hysteresis / de-escalation
+- `dynamicPrecisionHysteresisVersion`
+- `dynamicPrecisionDeescalationEligible`
+- `dynamicPrecisionDeescalationSuggested`
+- `dynamicPrecisionStabilityTickCount`
+- `dynamicPrecisionCooldownTicksRemaining`
+
+Notes:
+- bounded hysteresis / de-escalation only
+- structured and numeric families may de-escalate only after steady recovery evidence, cooldown exhaustion, and bounded stability threshold satisfaction
+- open-tail families remain pinned to governed `ultra` in this slice
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache; hysteresis state is runtime-local only in this slice
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

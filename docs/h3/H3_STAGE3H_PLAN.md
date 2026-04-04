@@ -7,7 +7,7 @@ Stage:
 3H — Dynamic Precision Regimes
 
 Status:
-S2 implemented, S3 next
+S4 implemented, S5 next
 
 Audience:
 - engineers
@@ -121,7 +121,7 @@ Scope:
 
 ### 3H-S3 — family-aware regime switching
 Status:
-Next
+Implemented
 
 Scope:
 - different regime strategies by family:
@@ -130,11 +130,35 @@ Scope:
     - open-tail / high-ambiguity
 - still bounded and governed
 
+Delivered:
+- family-aware strategy profile ids surfaced in runtime evidence
+- bounded upward switching enabled by family policy:
+    - structured families may switch `turbo -> tight`
+    - numeric families may switch `tight -> ultra`
+- runtime-local active regime tracking added for chunk-local evidence continuity
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache; active regime state is runtime-local only
+
 ### 3H-S4 — hysteresis / de-escalation
+Status:
+Implemented
+
 Scope:
 - prevent oscillation
 - add decay / cool-down logic
 - ensure regime transitions are explainable and auditable
+
+Delivered:
+- bounded hysteresis version surfaced in runtime evidence
+- runtime-local stability tick tracking added for chunk-local recovery observation
+- runtime-local cooldown tick tracking added to prevent immediate regime oscillation after upward switches
+- numeric / structured de-escalation now allowed only after:
+    - steady recovery evidence
+    - cooldown exhaustion
+    - bounded stability threshold satisfaction
+- open-tail family remains pinned to governed `ultra` in this slice
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache; hysteresis state is runtime-local only
 
 ### 3H-S5 — closure / validation
 Scope:

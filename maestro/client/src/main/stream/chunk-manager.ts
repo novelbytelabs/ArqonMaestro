@@ -1710,6 +1710,30 @@ export default class ChunkManager {
     });
   }
 
+  private getDynamicPrecisionActiveRegimeMap() {
+    const self = this as any;
+    if (!(self.chunkH3DynamicPrecisionActiveRegime instanceof Map)) {
+      self.chunkH3DynamicPrecisionActiveRegime = new Map<string, string>();
+    }
+    return self.chunkH3DynamicPrecisionActiveRegime as Map<string, string>;
+  }
+
+  private getDynamicPrecisionStabilityTickMap() {
+    const self = this as any;
+    if (!(self.chunkH3DynamicPrecisionStabilityTickCount instanceof Map)) {
+      self.chunkH3DynamicPrecisionStabilityTickCount = new Map<string, number>();
+    }
+    return self.chunkH3DynamicPrecisionStabilityTickCount as Map<string, number>;
+  }
+
+  private getDynamicPrecisionCooldownMap() {
+    const self = this as any;
+    if (!(self.chunkH3DynamicPrecisionCooldownTicksRemaining instanceof Map)) {
+      self.chunkH3DynamicPrecisionCooldownTicksRemaining = new Map<string, number>();
+    }
+    return self.chunkH3DynamicPrecisionCooldownTicksRemaining as Map<string, number>;
+  }
+
   private getDynamicPrecisionEvidenceFields(
     chunkId: string,
     seed: Partial<{
@@ -1724,7 +1748,10 @@ export default class ChunkManager {
     }> = {}
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
-    return deriveDynamicPrecisionRegimeObservation({
+    const activeRegimeMap = this.getDynamicPrecisionActiveRegimeMap();
+    const stabilityTickMap = this.getDynamicPrecisionStabilityTickMap();
+    const cooldownMap = this.getDynamicPrecisionCooldownMap();
+    const fields = deriveDynamicPrecisionRegimeObservation({
       regionId: seed.regionId ?? latest?.regionId ?? null,
       commandClass: seed.commandClass ?? latest?.commandClass ?? null,
       parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
@@ -1742,7 +1769,28 @@ export default class ChunkManager {
       guardrailSuggested: seed.guardrailSuggested ?? null,
       guardrailKind: seed.guardrailKind ?? null,
       source: "h3_runtime_evidence",
+      currentRegime: activeRegimeMap.get(chunkId) as any ?? null,
+      stabilityTickCount: stabilityTickMap.get(chunkId) ?? null,
+      cooldownTicksRemaining: cooldownMap.get(chunkId) ?? null,
     });
+
+    if (fields.dynamicPrecisionEligible) {
+      if (fields.dynamicPrecisionActiveRegime) {
+        activeRegimeMap.set(chunkId, fields.dynamicPrecisionActiveRegime);
+      }
+      if (typeof fields.dynamicPrecisionStabilityTickCount === "number") {
+        stabilityTickMap.set(chunkId, fields.dynamicPrecisionStabilityTickCount);
+      }
+      if (typeof fields.dynamicPrecisionCooldownTicksRemaining === "number") {
+        cooldownMap.set(chunkId, fields.dynamicPrecisionCooldownTicksRemaining);
+      }
+    } else {
+      activeRegimeMap.delete(chunkId);
+      stabilityTickMap.delete(chunkId);
+      cooldownMap.delete(chunkId);
+    }
+
+    return fields;
   }
 
   private emitH3Evidence(
@@ -1931,6 +1979,69 @@ export default class ChunkManager {
       multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
 
+      dynamicPrecisionSchemaVersion:
+        overrides.dynamicPrecisionSchemaVersion ?? dynamicPrecisionFields.dynamicPrecisionSchemaVersion,
+      dynamicPrecisionPolicyVersion:
+        overrides.dynamicPrecisionPolicyVersion ?? dynamicPrecisionFields.dynamicPrecisionPolicyVersion,
+      dynamicPrecisionEscalationPilotVersion:
+        overrides.dynamicPrecisionEscalationPilotVersion ?? dynamicPrecisionFields.dynamicPrecisionEscalationPilotVersion,
+      dynamicPrecisionFamilySwitchingVersion:
+        overrides.dynamicPrecisionFamilySwitchingVersion ?? dynamicPrecisionFields.dynamicPrecisionFamilySwitchingVersion,
+      dynamicPrecisionHysteresisVersion:
+        overrides.dynamicPrecisionHysteresisVersion ?? dynamicPrecisionFields.dynamicPrecisionHysteresisVersion,
+      dynamicPrecisionEligible:
+        overrides.dynamicPrecisionEligible ?? dynamicPrecisionFields.dynamicPrecisionEligible,
+      dynamicPrecisionObservedFamily:
+        overrides.dynamicPrecisionObservedFamily ?? dynamicPrecisionFields.dynamicPrecisionObservedFamily,
+      dynamicPrecisionBaselineRegime:
+        overrides.dynamicPrecisionBaselineRegime ?? dynamicPrecisionFields.dynamicPrecisionBaselineRegime,
+      dynamicPrecisionSuggestedRegime:
+        overrides.dynamicPrecisionSuggestedRegime ?? dynamicPrecisionFields.dynamicPrecisionSuggestedRegime,
+      dynamicPrecisionCurrentRegime:
+        overrides.dynamicPrecisionCurrentRegime ?? dynamicPrecisionFields.dynamicPrecisionCurrentRegime,
+      dynamicPrecisionProposedRegime:
+        overrides.dynamicPrecisionProposedRegime ?? dynamicPrecisionFields.dynamicPrecisionProposedRegime,
+      dynamicPrecisionEscalationEligible:
+        overrides.dynamicPrecisionEscalationEligible ?? dynamicPrecisionFields.dynamicPrecisionEscalationEligible,
+      dynamicPrecisionEscalationSuggested:
+        overrides.dynamicPrecisionEscalationSuggested ?? dynamicPrecisionFields.dynamicPrecisionEscalationSuggested,
+      dynamicPrecisionDeescalationEligible:
+        overrides.dynamicPrecisionDeescalationEligible ?? dynamicPrecisionFields.dynamicPrecisionDeescalationEligible,
+      dynamicPrecisionDeescalationSuggested:
+        overrides.dynamicPrecisionDeescalationSuggested ?? dynamicPrecisionFields.dynamicPrecisionDeescalationSuggested,
+      dynamicPrecisionObservedAmbiguityBand:
+        overrides.dynamicPrecisionObservedAmbiguityBand ?? dynamicPrecisionFields.dynamicPrecisionObservedAmbiguityBand,
+      dynamicPrecisionObservedRepairWindowOpen:
+        overrides.dynamicPrecisionObservedRepairWindowOpen ?? dynamicPrecisionFields.dynamicPrecisionObservedRepairWindowOpen,
+      dynamicPrecisionObservedStressBand:
+        overrides.dynamicPrecisionObservedStressBand ?? dynamicPrecisionFields.dynamicPrecisionObservedStressBand,
+      dynamicPrecisionObservedGuardrailSuggested:
+        overrides.dynamicPrecisionObservedGuardrailSuggested ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailSuggested,
+      dynamicPrecisionObservedGuardrailKind:
+        overrides.dynamicPrecisionObservedGuardrailKind ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailKind,
+      dynamicPrecisionSource:
+        overrides.dynamicPrecisionSource ?? dynamicPrecisionFields.dynamicPrecisionSource,
+      dynamicPrecisionFamilyPolicyId:
+        overrides.dynamicPrecisionFamilyPolicyId ?? dynamicPrecisionFields.dynamicPrecisionFamilyPolicyId,
+      dynamicPrecisionHysteresisState:
+        overrides.dynamicPrecisionHysteresisState ?? dynamicPrecisionFields.dynamicPrecisionHysteresisState,
+      dynamicPrecisionStabilityTickCount:
+        overrides.dynamicPrecisionStabilityTickCount ?? dynamicPrecisionFields.dynamicPrecisionStabilityTickCount,
+      dynamicPrecisionCooldownTicksRemaining:
+        overrides.dynamicPrecisionCooldownTicksRemaining ?? dynamicPrecisionFields.dynamicPrecisionCooldownTicksRemaining,
+      dynamicPrecisionTransitionAllowed:
+        overrides.dynamicPrecisionTransitionAllowed ?? dynamicPrecisionFields.dynamicPrecisionTransitionAllowed,
+      dynamicPrecisionTransitionDecision:
+        overrides.dynamicPrecisionTransitionDecision ?? dynamicPrecisionFields.dynamicPrecisionTransitionDecision,
+      dynamicPrecisionActiveRegime:
+        overrides.dynamicPrecisionActiveRegime ?? dynamicPrecisionFields.dynamicPrecisionActiveRegime,
+      dynamicPrecisionSwitchApplied:
+        overrides.dynamicPrecisionSwitchApplied ?? dynamicPrecisionFields.dynamicPrecisionSwitchApplied,
+      dynamicPrecisionStrategyProfileId:
+        overrides.dynamicPrecisionStrategyProfileId ?? dynamicPrecisionFields.dynamicPrecisionStrategyProfileId,
+      dynamicPrecisionReasonCodes:
+        overrides.dynamicPrecisionReasonCodes ?? dynamicPrecisionFields.dynamicPrecisionReasonCodes,
+
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
       counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,
@@ -1998,48 +2109,6 @@ export default class ChunkManager {
       counterfactualRepairAntibodyPilotReasonCodes: overrides.counterfactualRepairAntibodyPilotReasonCodes ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotReasonCodes,
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
         overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
-      dynamicPrecisionSchemaVersion:
-        overrides.dynamicPrecisionSchemaVersion ?? dynamicPrecisionFields.dynamicPrecisionSchemaVersion,
-      dynamicPrecisionPolicyVersion:
-        overrides.dynamicPrecisionPolicyVersion ?? dynamicPrecisionFields.dynamicPrecisionPolicyVersion,
-      dynamicPrecisionEscalationPilotVersion:
-        overrides.dynamicPrecisionEscalationPilotVersion ?? dynamicPrecisionFields.dynamicPrecisionEscalationPilotVersion,
-      dynamicPrecisionEligible:
-        overrides.dynamicPrecisionEligible ?? dynamicPrecisionFields.dynamicPrecisionEligible,
-      dynamicPrecisionObservedFamily:
-        overrides.dynamicPrecisionObservedFamily ?? dynamicPrecisionFields.dynamicPrecisionObservedFamily,
-      dynamicPrecisionBaselineRegime:
-        overrides.dynamicPrecisionBaselineRegime ?? dynamicPrecisionFields.dynamicPrecisionBaselineRegime,
-      dynamicPrecisionSuggestedRegime:
-        overrides.dynamicPrecisionSuggestedRegime ?? dynamicPrecisionFields.dynamicPrecisionSuggestedRegime,
-      dynamicPrecisionCurrentRegime:
-        overrides.dynamicPrecisionCurrentRegime ?? dynamicPrecisionFields.dynamicPrecisionCurrentRegime,
-      dynamicPrecisionProposedRegime:
-        overrides.dynamicPrecisionProposedRegime ?? dynamicPrecisionFields.dynamicPrecisionProposedRegime,
-      dynamicPrecisionEscalationEligible:
-        overrides.dynamicPrecisionEscalationEligible ?? dynamicPrecisionFields.dynamicPrecisionEscalationEligible,
-      dynamicPrecisionEscalationSuggested:
-        overrides.dynamicPrecisionEscalationSuggested ?? dynamicPrecisionFields.dynamicPrecisionEscalationSuggested,
-      dynamicPrecisionTransitionAllowed:
-        overrides.dynamicPrecisionTransitionAllowed ?? dynamicPrecisionFields.dynamicPrecisionTransitionAllowed,
-      dynamicPrecisionHysteresisState:
-        overrides.dynamicPrecisionHysteresisState ?? dynamicPrecisionFields.dynamicPrecisionHysteresisState,
-      dynamicPrecisionFamilyPolicyId:
-        overrides.dynamicPrecisionFamilyPolicyId ?? dynamicPrecisionFields.dynamicPrecisionFamilyPolicyId,
-      dynamicPrecisionObservedAmbiguityBand:
-        overrides.dynamicPrecisionObservedAmbiguityBand ?? dynamicPrecisionFields.dynamicPrecisionObservedAmbiguityBand,
-      dynamicPrecisionObservedRepairWindowOpen:
-        overrides.dynamicPrecisionObservedRepairWindowOpen ?? dynamicPrecisionFields.dynamicPrecisionObservedRepairWindowOpen,
-      dynamicPrecisionObservedStressBand:
-        overrides.dynamicPrecisionObservedStressBand ?? dynamicPrecisionFields.dynamicPrecisionObservedStressBand,
-      dynamicPrecisionObservedGuardrailSuggested:
-        overrides.dynamicPrecisionObservedGuardrailSuggested ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailSuggested,
-      dynamicPrecisionObservedGuardrailKind:
-        overrides.dynamicPrecisionObservedGuardrailKind ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailKind,
-      dynamicPrecisionSource:
-        overrides.dynamicPrecisionSource ?? dynamicPrecisionFields.dynamicPrecisionSource,
-      dynamicPrecisionReasonCodes:
-        overrides.dynamicPrecisionReasonCodes ?? dynamicPrecisionFields.dynamicPrecisionReasonCodes,
     });
   }
 
