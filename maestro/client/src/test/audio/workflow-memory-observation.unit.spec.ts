@@ -1,6 +1,7 @@
 import { deriveWorkflowMemoryObservation } from "../../main/runtime/workflow-memory-observation";
 import { deriveWorkflowMemoryContinuityRanking } from "../../main/runtime/workflow-memory-continuity-ranking";
 import { deriveWorkflowMemoryContinuityOrdering } from "../../main/runtime/workflow-memory-continuity-ordering";
+import { deriveWorkflowMemoryCandidatePoolOrdering } from "../../main/runtime/workflow-memory-candidate-pool-ordering";
 
 describe("workflow memory observation", () => {
   it("records first governed semantic address without continuity suggestion", () => {
@@ -176,6 +177,64 @@ describe("workflow memory continuity ordering", () => {
         workflowMemoryOrderingBaseScore: 0.67,
         workflowMemoryOrderingAdjustedScore: 0.67,
         workflowMemoryOrderingBoost: 0,
+      })
+    );
+  });
+});
+
+
+describe("workflow memory candidate-pool ordering", () => {
+  it("reorders a multi-candidate pool when a previously seen governed transition favors a later candidate", () => {
+    const fields = deriveWorkflowMemoryCandidatePoolOrdering({
+      previousSemanticAddressId: "open_file",
+      candidateSemanticAddressIds: ["new_tab", "go_to_line"],
+      candidateScores: [0.72, 0.68],
+      transitionCounts: { "open_file->go_to_line": 2 },
+      continuationSuggested: null,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryCandidatePoolOrderingVersion: "3i_candidate_pool_ordering_expansion_v1",
+        workflowMemoryCandidatePoolOrderingEligible: true,
+        workflowMemoryCandidatePoolOrderingApplied: true,
+        workflowMemoryCandidatePoolCandidateCountBefore: 2,
+        workflowMemoryCandidatePoolCandidateCountAfter: 2,
+        workflowMemoryCandidatePoolSemanticAddressIdsBefore: ["new_tab", "go_to_line"],
+        workflowMemoryCandidatePoolSemanticAddressIdsAfter: ["go_to_line", "new_tab"],
+        workflowMemoryCandidatePoolScoresBefore: [0.72, 0.68],
+        workflowMemoryCandidatePoolScoresAfter: [0.8, 0.72],
+        workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore: "new_tab",
+        workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter: "go_to_line",
+        workflowMemoryCandidatePoolTopCandidateScoreBefore: 0.72,
+        workflowMemoryCandidatePoolTopCandidateScoreAfter: 0.8,
+      })
+    );
+  });
+
+  it("stays non-applied when the candidate pool is missing multi-candidate support", () => {
+    const fields = deriveWorkflowMemoryCandidatePoolOrdering({
+      previousSemanticAddressId: "open_file",
+      candidateSemanticAddressIds: ["go_to_line"],
+      candidateScores: [0.68],
+      transitionCounts: { "open_file->go_to_line": 2 },
+      continuationSuggested: null,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryCandidatePoolOrderingEligible: false,
+        workflowMemoryCandidatePoolOrderingApplied: false,
+        workflowMemoryCandidatePoolCandidateCountBefore: 1,
+        workflowMemoryCandidatePoolCandidateCountAfter: 1,
+        workflowMemoryCandidatePoolSemanticAddressIdsBefore: ["go_to_line"],
+        workflowMemoryCandidatePoolSemanticAddressIdsAfter: ["go_to_line"],
+        workflowMemoryCandidatePoolScoresBefore: [0.68],
+        workflowMemoryCandidatePoolScoresAfter: [0.68],
+        workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore: "go_to_line",
+        workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter: "go_to_line",
+        workflowMemoryCandidatePoolTopCandidateScoreBefore: 0.68,
+        workflowMemoryCandidatePoolTopCandidateScoreAfter: 0.68,
       })
     );
   });

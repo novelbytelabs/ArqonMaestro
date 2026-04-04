@@ -65,6 +65,7 @@ import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-
 import { deriveWorkflowMemoryObservation } from "../runtime/workflow-memory-observation";
 import { deriveWorkflowMemoryContinuityRanking } from "../runtime/workflow-memory-continuity-ranking";
 import { deriveWorkflowMemoryContinuityOrdering } from "../runtime/workflow-memory-continuity-ordering";
+import { deriveWorkflowMemoryCandidatePoolOrdering } from "../runtime/workflow-memory-candidate-pool-ordering";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -869,16 +870,44 @@ export default class ChunkManager {
           canonicalMergedText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
         }),
       });
+      const semanticLookupCandidatePoolSemanticAddressIds =
+        Array.isArray((semanticLookup as any).candidateSemanticAddressIds)
+          ? ((semanticLookup as any).candidateSemanticAddressIds as string[])
+          : Array.isArray((semanticLookup as any).topCandidateSemanticAddressIds)
+            ? ((semanticLookup as any).topCandidateSemanticAddressIds as string[])
+            : null;
+      const semanticLookupCandidatePoolScores =
+        Array.isArray((semanticLookup as any).candidateScores)
+          ? ((semanticLookup as any).candidateScores as number[])
+          : Array.isArray((semanticLookup as any).candidateNormalizedScores)
+            ? ((semanticLookup as any).candidateNormalizedScores as number[])
+            : Array.isArray((semanticLookup as any).topCandidateNormalizedScores)
+              ? ((semanticLookup as any).topCandidateNormalizedScores as number[])
+              : null;
       const workflowMemoryOrderingFields = this.getWorkflowMemoryOrderingFields({
         candidateSemanticAddressId: semanticLookup.bestCandidateId,
         baseScore: semanticLookup.bestCandidateScore ?? null,
         continuationSuggested: null,
       });
+      const workflowMemoryCandidatePoolOrderingFields =
+        this.getWorkflowMemoryCandidatePoolOrderingFields({
+          candidateSemanticAddressIds: semanticLookupCandidatePoolSemanticAddressIds,
+          candidateScores: semanticLookupCandidatePoolScores,
+          continuationSuggested: null,
+        });
+      const adjustedSemanticLookupBestCandidateId =
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+          ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+          : semanticLookup.bestCandidateId;
       const adjustedSemanticLookupBestCandidateScore =
-        workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
-        workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
-          ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
-          : semanticLookup.bestCandidateScore;
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter !== null
+          ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter
+          : workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
+            workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
+            ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
+            : semanticLookup.bestCandidateScore;
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
         regionId: event.regionId,
@@ -886,8 +915,12 @@ export default class ChunkManager {
         parameterType: event.parameterType ?? null,
         atlasVersion: event.atlasVersion ?? "unknown",
         lookupCandidateCount: semanticLookup.lookupCandidateCount,
-        bestCandidateId: semanticLookup.bestCandidateId,
+        bestCandidateId: adjustedSemanticLookupBestCandidateId,
         bestCandidateScore: adjustedSemanticLookupBestCandidateScore,
+        workflowMemoryCandidatePoolSemanticAddressIdsBefore:
+          semanticLookupCandidatePoolSemanticAddressIds ?? undefined,
+        workflowMemoryCandidatePoolScoresBefore:
+          semanticLookupCandidatePoolScores ?? undefined,
         canonicalMergedText: semanticLookup.bestCanonicalMergedText,
         warmHitClass: semanticLookup.warmHitClass,
         lookupPath: semanticLookup.lookupPath,
@@ -1875,6 +1908,26 @@ export default class ChunkManager {
     });
   }
 
+
+  private getWorkflowMemoryCandidatePoolOrderingFields(
+    seed: Partial<{
+      candidateSemanticAddressIds: string[] | null;
+      candidateScores: number[] | null;
+      continuationSuggested: boolean | null;
+    }> = {}
+  ) {
+    const workflowState = this.getWorkflowMemoryState();
+
+    return deriveWorkflowMemoryCandidatePoolOrdering({
+      previousSemanticAddressId: workflowState.lastGovernedSemanticAddressId ?? null,
+      candidateSemanticAddressIds: seed.candidateSemanticAddressIds ?? null,
+      candidateScores: seed.candidateScores ?? null,
+      transitionCounts: workflowState.transitionCounts,
+      continuationSuggested: seed.continuationSuggested ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
   private getDynamicPrecisionEvidenceFields(
     chunkId: string,
     seed: Partial<{
@@ -1985,11 +2038,27 @@ export default class ChunkManager {
       baseScore: overrides.bestCandidateScore ?? null,
       continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
     });
+    const workflowMemoryCandidatePoolOrderingFields =
+      this.getWorkflowMemoryCandidatePoolOrderingFields({
+        candidateSemanticAddressIds:
+          overrides.workflowMemoryCandidatePoolSemanticAddressIdsBefore ?? null,
+        candidateScores:
+          overrides.workflowMemoryCandidatePoolScoresBefore ?? null,
+        continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
+      });
+    const adjustedBestCandidateId =
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+        ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+        : overrides.bestCandidateId ?? null;
     const adjustedBestCandidateScore =
-      workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
-      workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
-        ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
-        : overrides.bestCandidateScore ?? null;
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter !== null
+        ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter
+        : workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
+          workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
+          ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
+          : overrides.bestCandidateScore ?? null;
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
@@ -2023,7 +2092,7 @@ export default class ChunkManager {
       slotSignature: overrides.slotSignature ?? undefined,
       atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? undefined,
       lookupCandidateCount: overrides.lookupCandidateCount ?? undefined,
-      bestCandidateId: overrides.bestCandidateId ?? undefined,
+      bestCandidateId: adjustedBestCandidateId ?? undefined,
       bestCandidateScore: adjustedBestCandidateScore ?? undefined,
       warmHitClass: overrides.warmHitClass ?? undefined,
       governanceRequired: overrides.governanceRequired ?? undefined,
@@ -2280,6 +2349,36 @@ export default class ChunkManager {
         overrides.workflowMemoryOrderingSource ?? workflowMemoryOrderingFields.workflowMemoryOrderingSource,
       workflowMemoryOrderingReasonCodes:
         overrides.workflowMemoryOrderingReasonCodes ?? workflowMemoryOrderingFields.workflowMemoryOrderingReasonCodes,
+      workflowMemoryCandidatePoolOrderingVersion:
+        overrides.workflowMemoryCandidatePoolOrderingVersion ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingVersion,
+      workflowMemoryCandidatePoolOrderingEligible:
+        overrides.workflowMemoryCandidatePoolOrderingEligible ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingEligible,
+      workflowMemoryCandidatePoolOrderingApplied:
+        overrides.workflowMemoryCandidatePoolOrderingApplied ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied,
+      workflowMemoryCandidatePoolCandidateCountBefore:
+        overrides.workflowMemoryCandidatePoolCandidateCountBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolCandidateCountBefore,
+      workflowMemoryCandidatePoolCandidateCountAfter:
+        overrides.workflowMemoryCandidatePoolCandidateCountAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolCandidateCountAfter,
+      workflowMemoryCandidatePoolSemanticAddressIdsBefore:
+        overrides.workflowMemoryCandidatePoolSemanticAddressIdsBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSemanticAddressIdsBefore,
+      workflowMemoryCandidatePoolSemanticAddressIdsAfter:
+        overrides.workflowMemoryCandidatePoolSemanticAddressIdsAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSemanticAddressIdsAfter,
+      workflowMemoryCandidatePoolScoresBefore:
+        overrides.workflowMemoryCandidatePoolScoresBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolScoresBefore,
+      workflowMemoryCandidatePoolScoresAfter:
+        overrides.workflowMemoryCandidatePoolScoresAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolScoresAfter,
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore:
+        overrides.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore,
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter:
+        overrides.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter,
+      workflowMemoryCandidatePoolTopCandidateScoreBefore:
+        overrides.workflowMemoryCandidatePoolTopCandidateScoreBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreBefore,
+      workflowMemoryCandidatePoolTopCandidateScoreAfter:
+        overrides.workflowMemoryCandidatePoolTopCandidateScoreAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter,
+      workflowMemoryCandidatePoolSource:
+        overrides.workflowMemoryCandidatePoolSource ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSource,
+      workflowMemoryCandidatePoolReasonCodes:
+        overrides.workflowMemoryCandidatePoolReasonCodes ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolReasonCodes,
 
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,

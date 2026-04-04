@@ -225,3 +225,30 @@ Notes:
 - no persistence / distributed cache
 - candidate-pool-wide ordering remains intentionally bounded in this slice
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3I-S4 candidate-pool-wide ordering expansion
+- workflowMemoryCandidatePoolOrderingVersion
+- workflowMemoryCandidatePoolOrderingEligible
+- workflowMemoryCandidatePoolOrderingApplied
+- workflowMemoryCandidatePoolCandidateCountBefore
+- workflowMemoryCandidatePoolCandidateCountAfter
+- workflowMemoryCandidatePoolSemanticAddressIdsBefore
+- workflowMemoryCandidatePoolSemanticAddressIdsAfter
+- workflowMemoryCandidatePoolScoresBefore
+- workflowMemoryCandidatePoolScoresAfter
+- workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore
+- workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+- workflowMemoryCandidatePoolTopCandidateScoreBefore
+- workflowMemoryCandidatePoolTopCandidateScoreAfter
+- workflowMemoryCandidatePoolSource
+- workflowMemoryCandidatePoolReasonCodes
+
+Notes:
+- bounded advisory candidate-pool ordering expansion only
+- candidate-pool ordering may reshape emitted best-candidate identity / score when a previously seen governed transition overtakes the earlier pool leader
+- workflow memory remains session-local only
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache
+- live multi-candidate activation depends on the registry surfacing a candidate pool; when no multi-candidate pool is present these fields remain explicit pass-through / non-applied
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

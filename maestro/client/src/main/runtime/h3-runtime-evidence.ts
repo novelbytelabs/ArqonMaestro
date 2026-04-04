@@ -263,6 +263,21 @@ export interface H3RuntimeEvidenceEvent {
   workflowMemoryOrderingTransitionCount: number | null;
   workflowMemoryOrderingSource: string | null;
   workflowMemoryOrderingReasonCodes: string[] | null;
+  workflowMemoryCandidatePoolOrderingVersion: string | null;
+  workflowMemoryCandidatePoolOrderingEligible: boolean | null;
+  workflowMemoryCandidatePoolOrderingApplied: boolean | null;
+  workflowMemoryCandidatePoolCandidateCountBefore: number | null;
+  workflowMemoryCandidatePoolCandidateCountAfter: number | null;
+  workflowMemoryCandidatePoolSemanticAddressIdsBefore: string[] | null;
+  workflowMemoryCandidatePoolSemanticAddressIdsAfter: string[] | null;
+  workflowMemoryCandidatePoolScoresBefore: number[] | null;
+  workflowMemoryCandidatePoolScoresAfter: number[] | null;
+  workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore: string | null;
+  workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter: string | null;
+  workflowMemoryCandidatePoolTopCandidateScoreBefore: number | null;
+  workflowMemoryCandidatePoolTopCandidateScoreAfter: number | null;
+  workflowMemoryCandidatePoolSource: string | null;
+  workflowMemoryCandidatePoolReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -667,6 +682,36 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowMemoryOrderingSource ?? null,
     workflowMemoryOrderingReasonCodes:
       input.workflowMemoryOrderingReasonCodes ?? null,
+    workflowMemoryCandidatePoolOrderingVersion:
+      input.workflowMemoryCandidatePoolOrderingVersion ?? null,
+    workflowMemoryCandidatePoolOrderingEligible:
+      input.workflowMemoryCandidatePoolOrderingEligible ?? null,
+    workflowMemoryCandidatePoolOrderingApplied:
+      input.workflowMemoryCandidatePoolOrderingApplied ?? null,
+    workflowMemoryCandidatePoolCandidateCountBefore:
+      input.workflowMemoryCandidatePoolCandidateCountBefore ?? null,
+    workflowMemoryCandidatePoolCandidateCountAfter:
+      input.workflowMemoryCandidatePoolCandidateCountAfter ?? null,
+    workflowMemoryCandidatePoolSemanticAddressIdsBefore:
+      input.workflowMemoryCandidatePoolSemanticAddressIdsBefore ?? null,
+    workflowMemoryCandidatePoolSemanticAddressIdsAfter:
+      input.workflowMemoryCandidatePoolSemanticAddressIdsAfter ?? null,
+    workflowMemoryCandidatePoolScoresBefore:
+      input.workflowMemoryCandidatePoolScoresBefore ?? null,
+    workflowMemoryCandidatePoolScoresAfter:
+      input.workflowMemoryCandidatePoolScoresAfter ?? null,
+    workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore:
+      input.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore ?? null,
+    workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter:
+      input.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter ?? null,
+    workflowMemoryCandidatePoolTopCandidateScoreBefore:
+      input.workflowMemoryCandidatePoolTopCandidateScoreBefore ?? null,
+    workflowMemoryCandidatePoolTopCandidateScoreAfter:
+      input.workflowMemoryCandidatePoolTopCandidateScoreAfter ?? null,
+    workflowMemoryCandidatePoolSource:
+      input.workflowMemoryCandidatePoolSource ?? null,
+    workflowMemoryCandidatePoolReasonCodes:
+      input.workflowMemoryCandidatePoolReasonCodes ?? null,
   };
 }
 

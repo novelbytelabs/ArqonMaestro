@@ -20,8 +20,13 @@ const cfhMockFactory = () => ({
 });
 
 describe("ChunkManager H3 workflow memory evidence", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.unmock("../../main/stt/cfh");
+  });
+
   afterEach(() => {
-    jest.dontMock("../../main/stt/cfh");
+    jest.unmock("../../main/stt/cfh");
     jest.restoreAllMocks();
     jest.clearAllMocks();
   });
@@ -372,6 +377,138 @@ it("keeps ordering non-applied and leaves score unchanged when no continuity pri
       workflowMemoryOrderingMatchedTransitionKey: null,
       workflowMemoryOrderingTransitionCount: null,
       workflowMemoryOrderingSource: "h3_runtime_evidence",
+    })
+  );
+});
+
+
+
+it("expands workflow-memory ordering across a candidate pool and updates emitted top candidate fields", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_pool_seed_1",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    semanticAddressId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_pool_seed_2",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_pool_seed_3",
+  });
+
+  decisionSpy.mockReturnValue({ granted: false });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    bestCandidateId: "new_tab",
+    bestCandidateScore: 0.72,
+    workflowMemoryCandidatePoolSemanticAddressIdsBefore: ["new_tab", "go_to_line"],
+    workflowMemoryCandidatePoolScoresBefore: [0.72, 0.68],
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_pool_probe",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      bestCandidateId: "go_to_line",
+      bestCandidateScore: 0.74,
+      workflowMemoryCandidatePoolOrderingVersion: "3i_candidate_pool_ordering_expansion_v1",
+      workflowMemoryCandidatePoolOrderingEligible: true,
+      workflowMemoryCandidatePoolOrderingApplied: true,
+      workflowMemoryCandidatePoolCandidateCountBefore: 2,
+      workflowMemoryCandidatePoolCandidateCountAfter: 2,
+      workflowMemoryCandidatePoolSemanticAddressIdsBefore: ["new_tab", "go_to_line"],
+      workflowMemoryCandidatePoolSemanticAddressIdsAfter: ["go_to_line", "new_tab"],
+      workflowMemoryCandidatePoolScoresBefore: [0.72, 0.68],
+      workflowMemoryCandidatePoolScoresAfter: [0.74, 0.72],
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore: "new_tab",
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter: "go_to_line",
+      workflowMemoryCandidatePoolTopCandidateScoreBefore: 0.72,
+      workflowMemoryCandidatePoolTopCandidateScoreAfter: 0.74,
+      workflowMemoryCandidatePoolSource: "h3_runtime_evidence",
+    })
+  );
+});
+
+it("keeps candidate-pool ordering non-applied when fewer than two candidates are available", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_pool_single_seed",
+  });
+
+  decisionSpy.mockReturnValue({ granted: false });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    bestCandidateId: "go_to_line",
+    bestCandidateScore: 0.68,
+    workflowMemoryCandidatePoolSemanticAddressIdsBefore: ["go_to_line"],
+    workflowMemoryCandidatePoolScoresBefore: [0.68],
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_pool_single_probe",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      bestCandidateId: "go_to_line",
+      bestCandidateScore: 0.68,
+      workflowMemoryCandidatePoolOrderingEligible: false,
+      workflowMemoryCandidatePoolOrderingApplied: false,
+      workflowMemoryCandidatePoolCandidateCountBefore: 1,
+      workflowMemoryCandidatePoolCandidateCountAfter: 1,
+      workflowMemoryCandidatePoolSemanticAddressIdsBefore: ["go_to_line"],
+      workflowMemoryCandidatePoolSemanticAddressIdsAfter: ["go_to_line"],
+      workflowMemoryCandidatePoolScoresBefore: [0.68],
+      workflowMemoryCandidatePoolScoresAfter: [0.68],
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore: "go_to_line",
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter: "go_to_line",
     })
   );
 });

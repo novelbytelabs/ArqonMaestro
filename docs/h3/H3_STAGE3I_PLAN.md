@@ -75,19 +75,30 @@ Delivered:
 
 ### 3I-S4 — candidate-pool-wide ordering expansion
 Status:
+Implemented
+
+Delivered:
+- bounded candidate-pool-wide ordering helper for session-local workflow continuity priors
+- candidate-pool before/after evidence surfaces
+- best-candidate update from reordered pool when a previously seen governed transition overtakes the earlier pool leader
+- continuity shaping remains advisory-only and ranking-scoped
+- no authority change
+
+### 3I-S5 — workflow reuse substrate
+Status:
 Next
 
 Intended direction:
-- expand bounded workflow-memory continuity priors from best-candidate hookup into candidate-pool-wide ordering inside governed lookup
-- keep continuity shaping advisory-only and ranking-scoped
-- no authority change
+- lift repeated semantic-address sequences into bounded workflow reuse priors
+- remain session-local and advisory-only
+- keep macro execution out of scope for this slice
 
 ## Explicit non-goals at current stage state
 
-Not in 3I-S3:
+Not in 3I-S4:
 - persistent learned workflow memory
 - distributed workflow memory
 - macro recording / playback
 - hidden action chaining
 - authority changes
-- candidate-pool-wide ordering beyond the bounded best-candidate hookup landed in S3
+- registry-wide multi-candidate shortlist export is not assumed; candidate-pool ordering activates only when a multi-candidate pool is surfaced
