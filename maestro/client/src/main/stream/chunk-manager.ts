@@ -1719,6 +1719,8 @@ export default class ChunkManager {
       ambiguityBand: string | null;
       repairWindowOpen: boolean | null;
       stressBand: string | null;
+      guardrailSuggested: boolean | null;
+      guardrailKind: string | null;
     }> = {}
   ) {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
@@ -1737,6 +1739,8 @@ export default class ChunkManager {
         seed.stressBand === "nominal" || seed.stressBand === "elevated" || seed.stressBand === "critical"
           ? seed.stressBand
           : null,
+      guardrailSuggested: seed.guardrailSuggested ?? null,
+      guardrailKind: seed.guardrailKind ?? null,
       source: "h3_runtime_evidence",
     });
   }
@@ -1774,6 +1778,8 @@ export default class ChunkManager {
       ambiguityBand: counterfactualRepairFields.counterfactualRepairAmbiguityBand,
       repairWindowOpen: counterfactualRepairFields.counterfactualRepairSignalRepairWindowOpen,
       stressBand: counterfactualRepairFields.counterfactualRepairStressBand,
+      guardrailSuggested: counterfactualRepairFields.counterfactualRepairRankingGuardrailSuggested,
+      guardrailKind: counterfactualRepairFields.counterfactualRepairRankingGuardrailKind,
     });
     emitH3RuntimeEvidence({
       event: eventName,
@@ -1996,6 +2002,8 @@ export default class ChunkManager {
         overrides.dynamicPrecisionSchemaVersion ?? dynamicPrecisionFields.dynamicPrecisionSchemaVersion,
       dynamicPrecisionPolicyVersion:
         overrides.dynamicPrecisionPolicyVersion ?? dynamicPrecisionFields.dynamicPrecisionPolicyVersion,
+      dynamicPrecisionEscalationPilotVersion:
+        overrides.dynamicPrecisionEscalationPilotVersion ?? dynamicPrecisionFields.dynamicPrecisionEscalationPilotVersion,
       dynamicPrecisionEligible:
         overrides.dynamicPrecisionEligible ?? dynamicPrecisionFields.dynamicPrecisionEligible,
       dynamicPrecisionObservedFamily:
@@ -2004,14 +2012,30 @@ export default class ChunkManager {
         overrides.dynamicPrecisionBaselineRegime ?? dynamicPrecisionFields.dynamicPrecisionBaselineRegime,
       dynamicPrecisionSuggestedRegime:
         overrides.dynamicPrecisionSuggestedRegime ?? dynamicPrecisionFields.dynamicPrecisionSuggestedRegime,
+      dynamicPrecisionCurrentRegime:
+        overrides.dynamicPrecisionCurrentRegime ?? dynamicPrecisionFields.dynamicPrecisionCurrentRegime,
+      dynamicPrecisionProposedRegime:
+        overrides.dynamicPrecisionProposedRegime ?? dynamicPrecisionFields.dynamicPrecisionProposedRegime,
       dynamicPrecisionEscalationEligible:
         overrides.dynamicPrecisionEscalationEligible ?? dynamicPrecisionFields.dynamicPrecisionEscalationEligible,
+      dynamicPrecisionEscalationSuggested:
+        overrides.dynamicPrecisionEscalationSuggested ?? dynamicPrecisionFields.dynamicPrecisionEscalationSuggested,
+      dynamicPrecisionTransitionAllowed:
+        overrides.dynamicPrecisionTransitionAllowed ?? dynamicPrecisionFields.dynamicPrecisionTransitionAllowed,
+      dynamicPrecisionHysteresisState:
+        overrides.dynamicPrecisionHysteresisState ?? dynamicPrecisionFields.dynamicPrecisionHysteresisState,
+      dynamicPrecisionFamilyPolicyId:
+        overrides.dynamicPrecisionFamilyPolicyId ?? dynamicPrecisionFields.dynamicPrecisionFamilyPolicyId,
       dynamicPrecisionObservedAmbiguityBand:
         overrides.dynamicPrecisionObservedAmbiguityBand ?? dynamicPrecisionFields.dynamicPrecisionObservedAmbiguityBand,
       dynamicPrecisionObservedRepairWindowOpen:
         overrides.dynamicPrecisionObservedRepairWindowOpen ?? dynamicPrecisionFields.dynamicPrecisionObservedRepairWindowOpen,
       dynamicPrecisionObservedStressBand:
         overrides.dynamicPrecisionObservedStressBand ?? dynamicPrecisionFields.dynamicPrecisionObservedStressBand,
+      dynamicPrecisionObservedGuardrailSuggested:
+        overrides.dynamicPrecisionObservedGuardrailSuggested ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailSuggested,
+      dynamicPrecisionObservedGuardrailKind:
+        overrides.dynamicPrecisionObservedGuardrailKind ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailKind,
       dynamicPrecisionSource:
         overrides.dynamicPrecisionSource ?? dynamicPrecisionFields.dynamicPrecisionSource,
       dynamicPrecisionReasonCodes:

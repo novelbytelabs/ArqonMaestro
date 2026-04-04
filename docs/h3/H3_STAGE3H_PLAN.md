@@ -7,7 +7,7 @@ Stage:
 3H — Dynamic Precision Regimes
 
 Status:
-S1 implemented, S2 next
+S2 implemented, S3 next
 
 Audience:
 - engineers
@@ -112,7 +112,7 @@ Delivered:
 
 ### 3H-S2 — bounded escalation trigger pilot
 Status:
-Next
+Implemented
 
 Scope:
 - use ambiguity and instability signals to propose regime escalation
@@ -120,6 +120,9 @@ Scope:
 - bounded pilot only
 
 ### 3H-S3 — family-aware regime switching
+Status:
+Next
+
 Scope:
 - different regime strategies by family:
     - reflex / structured

@@ -48,43 +48,55 @@ describe("ChunkManager H3 dynamic precision evidence", () => {
     manager.chunkH3Route.set("chunk-1", "geometric_prefix_asr_tail");
     manager.chunkH3LatestGeometricEvent.set("chunk-1", {
       source: "spectral_manifold",
-      regionId: "open",
+      regionId: "line_nav",
       commandClass: "parameterized",
-      parameterType: "open",
+      parameterType: "numeric",
       atlasVersion: "v1",
     });
 
     return { ChunkManager, manager, h23Recorder, runtimeEvidence };
   }
 
-  it("emits dynamic precision observational fields when semantic result is present", () => {
+  it("emits bounded escalation pilot fields when repair and guardrail pressure are present", () => {
     const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
     h23Recorder.getTraceSnapshot = jest.fn(() => []);
     h23Recorder.getLatestDecision = jest.fn(() => null);
+    manager.getCounterfactualRepairEvidenceFields = jest.fn(() => ({
+      counterfactualRepairAmbiguityBand: "high",
+      counterfactualRepairSignalRepairWindowOpen: true,
+      counterfactualRepairStressBand: "critical",
+      counterfactualRepairRankingGuardrailSuggested: true,
+      counterfactualRepairRankingGuardrailKind: "hold_for_tail",
+    }));
     const evidenceSpy = jest
       .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
       .mockImplementation((event: any) => event);
 
     ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
-      regionId: "open",
+      regionId: "line_nav",
       commandClass: "parameterized",
-      parameterType: "open",
-      semanticAddressId: "open_github",
-      canonicalMergedText: "open github.com",
-      transcriptText: "open gi- github.com",
-      reason: "dynamic_precision_observational_only",
+      parameterType: "numeric",
+      semanticAddressId: "go_to_line",
+      canonicalMergedText: "go to line 42",
+      transcriptText: "go to line for-ty two",
+      reason: "dynamic_precision_bounded_escalation_pilot",
     });
 
     expect(evidenceSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         dynamicPrecisionSchemaVersion: "h3_dynamic_precision_regime_observation_v1",
         dynamicPrecisionPolicyVersion: "3h_dynamic_precision_regimes_v1",
+        dynamicPrecisionEscalationPilotVersion: "3h_bounded_escalation_trigger_v1",
         dynamicPrecisionEligible: true,
-        dynamicPrecisionObservedFamily: "open",
-        dynamicPrecisionBaselineRegime: "ultra",
-        dynamicPrecisionSuggestedRegime: "ultra",
-        dynamicPrecisionEscalationEligible: true,
-        dynamicPrecisionObservedAmbiguityBand: "high",
+        dynamicPrecisionObservedFamily: "numeric",
+        dynamicPrecisionCurrentRegime: "tight",
+        dynamicPrecisionProposedRegime: "ultra",
+        dynamicPrecisionEscalationSuggested: true,
+        dynamicPrecisionObservedGuardrailSuggested: true,
+        dynamicPrecisionObservedGuardrailKind: "hold_for_tail",
+        dynamicPrecisionFamilyPolicyId: "3h_family_policy_numeric_v1",
+        dynamicPrecisionHysteresisState: "escalation_armed",
+        dynamicPrecisionTransitionAllowed: false,
       })
     );
   });
@@ -100,6 +112,13 @@ describe("ChunkManager H3 dynamic precision evidence", () => {
       parameterType: null,
       atlasVersion: "v1",
     });
+    manager.getCounterfactualRepairEvidenceFields = jest.fn(() => ({
+      counterfactualRepairAmbiguityBand: null,
+      counterfactualRepairSignalRepairWindowOpen: null,
+      counterfactualRepairStressBand: null,
+      counterfactualRepairRankingGuardrailSuggested: null,
+      counterfactualRepairRankingGuardrailKind: null,
+    }));
     const evidenceSpy = jest
       .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
       .mockImplementation((event: any) => event);
@@ -115,6 +134,10 @@ describe("ChunkManager H3 dynamic precision evidence", () => {
         dynamicPrecisionObservedFamily: null,
         dynamicPrecisionBaselineRegime: null,
         dynamicPrecisionSuggestedRegime: null,
+        dynamicPrecisionCurrentRegime: null,
+        dynamicPrecisionProposedRegime: null,
+        dynamicPrecisionEscalationSuggested: false,
+        dynamicPrecisionTransitionAllowed: false,
       })
     );
   });

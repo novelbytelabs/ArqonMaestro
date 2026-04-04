@@ -23,7 +23,6 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
   afterEach(() => {
     jest.dontMock("../../main/stt/cfh");
     jest.restoreAllMocks();
-    jest.resetModules();
   });
 
   function makeBareManager(): any {
@@ -31,7 +30,6 @@ describe("ChunkManager H3 counterfactual repair evidence", () => {
     let h23Recorder: any;
     let runtimeEvidence: any;
 
-    jest.resetModules();
     jest.dontMock("../../main/stt/cfh");
     jest.isolateModules(() => {
       jest.doMock("../../main/stt/cfh", cfhMockFactory);

@@ -195,15 +195,24 @@ export interface H3RuntimeEvidenceEvent {
   counterfactualRepairAntibodyPilotReasonCodes: string[] | null;
   dynamicPrecisionSchemaVersion: string | null;
   dynamicPrecisionPolicyVersion: string | null;
+  dynamicPrecisionEscalationPilotVersion: string | null;
   dynamicPrecisionEligible: boolean | null;
   dynamicPrecisionObservedFamily: string | null;
   dynamicPrecisionBaselineRegime: string | null;
   dynamicPrecisionSuggestedRegime: string | null;
+  dynamicPrecisionCurrentRegime: string | null;
+  dynamicPrecisionProposedRegime: string | null;
   dynamicPrecisionEscalationEligible: boolean | null;
+  dynamicPrecisionEscalationSuggested: boolean | null;
   dynamicPrecisionObservedAmbiguityBand: string | null;
   dynamicPrecisionObservedRepairWindowOpen: boolean | null;
   dynamicPrecisionObservedStressBand: string | null;
+  dynamicPrecisionObservedGuardrailSuggested: boolean | null;
+  dynamicPrecisionObservedGuardrailKind: string | null;
   dynamicPrecisionSource: string | null;
+  dynamicPrecisionFamilyPolicyId: string | null;
+  dynamicPrecisionHysteresisState: string | null;
+  dynamicPrecisionTransitionAllowed: boolean | null;
   dynamicPrecisionReasonCodes: string[] | null;
 }
 
@@ -473,6 +482,8 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.dynamicPrecisionSchemaVersion ?? null,
     dynamicPrecisionPolicyVersion:
       input.dynamicPrecisionPolicyVersion ?? null,
+    dynamicPrecisionEscalationPilotVersion:
+      input.dynamicPrecisionEscalationPilotVersion ?? null,
     dynamicPrecisionEligible:
       input.dynamicPrecisionEligible ?? null,
     dynamicPrecisionObservedFamily:
@@ -481,16 +492,32 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.dynamicPrecisionBaselineRegime ?? null,
     dynamicPrecisionSuggestedRegime:
       input.dynamicPrecisionSuggestedRegime ?? null,
+    dynamicPrecisionCurrentRegime:
+      input.dynamicPrecisionCurrentRegime ?? null,
+    dynamicPrecisionProposedRegime:
+      input.dynamicPrecisionProposedRegime ?? null,
     dynamicPrecisionEscalationEligible:
       input.dynamicPrecisionEscalationEligible ?? null,
+    dynamicPrecisionEscalationSuggested:
+      input.dynamicPrecisionEscalationSuggested ?? null,
     dynamicPrecisionObservedAmbiguityBand:
       input.dynamicPrecisionObservedAmbiguityBand ?? null,
     dynamicPrecisionObservedRepairWindowOpen:
       input.dynamicPrecisionObservedRepairWindowOpen ?? null,
     dynamicPrecisionObservedStressBand:
       input.dynamicPrecisionObservedStressBand ?? null,
+    dynamicPrecisionObservedGuardrailSuggested:
+      input.dynamicPrecisionObservedGuardrailSuggested ?? null,
+    dynamicPrecisionObservedGuardrailKind:
+      input.dynamicPrecisionObservedGuardrailKind ?? null,
     dynamicPrecisionSource:
       input.dynamicPrecisionSource ?? null,
+    dynamicPrecisionFamilyPolicyId:
+      input.dynamicPrecisionFamilyPolicyId ?? null,
+    dynamicPrecisionHysteresisState:
+      input.dynamicPrecisionHysteresisState ?? null,
+    dynamicPrecisionTransitionAllowed:
+      input.dynamicPrecisionTransitionAllowed ?? null,
     dynamicPrecisionReasonCodes:
       input.dynamicPrecisionReasonCodes ?? null,
   };

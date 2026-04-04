@@ -107,3 +107,23 @@ Notes:
 - observational contract only
 - no live Turbo/Tight/Ultra switching yet
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3H-S2 bounded escalation trigger pilot
+- `dynamicPrecisionEscalationPilotVersion`
+- `dynamicPrecisionCurrentRegime`
+- `dynamicPrecisionProposedRegime`
+- `dynamicPrecisionEscalationSuggested`
+- `dynamicPrecisionObservedGuardrailSuggested`
+- `dynamicPrecisionObservedGuardrailKind`
+- `dynamicPrecisionFamilyPolicyId`
+- `dynamicPrecisionHysteresisState`
+- `dynamicPrecisionTransitionAllowed`
+
+Notes:
+- bounded advisory pilot only
+- ambiguity / repair / guardrail signals may suggest escalation
+- `dynamicPrecisionTransitionAllowed` remains `false` in this slice
+- no live Turbo/Tight/Ultra actuation yet
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
