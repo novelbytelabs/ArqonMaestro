@@ -251,6 +251,18 @@ export interface H3RuntimeEvidenceEvent {
   workflowMemoryRankingSeenBefore: boolean | null;
   workflowMemoryRankingSource: string | null;
   workflowMemoryRankingReasonCodes: string[] | null;
+  workflowMemoryOrderingVersion: string | null;
+  workflowMemoryOrderingEligible: boolean | null;
+  workflowMemoryOrderingApplied: boolean | null;
+  workflowMemoryOrderingBaseScore: number | null;
+  workflowMemoryOrderingAdjustedScore: number | null;
+  workflowMemoryOrderingBoost: number | null;
+  workflowMemoryOrderingPreviousSemanticAddressId: string | null;
+  workflowMemoryOrderingCandidateSemanticAddressId: string | null;
+  workflowMemoryOrderingMatchedTransitionKey: string | null;
+  workflowMemoryOrderingTransitionCount: number | null;
+  workflowMemoryOrderingSource: string | null;
+  workflowMemoryOrderingReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -631,6 +643,30 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowMemoryRankingSource ?? null,
     workflowMemoryRankingReasonCodes:
       input.workflowMemoryRankingReasonCodes ?? null,
+    workflowMemoryOrderingVersion:
+      input.workflowMemoryOrderingVersion ?? null,
+    workflowMemoryOrderingEligible:
+      input.workflowMemoryOrderingEligible ?? null,
+    workflowMemoryOrderingApplied:
+      input.workflowMemoryOrderingApplied ?? null,
+    workflowMemoryOrderingBaseScore:
+      input.workflowMemoryOrderingBaseScore ?? null,
+    workflowMemoryOrderingAdjustedScore:
+      input.workflowMemoryOrderingAdjustedScore ?? null,
+    workflowMemoryOrderingBoost:
+      input.workflowMemoryOrderingBoost ?? null,
+    workflowMemoryOrderingPreviousSemanticAddressId:
+      input.workflowMemoryOrderingPreviousSemanticAddressId ?? null,
+    workflowMemoryOrderingCandidateSemanticAddressId:
+      input.workflowMemoryOrderingCandidateSemanticAddressId ?? null,
+    workflowMemoryOrderingMatchedTransitionKey:
+      input.workflowMemoryOrderingMatchedTransitionKey ?? null,
+    workflowMemoryOrderingTransitionCount:
+      input.workflowMemoryOrderingTransitionCount ?? null,
+    workflowMemoryOrderingSource:
+      input.workflowMemoryOrderingSource ?? null,
+    workflowMemoryOrderingReasonCodes:
+      input.workflowMemoryOrderingReasonCodes ?? null,
   };
 }
 

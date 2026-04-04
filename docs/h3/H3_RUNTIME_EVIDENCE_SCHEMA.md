@@ -202,3 +202,26 @@ Notes:
 - no persistence / distributed cache
 - no authority change, no H23/H24 bypass, no Stage 3A drift
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3I-S3 continuity-assisted candidate ordering hookup
+- workflowMemoryOrderingVersion
+- workflowMemoryOrderingEligible
+- workflowMemoryOrderingApplied
+- workflowMemoryOrderingBaseScore
+- workflowMemoryOrderingAdjustedScore
+- workflowMemoryOrderingBoost
+- workflowMemoryOrderingPreviousSemanticAddressId
+- workflowMemoryOrderingCandidateSemanticAddressId
+- workflowMemoryOrderingMatchedTransitionKey
+- workflowMemoryOrderingTransitionCount
+- workflowMemoryOrderingSource
+- workflowMemoryOrderingReasonCodes
+
+Notes:
+- bounded advisory continuity-assisted ordering hookup only
+- continuity priors may shape best-candidate ordering score inside governed lookup evidence
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache
+- candidate-pool-wide ordering remains intentionally bounded in this slice
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

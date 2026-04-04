@@ -65,19 +65,29 @@ Delivered:
 
 ### 3I-S3 — continuity-assisted candidate ordering hookup
 Status:
+Implemented
+
+Delivered:
+- continuity-assisted ordering hookup on best-candidate score inside governed lookup evidence
+- bounded score adjustment from previously seen governed transitions only
+- continuity shaping remains advisory-only and ranking-scoped
+- no authority change
+
+### 3I-S4 — candidate-pool-wide ordering expansion
+Status:
 Next
 
 Intended direction:
-- connect bounded workflow-memory continuity priors into candidate-pool ordering inside governed lookup
+- expand bounded workflow-memory continuity priors from best-candidate hookup into candidate-pool-wide ordering inside governed lookup
 - keep continuity shaping advisory-only and ranking-scoped
 - no authority change
 
-## Explicit non-goals at stage opening
+## Explicit non-goals at current stage state
 
-Not in 3I-S2:
+Not in 3I-S3:
 - persistent learned workflow memory
 - distributed workflow memory
 - macro recording / playback
 - hidden action chaining
 - authority changes
-- candidate-pool ordering hookup beyond emitted ranking metadata
+- candidate-pool-wide ordering beyond the bounded best-candidate hookup landed in S3

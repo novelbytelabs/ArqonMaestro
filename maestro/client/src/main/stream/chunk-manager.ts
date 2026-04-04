@@ -64,6 +64,7 @@ import {
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
 import { deriveWorkflowMemoryObservation } from "../runtime/workflow-memory-observation";
 import { deriveWorkflowMemoryContinuityRanking } from "../runtime/workflow-memory-continuity-ranking";
+import { deriveWorkflowMemoryContinuityOrdering } from "../runtime/workflow-memory-continuity-ordering";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -222,6 +223,10 @@ export default class ChunkManager {
       multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId?: string | null;
       warmApplied: boolean;
       warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
+      workflowMemoryOrderingApplied?: boolean;
+      workflowMemoryOrderingBoost?: number;
+      workflowMemoryOrderingAdjustedScore?: number | null;
+      workflowMemoryOrderingReasonCodes?: string[];
     }
   >();
   private chunkH3FocusContextEnvelope = new Map<string, FocusConditionedCommandContextEnvelope>();
@@ -864,6 +869,16 @@ export default class ChunkManager {
           canonicalMergedText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
         }),
       });
+      const workflowMemoryOrderingFields = this.getWorkflowMemoryOrderingFields({
+        candidateSemanticAddressId: semanticLookup.bestCandidateId,
+        baseScore: semanticLookup.bestCandidateScore ?? null,
+        continuationSuggested: null,
+      });
+      const adjustedSemanticLookupBestCandidateScore =
+        workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
+        workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
+          ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
+          : semanticLookup.bestCandidateScore;
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
         regionId: event.regionId,
@@ -872,7 +887,7 @@ export default class ChunkManager {
         atlasVersion: event.atlasVersion ?? "unknown",
         lookupCandidateCount: semanticLookup.lookupCandidateCount,
         bestCandidateId: semanticLookup.bestCandidateId,
-        bestCandidateScore: semanticLookup.bestCandidateScore,
+        bestCandidateScore: adjustedSemanticLookupBestCandidateScore,
         canonicalMergedText: semanticLookup.bestCanonicalMergedText,
         warmHitClass: semanticLookup.warmHitClass,
         lookupPath: semanticLookup.lookupPath,
@@ -958,7 +973,7 @@ export default class ChunkManager {
           atlasVersion: event.atlasVersion ?? "unknown",
           lookupCandidateCount: semanticLookup.lookupCandidateCount,
           bestCandidateId: semanticLookup.bestCandidateId,
-          bestCandidateScore: semanticLookup.bestCandidateScore,
+          bestCandidateScore: adjustedSemanticLookupBestCandidateScore,
           canonicalMergedText: semanticLookup.bestCanonicalMergedText,
           warmHitClass: semanticLookup.warmHitClass,
           lookupPath: semanticLookup.lookupPath,
@@ -1127,6 +1142,30 @@ export default class ChunkManager {
           atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
           atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
           atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+          workflowMemoryOrderingVersion:
+            workflowMemoryOrderingFields.workflowMemoryOrderingVersion,
+          workflowMemoryOrderingEligible:
+            workflowMemoryOrderingFields.workflowMemoryOrderingEligible,
+          workflowMemoryOrderingApplied:
+            workflowMemoryOrderingFields.workflowMemoryOrderingApplied,
+          workflowMemoryOrderingBaseScore:
+            workflowMemoryOrderingFields.workflowMemoryOrderingBaseScore,
+          workflowMemoryOrderingAdjustedScore:
+            workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore,
+          workflowMemoryOrderingBoost:
+            workflowMemoryOrderingFields.workflowMemoryOrderingBoost,
+          workflowMemoryOrderingPreviousSemanticAddressId:
+            workflowMemoryOrderingFields.workflowMemoryOrderingPreviousSemanticAddressId,
+          workflowMemoryOrderingCandidateSemanticAddressId:
+            workflowMemoryOrderingFields.workflowMemoryOrderingCandidateSemanticAddressId,
+          workflowMemoryOrderingMatchedTransitionKey:
+            workflowMemoryOrderingFields.workflowMemoryOrderingMatchedTransitionKey,
+          workflowMemoryOrderingTransitionCount:
+            workflowMemoryOrderingFields.workflowMemoryOrderingTransitionCount,
+          workflowMemoryOrderingSource:
+            workflowMemoryOrderingFields.workflowMemoryOrderingSource,
+          workflowMemoryOrderingReasonCodes:
+            workflowMemoryOrderingFields.workflowMemoryOrderingReasonCodes,
           multiResolutionAtlasFamilyRoutingApplied:
             semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
           multiResolutionAtlasFamilyRoutingBoost:
@@ -1808,6 +1847,34 @@ export default class ChunkManager {
     });
   }
 
+  private getWorkflowMemoryOrderingFields(
+    seed: Partial<{
+      candidateSemanticAddressId: string | null;
+      baseScore: number | null;
+      continuationSuggested: boolean | null;
+    }> = {}
+  ) {
+    const rankingFields = this.getWorkflowMemoryRankingFields({
+      candidateSemanticAddressId: seed.candidateSemanticAddressId ?? null,
+      continuationSuggested: seed.continuationSuggested ?? null,
+    });
+
+    return deriveWorkflowMemoryContinuityOrdering({
+      baseScore: seed.baseScore ?? null,
+      previousSemanticAddressId:
+        rankingFields.workflowMemoryRankingPreviousSemanticAddressId ?? null,
+      candidateSemanticAddressId:
+        rankingFields.workflowMemoryRankingCandidateSemanticAddressId ?? null,
+      matchedTransitionKey:
+        rankingFields.workflowMemoryRankingMatchedTransitionKey ?? null,
+      transitionCount:
+        rankingFields.workflowMemoryRankingTransitionCount ?? null,
+      rankingApplied: rankingFields.workflowMemoryRankingApplied ?? false,
+      rankingBoost: rankingFields.workflowMemoryRankingBoost ?? 0,
+      source: "h3_runtime_evidence",
+    });
+  }
+
   private getDynamicPrecisionEvidenceFields(
     chunkId: string,
     seed: Partial<{
@@ -1912,6 +1979,17 @@ export default class ChunkManager {
         overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
       continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
     });
+    const workflowMemoryOrderingFields = this.getWorkflowMemoryOrderingFields({
+      candidateSemanticAddressId:
+        overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
+      baseScore: overrides.bestCandidateScore ?? null,
+      continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
+    });
+    const adjustedBestCandidateScore =
+      workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
+      workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
+        ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
+        : overrides.bestCandidateScore ?? null;
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
@@ -1946,7 +2024,7 @@ export default class ChunkManager {
       atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? undefined,
       lookupCandidateCount: overrides.lookupCandidateCount ?? undefined,
       bestCandidateId: overrides.bestCandidateId ?? undefined,
-      bestCandidateScore: overrides.bestCandidateScore ?? undefined,
+      bestCandidateScore: adjustedBestCandidateScore ?? undefined,
       warmHitClass: overrides.warmHitClass ?? undefined,
       governanceRequired: overrides.governanceRequired ?? undefined,
       governanceQualified: overrides.governanceQualified ?? undefined,
@@ -2178,6 +2256,30 @@ export default class ChunkManager {
         overrides.workflowMemoryRankingSource ?? workflowMemoryRankingFields.workflowMemoryRankingSource,
       workflowMemoryRankingReasonCodes:
         overrides.workflowMemoryRankingReasonCodes ?? workflowMemoryRankingFields.workflowMemoryRankingReasonCodes,
+      workflowMemoryOrderingVersion:
+        overrides.workflowMemoryOrderingVersion ?? workflowMemoryOrderingFields.workflowMemoryOrderingVersion,
+      workflowMemoryOrderingEligible:
+        overrides.workflowMemoryOrderingEligible ?? workflowMemoryOrderingFields.workflowMemoryOrderingEligible,
+      workflowMemoryOrderingApplied:
+        overrides.workflowMemoryOrderingApplied ?? workflowMemoryOrderingFields.workflowMemoryOrderingApplied,
+      workflowMemoryOrderingBaseScore:
+        overrides.workflowMemoryOrderingBaseScore ?? workflowMemoryOrderingFields.workflowMemoryOrderingBaseScore,
+      workflowMemoryOrderingAdjustedScore:
+        overrides.workflowMemoryOrderingAdjustedScore ?? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore,
+      workflowMemoryOrderingBoost:
+        overrides.workflowMemoryOrderingBoost ?? workflowMemoryOrderingFields.workflowMemoryOrderingBoost,
+      workflowMemoryOrderingPreviousSemanticAddressId:
+        overrides.workflowMemoryOrderingPreviousSemanticAddressId ?? workflowMemoryOrderingFields.workflowMemoryOrderingPreviousSemanticAddressId,
+      workflowMemoryOrderingCandidateSemanticAddressId:
+        overrides.workflowMemoryOrderingCandidateSemanticAddressId ?? workflowMemoryOrderingFields.workflowMemoryOrderingCandidateSemanticAddressId,
+      workflowMemoryOrderingMatchedTransitionKey:
+        overrides.workflowMemoryOrderingMatchedTransitionKey ?? workflowMemoryOrderingFields.workflowMemoryOrderingMatchedTransitionKey,
+      workflowMemoryOrderingTransitionCount:
+        overrides.workflowMemoryOrderingTransitionCount ?? workflowMemoryOrderingFields.workflowMemoryOrderingTransitionCount,
+      workflowMemoryOrderingSource:
+        overrides.workflowMemoryOrderingSource ?? workflowMemoryOrderingFields.workflowMemoryOrderingSource,
+      workflowMemoryOrderingReasonCodes:
+        overrides.workflowMemoryOrderingReasonCodes ?? workflowMemoryOrderingFields.workflowMemoryOrderingReasonCodes,
 
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,

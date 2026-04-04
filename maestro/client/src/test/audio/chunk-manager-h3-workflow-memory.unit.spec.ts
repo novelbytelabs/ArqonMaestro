@@ -263,4 +263,117 @@ it("keeps workflow-memory ranking metadata non-applied when no prior governed tr
     })
   );
 });
+
+
+it("applies continuity-assisted ordering to the emitted best candidate score for a previously seen transition", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_order_seed_1",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    semanticAddressId: "go_to_line",
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_order_seed_2",
+  });
+
+  decisionSpy.mockReturnValue({ granted: true });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-1", "voice_semantic_address_lookup_completed", {
+    regionId: "open",
+    commandClass: "parameterized",
+    parameterType: "open",
+    semanticAddressId: "open_file",
+    canonicalMergedText: "open file",
+    transcriptText: "open file",
+    reason: "workflow_memory_order_seed_3",
+  });
+
+  decisionSpy.mockReturnValue({ granted: false });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    bestCandidateId: "go_to_line",
+    bestCandidateScore: 0.67,
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_order_probe",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      bestCandidateScore: 0.73,
+      workflowMemoryOrderingVersion: "3i_continuity_assisted_candidate_ordering_v1",
+      workflowMemoryOrderingEligible: true,
+      workflowMemoryOrderingApplied: true,
+      workflowMemoryOrderingBaseScore: 0.67,
+      workflowMemoryOrderingAdjustedScore: 0.73,
+      workflowMemoryOrderingBoost: 0.06,
+      workflowMemoryOrderingPreviousSemanticAddressId: "open_file",
+      workflowMemoryOrderingCandidateSemanticAddressId: "go_to_line",
+      workflowMemoryOrderingMatchedTransitionKey: "open_file->go_to_line",
+      workflowMemoryOrderingTransitionCount: 1,
+      workflowMemoryOrderingSource: "h3_runtime_evidence",
+    })
+  );
+});
+
+it("keeps ordering non-applied and leaves score unchanged when no continuity prior exists", () => {
+  const { ChunkManager, manager, h23Recorder, runtimeEvidence } = makeBareManager();
+  jest.spyOn(h23Recorder, "getTraceSnapshot").mockReturnValue([]);
+  const decisionSpy = jest.spyOn(h23Recorder, "getLatestDecision");
+  const evidenceSpy = jest
+    .spyOn(runtimeEvidence, "emitH3RuntimeEvidence")
+    .mockImplementation((event: any) => event);
+
+  decisionSpy.mockReturnValue({ granted: false });
+  ChunkManager.prototype.emitH3Evidence.call(manager, "chunk-2", "voice_semantic_address_lookup_completed", {
+    regionId: "line_nav",
+    commandClass: "parameterized",
+    parameterType: "numeric",
+    bestCandidateId: "go_to_line",
+    bestCandidateScore: 0.67,
+    canonicalMergedText: "go to line 42",
+    transcriptText: "go to line 42",
+    reason: "workflow_memory_order_unseeded",
+  });
+
+  const lastCall = evidenceSpy.mock.calls[evidenceSpy.mock.calls.length - 1][0];
+  expect(lastCall).toEqual(
+    expect.objectContaining({
+      bestCandidateScore: 0.67,
+      workflowMemoryOrderingVersion: "3i_continuity_assisted_candidate_ordering_v1",
+      workflowMemoryOrderingEligible: false,
+      workflowMemoryOrderingApplied: false,
+      workflowMemoryOrderingBaseScore: 0.67,
+      workflowMemoryOrderingAdjustedScore: 0.67,
+      workflowMemoryOrderingBoost: 0,
+      workflowMemoryOrderingPreviousSemanticAddressId: null,
+      workflowMemoryOrderingCandidateSemanticAddressId: "go_to_line",
+      workflowMemoryOrderingMatchedTransitionKey: null,
+      workflowMemoryOrderingTransitionCount: null,
+      workflowMemoryOrderingSource: "h3_runtime_evidence",
+    })
+  );
+});
+
 });

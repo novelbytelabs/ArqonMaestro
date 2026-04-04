@@ -1,5 +1,6 @@
 import { deriveWorkflowMemoryObservation } from "../../main/runtime/workflow-memory-observation";
 import { deriveWorkflowMemoryContinuityRanking } from "../../main/runtime/workflow-memory-continuity-ranking";
+import { deriveWorkflowMemoryContinuityOrdering } from "../../main/runtime/workflow-memory-continuity-ordering";
 
 describe("workflow memory observation", () => {
   it("records first governed semantic address without continuity suggestion", () => {
@@ -125,6 +126,56 @@ describe("workflow memory continuity ranking", () => {
         workflowMemoryRankingMatchedTransitionKey: "open_file->go_to_line",
         workflowMemoryRankingTransitionCount: 0,
         workflowMemoryRankingSeenBefore: false,
+      })
+    );
+  });
+});
+
+
+describe("workflow memory continuity ordering", () => {
+  it("applies an adjusted score when continuity ranking already applied", () => {
+    const fields = deriveWorkflowMemoryContinuityOrdering({
+      baseScore: 0.67,
+      previousSemanticAddressId: "open_file",
+      candidateSemanticAddressId: "go_to_line",
+      matchedTransitionKey: "open_file->go_to_line",
+      transitionCount: 2,
+      rankingApplied: true,
+      rankingBoost: 0.12,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryOrderingVersion: "3i_continuity_assisted_candidate_ordering_v1",
+        workflowMemoryOrderingEligible: true,
+        workflowMemoryOrderingApplied: true,
+        workflowMemoryOrderingBaseScore: 0.67,
+        workflowMemoryOrderingAdjustedScore: 0.79,
+        workflowMemoryOrderingBoost: 0.12,
+        workflowMemoryOrderingMatchedTransitionKey: "open_file->go_to_line",
+        workflowMemoryOrderingTransitionCount: 2,
+      })
+    );
+  });
+
+  it("stays non-applied when no continuity ranking prior was applied", () => {
+    const fields = deriveWorkflowMemoryContinuityOrdering({
+      baseScore: 0.67,
+      previousSemanticAddressId: "open_file",
+      candidateSemanticAddressId: "go_to_line",
+      matchedTransitionKey: "open_file->go_to_line",
+      transitionCount: 0,
+      rankingApplied: false,
+      rankingBoost: 0,
+    });
+
+    expect(fields).toEqual(
+      expect.objectContaining({
+        workflowMemoryOrderingEligible: false,
+        workflowMemoryOrderingApplied: false,
+        workflowMemoryOrderingBaseScore: 0.67,
+        workflowMemoryOrderingAdjustedScore: 0.67,
+        workflowMemoryOrderingBoost: 0,
       })
     );
   });
