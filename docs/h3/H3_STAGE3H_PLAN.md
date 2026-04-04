@@ -7,7 +7,12 @@ Stage:
 3H — Dynamic Precision Regimes
 
 Status:
-S4 implemented, S5 next
+Closed at S5
+
+Authoritative validated baseline:
+- branch: feature/h3
+- commit: cc385b1
+- pushed: yes
 
 Audience:
 - engineers
@@ -20,27 +25,31 @@ Define the execution plan for Turbo / Tight / Ultra as a governed, homeostatic, 
 
 ## Executive summary
 
-Stage 3H is where dynamic precision becomes a real product capability.
+Stage 3H is now closed on a real validated repo baseline.
 
-3H is not “three modes” as a UI gimmick.
-It is a governed regime system that:
-- starts cheap and fast when possible
-- detects ambiguity, instability, or stress
-- escalates only when needed
-- de-escalates when quality restabilizes
-- keeps governance sacred
+3H established Dynamic Precision Regimes as a governed runtime capability rather than a UI-mode gimmick.
+The stage now has:
+- family-aware baseline regime mapping
+- bounded escalation proposal logic
+- bounded upward switching
+- bounded hysteresis and de-escalation
+- auditable runtime evidence surfaces
+- preserved governance boundaries
 
-3H must be heavily documented before implementation accelerates.
+Stage 3H did not grant new execution authority.
+Stage 3H did not bypass H23/H24.
+Stage 3H did not introduce Stage 3A drift.
+Stage 3H did not introduce persistence or distributed cache.
 
 ## Constitutional doctrine
 
-3H must preserve:
+3H preserves:
 - live voice geometry proposes
 - focus/task reshapes ranking and legality
 - memory supplies priors
 - governance decides execution
 
-3H-specific doctrine:
+3H-specific doctrine frozen at closure:
 - regime changes may shape cost, depth, and bounded interpretation behavior
 - regime changes may not authorize execution
 - regime changes may not bypass H23/H24
@@ -55,31 +64,13 @@ It is a governed regime system that:
 Purpose:
 Fast-path regime for simple, stable, low-risk command situations.
 
-Intended characteristics:
-- lowest latency
-- lowest compute budget
-- minimal search breadth
-- strict fast-path use for reflex / stable closed structure
-
 ### Tight
 Purpose:
 Intermediate regime for moderate ambiguity or moderate instability.
 
-Intended characteristics:
-- moderate compute budget
-- greater candidate evaluation depth
-- stronger local disambiguation than Turbo
-- suitable for many numeric or mid-complexity cases
-
 ### Ultra
 Purpose:
 High-fidelity regime for open-tail, unstable, high-ambiguity, or high-risk situations.
-
-Intended characteristics:
-- highest compute budget within allowed budget envelope
-- broadest bounded candidate evaluation
-- longest safe evidence accumulation window
-- strongest need for governance and hysteresis
 
 ## Primary design pattern
 
@@ -99,94 +90,61 @@ ArqonHPO acts as the primary actuation engine.
 Status:
 Implemented
 
-Scope:
-- add regime evidence surface only
-- define regime identifiers, sources, reasons, and state fields
-- no live switching yet
-
-Delivered:
-- observational regime evidence derived from 3G ambiguity / repair / stress signals
-- family-aware baseline regime mapping for reflex / bounded / numeric / open
-- protobuf/type-directed internal note preserved
-- no live regime switching or authority change
-
 ### 3H-S2 — bounded escalation trigger pilot
 Status:
 Implemented
-
-Scope:
-- use ambiguity and instability signals to propose regime escalation
-- no autonomous authority change
-- bounded pilot only
 
 ### 3H-S3 — family-aware regime switching
 Status:
 Implemented
 
-Scope:
-- different regime strategies by family:
-    - reflex / structured
-    - numeric / semi-chaotic
-    - open-tail / high-ambiguity
-- still bounded and governed
-
-Delivered:
-- family-aware strategy profile ids surfaced in runtime evidence
-- bounded upward switching enabled by family policy:
-    - structured families may switch `turbo -> tight`
-    - numeric families may switch `tight -> ultra`
-- runtime-local active regime tracking added for chunk-local evidence continuity
-- no authority change, no H23/H24 bypass, no Stage 3A drift
-- no persistence / distributed cache; active regime state is runtime-local only
-
 ### 3H-S4 — hysteresis / de-escalation
 Status:
 Implemented
 
-Scope:
-- prevent oscillation
-- add decay / cool-down logic
-- ensure regime transitions are explainable and auditable
+### 3H-S5 — closure / validation
+Status:
+Implemented
 
 Delivered:
-- bounded hysteresis version surfaced in runtime evidence
-- runtime-local stability tick tracking added for chunk-local recovery observation
-- runtime-local cooldown tick tracking added to prevent immediate regime oscillation after upward switches
-- numeric / structured de-escalation now allowed only after:
-    - steady recovery evidence
-    - cooldown exhaustion
-    - bounded stability threshold satisfaction
-- open-tail family remains pinned to governed `ultra` in this slice
-- no authority change, no H23/H24 bypass, no Stage 3A drift
-- no persistence / distributed cache; hysteresis state is runtime-local only
+- stage closure report recorded against the authoritative green baseline
+- doctrine freeze recorded for Dynamic Precision Regimes
+- validation gate expectations recorded for future regression discipline
+- no new runtime semantics introduced in S5
 
-### 3H-S5 — closure / validation
-Scope:
-- stage closure report
-- doctrine freeze
-- regression expectations
+## Real validation baseline at closure
 
-## Inputs expected from adjacent systems
+Validated on real repo:
+- TypeScript gate:
+    PASS
+- Full 13-suite runInBand Jest gate:
+    PASS
+- Timing validator:
+    PASS
 
-3H will consume signals from:
+Counts at closure:
+- suites:
+    13 passed, 13 total
+- tests:
+    103 passed, 103 total
+
+## Inputs consumed by 3H
+
+3H consumes signals from:
 - 3G ambiguity / repair / guardrail band
 - existing H3 evidence stream
 - ArqonHPO homeostasis telemetry
 - future MetabolicMonitor stress signals
 
-## Explicit non-goals for early 3H
+## Explicit non-goals frozen at closure
 
-Not in early 3H:
+Not in Stage 3H:
 - distributed regime coordination
 - persistent learned regime memories
 - user-visible mode marketing language as implementation truth
-- hidden “smart” authority jumps
+- hidden smart authority jumps
 
-## Required docs before deeper coding
+## Stage closure statement
 
-Before major 3H implementation accelerates, the following docs must exist:
-- H3_STAGE3H_ARCHITECTURE.md
-- H3_HOMEOSTASIS_HPO_INTEGRATION.md
-- H3_DYNAMIC_PRECISION_REGIMES_NOTE.md
-- H3_PROTOBUF_INTERNALS_NOTE.md
-- H3_VALIDATION_GATES_GUIDE.md
+Stage 3H is closed.
+Further Dynamic Precision work must open as a new stage or a new bounded post-closure slice.

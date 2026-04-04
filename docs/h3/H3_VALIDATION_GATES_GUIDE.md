@@ -3,80 +3,67 @@
 Date:
 April 3, 2026
 
-Status:
-Operational guide
+Scope:
+Stage 3H closure / validation discipline
 
 Purpose:
-Standardize the local proof required for H3 slice integration.
+Freeze the required real-repo validation pattern that was used to close Stage 3H.
 
-## Core rule
+## Required validation order
 
-Bundle-local verification is never enough.
-Real proof is local repository proof.
+Always run in this order:
 
-## Required gate order
-
-1. Typecheck
-2. Targeted Jest gate
+1. TypeScript gate
+2. Integrated Jest gate
 3. Timing validator
 
 Stop on first failure.
+Do not claim green unless all three pass on the real repo baseline.
 
-## Typecheck
+## Gate 1
 
 Command:
-cd maestro/client && npx tsc --noEmit
+    cd maestro/client && npx tsc --noEmit
 
-Purpose:
-- ensure the runtime shape remains type-safe
-- catch null/undefined contract drift early
-- catch test syntax defects before Jest
+Expectation:
+- pass with empty stderr
 
-## Targeted Jest gate
+## Gate 2
 
-Use the exact required suite set for the active stage band.
-Do not replace this with broad npm test.
+Command:
+    cd maestro/client && npx jest --config jest.config.js --runInBand        src/test/audio/dynamic-precision-regimes.unit.spec.ts        src/test/audio/chunk-manager-h3-dynamic-precision.unit.spec.ts        src/test/audio/counterfactual-repair-intelligence.unit.spec.ts        src/test/audio/chunk-manager-h3-counterfactual-repair.unit.spec.ts        src/test/audio/multi-resolution-atlas.unit.spec.ts        src/test/audio/chunk-manager-h3-multi-resolution-atlas.unit.spec.ts        src/test/audio/policy-shaped-atlas-shards.unit.spec.ts        src/test/audio/chunk-manager-h3-atlas-shard.unit.spec.ts        src/test/audio/focus-conditioned-command-context.unit.spec.ts        src/test/audio/chunk-manager-h3-focus-context.unit.spec.ts        src/test/audio/voice-semantic-address-registry.unit.spec.ts        src/test/audio/chunk-manager-h3-numeric-tail.unit.spec.ts        src/test/audio/chunk-manager-h3-open-tail.unit.spec.ts
 
-Purpose:
-- validate the owning stage tests
-- validate adjacent subsystem compatibility
-- catch cross-suite contamination and harness leakage
+Expectation at Stage 3H closure:
+- 13 passed, 13 total suites
+- 103 passed, 103 total tests
+- runInBand contamination must remain absent
 
-## Timing validator
+## Gate 3
 
-Command pattern:
-cd /home/irbsurfer/Projects/arqon/ArqonMaestro && conda run -n helios-gpu-118 python3 scripts/h3_stage3d2_validate_timing.py
+Command:
+    cd /home/irbsurfer/Projects/arqon/ArqonMaestro && conda run -n helios-gpu-118 python3 scripts/h3_stage3d2_validate_timing.py
 
-Purpose:
-- protect the warm-path doctrine
-- ensure regressions do not quietly break the baseline
+Expectation:
+- status: pass
+- warm-miss non-authorizing path checks remain true
+- baseline timing path checks remain true
 
-Expected invariants:
-- reflex_improves = true
-- numeric_improves = true
-- warm_miss_non_authorizing = true
-- warm_miss_uses_baseline_path = true
+## Regression expectations frozen at Stage 3H closure
 
-## Pre-gate requirements
+Any future slice touching Dynamic Precision must preserve:
+- no authority change
+- no H23/H24 bypass
+- no Stage 3A drift
+- no persistence / distributed cache
+- no silent test contamination under the full runInBand gate
 
-Before Gate 1:
-- verify SHA256 on every applied file against the bundle manifest
-- confirm the correct branch and baseline commit family
-- confirm working tree is understood
+## Failure handling discipline
 
-## Failure handling
-
-On first failure:
+If any gate fails:
 - stop immediately
-- capture exact command
-- capture full stdout
-- capture full stderr
-- do not manually repair unless explicitly requested
-
-## Bundle-quality lessons learned
-
-Watch for:
-- stray extra braces in appended test blocks
-- null vs undefined drift in typed runtime event shapes
-- cross-suite mock contamination
-- baseline mismatch between theoretical bundle state and repaired real repo state
+- report exact command
+- report full stdout
+- report full stderr
+- identify the smallest real defect surface
+- cut a minimal repair only
+- do not broaden scope during repair
