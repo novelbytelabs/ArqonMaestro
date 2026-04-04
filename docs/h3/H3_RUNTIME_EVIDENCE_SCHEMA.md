@@ -144,6 +144,18 @@ Notes:
 - no persistence / distributed cache; hysteresis state is runtime-local only in this slice
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
+## Stage 3H schema freeze at closure
+
+Authoritative closure baseline:
+- branch: feature/h3
+- commit: cc385b1
+
+Schema freeze statement:
+- Stage 3H closes with the fields listed above
+- Stage 3H-S5 introduces no additional runtime evidence fields
+- future Dynamic Precision schema expansion must open under a new stage or a new bounded post-closure slice
+
+
 ## Stage 3I-S1 workflow memory observational contract
 - workflowMemorySchemaVersion
 - workflowMemoryPolicyVersion
@@ -191,6 +203,7 @@ Notes:
 - no authority change, no H23/H24 bypass, no Stage 3A drift
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
+
 ## Stage 3I-S3 continuity-assisted candidate ordering hookup
 - workflowMemoryOrderingVersion
 - workflowMemoryOrderingEligible
@@ -212,6 +225,7 @@ Notes:
 - no persistence / distributed cache
 - candidate-pool-wide ordering remains intentionally bounded in this slice
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
 
 ## Stage 3I-S4 candidate-pool-wide ordering expansion
 - workflowMemoryCandidatePoolOrderingVersion
@@ -239,6 +253,7 @@ Notes:
 - live multi-candidate activation depends on the registry surfacing a candidate pool; when no multi-candidate pool is present these fields remain explicit pass-through / non-applied
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
+
 ## Stage 3I-S5 workflow reuse substrate
 - workflowMemoryReuseVersion
 - workflowMemoryReuseEligible
@@ -262,19 +277,30 @@ Notes:
 - no macro execution or hidden action chaining
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
-## Stage 3I-S6 closure / validation freeze
 
-Stage 3I is closed on a real validated repo baseline.
+## Stage 3J-S1 workflow candidate discovery foundations
+- workflowCandidateDiscoverySchemaVersion
+- workflowCandidateDiscoveryPolicyVersion
+- workflowCandidateDiscoveryEligible
+- workflowCandidateDiscoverySequenceSemanticAddressIds
+- workflowCandidateDiscoveryPatternKey
+- workflowCandidateDiscoveryOccurrenceCount
+- workflowCandidateDiscoveryDistinctRunCount
+- workflowCandidateDiscoverySequenceLength
+- workflowCandidateDiscoveryStartBoundaryConfidence
+- workflowCandidateDiscoveryEndBoundaryConfidence
+- workflowCandidateDiscoveryRepeatedSubsequenceDetected
+- workflowCandidateDiscoveryCandidateEmergenceThresholdMet
+- workflowCandidateDiscoveryRediscoveryMerged
+- workflowCandidateDiscoveryGovernedStateUpdated
+- workflowCandidateDiscoverySource
+- workflowCandidateDiscoveryReasonCodes
 
-Schema freeze statement:
-- Stage 3I-S6 introduces no new runtime evidence fields
-- future workflow-memory schema expansion must open under a new stage or a new bounded post-closure slice
-
-Frozen bounded non-goals at Stage 3I closure:
-- no persistent learned workflow memory
-- no distributed workflow memory
-- no macro recording / playback
-- no automatic action chaining
-- no authority changes
-- no H23/H24 bypass
-- no Stage 3A drift
+Notes:
+- governed repeated subsequence discovery only
+- session-local observational foundations for workflow candidate emergence
+- no skeleton inference yet
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics or hidden action chaining
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

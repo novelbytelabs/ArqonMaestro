@@ -290,6 +290,22 @@ export interface H3RuntimeEvidenceEvent {
   workflowMemoryReuseSuggestedNextCount: number | null;
   workflowMemoryReuseSource: string | null;
   workflowMemoryReuseReasonCodes: string[] | null;
+  workflowCandidateDiscoverySchemaVersion: string | null;
+  workflowCandidateDiscoveryPolicyVersion: string | null;
+  workflowCandidateDiscoveryEligible: boolean | null;
+  workflowCandidateDiscoverySequenceSemanticAddressIds: string[] | null;
+  workflowCandidateDiscoveryPatternKey: string | null;
+  workflowCandidateDiscoveryOccurrenceCount: number | null;
+  workflowCandidateDiscoveryDistinctRunCount: number | null;
+  workflowCandidateDiscoverySequenceLength: number | null;
+  workflowCandidateDiscoveryStartBoundaryConfidence: number | null;
+  workflowCandidateDiscoveryEndBoundaryConfidence: number | null;
+  workflowCandidateDiscoveryRepeatedSubsequenceDetected: boolean | null;
+  workflowCandidateDiscoveryCandidateEmergenceThresholdMet: boolean | null;
+  workflowCandidateDiscoveryRediscoveryMerged: boolean | null;
+  workflowCandidateDiscoveryGovernedStateUpdated: boolean | null;
+  workflowCandidateDiscoverySource: string | null;
+  workflowCandidateDiscoveryReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -748,6 +764,38 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowMemoryReuseSource ?? null,
     workflowMemoryReuseReasonCodes:
       input.workflowMemoryReuseReasonCodes ?? null,
+    workflowCandidateDiscoverySchemaVersion:
+      input.workflowCandidateDiscoverySchemaVersion ?? null,
+    workflowCandidateDiscoveryPolicyVersion:
+      input.workflowCandidateDiscoveryPolicyVersion ?? null,
+    workflowCandidateDiscoveryEligible:
+      input.workflowCandidateDiscoveryEligible ?? null,
+    workflowCandidateDiscoverySequenceSemanticAddressIds:
+      input.workflowCandidateDiscoverySequenceSemanticAddressIds ?? null,
+    workflowCandidateDiscoveryPatternKey:
+      input.workflowCandidateDiscoveryPatternKey ?? null,
+    workflowCandidateDiscoveryOccurrenceCount:
+      input.workflowCandidateDiscoveryOccurrenceCount ?? null,
+    workflowCandidateDiscoveryDistinctRunCount:
+      input.workflowCandidateDiscoveryDistinctRunCount ?? null,
+    workflowCandidateDiscoverySequenceLength:
+      input.workflowCandidateDiscoverySequenceLength ?? null,
+    workflowCandidateDiscoveryStartBoundaryConfidence:
+      input.workflowCandidateDiscoveryStartBoundaryConfidence ?? null,
+    workflowCandidateDiscoveryEndBoundaryConfidence:
+      input.workflowCandidateDiscoveryEndBoundaryConfidence ?? null,
+    workflowCandidateDiscoveryRepeatedSubsequenceDetected:
+      input.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? null,
+    workflowCandidateDiscoveryCandidateEmergenceThresholdMet:
+      input.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? null,
+    workflowCandidateDiscoveryRediscoveryMerged:
+      input.workflowCandidateDiscoveryRediscoveryMerged ?? null,
+    workflowCandidateDiscoveryGovernedStateUpdated:
+      input.workflowCandidateDiscoveryGovernedStateUpdated ?? null,
+    workflowCandidateDiscoverySource:
+      input.workflowCandidateDiscoverySource ?? null,
+    workflowCandidateDiscoveryReasonCodes:
+      input.workflowCandidateDiscoveryReasonCodes ?? null,
   };
 }
 

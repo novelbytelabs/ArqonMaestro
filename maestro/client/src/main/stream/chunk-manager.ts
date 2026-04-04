@@ -67,6 +67,7 @@ import { deriveWorkflowMemoryContinuityRanking } from "../runtime/workflow-memor
 import { deriveWorkflowMemoryContinuityOrdering } from "../runtime/workflow-memory-continuity-ordering";
 import { deriveWorkflowMemoryCandidatePoolOrdering } from "../runtime/workflow-memory-candidate-pool-ordering";
 import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-reuse-substrate";
+import { deriveEmptyWorkflowCandidateDiscoveryState, deriveWorkflowCandidateDiscovery } from "../runtime/workflow-candidate-discovery";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -229,8 +230,6 @@ export default class ChunkManager {
       workflowMemoryOrderingBoost?: number;
       workflowMemoryOrderingAdjustedScore?: number | null;
       workflowMemoryOrderingReasonCodes?: string[];
-      workflowMemoryReuseApplied?: boolean;
-      workflowMemoryReuseSuggestedNextSemanticAddressId?: string | null;
     }
   >();
   private chunkH3FocusContextEnvelope = new Map<string, FocusConditionedCommandContextEnvelope>();
@@ -1811,6 +1810,39 @@ export default class ChunkManager {
     return self.chunkH3DynamicPrecisionCooldownTicksRemaining as Map<string, number>;
   }
 
+  private getWorkflowCandidateDiscoveryState() {
+    const self = this as any;
+    if (!self.h3WorkflowCandidateDiscoveryState || typeof self.h3WorkflowCandidateDiscoveryState !== "object") {
+      self.h3WorkflowCandidateDiscoveryState = deriveEmptyWorkflowCandidateDiscoveryState();
+    }
+    return self.h3WorkflowCandidateDiscoveryState as ReturnType<typeof deriveEmptyWorkflowCandidateDiscoveryState>;
+  }
+
+  private getWorkflowCandidateDiscoveryFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    const fields = deriveWorkflowCandidateDiscovery({
+      semanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
+      source: "h3_runtime_evidence",
+      previousState: this.getWorkflowCandidateDiscoveryState(),
+    });
+
+    if (fields.workflowCandidateDiscoveryGovernedStateUpdated && fields.nextState) {
+      const self = this as any;
+      self.h3WorkflowCandidateDiscoveryState = fields.nextState;
+    }
+
+    return fields;
+  }
+
   private getWorkflowMemoryState() {
     const self = this as any;
     if (!self.h3WorkflowMemoryState || typeof self.h3WorkflowMemoryState !== "object") {
@@ -2060,6 +2092,10 @@ export default class ChunkManager {
     });
     const workflowMemoryFields = this.getWorkflowMemoryEvidenceFields(chunkId, eventName, {
       semanticAddressId: overrides.semanticAddressId ?? null,
+      finalGranted: decision?.granted ?? null,
+    });
+    const workflowCandidateDiscoveryFields = this.getWorkflowCandidateDiscoveryFields(chunkId, eventName, {
+      semanticAddressId: overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
       finalGranted: decision?.granted ?? null,
     });
     const workflowMemoryRankingFields = this.getWorkflowMemoryRankingFields({
@@ -2442,7 +2478,38 @@ export default class ChunkManager {
         overrides.workflowMemoryReuseSource ?? workflowMemoryReuseFields.workflowMemoryReuseSource,
       workflowMemoryReuseReasonCodes:
         overrides.workflowMemoryReuseReasonCodes ?? workflowMemoryReuseFields.workflowMemoryReuseReasonCodes,
-
+      workflowCandidateDiscoverySchemaVersion:
+        overrides.workflowCandidateDiscoverySchemaVersion ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySchemaVersion,
+      workflowCandidateDiscoveryPolicyVersion:
+        overrides.workflowCandidateDiscoveryPolicyVersion ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPolicyVersion,
+      workflowCandidateDiscoveryEligible:
+        overrides.workflowCandidateDiscoveryEligible ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEligible,
+      workflowCandidateDiscoverySequenceSemanticAddressIds:
+        overrides.workflowCandidateDiscoverySequenceSemanticAddressIds ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceSemanticAddressIds,
+      workflowCandidateDiscoveryPatternKey:
+        overrides.workflowCandidateDiscoveryPatternKey ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey,
+      workflowCandidateDiscoveryOccurrenceCount:
+        overrides.workflowCandidateDiscoveryOccurrenceCount ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryOccurrenceCount,
+      workflowCandidateDiscoveryDistinctRunCount:
+        overrides.workflowCandidateDiscoveryDistinctRunCount ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryDistinctRunCount,
+      workflowCandidateDiscoverySequenceLength:
+        overrides.workflowCandidateDiscoverySequenceLength ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceLength,
+      workflowCandidateDiscoveryStartBoundaryConfidence:
+        overrides.workflowCandidateDiscoveryStartBoundaryConfidence ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryStartBoundaryConfidence,
+      workflowCandidateDiscoveryEndBoundaryConfidence:
+        overrides.workflowCandidateDiscoveryEndBoundaryConfidence ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEndBoundaryConfidence,
+      workflowCandidateDiscoveryRepeatedSubsequenceDetected:
+        overrides.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRepeatedSubsequenceDetected,
+      workflowCandidateDiscoveryCandidateEmergenceThresholdMet:
+        overrides.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet,
+      workflowCandidateDiscoveryRediscoveryMerged:
+        overrides.workflowCandidateDiscoveryRediscoveryMerged ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRediscoveryMerged,
+      workflowCandidateDiscoveryGovernedStateUpdated:
+        overrides.workflowCandidateDiscoveryGovernedStateUpdated ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryGovernedStateUpdated,
+      workflowCandidateDiscoverySource:
+        overrides.workflowCandidateDiscoverySource ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySource,
+      workflowCandidateDiscoveryReasonCodes:
+        overrides.workflowCandidateDiscoveryReasonCodes ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryReasonCodes,
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
       counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,
