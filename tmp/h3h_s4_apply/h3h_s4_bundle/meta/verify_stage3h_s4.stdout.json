@@ -1,0 +1,61 @@
+{
+  "all_match": true,
+  "results": [
+    {
+      "path": "maestro/client/src/main/runtime/dynamic-precision-regimes.ts",
+      "bytes_expected": 18589,
+      "bytes_actual": 18589,
+      "sha256_expected": "3eda42d8d139fd4de4298f42ae83e2824720466194a74180861cb87d3b806593",
+      "sha256_actual": "3eda42d8d139fd4de4298f42ae83e2824720466194a74180861cb87d3b806593",
+      "match": true
+    },
+    {
+      "path": "maestro/client/src/main/runtime/h3-runtime-evidence.ts",
+      "bytes_expected": 30950,
+      "bytes_actual": 30950,
+      "sha256_expected": "c120584cd10b0fe2829fb617a5ff21cb083ea4f0a4b769dafcdfa2bbb3be45af",
+      "sha256_actual": "c120584cd10b0fe2829fb617a5ff21cb083ea4f0a4b769dafcdfa2bbb3be45af",
+      "match": true
+    },
+    {
+      "path": "maestro/client/src/main/stream/chunk-manager.ts",
+      "bytes_expected": 160767,
+      "bytes_actual": 160767,
+      "sha256_expected": "e8fc13c559b3ae430506da1bce127561b166db65a9b350a722af5c5627861b89",
+      "sha256_actual": "e8fc13c559b3ae430506da1bce127561b166db65a9b350a722af5c5627861b89",
+      "match": true
+    },
+    {
+      "path": "maestro/client/src/test/audio/dynamic-precision-regimes.unit.spec.ts",
+      "bytes_expected": 9098,
+      "bytes_actual": 9098,
+      "sha256_expected": "f5739a0c60d950f53684497c042273790c3a61e22c622732833419f0c282b591",
+      "sha256_actual": "f5739a0c60d950f53684497c042273790c3a61e22c622732833419f0c282b591",
+      "match": true
+    },
+    {
+      "path": "maestro/client/src/test/audio/chunk-manager-h3-dynamic-precision.unit.spec.ts",
+      "bytes_expected": 10437,
+      "bytes_actual": 10437,
+      "sha256_expected": "efb7db53ea62866352c43eb88e674c43d22bd0d75c9c8f9e03d06c5c7163c381",
+      "sha256_actual": "efb7db53ea62866352c43eb88e674c43d22bd0d75c9c8f9e03d06c5c7163c381",
+      "match": true
+    },
+    {
+      "path": "docs/h3/H3_RUNTIME_EVIDENCE_SCHEMA.md",
+      "bytes_expected": 7142,
+      "bytes_actual": 7142,
+      "sha256_expected": "6538a1cf170e00c3b7147ece9c597cc2a8117a03b4903d6c82f1fc81bef34da7",
+      "sha256_actual": "6538a1cf170e00c3b7147ece9c597cc2a8117a03b4903d6c82f1fc81bef34da7",
+      "match": true
+    },
+    {
+      "path": "docs/h3/H3_STAGE3H_PLAN.md",
+      "bytes_expected": 5490,
+      "bytes_actual": 5490,
+      "sha256_expected": "e3d3d033441f026f2cbb8b988cf85a24146530f06b22779ca93e33bd64473333",
+      "sha256_actual": "e3d3d033441f026f2cbb8b988cf85a24146530f06b22779ca93e33bd64473333",
+      "match": true
+    }
+  ]
+}
