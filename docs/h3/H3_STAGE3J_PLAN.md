@@ -84,11 +84,25 @@ Delivered:
 
 ### 3J-S4 — rubric framework + promotion engine core
 Status:
+Implemented
+
+Delivered:
+- bounded workflow candidate rubric framework fields in H3 runtime evidence
+- baseline, class, user, and timing rubric scaffold evaluation
+- bounded promotion engine fields in H3 runtime evidence
+- promotion ladder decisions up through auto-create scaffold eligibility
+- promotion ceilings, floors, and reason codes
+- preserved workflow candidate discovery, workflow skeleton inference, workflow candidate scoring, and workflow-memory reuse compatibility
+- no workflow draft creation yet
+- no persistence and no execution semantics
+
+### 3J-S5 — suggestion pressure + preferences/trust policy
+Status:
 Next
 
 Intended direction:
-- evaluate workflow candidates through baseline, class, user, and timing rubrics
-- choose bounded promotion states without introducing execution behavior
+- shape promotion channels through timing pressure, training vs mature behavior, and user-governed trust policy
+- keep workflow creation separate from execution while preparing low-risk draft auto-create policy behavior
 
 ## Explicit non-goals at current stage state
 

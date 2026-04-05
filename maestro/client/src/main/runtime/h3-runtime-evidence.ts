@@ -345,6 +345,29 @@ export interface H3RuntimeEvidenceEvent {
   workflowCandidateScoringSource: string | null;
   workflowCandidateScoringReasonCodes: string[] | null;
   workflowCandidateRiskReasonCodes: string[] | null;
+  workflowCandidateRubricSchemaVersion: string | null;
+  workflowCandidateRubricPolicyVersion: string | null;
+  workflowCandidateRubricEligible: boolean | null;
+  workflowCandidateBaselineRubricPassed: boolean | null;
+  workflowCandidateClassRubricPassed: boolean | null;
+  workflowCandidateUserRubricPassed: boolean | null;
+  workflowCandidateTimingRubricPassed: boolean | null;
+  workflowCandidateRubricVetoApplied: boolean | null;
+  workflowCandidateRubricWorkflowClass: string | null;
+  workflowCandidateRubricSuggestedSurface: string | null;
+  workflowCandidateRubricSource: string | null;
+  workflowCandidateRubricReasonCodes: string[] | null;
+  workflowCandidatePromotionSchemaVersion: string | null;
+  workflowCandidatePromotionPolicyVersion: string | null;
+  workflowCandidatePromotionEligible: boolean | null;
+  workflowCandidatePromotionDecision: string | null;
+  workflowCandidatePromotionAutoCreateEligible: boolean | null;
+  workflowCandidatePromotionAutoSaveEligible: boolean | null;
+  workflowCandidatePromotionCeiling: string | null;
+  workflowCandidatePromotionFloor: string | null;
+  workflowCandidatePromotionDecisionConfidence: number | null;
+  workflowCandidatePromotionSource: string | null;
+  workflowCandidatePromotionReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -913,6 +936,52 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowCandidateScoringReasonCodes ?? null,
     workflowCandidateRiskReasonCodes:
       input.workflowCandidateRiskReasonCodes ?? null,
+    workflowCandidateRubricSchemaVersion:
+      input.workflowCandidateRubricSchemaVersion ?? null,
+    workflowCandidateRubricPolicyVersion:
+      input.workflowCandidateRubricPolicyVersion ?? null,
+    workflowCandidateRubricEligible:
+      input.workflowCandidateRubricEligible ?? null,
+    workflowCandidateBaselineRubricPassed:
+      input.workflowCandidateBaselineRubricPassed ?? null,
+    workflowCandidateClassRubricPassed:
+      input.workflowCandidateClassRubricPassed ?? null,
+    workflowCandidateUserRubricPassed:
+      input.workflowCandidateUserRubricPassed ?? null,
+    workflowCandidateTimingRubricPassed:
+      input.workflowCandidateTimingRubricPassed ?? null,
+    workflowCandidateRubricVetoApplied:
+      input.workflowCandidateRubricVetoApplied ?? null,
+    workflowCandidateRubricWorkflowClass:
+      input.workflowCandidateRubricWorkflowClass ?? null,
+    workflowCandidateRubricSuggestedSurface:
+      input.workflowCandidateRubricSuggestedSurface ?? null,
+    workflowCandidateRubricSource:
+      input.workflowCandidateRubricSource ?? null,
+    workflowCandidateRubricReasonCodes:
+      input.workflowCandidateRubricReasonCodes ?? null,
+    workflowCandidatePromotionSchemaVersion:
+      input.workflowCandidatePromotionSchemaVersion ?? null,
+    workflowCandidatePromotionPolicyVersion:
+      input.workflowCandidatePromotionPolicyVersion ?? null,
+    workflowCandidatePromotionEligible:
+      input.workflowCandidatePromotionEligible ?? null,
+    workflowCandidatePromotionDecision:
+      input.workflowCandidatePromotionDecision ?? null,
+    workflowCandidatePromotionAutoCreateEligible:
+      input.workflowCandidatePromotionAutoCreateEligible ?? null,
+    workflowCandidatePromotionAutoSaveEligible:
+      input.workflowCandidatePromotionAutoSaveEligible ?? null,
+    workflowCandidatePromotionCeiling:
+      input.workflowCandidatePromotionCeiling ?? null,
+    workflowCandidatePromotionFloor:
+      input.workflowCandidatePromotionFloor ?? null,
+    workflowCandidatePromotionDecisionConfidence:
+      input.workflowCandidatePromotionDecisionConfidence ?? null,
+    workflowCandidatePromotionSource:
+      input.workflowCandidatePromotionSource ?? null,
+    workflowCandidatePromotionReasonCodes:
+      input.workflowCandidatePromotionReasonCodes ?? null,
   };
 }
 

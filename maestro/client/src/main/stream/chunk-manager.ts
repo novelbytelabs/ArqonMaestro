@@ -70,6 +70,8 @@ import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-r
 import { deriveEmptyWorkflowCandidateDiscoveryState, deriveWorkflowCandidateDiscovery } from "../runtime/workflow-candidate-discovery";
 import { deriveEmptyWorkflowSkeletonInferenceState, deriveWorkflowSkeletonInference } from "../runtime/workflow-skeleton-inference";
 import { deriveWorkflowCandidateScoring } from "../runtime/workflow-candidate-scoring";
+import { deriveWorkflowCandidateRubrics } from "../runtime/workflow-candidate-rubrics";
+import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-promotion";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -1966,6 +1968,85 @@ export default class ChunkManager {
     });
   }
 
+
+
+private getWorkflowCandidateRubricFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    scoringEligible: boolean | null;
+    confidenceScore: number | null;
+    utilityScore: number | null;
+    creationRiskScore: number | null;
+    suggestionPressureScore: number | null;
+    trustScore: number | null;
+    noveltyScore: number | null;
+    duplicateRiskScore: number | null;
+    creationRiskBand: string | null;
+    familySplitRequired: boolean | null;
+    latentExecutionHazardRisk: number | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidateRubrics({
+    scoringEligible: seed.scoringEligible ?? null,
+    confidenceScore: seed.confidenceScore ?? null,
+    utilityScore: seed.utilityScore ?? null,
+    creationRiskScore: seed.creationRiskScore ?? null,
+    suggestionPressureScore: seed.suggestionPressureScore ?? null,
+    trustScore: seed.trustScore ?? null,
+    noveltyScore: seed.noveltyScore ?? null,
+    duplicateRiskScore: seed.duplicateRiskScore ?? null,
+    creationRiskBand: seed.creationRiskBand ?? null,
+    familySplitRequired: seed.familySplitRequired ?? null,
+    latentExecutionHazardRisk: seed.latentExecutionHazardRisk ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+
+private getWorkflowCandidatePromotionFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    rubricEligible: boolean | null;
+    baselineRubricPassed: boolean | null;
+    classRubricPassed: boolean | null;
+    userRubricPassed: boolean | null;
+    timingRubricPassed: boolean | null;
+    rubricVetoApplied: boolean | null;
+    suggestedSurface: string | null;
+    confidenceScore: number | null;
+    utilityScore: number | null;
+    creationRiskScore: number | null;
+    suggestionPressureScore: number | null;
+    trustScore: number | null;
+    noveltyScore: number | null;
+    duplicateRiskScore: number | null;
+    creationRiskBand: string | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidatePromotion({
+    rubricEligible: seed.rubricEligible ?? null,
+    baselineRubricPassed: seed.baselineRubricPassed ?? null,
+    classRubricPassed: seed.classRubricPassed ?? null,
+    userRubricPassed: seed.userRubricPassed ?? null,
+    timingRubricPassed: seed.timingRubricPassed ?? null,
+    rubricVetoApplied: seed.rubricVetoApplied ?? null,
+    suggestedSurface: seed.suggestedSurface ?? null,
+    confidenceScore: seed.confidenceScore ?? null,
+    utilityScore: seed.utilityScore ?? null,
+    creationRiskScore: seed.creationRiskScore ?? null,
+    suggestionPressureScore: seed.suggestionPressureScore ?? null,
+    trustScore: seed.trustScore ?? null,
+    noveltyScore: seed.noveltyScore ?? null,
+    duplicateRiskScore: seed.duplicateRiskScore ?? null,
+    creationRiskBand: seed.creationRiskBand ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
   private getWorkflowMemoryReuseFields(
     seed: Partial<{
       semanticAddressId: string | null;
@@ -2185,16 +2266,13 @@ export default class ChunkManager {
       semanticAddressId: overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
       finalGranted: decision?.granted ?? null,
     });
-    const discoveryEmergenceForSkeleton =
-      (workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? false) ||
-      ((workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? false) &&
-        (workflowCandidateDiscoveryFields.workflowCandidateDiscoveryOccurrenceCount ?? 0) >= 2);
     const workflowSkeletonInferenceFields = this.getWorkflowSkeletonInferenceFields(chunkId, eventName, {
       discoverySequenceSemanticAddressIds:
         workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceSemanticAddressIds ?? null,
       discoveryPatternKey:
         workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ?? null,
-      discoveryThresholdMet: discoveryEmergenceForSkeleton,
+      discoveryThresholdMet:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? null,
     });
     const workflowCandidateScoringFields = this.getWorkflowCandidateScoringFields(chunkId, eventName, {
       discoveryEligible:
@@ -2253,6 +2331,37 @@ export default class ChunkManager {
           overrides.workflowMemoryCandidatePoolScoresBefore ?? null,
         continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
       });
+
+const workflowCandidateRubricFields = this.getWorkflowCandidateRubricFields(chunkId, eventName, {
+    scoringEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+    confidenceScore: workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+    utilityScore: workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    creationRiskScore: workflowCandidateScoringFields.workflowCandidateCreationRiskScore ?? null,
+    suggestionPressureScore: workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore ?? null,
+    trustScore: workflowCandidateScoringFields.workflowCandidateTrustScore ?? null,
+    noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
+    duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
+    creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    familySplitRequired: workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    latentExecutionHazardRisk: workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk ?? null,
+});
+const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionFields(chunkId, eventName, {
+    rubricEligible: workflowCandidateRubricFields.workflowCandidateRubricEligible ?? null,
+    baselineRubricPassed: workflowCandidateRubricFields.workflowCandidateBaselineRubricPassed ?? null,
+    classRubricPassed: workflowCandidateRubricFields.workflowCandidateClassRubricPassed ?? null,
+    userRubricPassed: workflowCandidateRubricFields.workflowCandidateUserRubricPassed ?? null,
+    timingRubricPassed: workflowCandidateRubricFields.workflowCandidateTimingRubricPassed ?? null,
+    rubricVetoApplied: workflowCandidateRubricFields.workflowCandidateRubricVetoApplied ?? null,
+    suggestedSurface: workflowCandidateRubricFields.workflowCandidateRubricSuggestedSurface ?? null,
+    confidenceScore: workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+    utilityScore: workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    creationRiskScore: workflowCandidateScoringFields.workflowCandidateCreationRiskScore ?? null,
+    suggestionPressureScore: workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore ?? null,
+    trustScore: workflowCandidateScoringFields.workflowCandidateTrustScore ?? null,
+    noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
+    duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
+    creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+});
     const workflowMemoryReuseFields = this.getWorkflowMemoryReuseFields({
       semanticAddressId: overrides.semanticAddressId ?? null,
       finalGranted: decision?.granted ?? null,
@@ -2680,50 +2789,97 @@ export default class ChunkManager {
         overrides.workflowSkeletonInferenceSource ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceSource,
       workflowSkeletonInferenceReasonCodes:
         overrides.workflowSkeletonInferenceReasonCodes ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceReasonCodes,
-      workflowCandidateScoringSchemaVersion:
-        overrides.workflowCandidateScoringSchemaVersion ?? workflowCandidateScoringFields.workflowCandidateScoringSchemaVersion,
-      workflowCandidateScoringPolicyVersion:
-        overrides.workflowCandidateScoringPolicyVersion ?? workflowCandidateScoringFields.workflowCandidateScoringPolicyVersion,
-      workflowCandidateScoringEligible:
-        overrides.workflowCandidateScoringEligible ?? workflowCandidateScoringFields.workflowCandidateScoringEligible,
-      workflowCandidateScoreVersion:
-        overrides.workflowCandidateScoreVersion ?? workflowCandidateScoringFields.workflowCandidateScoreVersion,
-      workflowCandidateConfidenceScore:
-        overrides.workflowCandidateConfidenceScore ?? workflowCandidateScoringFields.workflowCandidateConfidenceScore,
-      workflowCandidateUtilityScore:
-        overrides.workflowCandidateUtilityScore ?? workflowCandidateScoringFields.workflowCandidateUtilityScore,
-      workflowCandidateCreationRiskScore:
-        overrides.workflowCandidateCreationRiskScore ?? workflowCandidateScoringFields.workflowCandidateCreationRiskScore,
-      workflowCandidateSuggestionPressureScore:
-        overrides.workflowCandidateSuggestionPressureScore ?? workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore,
-      workflowCandidateTrustScore:
-        overrides.workflowCandidateTrustScore ?? workflowCandidateScoringFields.workflowCandidateTrustScore,
-      workflowCandidateNoveltyScore:
-        overrides.workflowCandidateNoveltyScore ?? workflowCandidateScoringFields.workflowCandidateNoveltyScore,
-      workflowCandidateDuplicateRiskScore:
-        overrides.workflowCandidateDuplicateRiskScore ?? workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore,
-      workflowCandidateStructuralStabilityRisk:
-        overrides.workflowCandidateStructuralStabilityRisk ?? workflowCandidateScoringFields.workflowCandidateStructuralStabilityRisk,
-      workflowCandidateParameterVolatilityRisk:
-        overrides.workflowCandidateParameterVolatilityRisk ?? workflowCandidateScoringFields.workflowCandidateParameterVolatilityRisk,
-      workflowCandidateBoundaryClarityRisk:
-        overrides.workflowCandidateBoundaryClarityRisk ?? workflowCandidateScoringFields.workflowCandidateBoundaryClarityRisk,
-      workflowCandidateAbstractionRiskComponent:
-        overrides.workflowCandidateAbstractionRiskComponent ?? workflowCandidateScoringFields.workflowCandidateAbstractionRiskComponent,
-      workflowCandidateLatentExecutionHazardRisk:
-        overrides.workflowCandidateLatentExecutionHazardRisk ?? workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk,
-      workflowCandidateClutterRisk:
-        overrides.workflowCandidateClutterRisk ?? workflowCandidateScoringFields.workflowCandidateClutterRisk,
-      workflowCandidateUserMisalignmentRisk:
-        overrides.workflowCandidateUserMisalignmentRisk ?? workflowCandidateScoringFields.workflowCandidateUserMisalignmentRisk,
-      workflowCandidateCreationRiskBand:
-        overrides.workflowCandidateCreationRiskBand ?? workflowCandidateScoringFields.workflowCandidateCreationRiskBand,
-      workflowCandidateScoringSource:
-        overrides.workflowCandidateScoringSource ?? workflowCandidateScoringFields.workflowCandidateScoringSource,
-      workflowCandidateScoringReasonCodes:
-        overrides.workflowCandidateScoringReasonCodes ?? workflowCandidateScoringFields.workflowCandidateScoringReasonCodes,
-      workflowCandidateRiskReasonCodes:
-        overrides.workflowCandidateRiskReasonCodes ?? workflowCandidateScoringFields.workflowCandidateRiskReasonCodes,
+
+workflowCandidateScoringSchemaVersion:
+  overrides.workflowCandidateScoringSchemaVersion ?? workflowCandidateScoringFields.workflowCandidateScoringSchemaVersion,
+workflowCandidateScoringPolicyVersion:
+  overrides.workflowCandidateScoringPolicyVersion ?? workflowCandidateScoringFields.workflowCandidateScoringPolicyVersion,
+workflowCandidateScoringEligible:
+  overrides.workflowCandidateScoringEligible ?? workflowCandidateScoringFields.workflowCandidateScoringEligible,
+workflowCandidateScoreVersion:
+  overrides.workflowCandidateScoreVersion ?? workflowCandidateScoringFields.workflowCandidateScoreVersion,
+workflowCandidateConfidenceScore:
+  overrides.workflowCandidateConfidenceScore ?? workflowCandidateScoringFields.workflowCandidateConfidenceScore,
+workflowCandidateUtilityScore:
+  overrides.workflowCandidateUtilityScore ?? workflowCandidateScoringFields.workflowCandidateUtilityScore,
+workflowCandidateCreationRiskScore:
+  overrides.workflowCandidateCreationRiskScore ?? workflowCandidateScoringFields.workflowCandidateCreationRiskScore,
+workflowCandidateSuggestionPressureScore:
+  overrides.workflowCandidateSuggestionPressureScore ?? workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore,
+workflowCandidateTrustScore:
+  overrides.workflowCandidateTrustScore ?? workflowCandidateScoringFields.workflowCandidateTrustScore,
+workflowCandidateNoveltyScore:
+  overrides.workflowCandidateNoveltyScore ?? workflowCandidateScoringFields.workflowCandidateNoveltyScore,
+workflowCandidateDuplicateRiskScore:
+  overrides.workflowCandidateDuplicateRiskScore ?? workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore,
+workflowCandidateStructuralStabilityRisk:
+  overrides.workflowCandidateStructuralStabilityRisk ?? workflowCandidateScoringFields.workflowCandidateStructuralStabilityRisk,
+workflowCandidateParameterVolatilityRisk:
+  overrides.workflowCandidateParameterVolatilityRisk ?? workflowCandidateScoringFields.workflowCandidateParameterVolatilityRisk,
+workflowCandidateBoundaryClarityRisk:
+  overrides.workflowCandidateBoundaryClarityRisk ?? workflowCandidateScoringFields.workflowCandidateBoundaryClarityRisk,
+workflowCandidateAbstractionRiskComponent:
+  overrides.workflowCandidateAbstractionRiskComponent ?? workflowCandidateScoringFields.workflowCandidateAbstractionRiskComponent,
+workflowCandidateLatentExecutionHazardRisk:
+  overrides.workflowCandidateLatentExecutionHazardRisk ?? workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk,
+workflowCandidateClutterRisk:
+  overrides.workflowCandidateClutterRisk ?? workflowCandidateScoringFields.workflowCandidateClutterRisk,
+workflowCandidateUserMisalignmentRisk:
+  overrides.workflowCandidateUserMisalignmentRisk ?? workflowCandidateScoringFields.workflowCandidateUserMisalignmentRisk,
+workflowCandidateCreationRiskBand:
+  overrides.workflowCandidateCreationRiskBand ?? workflowCandidateScoringFields.workflowCandidateCreationRiskBand,
+workflowCandidateScoringSource:
+  overrides.workflowCandidateScoringSource ?? workflowCandidateScoringFields.workflowCandidateScoringSource,
+workflowCandidateScoringReasonCodes:
+  overrides.workflowCandidateScoringReasonCodes ?? workflowCandidateScoringFields.workflowCandidateScoringReasonCodes,
+workflowCandidateRiskReasonCodes:
+  overrides.workflowCandidateRiskReasonCodes ?? workflowCandidateScoringFields.workflowCandidateRiskReasonCodes,
+workflowCandidateRubricSchemaVersion:
+  overrides.workflowCandidateRubricSchemaVersion ?? workflowCandidateRubricFields.workflowCandidateRubricSchemaVersion,
+workflowCandidateRubricPolicyVersion:
+  overrides.workflowCandidateRubricPolicyVersion ?? workflowCandidateRubricFields.workflowCandidateRubricPolicyVersion,
+workflowCandidateRubricEligible:
+  overrides.workflowCandidateRubricEligible ?? workflowCandidateRubricFields.workflowCandidateRubricEligible,
+workflowCandidateBaselineRubricPassed:
+  overrides.workflowCandidateBaselineRubricPassed ?? workflowCandidateRubricFields.workflowCandidateBaselineRubricPassed,
+workflowCandidateClassRubricPassed:
+  overrides.workflowCandidateClassRubricPassed ?? workflowCandidateRubricFields.workflowCandidateClassRubricPassed,
+workflowCandidateUserRubricPassed:
+  overrides.workflowCandidateUserRubricPassed ?? workflowCandidateRubricFields.workflowCandidateUserRubricPassed,
+workflowCandidateTimingRubricPassed:
+  overrides.workflowCandidateTimingRubricPassed ?? workflowCandidateRubricFields.workflowCandidateTimingRubricPassed,
+workflowCandidateRubricVetoApplied:
+  overrides.workflowCandidateRubricVetoApplied ?? workflowCandidateRubricFields.workflowCandidateRubricVetoApplied,
+workflowCandidateRubricWorkflowClass:
+  overrides.workflowCandidateRubricWorkflowClass ?? workflowCandidateRubricFields.workflowCandidateRubricWorkflowClass,
+workflowCandidateRubricSuggestedSurface:
+  overrides.workflowCandidateRubricSuggestedSurface ?? workflowCandidateRubricFields.workflowCandidateRubricSuggestedSurface,
+workflowCandidateRubricSource:
+  overrides.workflowCandidateRubricSource ?? workflowCandidateRubricFields.workflowCandidateRubricSource,
+workflowCandidateRubricReasonCodes:
+  overrides.workflowCandidateRubricReasonCodes ?? workflowCandidateRubricFields.workflowCandidateRubricReasonCodes,
+workflowCandidatePromotionSchemaVersion:
+  overrides.workflowCandidatePromotionSchemaVersion ?? workflowCandidatePromotionFields.workflowCandidatePromotionSchemaVersion,
+workflowCandidatePromotionPolicyVersion:
+  overrides.workflowCandidatePromotionPolicyVersion ?? workflowCandidatePromotionFields.workflowCandidatePromotionPolicyVersion,
+workflowCandidatePromotionEligible:
+  overrides.workflowCandidatePromotionEligible ?? workflowCandidatePromotionFields.workflowCandidatePromotionEligible,
+workflowCandidatePromotionDecision:
+  overrides.workflowCandidatePromotionDecision ?? workflowCandidatePromotionFields.workflowCandidatePromotionDecision,
+workflowCandidatePromotionAutoCreateEligible:
+  overrides.workflowCandidatePromotionAutoCreateEligible ?? workflowCandidatePromotionFields.workflowCandidatePromotionAutoCreateEligible,
+workflowCandidatePromotionAutoSaveEligible:
+  overrides.workflowCandidatePromotionAutoSaveEligible ?? workflowCandidatePromotionFields.workflowCandidatePromotionAutoSaveEligible,
+workflowCandidatePromotionCeiling:
+  overrides.workflowCandidatePromotionCeiling ?? workflowCandidatePromotionFields.workflowCandidatePromotionCeiling,
+workflowCandidatePromotionFloor:
+  overrides.workflowCandidatePromotionFloor ?? workflowCandidatePromotionFields.workflowCandidatePromotionFloor,
+workflowCandidatePromotionDecisionConfidence:
+  overrides.workflowCandidatePromotionDecisionConfidence ?? workflowCandidatePromotionFields.workflowCandidatePromotionDecisionConfidence,
+workflowCandidatePromotionSource:
+  overrides.workflowCandidatePromotionSource ?? workflowCandidatePromotionFields.workflowCandidatePromotionSource,
+workflowCandidatePromotionReasonCodes:
+  overrides.workflowCandidatePromotionReasonCodes ?? workflowCandidatePromotionFields.workflowCandidatePromotionReasonCodes,
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
       counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,

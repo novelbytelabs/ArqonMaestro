@@ -368,3 +368,39 @@ Notes:
 - no workflow draft creation yet
 - no persistence / distributed cache
 - no execution semantics
+
+
+## Stage 3J-S4 — workflow candidate rubrics and promotion
+
+Fields added in 3J-S4:
+- `workflowCandidateRubricSchemaVersion`
+- `workflowCandidateRubricPolicyVersion`
+- `workflowCandidateRubricEligible`
+- `workflowCandidateBaselineRubricPassed`
+- `workflowCandidateClassRubricPassed`
+- `workflowCandidateUserRubricPassed`
+- `workflowCandidateTimingRubricPassed`
+- `workflowCandidateRubricVetoApplied`
+- `workflowCandidateRubricWorkflowClass`
+- `workflowCandidateRubricSuggestedSurface`
+- `workflowCandidateRubricSource`
+- `workflowCandidateRubricReasonCodes`
+- `workflowCandidatePromotionSchemaVersion`
+- `workflowCandidatePromotionPolicyVersion`
+- `workflowCandidatePromotionEligible`
+- `workflowCandidatePromotionDecision`
+- `workflowCandidatePromotionAutoCreateEligible`
+- `workflowCandidatePromotionAutoSaveEligible`
+- `workflowCandidatePromotionCeiling`
+- `workflowCandidatePromotionFloor`
+- `workflowCandidatePromotionDecisionConfidence`
+- `workflowCandidatePromotionSource`
+- `workflowCandidatePromotionReasonCodes`
+
+3J-S4 status:
+- rubric framework core only
+- promotion engine core only
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics
+- auto-save remains reserved for later policy shaping

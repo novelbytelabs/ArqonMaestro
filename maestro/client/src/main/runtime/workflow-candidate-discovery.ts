@@ -11,6 +11,7 @@ const MIN_DISCOVERY_DISTINCT_RUN_COUNT = 2;
 
 export interface WorkflowCandidateDiscoveryState {
   governedHistory: string[];
+  governedEventIndex: number;
   patternCounts: Record<string, number>;
   patternDistinctRunCounts: Record<string, number>;
   patternLastOccurrenceEndIndex: Record<string, number>;
@@ -47,6 +48,7 @@ export interface WorkflowCandidateDiscoveryFields {
 export function deriveEmptyWorkflowCandidateDiscoveryState(): WorkflowCandidateDiscoveryState {
   return {
     governedHistory: [],
+    governedEventIndex: -1,
     patternCounts: {},
     patternDistinctRunCounts: {},
     patternLastOccurrenceEndIndex: {},
@@ -58,6 +60,8 @@ function cloneState(previousState?: WorkflowCandidateDiscoveryState | null): Wor
   const safe = previousState ?? deriveEmptyWorkflowCandidateDiscoveryState();
   return {
     governedHistory: Array.isArray(safe.governedHistory) ? safe.governedHistory.slice() : [],
+    governedEventIndex:
+      typeof safe.governedEventIndex === "number" ? safe.governedEventIndex : -1,
     patternCounts: { ...(safe.patternCounts ?? {}) },
     patternDistinctRunCounts: { ...(safe.patternDistinctRunCounts ?? {}) },
     patternLastOccurrenceEndIndex: { ...(safe.patternLastOccurrenceEndIndex ?? {}) },
@@ -104,6 +108,7 @@ export function deriveWorkflowCandidateDiscovery(
   }
 
   nextState.governedHistory.push(semanticAddressId);
+  nextState.governedEventIndex += 1;
   if (nextState.governedHistory.length > MAX_GOVERNED_HISTORY) {
     nextState.governedHistory = nextState.governedHistory.slice(-MAX_GOVERNED_HISTORY);
   }
@@ -131,7 +136,7 @@ export function deriveWorkflowCandidateDiscovery(
   }
 
   const maxLength = Math.min(MAX_SUBSEQUENCE_LENGTH, nextState.governedHistory.length);
-  const endIndex = nextState.governedHistory.length - 1;
+  const endIndex = nextState.governedEventIndex;
   const evaluated: Array<{
     sequenceSemanticAddressIds: string[];
     patternKey: string;
