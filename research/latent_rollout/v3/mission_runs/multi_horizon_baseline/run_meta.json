@@ -1,0 +1,9 @@
+{
+  "seconds": 129.13814449310303,
+  "systems": [
+    "heat",
+    "wave",
+    "burgers",
+    "reaction_diffusion"
+  ]
+}

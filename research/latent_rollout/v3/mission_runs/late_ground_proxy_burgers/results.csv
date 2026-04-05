@@ -1,0 +1,8 @@
+system,strategy,full_rel_mse,tail16_rel_mse,final_step_rel_mse
+burgers,latent,,,
+burgers,state,,,
+burgers,latent_branch,,,
+burgers,hybrid_2,,,
+burgers,hybrid_4,,,
+burgers,hybrid_8,,,
+burgers,hybrid_16,,,

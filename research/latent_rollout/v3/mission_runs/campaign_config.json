@@ -1,0 +1,25 @@
+{
+  "base_script": "/home/irbsurfer/Projects/arqon/ArqonMaestro/research/latent_rollout/v2/ashley_latent_rollout_replication_v2.py",
+  "seed": 7,
+  "n_train": 128,
+  "n_val": 32,
+  "n_test": 32,
+  "ae_epochs": 6,
+  "dyn_epochs": 8,
+  "batch_size": 32,
+  "latent_dims": [
+    "16",
+    "24",
+    "32"
+  ],
+  "rollout_lens": [
+    "48",
+    "64",
+    "80"
+  ],
+  "systems_for_crossover": [
+    "reaction_diffusion",
+    "heat",
+    "burgers"
+  ]
+}
