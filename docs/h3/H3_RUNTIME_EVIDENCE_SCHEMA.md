@@ -413,3 +413,40 @@ Added workflow candidate policy and timing evidence fields:
 - `workflowCandidateTiming*`
 
 These fields shape rubric and promotion behavior but do not introduce workflow draft creation or execution semantics.
+
+## Stage 3J-S6 — Draft and library API preview fields
+
+This slice adds bounded API-ready workflow draft and library placeholder surfaces only.
+
+Added fields:
+- `workflowDraftArtifactSchemaVersion`
+- `workflowDraftArtifactVersion`
+- `workflowDraftArtifactEligible`
+- `workflowDraftArtifactDraftIdPreview`
+- `workflowDraftArtifactTitle`
+- `workflowDraftArtifactSummary`
+- `workflowDraftArtifactReviewState`
+- `workflowDraftArtifactAutoCreated`
+- `workflowDraftArtifactAutoSaved`
+- `workflowDraftArtifactApprovalRequired`
+- `workflowDraftArtifactLibraryEligible`
+- `workflowDraftArtifactShareTemplateEligible`
+- `workflowDraftArtifactContainsUserSpecificBindings`
+- `workflowDraftArtifactLifecycleState`
+- `workflowDraftArtifactSource`
+- `workflowDraftArtifactReasonCodes`
+- `workflowLibraryApiSchemaVersion`
+- `workflowLibraryApiVersion`
+- `workflowLibraryApiEligible`
+- `workflowLibraryApiCandidateState`
+- `workflowLibraryApiPersistentDraftEligible`
+- `workflowLibraryApiApprovedWorkflowPlaceholderId`
+- `workflowLibraryApiExecutionPolicyRequired`
+- `workflowLibraryApiExecutableByDefault`
+- `workflowLibraryApiSource`
+- `workflowLibraryApiReasonCodes`
+
+Notes:
+- These fields are API-ready artifact previews only in `3J-S6`.
+- No persisted storage backend is introduced in this slice.
+- No workflow execution semantics are introduced in this slice.

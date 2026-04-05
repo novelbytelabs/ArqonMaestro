@@ -394,6 +394,32 @@ export interface H3RuntimeEvidenceEvent {
   workflowCandidatePromotionDecisionConfidence: number | null;
   workflowCandidatePromotionSource: string | null;
   workflowCandidatePromotionReasonCodes: string[] | null;
+  workflowDraftArtifactSchemaVersion: string | null;
+  workflowDraftArtifactVersion: string | null;
+  workflowDraftArtifactEligible: boolean | null;
+  workflowDraftArtifactDraftIdPreview: string | null;
+  workflowDraftArtifactTitle: string | null;
+  workflowDraftArtifactSummary: string | null;
+  workflowDraftArtifactReviewState: string | null;
+  workflowDraftArtifactAutoCreated: boolean | null;
+  workflowDraftArtifactAutoSaved: boolean | null;
+  workflowDraftArtifactApprovalRequired: boolean | null;
+  workflowDraftArtifactLibraryEligible: boolean | null;
+  workflowDraftArtifactShareTemplateEligible: boolean | null;
+  workflowDraftArtifactContainsUserSpecificBindings: boolean | null;
+  workflowDraftArtifactLifecycleState: string | null;
+  workflowDraftArtifactSource: string | null;
+  workflowDraftArtifactReasonCodes: string[] | null;
+  workflowLibraryApiSchemaVersion: string | null;
+  workflowLibraryApiVersion: string | null;
+  workflowLibraryApiEligible: boolean | null;
+  workflowLibraryApiCandidateState: string | null;
+  workflowLibraryApiPersistentDraftEligible: boolean | null;
+  workflowLibraryApiApprovedWorkflowPlaceholderId: string | null;
+  workflowLibraryApiExecutionPolicyRequired: boolean | null;
+  workflowLibraryApiExecutableByDefault: boolean | null;
+  workflowLibraryApiSource: string | null;
+  workflowLibraryApiReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -1060,6 +1086,58 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowCandidatePromotionSource ?? null,
     workflowCandidatePromotionReasonCodes:
       input.workflowCandidatePromotionReasonCodes ?? null,
+    workflowDraftArtifactSchemaVersion:
+      input.workflowDraftArtifactSchemaVersion ?? null,
+    workflowDraftArtifactVersion:
+      input.workflowDraftArtifactVersion ?? null,
+    workflowDraftArtifactEligible:
+      input.workflowDraftArtifactEligible ?? null,
+    workflowDraftArtifactDraftIdPreview:
+      input.workflowDraftArtifactDraftIdPreview ?? null,
+    workflowDraftArtifactTitle:
+      input.workflowDraftArtifactTitle ?? null,
+    workflowDraftArtifactSummary:
+      input.workflowDraftArtifactSummary ?? null,
+    workflowDraftArtifactReviewState:
+      input.workflowDraftArtifactReviewState ?? null,
+    workflowDraftArtifactAutoCreated:
+      input.workflowDraftArtifactAutoCreated ?? null,
+    workflowDraftArtifactAutoSaved:
+      input.workflowDraftArtifactAutoSaved ?? null,
+    workflowDraftArtifactApprovalRequired:
+      input.workflowDraftArtifactApprovalRequired ?? null,
+    workflowDraftArtifactLibraryEligible:
+      input.workflowDraftArtifactLibraryEligible ?? null,
+    workflowDraftArtifactShareTemplateEligible:
+      input.workflowDraftArtifactShareTemplateEligible ?? null,
+    workflowDraftArtifactContainsUserSpecificBindings:
+      input.workflowDraftArtifactContainsUserSpecificBindings ?? null,
+    workflowDraftArtifactLifecycleState:
+      input.workflowDraftArtifactLifecycleState ?? null,
+    workflowDraftArtifactSource:
+      input.workflowDraftArtifactSource ?? null,
+    workflowDraftArtifactReasonCodes:
+      input.workflowDraftArtifactReasonCodes ?? null,
+    workflowLibraryApiSchemaVersion:
+      input.workflowLibraryApiSchemaVersion ?? null,
+    workflowLibraryApiVersion:
+      input.workflowLibraryApiVersion ?? null,
+    workflowLibraryApiEligible:
+      input.workflowLibraryApiEligible ?? null,
+    workflowLibraryApiCandidateState:
+      input.workflowLibraryApiCandidateState ?? null,
+    workflowLibraryApiPersistentDraftEligible:
+      input.workflowLibraryApiPersistentDraftEligible ?? null,
+    workflowLibraryApiApprovedWorkflowPlaceholderId:
+      input.workflowLibraryApiApprovedWorkflowPlaceholderId ?? null,
+    workflowLibraryApiExecutionPolicyRequired:
+      input.workflowLibraryApiExecutionPolicyRequired ?? null,
+    workflowLibraryApiExecutableByDefault:
+      input.workflowLibraryApiExecutableByDefault ?? null,
+    workflowLibraryApiSource:
+      input.workflowLibraryApiSource ?? null,
+    workflowLibraryApiReasonCodes:
+      input.workflowLibraryApiReasonCodes ?? null,
   };
 }
 

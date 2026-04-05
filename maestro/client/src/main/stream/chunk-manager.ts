@@ -74,6 +74,7 @@ import { deriveWorkflowCandidatePreferencesPolicy } from "../runtime/workflow-ca
 import { deriveWorkflowCandidateTiming } from "../runtime/workflow-candidate-timing";
 import { deriveWorkflowCandidateRubrics } from "../runtime/workflow-candidate-rubrics";
 import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-promotion";
+import { deriveWorkflowDraftArtifacts } from "../runtime/workflow-draft-artifacts";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -2138,6 +2139,44 @@ private getWorkflowCandidatePromotionFields(
     source: "h3_runtime_evidence",
   });
 }
+  private getWorkflowDraftArtifactFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      promotionEligible: boolean | null;
+      promotionDecision: string | null;
+      promotionAutoCreateEligible: boolean | null;
+      promotionAutoSaveEligible: boolean | null;
+      workflowClass: string | null;
+      patternKey: string | null;
+      canonicalStepSemanticAddressIds: string[] | null;
+      confidenceScore: number | null;
+      utilityScore: number | null;
+      creationRiskBand: string | null;
+      timingChannel: string | null;
+      policyTrustBand: string | null;
+      familySplitRequired: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    return deriveWorkflowDraftArtifacts({
+      promotionEligible: seed.promotionEligible ?? null,
+      promotionDecision: seed.promotionDecision ?? null,
+      promotionAutoCreateEligible: seed.promotionAutoCreateEligible ?? null,
+      promotionAutoSaveEligible: seed.promotionAutoSaveEligible ?? null,
+      workflowClass: seed.workflowClass ?? null,
+      patternKey: seed.patternKey ?? null,
+      canonicalStepSemanticAddressIds: seed.canonicalStepSemanticAddressIds ?? null,
+      confidenceScore: seed.confidenceScore ?? null,
+      utilityScore: seed.utilityScore ?? null,
+      creationRiskBand: seed.creationRiskBand ?? null,
+      timingChannel: seed.timingChannel ?? null,
+      policyTrustBand: seed.policyTrustBand ?? null,
+      familySplitRequired: seed.familySplitRequired ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
   private getWorkflowMemoryReuseFields(
     seed: Partial<{
       semanticAddressId: string | null;
@@ -2521,7 +2560,37 @@ const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionField
           workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
           ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
           : overrides.bestCandidateScore ?? null;
-    emitH3RuntimeEvidence({
+    
+const workflowDraftArtifactFields = this.getWorkflowDraftArtifactFields(chunkId, eventName, {
+    promotionEligible:
+      workflowCandidatePromotionFields.workflowCandidatePromotionEligible ?? null,
+    promotionDecision:
+      workflowCandidatePromotionFields.workflowCandidatePromotionDecision ?? null,
+    promotionAutoCreateEligible:
+      workflowCandidatePromotionFields.workflowCandidatePromotionAutoCreateEligible ?? null,
+    promotionAutoSaveEligible:
+      workflowCandidatePromotionFields.workflowCandidatePromotionAutoSaveEligible ?? null,
+    workflowClass:
+      workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass ?? null,
+    patternKey:
+      workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ??
+      workflowSkeletonInferenceFields.workflowSkeletonInferencePatternKey ?? null,
+    canonicalStepSemanticAddressIds:
+      workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
+    confidenceScore:
+      workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+    utilityScore:
+      workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    creationRiskBand:
+      workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    timingChannel:
+      workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
+    policyTrustBand:
+      workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+    familySplitRequired:
+      workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+});
+emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
       timestampMs: this.relativeChunkNowMs(chunkId),
@@ -3074,6 +3143,58 @@ workflowCandidatePromotionSource:
   overrides.workflowCandidatePromotionSource ?? workflowCandidatePromotionFields.workflowCandidatePromotionSource,
 workflowCandidatePromotionReasonCodes:
   overrides.workflowCandidatePromotionReasonCodes ?? workflowCandidatePromotionFields.workflowCandidatePromotionReasonCodes,
+workflowDraftArtifactSchemaVersion:
+  overrides.workflowDraftArtifactSchemaVersion ?? workflowDraftArtifactFields.workflowDraftArtifactSchemaVersion,
+workflowDraftArtifactVersion:
+  overrides.workflowDraftArtifactVersion ?? workflowDraftArtifactFields.workflowDraftArtifactVersion,
+workflowDraftArtifactEligible:
+  overrides.workflowDraftArtifactEligible ?? workflowDraftArtifactFields.workflowDraftArtifactEligible,
+workflowDraftArtifactDraftIdPreview:
+  overrides.workflowDraftArtifactDraftIdPreview ?? workflowDraftArtifactFields.workflowDraftArtifactDraftIdPreview,
+workflowDraftArtifactTitle:
+  overrides.workflowDraftArtifactTitle ?? workflowDraftArtifactFields.workflowDraftArtifactTitle,
+workflowDraftArtifactSummary:
+  overrides.workflowDraftArtifactSummary ?? workflowDraftArtifactFields.workflowDraftArtifactSummary,
+workflowDraftArtifactReviewState:
+  overrides.workflowDraftArtifactReviewState ?? workflowDraftArtifactFields.workflowDraftArtifactReviewState,
+workflowDraftArtifactAutoCreated:
+  overrides.workflowDraftArtifactAutoCreated ?? workflowDraftArtifactFields.workflowDraftArtifactAutoCreated,
+workflowDraftArtifactAutoSaved:
+  overrides.workflowDraftArtifactAutoSaved ?? workflowDraftArtifactFields.workflowDraftArtifactAutoSaved,
+workflowDraftArtifactApprovalRequired:
+  overrides.workflowDraftArtifactApprovalRequired ?? workflowDraftArtifactFields.workflowDraftArtifactApprovalRequired,
+workflowDraftArtifactLibraryEligible:
+  overrides.workflowDraftArtifactLibraryEligible ?? workflowDraftArtifactFields.workflowDraftArtifactLibraryEligible,
+workflowDraftArtifactShareTemplateEligible:
+  overrides.workflowDraftArtifactShareTemplateEligible ?? workflowDraftArtifactFields.workflowDraftArtifactShareTemplateEligible,
+workflowDraftArtifactContainsUserSpecificBindings:
+  overrides.workflowDraftArtifactContainsUserSpecificBindings ?? workflowDraftArtifactFields.workflowDraftArtifactContainsUserSpecificBindings,
+workflowDraftArtifactLifecycleState:
+  overrides.workflowDraftArtifactLifecycleState ?? workflowDraftArtifactFields.workflowDraftArtifactLifecycleState,
+workflowDraftArtifactSource:
+  overrides.workflowDraftArtifactSource ?? workflowDraftArtifactFields.workflowDraftArtifactSource,
+workflowDraftArtifactReasonCodes:
+  overrides.workflowDraftArtifactReasonCodes ?? workflowDraftArtifactFields.workflowDraftArtifactReasonCodes,
+workflowLibraryApiSchemaVersion:
+  overrides.workflowLibraryApiSchemaVersion ?? workflowDraftArtifactFields.workflowLibraryApiSchemaVersion,
+workflowLibraryApiVersion:
+  overrides.workflowLibraryApiVersion ?? workflowDraftArtifactFields.workflowLibraryApiVersion,
+workflowLibraryApiEligible:
+  overrides.workflowLibraryApiEligible ?? workflowDraftArtifactFields.workflowLibraryApiEligible,
+workflowLibraryApiCandidateState:
+  overrides.workflowLibraryApiCandidateState ?? workflowDraftArtifactFields.workflowLibraryApiCandidateState,
+workflowLibraryApiPersistentDraftEligible:
+  overrides.workflowLibraryApiPersistentDraftEligible ?? workflowDraftArtifactFields.workflowLibraryApiPersistentDraftEligible,
+workflowLibraryApiApprovedWorkflowPlaceholderId:
+  overrides.workflowLibraryApiApprovedWorkflowPlaceholderId ?? workflowDraftArtifactFields.workflowLibraryApiApprovedWorkflowPlaceholderId,
+workflowLibraryApiExecutionPolicyRequired:
+  overrides.workflowLibraryApiExecutionPolicyRequired ?? workflowDraftArtifactFields.workflowLibraryApiExecutionPolicyRequired,
+workflowLibraryApiExecutableByDefault:
+  overrides.workflowLibraryApiExecutableByDefault ?? workflowDraftArtifactFields.workflowLibraryApiExecutableByDefault,
+workflowLibraryApiSource:
+  overrides.workflowLibraryApiSource ?? workflowDraftArtifactFields.workflowLibraryApiSource,
+workflowLibraryApiReasonCodes:
+  overrides.workflowLibraryApiReasonCodes ?? workflowDraftArtifactFields.workflowLibraryApiReasonCodes,
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
       counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,

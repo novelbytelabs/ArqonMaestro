@@ -98,11 +98,29 @@ Delivered:
 
 ### 3J-S5 — suggestion pressure + preferences/trust policy
 Status:
-Next
+Implemented
 
-Intended direction:
-- shape promotion channels through timing pressure, training vs mature behavior, and user-governed trust policy
-- keep workflow creation separate from execution while preparing low-risk draft auto-create policy behavior
+Delivered:
+- bounded workflow candidate policy surfaces in H3 runtime evidence
+- bounded workflow candidate timing/channel surfaces in H3 runtime evidence
+- class-sensitive low-risk auto-create eligibility shaping
+- stricter very-low-risk auto-save shaping
+- preserved workflow candidate discovery, workflow skeleton inference, workflow candidate scoring, rubric/promotion, and workflow-memory reuse compatibility
+- no workflow draft creation yet
+- no persistence and no execution semantics
+
+### 3J-S6 — draft and library API surfaces
+Status:
+Implemented
+
+Delivered:
+- bounded workflow draft artifact preview fields in H3 runtime evidence
+- bounded workflow library API placeholder fields in H3 runtime evidence
+- candidate-to-draft preview surfaces derived from promotion state
+- non-executable library placeholder contract surfaces
+- preserved workflow candidate discovery, workflow skeleton inference, workflow candidate scoring, policy/timing, rubric/promotion, and workflow-memory reuse compatibility
+- no persisted storage backend yet
+- no execution semantics
 
 ## Explicit non-goals at current stage state
 
@@ -116,4 +134,4 @@ Not in 3J-S2:
 
 ## Current next slice
 
-- `3J-S6` — Draft and Library API Surfaces
+- `3J-S7` — Closure / Validation / Docs Freeze
