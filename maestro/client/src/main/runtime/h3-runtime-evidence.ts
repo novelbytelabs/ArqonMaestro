@@ -345,6 +345,32 @@ export interface H3RuntimeEvidenceEvent {
   workflowCandidateScoringSource: string | null;
   workflowCandidateScoringReasonCodes: string[] | null;
   workflowCandidateRiskReasonCodes: string[] | null;
+  workflowCandidatePolicySchemaVersion: string | null;
+  workflowCandidatePolicyVersion: string | null;
+  workflowCandidatePolicyEligible: boolean | null;
+  workflowCandidatePolicyWorkflowClass: string | null;
+  workflowCandidatePolicyTrustBand: string | null;
+  workflowCandidatePolicyTrainingModeActive: boolean | null;
+  workflowCandidatePolicyQuietModeEnabled: boolean | null;
+  workflowCandidatePolicyInboxOnly: boolean | null;
+  workflowCandidatePolicyAutoCreateLowRiskEnabled: boolean | null;
+  workflowCandidatePolicyAutoSaveVeryLowRiskEnabled: boolean | null;
+  workflowCandidatePolicyClassTrustAllowsAutoCreate: boolean | null;
+  workflowCandidatePolicyClassTrustAllowsAutoSave: boolean | null;
+  workflowCandidatePolicySource: string | null;
+  workflowCandidatePolicyReasonCodes: string[] | null;
+  workflowCandidateTimingSchemaVersion: string | null;
+  workflowCandidateTimingPolicyVersion: string | null;
+  workflowCandidateTimingEligible: boolean | null;
+  workflowCandidateTimingChannel: string | null;
+  workflowCandidateTimingQueuePressureClass: string | null;
+  workflowCandidateTimingCooldownActive: boolean | null;
+  workflowCandidateTimingHoldSuppressed: boolean | null;
+  workflowCandidateTimingDigestPreferred: boolean | null;
+  workflowCandidateTimingTrainingModeActive: boolean | null;
+  workflowCandidateTimingQuietModeEnabled: boolean | null;
+  workflowCandidateTimingSource: string | null;
+  workflowCandidateTimingReasonCodes: string[] | null;
   workflowCandidateRubricSchemaVersion: string | null;
   workflowCandidateRubricPolicyVersion: string | null;
   workflowCandidateRubricEligible: boolean | null;
@@ -936,6 +962,58 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowCandidateScoringReasonCodes ?? null,
     workflowCandidateRiskReasonCodes:
       input.workflowCandidateRiskReasonCodes ?? null,
+    workflowCandidatePolicySchemaVersion:
+      input.workflowCandidatePolicySchemaVersion ?? null,
+    workflowCandidatePolicyVersion:
+      input.workflowCandidatePolicyVersion ?? null,
+    workflowCandidatePolicyEligible:
+      input.workflowCandidatePolicyEligible ?? null,
+    workflowCandidatePolicyWorkflowClass:
+      input.workflowCandidatePolicyWorkflowClass ?? null,
+    workflowCandidatePolicyTrustBand:
+      input.workflowCandidatePolicyTrustBand ?? null,
+    workflowCandidatePolicyTrainingModeActive:
+      input.workflowCandidatePolicyTrainingModeActive ?? null,
+    workflowCandidatePolicyQuietModeEnabled:
+      input.workflowCandidatePolicyQuietModeEnabled ?? null,
+    workflowCandidatePolicyInboxOnly:
+      input.workflowCandidatePolicyInboxOnly ?? null,
+    workflowCandidatePolicyAutoCreateLowRiskEnabled:
+      input.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? null,
+    workflowCandidatePolicyAutoSaveVeryLowRiskEnabled:
+      input.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled ?? null,
+    workflowCandidatePolicyClassTrustAllowsAutoCreate:
+      input.workflowCandidatePolicyClassTrustAllowsAutoCreate ?? null,
+    workflowCandidatePolicyClassTrustAllowsAutoSave:
+      input.workflowCandidatePolicyClassTrustAllowsAutoSave ?? null,
+    workflowCandidatePolicySource:
+      input.workflowCandidatePolicySource ?? null,
+    workflowCandidatePolicyReasonCodes:
+      input.workflowCandidatePolicyReasonCodes ?? null,
+    workflowCandidateTimingSchemaVersion:
+      input.workflowCandidateTimingSchemaVersion ?? null,
+    workflowCandidateTimingPolicyVersion:
+      input.workflowCandidateTimingPolicyVersion ?? null,
+    workflowCandidateTimingEligible:
+      input.workflowCandidateTimingEligible ?? null,
+    workflowCandidateTimingChannel:
+      input.workflowCandidateTimingChannel ?? null,
+    workflowCandidateTimingQueuePressureClass:
+      input.workflowCandidateTimingQueuePressureClass ?? null,
+    workflowCandidateTimingCooldownActive:
+      input.workflowCandidateTimingCooldownActive ?? null,
+    workflowCandidateTimingHoldSuppressed:
+      input.workflowCandidateTimingHoldSuppressed ?? null,
+    workflowCandidateTimingDigestPreferred:
+      input.workflowCandidateTimingDigestPreferred ?? null,
+    workflowCandidateTimingTrainingModeActive:
+      input.workflowCandidateTimingTrainingModeActive ?? null,
+    workflowCandidateTimingQuietModeEnabled:
+      input.workflowCandidateTimingQuietModeEnabled ?? null,
+    workflowCandidateTimingSource:
+      input.workflowCandidateTimingSource ?? null,
+    workflowCandidateTimingReasonCodes:
+      input.workflowCandidateTimingReasonCodes ?? null,
     workflowCandidateRubricSchemaVersion:
       input.workflowCandidateRubricSchemaVersion ?? null,
     workflowCandidateRubricPolicyVersion:

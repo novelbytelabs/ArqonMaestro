@@ -21,6 +21,14 @@ export interface WorkflowCandidateRubricInput {
   creationRiskBand?: string | null;
   familySplitRequired?: boolean | null;
   latentExecutionHazardRisk?: number | null;
+  policyEligible?: boolean | null;
+  policyWorkflowClass?: string | null;
+  policyTrustBand?: string | null;
+  policyInboxOnly?: boolean | null;
+  policyQuietModeEnabled?: boolean | null;
+  policyTrainingModeActive?: boolean | null;
+  timingEligible?: boolean | null;
+  timingChannel?: string | null;
   source?: string | null;
 }
 
@@ -74,38 +82,57 @@ export function deriveWorkflowCandidateRubrics(
   const duplicateRisk = clampScore(input.duplicateRiskScore ?? 100);
   const familySplitRequired = input.familySplitRequired === true;
   const latentExecutionHazardRisk = clampScore(input.latentExecutionHazardRisk ?? 0);
-  const workflowClass = latentExecutionHazardRisk >= 28 ? "cross_app" : "workflow_candidate_default";
+  const policyEligible = input.policyEligible === true;
+  const workflowClass = input.policyWorkflowClass ?? (latentExecutionHazardRisk >= 28 ? "cross_app" : "workflow_candidate_default");
+  const policyTrustBand = input.policyTrustBand ?? null;
+  const policyInboxOnly = input.policyInboxOnly === true;
+  const policyQuietModeEnabled = input.policyQuietModeEnabled === true;
+  const policyTrainingModeActive = input.policyTrainingModeActive === true;
+  const timingEligible = input.timingEligible === true;
+  const timingChannel = input.timingChannel ?? null;
 
   const baselinePassed =
-    confidence >= 45 &&
+    confidence >= 50 &&
     utility >= 45 &&
     novelty >= 30 &&
     duplicateRisk <= 75 &&
     creationRisk <= 75;
 
   const classPassed = workflowClass === "cross_app"
-    ? creationRisk <= 60 && confidence >= 45
-    : creationRisk <= 70;
+    ? creationRisk <= 62 && confidence >= 52
+    : creationRisk <= 72;
 
-  const userPassed = trust >= 35;
-  const timingPassed = suggestionPressure <= 70;
+  const userPassed = policyEligible
+    ? policyTrustBand !== "low"
+    : trust >= 35;
+  const timingPassed = timingEligible
+    ? timingChannel !== "silent"
+    : suggestionPressure <= 70;
   const vetoApplied = !baselinePassed || creationRisk >= 81;
 
   let suggestedSurface: WorkflowCandidateRubricSuggestedSurface = "silent";
-  if (!vetoApplied && baselinePassed && classPassed && userPassed) {
-    if (
-      suggestionPressure <= 26 &&
-      utility >= 45 &&
-      confidence >= 65 &&
-      creationRisk <= 25 &&
-      duplicateRisk <= 30
-    ) {
+  if (timingEligible) {
+    if (timingChannel === "inline") {
+      suggestedSurface = "inline";
+    } else if (timingChannel === "inbox") {
+      suggestedSurface = "inbox";
+    } else if (timingChannel === "digest" || timingChannel === "quiet_auto_draft") {
+      suggestedSurface = "digest";
+    }
+  } else if (!vetoApplied && baselinePassed && classPassed && userPassed) {
+    if (suggestionPressure <= 26 && utility >= 72 && duplicateRisk <= 25) {
       suggestedSurface = "inline";
     } else if (suggestionPressure <= 52) {
       suggestedSurface = "inbox";
     } else if (timingPassed) {
       suggestedSurface = "digest";
     }
+  }
+  if (policyInboxOnly && suggestedSurface === "inline") {
+    suggestedSurface = policyQuietModeEnabled ? "digest" : "inbox";
+  }
+  if (policyTrainingModeActive && suggestedSurface === "silent" && !vetoApplied && utility >= 55) {
+    suggestedSurface = "inbox";
   }
 
   const reasonCodes: string[] = [
@@ -116,11 +143,11 @@ export function deriveWorkflowCandidateRubrics(
       ? `workflow_candidate_rubric_class_${workflowClass}_passed`
       : `workflow_candidate_rubric_class_${workflowClass}_failed`,
     userPassed
-      ? "workflow_candidate_rubric_user_scaffold_passed"
-      : "workflow_candidate_rubric_user_scaffold_failed",
+      ? "workflow_candidate_rubric_user_policy_passed"
+      : "workflow_candidate_rubric_user_policy_failed",
     timingPassed
-      ? "workflow_candidate_rubric_timing_scaffold_passed"
-      : "workflow_candidate_rubric_timing_scaffold_failed",
+      ? "workflow_candidate_rubric_timing_policy_passed"
+      : "workflow_candidate_rubric_timing_policy_failed",
     `workflow_candidate_rubric_surface_${suggestedSurface}`,
   ];
   if (familySplitRequired) {

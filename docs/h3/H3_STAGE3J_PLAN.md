@@ -112,3 +112,8 @@ Not in 3J-S2:
 - workflow draft creation
 - persistent draft/library storage
 - workflow execution, replay, or hidden action chaining
+
+
+## Current next slice
+
+- `3J-S6` — Draft and Library API Surfaces

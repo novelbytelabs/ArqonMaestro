@@ -70,6 +70,8 @@ import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-r
 import { deriveEmptyWorkflowCandidateDiscoveryState, deriveWorkflowCandidateDiscovery } from "../runtime/workflow-candidate-discovery";
 import { deriveEmptyWorkflowSkeletonInferenceState, deriveWorkflowSkeletonInference } from "../runtime/workflow-skeleton-inference";
 import { deriveWorkflowCandidateScoring } from "../runtime/workflow-candidate-scoring";
+import { deriveWorkflowCandidatePreferencesPolicy } from "../runtime/workflow-candidate-preferences-policy";
+import { deriveWorkflowCandidateTiming } from "../runtime/workflow-candidate-timing";
 import { deriveWorkflowCandidateRubrics } from "../runtime/workflow-candidate-rubrics";
 import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-promotion";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
@@ -1970,6 +1972,65 @@ export default class ChunkManager {
 
 
 
+
+private getWorkflowCandidatePolicyFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    scoringEligible: boolean | null;
+    workflowClass: string | null;
+    trustScore: number | null;
+    creationRiskBand: string | null;
+    duplicateRiskScore: number | null;
+    familySplitRequired: boolean | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidatePreferencesPolicy({
+    scoringEligible: seed.scoringEligible ?? null,
+    workflowClass: seed.workflowClass ?? null,
+    trustScore: seed.trustScore ?? null,
+    creationRiskBand: seed.creationRiskBand ?? null,
+    duplicateRiskScore: seed.duplicateRiskScore ?? null,
+    familySplitRequired: seed.familySplitRequired ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+
+private getWorkflowCandidateTimingFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    rubricEligible: boolean | null;
+    suggestedSurface: string | null;
+    suggestionPressureScore: number | null;
+    utilityScore: number | null;
+    noveltyScore: number | null;
+    trainingModeActive: boolean | null;
+    quietModeEnabled: boolean | null;
+    inboxOnly: boolean | null;
+    autoCreateLowRiskEnabled: boolean | null;
+    cooldownActive: boolean | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidateTiming({
+    rubricEligible: seed.rubricEligible ?? null,
+    suggestedSurface: seed.suggestedSurface ?? null,
+    suggestionPressureScore: seed.suggestionPressureScore ?? null,
+    utilityScore: seed.utilityScore ?? null,
+    noveltyScore: seed.noveltyScore ?? null,
+    trainingModeActive: seed.trainingModeActive ?? null,
+    quietModeEnabled: seed.quietModeEnabled ?? null,
+    inboxOnly: seed.inboxOnly ?? null,
+    autoCreateLowRiskEnabled: seed.autoCreateLowRiskEnabled ?? null,
+    cooldownActive: seed.cooldownActive ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+
 private getWorkflowCandidateRubricFields(
   chunkId: string,
   eventName: string,
@@ -1985,6 +2046,14 @@ private getWorkflowCandidateRubricFields(
     creationRiskBand: string | null;
     familySplitRequired: boolean | null;
     latentExecutionHazardRisk: number | null;
+    policyEligible: boolean | null;
+    policyWorkflowClass: string | null;
+    policyTrustBand: string | null;
+    policyInboxOnly: boolean | null;
+    policyQuietModeEnabled: boolean | null;
+    policyTrainingModeActive: boolean | null;
+    timingEligible: boolean | null;
+    timingChannel: string | null;
   }> = {}
 ) {
   void chunkId;
@@ -2001,6 +2070,14 @@ private getWorkflowCandidateRubricFields(
     creationRiskBand: seed.creationRiskBand ?? null,
     familySplitRequired: seed.familySplitRequired ?? null,
     latentExecutionHazardRisk: seed.latentExecutionHazardRisk ?? null,
+    policyEligible: seed.policyEligible ?? null,
+    policyWorkflowClass: seed.policyWorkflowClass ?? null,
+    policyTrustBand: seed.policyTrustBand ?? null,
+    policyInboxOnly: seed.policyInboxOnly ?? null,
+    policyQuietModeEnabled: seed.policyQuietModeEnabled ?? null,
+    policyTrainingModeActive: seed.policyTrainingModeActive ?? null,
+    timingEligible: seed.timingEligible ?? null,
+    timingChannel: seed.timingChannel ?? null,
     source: "h3_runtime_evidence",
   });
 }
@@ -2024,6 +2101,13 @@ private getWorkflowCandidatePromotionFields(
     noveltyScore: number | null;
     duplicateRiskScore: number | null;
     creationRiskBand: string | null;
+    policyEligible: boolean | null;
+    policyAutoCreateLowRiskEnabled: boolean | null;
+    policyAutoSaveVeryLowRiskEnabled: boolean | null;
+    policyInboxOnly: boolean | null;
+    policyTrustBand: string | null;
+    timingEligible: boolean | null;
+    timingChannel: string | null;
   }> = {}
 ) {
   void chunkId;
@@ -2044,6 +2128,13 @@ private getWorkflowCandidatePromotionFields(
     noveltyScore: seed.noveltyScore ?? null,
     duplicateRiskScore: seed.duplicateRiskScore ?? null,
     creationRiskBand: seed.creationRiskBand ?? null,
+    policyEligible: seed.policyEligible ?? null,
+    policyAutoCreateLowRiskEnabled: seed.policyAutoCreateLowRiskEnabled ?? null,
+    policyAutoSaveVeryLowRiskEnabled: seed.policyAutoSaveVeryLowRiskEnabled ?? null,
+    policyInboxOnly: seed.policyInboxOnly ?? null,
+    policyTrustBand: seed.policyTrustBand ?? null,
+    timingEligible: seed.timingEligible ?? null,
+    timingChannel: seed.timingChannel ?? null,
     source: "h3_runtime_evidence",
   });
 }
@@ -2332,6 +2423,40 @@ private getWorkflowCandidatePromotionFields(
         continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
       });
 
+const workflowCandidatePolicyFields = this.getWorkflowCandidatePolicyFields(chunkId, eventName, {
+    scoringEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+    workflowClass:
+      workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk != null &&
+      (workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk ?? 0) >= 28
+        ? "cross_app"
+        : "workflow_candidate_default",
+    trustScore: workflowCandidateScoringFields.workflowCandidateTrustScore ?? null,
+    creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
+    familySplitRequired:
+      workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+});
+const workflowCandidateTimingFields = this.getWorkflowCandidateTimingFields(chunkId, eventName, {
+    rubricEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+    suggestedSurface:
+      ((workflowCandidateScoringFields.workflowCandidateCreationRiskBand === "very_low" ||
+        workflowCandidateScoringFields.workflowCandidateCreationRiskBand === "low") &&
+      (workflowCandidateScoringFields.workflowCandidateUtilityScore ?? 0) >= 72)
+        ? "inline"
+        : "inbox",
+    suggestionPressureScore:
+      workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore ?? null,
+    utilityScore: workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
+    trainingModeActive:
+      workflowCandidatePolicyFields.workflowCandidatePolicyTrainingModeActive ?? null,
+    quietModeEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyQuietModeEnabled ?? null,
+    inboxOnly: workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly ?? null,
+    autoCreateLowRiskEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? null,
+    cooldownActive: false,
+});
 const workflowCandidateRubricFields = this.getWorkflowCandidateRubricFields(chunkId, eventName, {
     scoringEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
     confidenceScore: workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
@@ -2344,6 +2469,14 @@ const workflowCandidateRubricFields = this.getWorkflowCandidateRubricFields(chun
     creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
     familySplitRequired: workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
     latentExecutionHazardRisk: workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk ?? null,
+    policyEligible: workflowCandidatePolicyFields.workflowCandidatePolicyEligible ?? null,
+    policyWorkflowClass: workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass ?? null,
+    policyTrustBand: workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+    policyInboxOnly: workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly ?? null,
+    policyQuietModeEnabled: workflowCandidatePolicyFields.workflowCandidatePolicyQuietModeEnabled ?? null,
+    policyTrainingModeActive: workflowCandidatePolicyFields.workflowCandidatePolicyTrainingModeActive ?? null,
+    timingEligible: workflowCandidateTimingFields.workflowCandidateTimingEligible ?? null,
+    timingChannel: workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
 });
 const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionFields(chunkId, eventName, {
     rubricEligible: workflowCandidateRubricFields.workflowCandidateRubricEligible ?? null,
@@ -2361,6 +2494,15 @@ const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionField
     noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
     duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
     creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    policyEligible: workflowCandidatePolicyFields.workflowCandidatePolicyEligible ?? null,
+    policyAutoCreateLowRiskEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? null,
+    policyAutoSaveVeryLowRiskEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled ?? null,
+    policyInboxOnly: workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly ?? null,
+    policyTrustBand: workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+    timingEligible: workflowCandidateTimingFields.workflowCandidateTimingEligible ?? null,
+    timingChannel: workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
 });
     const workflowMemoryReuseFields = this.getWorkflowMemoryReuseFields({
       semanticAddressId: overrides.semanticAddressId ?? null,
@@ -2834,6 +2976,58 @@ workflowCandidateScoringReasonCodes:
   overrides.workflowCandidateScoringReasonCodes ?? workflowCandidateScoringFields.workflowCandidateScoringReasonCodes,
 workflowCandidateRiskReasonCodes:
   overrides.workflowCandidateRiskReasonCodes ?? workflowCandidateScoringFields.workflowCandidateRiskReasonCodes,
+workflowCandidatePolicySchemaVersion:
+  overrides.workflowCandidatePolicySchemaVersion ?? workflowCandidatePolicyFields.workflowCandidatePolicySchemaVersion,
+workflowCandidatePolicyVersion:
+  overrides.workflowCandidatePolicyVersion ?? workflowCandidatePolicyFields.workflowCandidatePolicyVersion,
+workflowCandidatePolicyEligible:
+  overrides.workflowCandidatePolicyEligible ?? workflowCandidatePolicyFields.workflowCandidatePolicyEligible,
+workflowCandidatePolicyWorkflowClass:
+  overrides.workflowCandidatePolicyWorkflowClass ?? workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass,
+workflowCandidatePolicyTrustBand:
+  overrides.workflowCandidatePolicyTrustBand ?? workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand,
+workflowCandidatePolicyTrainingModeActive:
+  overrides.workflowCandidatePolicyTrainingModeActive ?? workflowCandidatePolicyFields.workflowCandidatePolicyTrainingModeActive,
+workflowCandidatePolicyQuietModeEnabled:
+  overrides.workflowCandidatePolicyQuietModeEnabled ?? workflowCandidatePolicyFields.workflowCandidatePolicyQuietModeEnabled,
+workflowCandidatePolicyInboxOnly:
+  overrides.workflowCandidatePolicyInboxOnly ?? workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly,
+workflowCandidatePolicyAutoCreateLowRiskEnabled:
+  overrides.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? workflowCandidatePolicyFields.workflowCandidatePolicyAutoCreateLowRiskEnabled,
+workflowCandidatePolicyAutoSaveVeryLowRiskEnabled:
+  overrides.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled ?? workflowCandidatePolicyFields.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled,
+workflowCandidatePolicyClassTrustAllowsAutoCreate:
+  overrides.workflowCandidatePolicyClassTrustAllowsAutoCreate ?? workflowCandidatePolicyFields.workflowCandidatePolicyClassTrustAllowsAutoCreate,
+workflowCandidatePolicyClassTrustAllowsAutoSave:
+  overrides.workflowCandidatePolicyClassTrustAllowsAutoSave ?? workflowCandidatePolicyFields.workflowCandidatePolicyClassTrustAllowsAutoSave,
+workflowCandidatePolicySource:
+  overrides.workflowCandidatePolicySource ?? workflowCandidatePolicyFields.workflowCandidatePolicySource,
+workflowCandidatePolicyReasonCodes:
+  overrides.workflowCandidatePolicyReasonCodes ?? workflowCandidatePolicyFields.workflowCandidatePolicyReasonCodes,
+workflowCandidateTimingSchemaVersion:
+  overrides.workflowCandidateTimingSchemaVersion ?? workflowCandidateTimingFields.workflowCandidateTimingSchemaVersion,
+workflowCandidateTimingPolicyVersion:
+  overrides.workflowCandidateTimingPolicyVersion ?? workflowCandidateTimingFields.workflowCandidateTimingPolicyVersion,
+workflowCandidateTimingEligible:
+  overrides.workflowCandidateTimingEligible ?? workflowCandidateTimingFields.workflowCandidateTimingEligible,
+workflowCandidateTimingChannel:
+  overrides.workflowCandidateTimingChannel ?? workflowCandidateTimingFields.workflowCandidateTimingChannel,
+workflowCandidateTimingQueuePressureClass:
+  overrides.workflowCandidateTimingQueuePressureClass ?? workflowCandidateTimingFields.workflowCandidateTimingQueuePressureClass,
+workflowCandidateTimingCooldownActive:
+  overrides.workflowCandidateTimingCooldownActive ?? workflowCandidateTimingFields.workflowCandidateTimingCooldownActive,
+workflowCandidateTimingHoldSuppressed:
+  overrides.workflowCandidateTimingHoldSuppressed ?? workflowCandidateTimingFields.workflowCandidateTimingHoldSuppressed,
+workflowCandidateTimingDigestPreferred:
+  overrides.workflowCandidateTimingDigestPreferred ?? workflowCandidateTimingFields.workflowCandidateTimingDigestPreferred,
+workflowCandidateTimingTrainingModeActive:
+  overrides.workflowCandidateTimingTrainingModeActive ?? workflowCandidateTimingFields.workflowCandidateTimingTrainingModeActive,
+workflowCandidateTimingQuietModeEnabled:
+  overrides.workflowCandidateTimingQuietModeEnabled ?? workflowCandidateTimingFields.workflowCandidateTimingQuietModeEnabled,
+workflowCandidateTimingSource:
+  overrides.workflowCandidateTimingSource ?? workflowCandidateTimingFields.workflowCandidateTimingSource,
+workflowCandidateTimingReasonCodes:
+  overrides.workflowCandidateTimingReasonCodes ?? workflowCandidateTimingFields.workflowCandidateTimingReasonCodes,
 workflowCandidateRubricSchemaVersion:
   overrides.workflowCandidateRubricSchemaVersion ?? workflowCandidateRubricFields.workflowCandidateRubricSchemaVersion,
 workflowCandidateRubricPolicyVersion:

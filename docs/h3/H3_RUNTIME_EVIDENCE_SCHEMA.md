@@ -404,3 +404,12 @@ Fields added in 3J-S4:
 - no persistence / distributed cache
 - no execution semantics
 - auto-save remains reserved for later policy shaping
+
+
+## Stage 3J-S5
+
+Added workflow candidate policy and timing evidence fields:
+- `workflowCandidatePolicy*`
+- `workflowCandidateTiming*`
+
+These fields shape rubric and promotion behavior but do not introduce workflow draft creation or execution semantics.

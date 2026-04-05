@@ -27,6 +27,13 @@ export interface WorkflowCandidatePromotionInput {
   noveltyScore?: number | null;
   duplicateRiskScore?: number | null;
   creationRiskBand?: string | null;
+  policyEligible?: boolean | null;
+  policyAutoCreateLowRiskEnabled?: boolean | null;
+  policyAutoSaveVeryLowRiskEnabled?: boolean | null;
+  policyInboxOnly?: boolean | null;
+  policyTrustBand?: string | null;
+  timingEligible?: boolean | null;
+  timingChannel?: string | null;
   source?: string | null;
 }
 
@@ -92,6 +99,13 @@ export function deriveWorkflowCandidatePromotion(
   const timingPassed = input.timingRubricPassed === true;
   const vetoApplied = input.rubricVetoApplied === true;
   const suggestedSurface = input.suggestedSurface ?? "silent";
+  const policyEligible = input.policyEligible === true;
+  const policyAutoCreateLowRiskEnabled = input.policyAutoCreateLowRiskEnabled === true;
+  const policyAutoSaveVeryLowRiskEnabled = input.policyAutoSaveVeryLowRiskEnabled === true;
+  const policyInboxOnly = input.policyInboxOnly === true;
+  const policyTrustBand = input.policyTrustBand ?? null;
+  const timingEligible = input.timingEligible === true;
+  const timingChannel = input.timingChannel ?? null;
   const confidence = clampScore(input.confidenceScore ?? 0);
   const utility = clampScore(input.utilityScore ?? 0);
   const creationRisk = clampScore(input.creationRiskScore ?? 100);
@@ -99,7 +113,14 @@ export function deriveWorkflowCandidatePromotion(
   const trust = clampScore(input.trustScore ?? 0);
   const novelty = clampScore(input.noveltyScore ?? 0);
   const duplicateRisk = clampScore(input.duplicateRiskScore ?? 100);
-  const ceiling = ceilingForRiskBand(input.creationRiskBand ?? null);
+  let ceiling = ceilingForRiskBand(input.creationRiskBand ?? null);
+  if (policyEligible && policyAutoSaveVeryLowRiskEnabled && input.creationRiskBand === "very_low") {
+    ceiling = "auto_save_draft";
+  } else if (policyEligible && policyAutoCreateLowRiskEnabled && (input.creationRiskBand === "very_low" || input.creationRiskBand === "low")) {
+    ceiling = "auto_create_draft";
+  } else if (policyInboxOnly && ceiling === "suggest_inline") {
+    ceiling = "suggest_in_inbox";
+  }
   const floor: WorkflowCandidatePromotionDecision =
     confidence >= 45 || utility >= 45 ? "hold_for_more_evidence" : "observe_only";
 
@@ -109,22 +130,35 @@ export function deriveWorkflowCandidatePromotion(
     classPassed &&
     userPassed &&
     timingPassed &&
-    input.creationRiskBand === "very_low" &&
-    trust >= 55 &&
-    utility >= 70 &&
-    duplicateRisk <= 20 &&
-    suggestionPressure <= 26;
+    policyEligible &&
+    policyAutoCreateLowRiskEnabled &&
+    (input.creationRiskBand === "very_low" || input.creationRiskBand === "low") &&
+    (policyTrustBand === "strong" || policyTrustBand === "very_strong") &&
+    trust >= 60 &&
+    utility >= 68 &&
+    duplicateRisk <= 18 &&
+    suggestionPressure <= 22;
 
-  const autoSaveEligible = false;
+  const autoSaveEligible =
+    autoCreateEligible &&
+    policyAutoSaveVeryLowRiskEnabled &&
+    input.creationRiskBand === "very_low" &&
+    policyTrustBand === "very_strong" &&
+    duplicateRisk <= 8 &&
+    suggestionPressure <= 16;
 
   let decision: WorkflowCandidatePromotionDecision = "observe_only";
   if (!baselinePassed || vetoApplied) {
     decision = confidence >= 45 || utility >= 45 ? "hold_for_more_evidence" : "observe_only";
   } else if (!classPassed || !userPassed) {
     decision = "hold_for_more_evidence";
-  } else if (autoCreateEligible && ceiling === "auto_create_draft") {
+  } else if (autoSaveEligible && ceiling === "auto_save_draft") {
+    decision = "auto_save_draft";
+  } else if (autoCreateEligible && (ceiling === "auto_create_draft" || ceiling === "auto_save_draft")) {
     decision = "auto_create_draft";
-  } else if (timingPassed && suggestedSurface === "inline" && (ceiling === "suggest_inline" || ceiling === "auto_create_draft")) {
+  } else if (timingEligible && timingChannel === "quiet_auto_draft" && autoCreateEligible) {
+    decision = "auto_create_draft";
+  } else if (timingPassed && suggestedSurface === "inline" && (ceiling === "suggest_inline" || ceiling === "auto_create_draft" || ceiling === "auto_save_draft")) {
     decision = "suggest_inline";
   } else if (timingPassed && (suggestedSurface === "inbox" || suggestedSurface === "digest") && ceiling !== "observe_only") {
     decision = "suggest_in_inbox";
@@ -141,9 +175,11 @@ export function deriveWorkflowCandidatePromotion(
     `workflow_candidate_promotion_ceiling_${ceiling}`,
     `workflow_candidate_promotion_floor_${floor}`,
     autoCreateEligible
-      ? "workflow_candidate_promotion_auto_create_scaffold_eligible"
-      : "workflow_candidate_promotion_auto_create_scaffold_not_eligible",
-    "workflow_candidate_promotion_auto_save_reserved_for_stage3j_s5_policy",
+      ? "workflow_candidate_promotion_auto_create_policy_eligible"
+      : "workflow_candidate_promotion_auto_create_policy_not_eligible",
+    autoSaveEligible
+      ? "workflow_candidate_promotion_auto_save_policy_eligible"
+      : "workflow_candidate_promotion_auto_save_policy_not_eligible",
   ];
   if (vetoApplied) {
     reasonCodes.push("workflow_candidate_promotion_rubric_veto_applied");
