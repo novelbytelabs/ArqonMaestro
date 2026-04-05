@@ -306,6 +306,23 @@ export interface H3RuntimeEvidenceEvent {
   workflowCandidateDiscoveryGovernedStateUpdated: boolean | null;
   workflowCandidateDiscoverySource: string | null;
   workflowCandidateDiscoveryReasonCodes: string[] | null;
+  workflowSkeletonInferenceSchemaVersion: string | null;
+  workflowSkeletonInferencePolicyVersion: string | null;
+  workflowSkeletonInferenceEligible: boolean | null;
+  workflowSkeletonInferenceFamilyKey: string | null;
+  workflowSkeletonInferencePatternKey: string | null;
+  workflowSkeletonInferenceCanonicalStepSemanticAddressIds: string[] | null;
+  workflowSkeletonInferenceFixedStepIndices: number[] | null;
+  workflowSkeletonInferenceVariableStepIndices: number[] | null;
+  workflowSkeletonInferenceOptionalStepIndices: number[] | null;
+  workflowSkeletonInferenceInferredSlotCount: number | null;
+  workflowSkeletonInferenceGeneralizationConfidence: number | null;
+  workflowSkeletonInferenceAbstractionEligible: boolean | null;
+  workflowSkeletonInferenceFamilyVariantCount: number | null;
+  workflowSkeletonInferenceFamilySplitRequired: boolean | null;
+  workflowSkeletonInferenceGovernedStateUpdated: boolean | null;
+  workflowSkeletonInferenceSource: string | null;
+  workflowSkeletonInferenceReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -796,6 +813,40 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowCandidateDiscoverySource ?? null,
     workflowCandidateDiscoveryReasonCodes:
       input.workflowCandidateDiscoveryReasonCodes ?? null,
+    workflowSkeletonInferenceSchemaVersion:
+      input.workflowSkeletonInferenceSchemaVersion ?? null,
+    workflowSkeletonInferencePolicyVersion:
+      input.workflowSkeletonInferencePolicyVersion ?? null,
+    workflowSkeletonInferenceEligible:
+      input.workflowSkeletonInferenceEligible ?? null,
+    workflowSkeletonInferenceFamilyKey:
+      input.workflowSkeletonInferenceFamilyKey ?? null,
+    workflowSkeletonInferencePatternKey:
+      input.workflowSkeletonInferencePatternKey ?? null,
+    workflowSkeletonInferenceCanonicalStepSemanticAddressIds:
+      input.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
+    workflowSkeletonInferenceFixedStepIndices:
+      input.workflowSkeletonInferenceFixedStepIndices ?? null,
+    workflowSkeletonInferenceVariableStepIndices:
+      input.workflowSkeletonInferenceVariableStepIndices ?? null,
+    workflowSkeletonInferenceOptionalStepIndices:
+      input.workflowSkeletonInferenceOptionalStepIndices ?? null,
+    workflowSkeletonInferenceInferredSlotCount:
+      input.workflowSkeletonInferenceInferredSlotCount ?? null,
+    workflowSkeletonInferenceGeneralizationConfidence:
+      input.workflowSkeletonInferenceGeneralizationConfidence ?? null,
+    workflowSkeletonInferenceAbstractionEligible:
+      input.workflowSkeletonInferenceAbstractionEligible ?? null,
+    workflowSkeletonInferenceFamilyVariantCount:
+      input.workflowSkeletonInferenceFamilyVariantCount ?? null,
+    workflowSkeletonInferenceFamilySplitRequired:
+      input.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    workflowSkeletonInferenceGovernedStateUpdated:
+      input.workflowSkeletonInferenceGovernedStateUpdated ?? null,
+    workflowSkeletonInferenceSource:
+      input.workflowSkeletonInferenceSource ?? null,
+    workflowSkeletonInferenceReasonCodes:
+      input.workflowSkeletonInferenceReasonCodes ?? null,
   };
 }
 

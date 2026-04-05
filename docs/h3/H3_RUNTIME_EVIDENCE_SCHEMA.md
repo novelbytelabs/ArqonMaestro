@@ -304,3 +304,34 @@ Notes:
 - no persistence / distributed cache
 - no execution semantics or hidden action chaining
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3J-S2 workflow skeleton inference foundations
+- workflowSkeletonInferenceSchemaVersion
+- workflowSkeletonInferencePolicyVersion
+- workflowSkeletonInferenceEligible
+- workflowSkeletonInferenceFamilyKey
+- workflowSkeletonInferencePatternKey
+- workflowSkeletonInferenceCanonicalStepSemanticAddressIds
+- workflowSkeletonInferenceFixedStepIndices
+- workflowSkeletonInferenceVariableStepIndices
+- workflowSkeletonInferenceOptionalStepIndices
+- workflowSkeletonInferenceInferredSlotCount
+- workflowSkeletonInferenceGeneralizationConfidence
+- workflowSkeletonInferenceAbstractionEligible
+- workflowSkeletonInferenceFamilyVariantCount
+- workflowSkeletonInferenceFamilySplitRequired
+- workflowSkeletonInferenceGovernedStateUpdated
+- workflowSkeletonInferenceSource
+- workflowSkeletonInferenceReasonCodes
+
+Notes:
+- bounded workflow skeleton inference foundations only
+- fixed, variable, and optional step indices are inferred from governed repeated subsequence families
+- inferred slot count is bounded and conservative in this slice
+- family split is surfaced explicitly when abstraction is not yet stable
+- no workflow candidate scoring / risk / promotion yet
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics or hidden action chaining
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only

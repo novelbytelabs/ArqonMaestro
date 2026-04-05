@@ -68,6 +68,7 @@ import { deriveWorkflowMemoryContinuityOrdering } from "../runtime/workflow-memo
 import { deriveWorkflowMemoryCandidatePoolOrdering } from "../runtime/workflow-memory-candidate-pool-ordering";
 import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-reuse-substrate";
 import { deriveEmptyWorkflowCandidateDiscoveryState, deriveWorkflowCandidateDiscovery } from "../runtime/workflow-candidate-discovery";
+import { deriveEmptyWorkflowSkeletonInferenceState, deriveWorkflowSkeletonInference } from "../runtime/workflow-skeleton-inference";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -1879,6 +1880,55 @@ export default class ChunkManager {
     self.h3WorkflowReuseGovernedHistory = nextHistory;
   }
 
+  private getWorkflowSkeletonInferenceState() {
+    const self = this as any;
+    if (!self.h3WorkflowSkeletonInferenceState || typeof self.h3WorkflowSkeletonInferenceState !== "object") {
+      self.h3WorkflowSkeletonInferenceState = deriveEmptyWorkflowSkeletonInferenceState();
+    }
+    return self.h3WorkflowSkeletonInferenceState as ReturnType<typeof deriveEmptyWorkflowSkeletonInferenceState>;
+  }
+
+  private getWorkflowSkeletonInferenceFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      discoverySequenceSemanticAddressIds: string[] | null;
+      discoveryPatternKey: string | null;
+      discoveryThresholdMet: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    const fields = deriveWorkflowSkeletonInference({
+      discoverySequenceSemanticAddressIds: seed.discoverySequenceSemanticAddressIds ?? null,
+      discoveryPatternKey: seed.discoveryPatternKey ?? null,
+      discoveryThresholdMet: seed.discoveryThresholdMet ?? null,
+      source: "h3_runtime_evidence",
+      previousState: this.getWorkflowSkeletonInferenceState(),
+    });
+
+    if (fields.workflowSkeletonInferenceGovernedStateUpdated && fields.nextState) {
+      const self = this as any;
+      self.h3WorkflowSkeletonInferenceState = fields.nextState;
+    }
+
+    return fields;
+  }
+
+  private getWorkflowMemoryReuseFields(
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    return deriveWorkflowMemoryReuseSubstrate({
+      governedHistory: this.getWorkflowReuseHistory(),
+      currentSemanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
   private getWorkflowMemoryEvidenceFields(
     chunkId: string,
     eventName: string,
@@ -1977,20 +2027,6 @@ export default class ChunkManager {
       candidateScores: seed.candidateScores ?? null,
       transitionCounts: workflowState.transitionCounts,
       continuationSuggested: seed.continuationSuggested ?? null,
-      source: "h3_runtime_evidence",
-    });
-  }
-
-  private getWorkflowMemoryReuseFields(
-    seed: Partial<{
-      semanticAddressId: string | null;
-      finalGranted: boolean | null;
-    }> = {}
-  ) {
-    return deriveWorkflowMemoryReuseSubstrate({
-      governedHistory: this.getWorkflowReuseHistory(),
-      currentSemanticAddressId: seed.semanticAddressId ?? null,
-      finalGranted: seed.finalGranted ?? null,
       source: "h3_runtime_evidence",
     });
   }
@@ -2097,6 +2133,14 @@ export default class ChunkManager {
     const workflowCandidateDiscoveryFields = this.getWorkflowCandidateDiscoveryFields(chunkId, eventName, {
       semanticAddressId: overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
       finalGranted: decision?.granted ?? null,
+    });
+    const workflowSkeletonInferenceFields = this.getWorkflowSkeletonInferenceFields(chunkId, eventName, {
+      discoverySequenceSemanticAddressIds:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceSemanticAddressIds ?? null,
+      discoveryPatternKey:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ?? null,
+      discoveryThresholdMet:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? null,
     });
     const workflowMemoryRankingFields = this.getWorkflowMemoryRankingFields({
       candidateSemanticAddressId:
@@ -2510,6 +2554,40 @@ export default class ChunkManager {
         overrides.workflowCandidateDiscoverySource ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySource,
       workflowCandidateDiscoveryReasonCodes:
         overrides.workflowCandidateDiscoveryReasonCodes ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryReasonCodes,
+      workflowSkeletonInferenceSchemaVersion:
+        overrides.workflowSkeletonInferenceSchemaVersion ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceSchemaVersion,
+      workflowSkeletonInferencePolicyVersion:
+        overrides.workflowSkeletonInferencePolicyVersion ?? workflowSkeletonInferenceFields.workflowSkeletonInferencePolicyVersion,
+      workflowSkeletonInferenceEligible:
+        overrides.workflowSkeletonInferenceEligible ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceEligible,
+      workflowSkeletonInferenceFamilyKey:
+        overrides.workflowSkeletonInferenceFamilyKey ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilyKey,
+      workflowSkeletonInferencePatternKey:
+        overrides.workflowSkeletonInferencePatternKey ?? workflowSkeletonInferenceFields.workflowSkeletonInferencePatternKey,
+      workflowSkeletonInferenceCanonicalStepSemanticAddressIds:
+        overrides.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds,
+      workflowSkeletonInferenceFixedStepIndices:
+        overrides.workflowSkeletonInferenceFixedStepIndices ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFixedStepIndices,
+      workflowSkeletonInferenceVariableStepIndices:
+        overrides.workflowSkeletonInferenceVariableStepIndices ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceVariableStepIndices,
+      workflowSkeletonInferenceOptionalStepIndices:
+        overrides.workflowSkeletonInferenceOptionalStepIndices ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceOptionalStepIndices,
+      workflowSkeletonInferenceInferredSlotCount:
+        overrides.workflowSkeletonInferenceInferredSlotCount ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceInferredSlotCount,
+      workflowSkeletonInferenceGeneralizationConfidence:
+        overrides.workflowSkeletonInferenceGeneralizationConfidence ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceGeneralizationConfidence,
+      workflowSkeletonInferenceAbstractionEligible:
+        overrides.workflowSkeletonInferenceAbstractionEligible ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceAbstractionEligible,
+      workflowSkeletonInferenceFamilyVariantCount:
+        overrides.workflowSkeletonInferenceFamilyVariantCount ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilyVariantCount,
+      workflowSkeletonInferenceFamilySplitRequired:
+        overrides.workflowSkeletonInferenceFamilySplitRequired ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired,
+      workflowSkeletonInferenceGovernedStateUpdated:
+        overrides.workflowSkeletonInferenceGovernedStateUpdated ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceGovernedStateUpdated,
+      workflowSkeletonInferenceSource:
+        overrides.workflowSkeletonInferenceSource ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceSource,
+      workflowSkeletonInferenceReasonCodes:
+        overrides.workflowSkeletonInferenceReasonCodes ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceReasonCodes,
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
       counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,

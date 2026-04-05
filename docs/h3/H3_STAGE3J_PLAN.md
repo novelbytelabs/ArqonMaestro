@@ -12,11 +12,11 @@ Open
 Authoritative baseline opening this stage:
 - repo: ArqonMaestro
 - branch: feature/h3
-- commit: 5207140
-- upstream substrate: 3I-S5 real green baseline
+- commit: 54cbc74684579870d844488fee6d01fdc72a34d4
+- upstream substrate: 3J-S1 real green baseline
 
 Purpose:
-Open the workflow-creation judgment capstone for Maestro on top of the governed workflow-memory substrate already earned in Stage 3I.
+Advance the workflow-creation judgment capstone from governed workflow-candidate discovery into bounded reusable workflow skeleton inference.
 
 ## Constitutional doctrine
 
@@ -26,7 +26,7 @@ Open the workflow-creation judgment capstone for Maestro on top of the governed 
 - workflow creation remains separate from execution
 - governance decides execution, not workflow creation
 
-3J-specific doctrine at opening:
+3J-specific doctrine at current state:
 - repeated governed patterns are evidence, not authority
 - discovery is not promotion
 - promotion is not execution
@@ -37,11 +37,6 @@ Open the workflow-creation judgment capstone for Maestro on top of the governed 
 - no persistence / distributed cache unless explicitly opened later in stage
 - internal communication remains protobuf / type-directed
 - JSON remains human-facing only
-
-## Stage opening decision
-
-3J is now the active capstone band.
-The first implementation slice lands the governed workflow candidate discovery substrate only.
 
 ## Slice plan
 
@@ -60,17 +55,30 @@ Delivered:
 
 ### 3J-S2 — workflow skeleton inference foundations
 Status:
+Implemented
+
+Delivered:
+- bounded workflow skeleton inference fields in H3 runtime evidence
+- family-keyed reusable skeleton analysis over emerged governed subsequences
+- fixed, variable, and optional step index inference foundations
+- conservative inferred-slot-count foundation
+- explicit family-split-required signal when abstraction is not yet stable
+- no workflow candidate scoring / risk / promotion yet
+- no workflow draft creation yet
+- no persistence and no execution semantics
+
+### 3J-S3 — scoring + risk engine core
+Status:
 Next
 
 Intended direction:
-- infer fixed, variable, and optional steps from repeated governed subsequences
-- infer bounded parameter slots and reusable canonical workflow skeletons
-- remain conservative about branching and family splitting
+- attach the full bounded score family to workflow candidates
+- attach decomposed workflow creation risk surfaces
+- remain pre-promotion and pre-draft in this slice
 
 ## Explicit non-goals at current stage state
 
-Not in 3J-S1:
-- workflow skeleton inference
+Not in 3J-S2:
 - workflow candidate scoring / risk engine
 - rubric or promotion engine behavior
 - workflow draft creation
