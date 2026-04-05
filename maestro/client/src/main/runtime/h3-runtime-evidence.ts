@@ -323,6 +323,28 @@ export interface H3RuntimeEvidenceEvent {
   workflowSkeletonInferenceGovernedStateUpdated: boolean | null;
   workflowSkeletonInferenceSource: string | null;
   workflowSkeletonInferenceReasonCodes: string[] | null;
+  workflowCandidateScoringSchemaVersion: string | null;
+  workflowCandidateScoringPolicyVersion: string | null;
+  workflowCandidateScoringEligible: boolean | null;
+  workflowCandidateScoreVersion: string | null;
+  workflowCandidateConfidenceScore: number | null;
+  workflowCandidateUtilityScore: number | null;
+  workflowCandidateCreationRiskScore: number | null;
+  workflowCandidateSuggestionPressureScore: number | null;
+  workflowCandidateTrustScore: number | null;
+  workflowCandidateNoveltyScore: number | null;
+  workflowCandidateDuplicateRiskScore: number | null;
+  workflowCandidateStructuralStabilityRisk: number | null;
+  workflowCandidateParameterVolatilityRisk: number | null;
+  workflowCandidateBoundaryClarityRisk: number | null;
+  workflowCandidateAbstractionRiskComponent: number | null;
+  workflowCandidateLatentExecutionHazardRisk: number | null;
+  workflowCandidateClutterRisk: number | null;
+  workflowCandidateUserMisalignmentRisk: number | null;
+  workflowCandidateCreationRiskBand: string | null;
+  workflowCandidateScoringSource: string | null;
+  workflowCandidateScoringReasonCodes: string[] | null;
+  workflowCandidateRiskReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -847,6 +869,50 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowSkeletonInferenceSource ?? null,
     workflowSkeletonInferenceReasonCodes:
       input.workflowSkeletonInferenceReasonCodes ?? null,
+    workflowCandidateScoringSchemaVersion:
+      input.workflowCandidateScoringSchemaVersion ?? null,
+    workflowCandidateScoringPolicyVersion:
+      input.workflowCandidateScoringPolicyVersion ?? null,
+    workflowCandidateScoringEligible:
+      input.workflowCandidateScoringEligible ?? null,
+    workflowCandidateScoreVersion:
+      input.workflowCandidateScoreVersion ?? null,
+    workflowCandidateConfidenceScore:
+      input.workflowCandidateConfidenceScore ?? null,
+    workflowCandidateUtilityScore:
+      input.workflowCandidateUtilityScore ?? null,
+    workflowCandidateCreationRiskScore:
+      input.workflowCandidateCreationRiskScore ?? null,
+    workflowCandidateSuggestionPressureScore:
+      input.workflowCandidateSuggestionPressureScore ?? null,
+    workflowCandidateTrustScore:
+      input.workflowCandidateTrustScore ?? null,
+    workflowCandidateNoveltyScore:
+      input.workflowCandidateNoveltyScore ?? null,
+    workflowCandidateDuplicateRiskScore:
+      input.workflowCandidateDuplicateRiskScore ?? null,
+    workflowCandidateStructuralStabilityRisk:
+      input.workflowCandidateStructuralStabilityRisk ?? null,
+    workflowCandidateParameterVolatilityRisk:
+      input.workflowCandidateParameterVolatilityRisk ?? null,
+    workflowCandidateBoundaryClarityRisk:
+      input.workflowCandidateBoundaryClarityRisk ?? null,
+    workflowCandidateAbstractionRiskComponent:
+      input.workflowCandidateAbstractionRiskComponent ?? null,
+    workflowCandidateLatentExecutionHazardRisk:
+      input.workflowCandidateLatentExecutionHazardRisk ?? null,
+    workflowCandidateClutterRisk:
+      input.workflowCandidateClutterRisk ?? null,
+    workflowCandidateUserMisalignmentRisk:
+      input.workflowCandidateUserMisalignmentRisk ?? null,
+    workflowCandidateCreationRiskBand:
+      input.workflowCandidateCreationRiskBand ?? null,
+    workflowCandidateScoringSource:
+      input.workflowCandidateScoringSource ?? null,
+    workflowCandidateScoringReasonCodes:
+      input.workflowCandidateScoringReasonCodes ?? null,
+    workflowCandidateRiskReasonCodes:
+      input.workflowCandidateRiskReasonCodes ?? null,
   };
 }
 

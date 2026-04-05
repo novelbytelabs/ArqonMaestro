@@ -16,7 +16,7 @@ Authoritative baseline opening this stage:
 - upstream substrate: 3J-S1 real green baseline
 
 Purpose:
-Advance the workflow-creation judgment capstone from governed workflow-candidate discovery into bounded reusable workflow skeleton inference.
+Advance the workflow-creation judgment capstone from bounded reusable workflow skeleton inference into bounded workflow candidate scoring and creation-risk evaluation.
 
 ## Constitutional doctrine
 
@@ -69,12 +69,26 @@ Delivered:
 
 ### 3J-S3 — scoring + risk engine core
 Status:
+Implemented
+
+Delivered:
+- bounded workflow candidate score family in H3 runtime evidence
+- bounded workflow creation risk decomposition in H3 runtime evidence
+- score version, scoring reason codes, and risk reason codes
+- creation-risk band derivation
+- preserved workflow candidate discovery and workflow skeleton inference surfaces
+- preserved workflow-memory reuse compatibility
+- no rubric or promotion engine behavior yet
+- no workflow draft creation yet
+- no persistence and no execution semantics
+
+### 3J-S4 — rubric framework + promotion engine core
+Status:
 Next
 
 Intended direction:
-- attach the full bounded score family to workflow candidates
-- attach decomposed workflow creation risk surfaces
-- remain pre-promotion and pre-draft in this slice
+- evaluate workflow candidates through baseline, class, user, and timing rubrics
+- choose bounded promotion states without introducing execution behavior
 
 ## Explicit non-goals at current stage state
 

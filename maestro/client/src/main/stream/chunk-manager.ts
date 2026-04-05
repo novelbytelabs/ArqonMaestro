@@ -69,6 +69,7 @@ import { deriveWorkflowMemoryCandidatePoolOrdering } from "../runtime/workflow-m
 import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-reuse-substrate";
 import { deriveEmptyWorkflowCandidateDiscoveryState, deriveWorkflowCandidateDiscovery } from "../runtime/workflow-candidate-discovery";
 import { deriveEmptyWorkflowSkeletonInferenceState, deriveWorkflowSkeletonInference } from "../runtime/workflow-skeleton-inference";
+import { deriveWorkflowCandidateScoring } from "../runtime/workflow-candidate-scoring";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -1915,6 +1916,56 @@ export default class ChunkManager {
     return fields;
   }
 
+  private getWorkflowCandidateScoringFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      discoveryEligible: boolean | null;
+      discoveryOccurrenceCount: number | null;
+      discoveryDistinctRunCount: number | null;
+      discoverySequenceLength: number | null;
+      discoveryStartBoundaryConfidence: number | null;
+      discoveryEndBoundaryConfidence: number | null;
+      discoveryRepeatedSubsequenceDetected: boolean | null;
+      discoveryRediscoveryMerged: boolean | null;
+      skeletonEligible: boolean | null;
+      skeletonCanonicalStepSemanticAddressIds: string[] | null;
+      skeletonFixedStepIndices: number[] | null;
+      skeletonVariableStepIndices: number[] | null;
+      skeletonOptionalStepIndices: number[] | null;
+      skeletonInferredSlotCount: number | null;
+      skeletonGeneralizationConfidence: number | null;
+      skeletonAbstractionEligible: boolean | null;
+      skeletonFamilyVariantCount: number | null;
+      skeletonFamilySplitRequired: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    return deriveWorkflowCandidateScoring({
+      discoveryEligible: seed.discoveryEligible ?? null,
+      discoveryOccurrenceCount: seed.discoveryOccurrenceCount ?? null,
+      discoveryDistinctRunCount: seed.discoveryDistinctRunCount ?? null,
+      discoverySequenceLength: seed.discoverySequenceLength ?? null,
+      discoveryStartBoundaryConfidence: seed.discoveryStartBoundaryConfidence ?? null,
+      discoveryEndBoundaryConfidence: seed.discoveryEndBoundaryConfidence ?? null,
+      discoveryRepeatedSubsequenceDetected: seed.discoveryRepeatedSubsequenceDetected ?? null,
+      discoveryRediscoveryMerged: seed.discoveryRediscoveryMerged ?? null,
+      skeletonEligible: seed.skeletonEligible ?? null,
+      skeletonCanonicalStepSemanticAddressIds:
+        seed.skeletonCanonicalStepSemanticAddressIds ?? null,
+      skeletonFixedStepIndices: seed.skeletonFixedStepIndices ?? null,
+      skeletonVariableStepIndices: seed.skeletonVariableStepIndices ?? null,
+      skeletonOptionalStepIndices: seed.skeletonOptionalStepIndices ?? null,
+      skeletonInferredSlotCount: seed.skeletonInferredSlotCount ?? null,
+      skeletonGeneralizationConfidence: seed.skeletonGeneralizationConfidence ?? null,
+      skeletonAbstractionEligible: seed.skeletonAbstractionEligible ?? null,
+      skeletonFamilyVariantCount: seed.skeletonFamilyVariantCount ?? null,
+      skeletonFamilySplitRequired: seed.skeletonFamilySplitRequired ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
   private getWorkflowMemoryReuseFields(
     seed: Partial<{
       semanticAddressId: string | null;
@@ -2134,13 +2185,54 @@ export default class ChunkManager {
       semanticAddressId: overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
       finalGranted: decision?.granted ?? null,
     });
+    const discoveryEmergenceForSkeleton =
+      (workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? false) ||
+      ((workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? false) &&
+        (workflowCandidateDiscoveryFields.workflowCandidateDiscoveryOccurrenceCount ?? 0) >= 2);
     const workflowSkeletonInferenceFields = this.getWorkflowSkeletonInferenceFields(chunkId, eventName, {
       discoverySequenceSemanticAddressIds:
         workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceSemanticAddressIds ?? null,
       discoveryPatternKey:
         workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ?? null,
-      discoveryThresholdMet:
-        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? null,
+      discoveryThresholdMet: discoveryEmergenceForSkeleton,
+    });
+    const workflowCandidateScoringFields = this.getWorkflowCandidateScoringFields(chunkId, eventName, {
+      discoveryEligible:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEligible ?? null,
+      discoveryOccurrenceCount:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryOccurrenceCount ?? null,
+      discoveryDistinctRunCount:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryDistinctRunCount ?? null,
+      discoverySequenceLength:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceLength ?? null,
+      discoveryStartBoundaryConfidence:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryStartBoundaryConfidence ?? null,
+      discoveryEndBoundaryConfidence:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEndBoundaryConfidence ?? null,
+      discoveryRepeatedSubsequenceDetected:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? null,
+      discoveryRediscoveryMerged:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRediscoveryMerged ?? null,
+      skeletonEligible:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceEligible ?? null,
+      skeletonCanonicalStepSemanticAddressIds:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
+      skeletonFixedStepIndices:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFixedStepIndices ?? null,
+      skeletonVariableStepIndices:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceVariableStepIndices ?? null,
+      skeletonOptionalStepIndices:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceOptionalStepIndices ?? null,
+      skeletonInferredSlotCount:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceInferredSlotCount ?? null,
+      skeletonGeneralizationConfidence:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceGeneralizationConfidence ?? null,
+      skeletonAbstractionEligible:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceAbstractionEligible ?? null,
+      skeletonFamilyVariantCount:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilyVariantCount ?? null,
+      skeletonFamilySplitRequired:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
     });
     const workflowMemoryRankingFields = this.getWorkflowMemoryRankingFields({
       candidateSemanticAddressId:
@@ -2588,6 +2680,50 @@ export default class ChunkManager {
         overrides.workflowSkeletonInferenceSource ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceSource,
       workflowSkeletonInferenceReasonCodes:
         overrides.workflowSkeletonInferenceReasonCodes ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceReasonCodes,
+      workflowCandidateScoringSchemaVersion:
+        overrides.workflowCandidateScoringSchemaVersion ?? workflowCandidateScoringFields.workflowCandidateScoringSchemaVersion,
+      workflowCandidateScoringPolicyVersion:
+        overrides.workflowCandidateScoringPolicyVersion ?? workflowCandidateScoringFields.workflowCandidateScoringPolicyVersion,
+      workflowCandidateScoringEligible:
+        overrides.workflowCandidateScoringEligible ?? workflowCandidateScoringFields.workflowCandidateScoringEligible,
+      workflowCandidateScoreVersion:
+        overrides.workflowCandidateScoreVersion ?? workflowCandidateScoringFields.workflowCandidateScoreVersion,
+      workflowCandidateConfidenceScore:
+        overrides.workflowCandidateConfidenceScore ?? workflowCandidateScoringFields.workflowCandidateConfidenceScore,
+      workflowCandidateUtilityScore:
+        overrides.workflowCandidateUtilityScore ?? workflowCandidateScoringFields.workflowCandidateUtilityScore,
+      workflowCandidateCreationRiskScore:
+        overrides.workflowCandidateCreationRiskScore ?? workflowCandidateScoringFields.workflowCandidateCreationRiskScore,
+      workflowCandidateSuggestionPressureScore:
+        overrides.workflowCandidateSuggestionPressureScore ?? workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore,
+      workflowCandidateTrustScore:
+        overrides.workflowCandidateTrustScore ?? workflowCandidateScoringFields.workflowCandidateTrustScore,
+      workflowCandidateNoveltyScore:
+        overrides.workflowCandidateNoveltyScore ?? workflowCandidateScoringFields.workflowCandidateNoveltyScore,
+      workflowCandidateDuplicateRiskScore:
+        overrides.workflowCandidateDuplicateRiskScore ?? workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore,
+      workflowCandidateStructuralStabilityRisk:
+        overrides.workflowCandidateStructuralStabilityRisk ?? workflowCandidateScoringFields.workflowCandidateStructuralStabilityRisk,
+      workflowCandidateParameterVolatilityRisk:
+        overrides.workflowCandidateParameterVolatilityRisk ?? workflowCandidateScoringFields.workflowCandidateParameterVolatilityRisk,
+      workflowCandidateBoundaryClarityRisk:
+        overrides.workflowCandidateBoundaryClarityRisk ?? workflowCandidateScoringFields.workflowCandidateBoundaryClarityRisk,
+      workflowCandidateAbstractionRiskComponent:
+        overrides.workflowCandidateAbstractionRiskComponent ?? workflowCandidateScoringFields.workflowCandidateAbstractionRiskComponent,
+      workflowCandidateLatentExecutionHazardRisk:
+        overrides.workflowCandidateLatentExecutionHazardRisk ?? workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk,
+      workflowCandidateClutterRisk:
+        overrides.workflowCandidateClutterRisk ?? workflowCandidateScoringFields.workflowCandidateClutterRisk,
+      workflowCandidateUserMisalignmentRisk:
+        overrides.workflowCandidateUserMisalignmentRisk ?? workflowCandidateScoringFields.workflowCandidateUserMisalignmentRisk,
+      workflowCandidateCreationRiskBand:
+        overrides.workflowCandidateCreationRiskBand ?? workflowCandidateScoringFields.workflowCandidateCreationRiskBand,
+      workflowCandidateScoringSource:
+        overrides.workflowCandidateScoringSource ?? workflowCandidateScoringFields.workflowCandidateScoringSource,
+      workflowCandidateScoringReasonCodes:
+        overrides.workflowCandidateScoringReasonCodes ?? workflowCandidateScoringFields.workflowCandidateScoringReasonCodes,
+      workflowCandidateRiskReasonCodes:
+        overrides.workflowCandidateRiskReasonCodes ?? workflowCandidateScoringFields.workflowCandidateRiskReasonCodes,
       counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
       counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
       counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,

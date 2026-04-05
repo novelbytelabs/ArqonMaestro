@@ -335,3 +335,36 @@ Notes:
 - no persistence / distributed cache
 - no execution semantics or hidden action chaining
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3J-S3 workflow candidate scoring + risk core
+- workflowCandidateScoringSchemaVersion
+- workflowCandidateScoringPolicyVersion
+- workflowCandidateScoringEligible
+- workflowCandidateScoreVersion
+- workflowCandidateConfidenceScore
+- workflowCandidateUtilityScore
+- workflowCandidateCreationRiskScore
+- workflowCandidateSuggestionPressureScore
+- workflowCandidateTrustScore
+- workflowCandidateNoveltyScore
+- workflowCandidateDuplicateRiskScore
+- workflowCandidateStructuralStabilityRisk
+- workflowCandidateParameterVolatilityRisk
+- workflowCandidateBoundaryClarityRisk
+- workflowCandidateAbstractionRiskComponent
+- workflowCandidateLatentExecutionHazardRisk
+- workflowCandidateClutterRisk
+- workflowCandidateUserMisalignmentRisk
+- workflowCandidateCreationRiskBand
+- workflowCandidateScoringSource
+- workflowCandidateScoringReasonCodes
+- workflowCandidateRiskReasonCodes
+
+Notes:
+- bounded scoring/risk substrate only
+- no rubric framework yet
+- no promotion engine yet
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics
