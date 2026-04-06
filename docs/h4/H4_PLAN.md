@@ -1,49 +1,60 @@
-# H4 Plan — Authority Transition Rollout
+# H4 Plan
 
-## Status
-- Branch: `feature/h4`
-- Current authoritative green baseline: `27e7c7f`
-- H4-S1: complete
-- H4-S2: complete
-- H4-S3: complete
-- H4-S4: complete
-- H4-S5: active
-- H4-S6: next
+Title:
+Arqon Maestro H4 Plan
 
-## H4-S5 — Live-Use Hardening + Fallback Discipline
+Project:
+`H4`
 
-### Mission
-Exercise the development-authoritative command-lane path under real microphone usage and harden only what live use proves broken.
+Branch:
+`feature/h4`
 
-### Scope
-- real microphone session protocol
-- fallback invocation verification
-- rollback trigger verification
-- live-session evidence capture
-- issue triage discipline
-- microscopic repair policy
-- no UX/UI work
-- no speculative runtime broadening
+Status:
+`provisionally closed`
 
-### Required outputs
-- `docs/h4/H4_LIVE_USE_HARDENING_PROTOCOL.md`
-- `docs/h4/H4_LIVE_SESSION_LOG_TEMPLATE.md`
-- `docs/h4/H4_GATES_AND_FALLBACKS.md`
-- `docs/h4/H4_PLAN.md`
+## 1. Mission
 
-### Exit condition
-H4-S5 is complete only when real microphone sessions have been run against the authoritative path and any failures have either:
-- been repaired microscopically on the real repo, or
-- been explicitly logged as remaining issues with fallback behavior verified.
+H4 existed to move the H3/3J substrate into authoritative position in development and make the new path the primary command-lane runtime path.
 
-## H4-S6 — Closure / Validation / Freeze
+## 2. Authoritative freeze baseline
 
-### Mission
-Freeze the H4 authority position after real microphone use proves the path operational in development.
+Provisional freeze baseline:
 
-### Required closure truth
-- live mic uses the new path by default
-- command-lane authority spine is primary
-- broad runtime authority is active
-- fallback remains explicit, logged, and reversible
-- real live-use evidence exists
+- repo: `ArqonMaestro`
+- branch: `feature/h4`
+- freeze commit: `bfa068f`
+
+## 3. Slice sequence
+
+- `H4-S1` — Authority Integration Map + Runtime Cutover Register — complete
+- `H4-S2` — Live Microphone Entry Integration — complete
+- `H4-S3` — Command-Lane Authority Spine Cutover — complete
+- `H4-S4` — Broad Runtime Authority Expansion — complete
+- `H4-S5` — Live-Use Hardening + Fallback Discipline — partially proven; deferred refinement remains open
+- `H4-S6` — Provisional Freeze / Deferred-Issues Closure — complete
+
+## 4. Closure posture
+
+H4 is now provisionally closed.
+
+Meaning:
+
+- the authority transition objective is achieved
+- the program may move on
+- deferred live-hardening refinements remain recorded and may be resumed later
+
+## 5. What H4 did not finish
+
+H4 did not attempt to fully eliminate all parameterized-tail instability before closure.
+
+That work is deferred, not denied.
+
+## 6. Next program recommendation
+
+The recommended next program phase is:
+
+- `3K-S1` — UX/UI foundation on top of the authoritative system
+
+## 7. Reopening rule
+
+If H4 refinement resumes later, it should be treated as a focused refinement pass on top of the provisional freeze baseline, not as a reason to reopen the entire authority-transition doctrine.
