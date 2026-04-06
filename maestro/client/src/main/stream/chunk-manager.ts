@@ -77,6 +77,10 @@ import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-
 import { deriveWorkflowDraftArtifacts } from "../runtime/workflow-draft-artifacts";
 import { deriveH4AuthorityEntryObservation } from "../runtime/h4-live-mic-authority-entry";
 import { deriveH4AuthoritySpineObservation } from "../runtime/h4-command-lane-authority-spine";
+import {
+  buildH4AuthorityExpansionFields,
+  H4AuthorityExpansionFields,
+} from "../runtime/h4-broad-runtime-authority";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -101,6 +105,40 @@ const H3_NUMERIC_STRATEGY_VERSION = "3b1-numeric-v1";
 const H3_OPEN_STRATEGY_VERSION = "3b2b-open-v1";
 const H3_OPEN_TARGET_LIKENESS_FLOOR = 0.72;
 const H3_SEMANTIC_V1_REGIONS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
+type MaybeBoolean = boolean | null | undefined;
+
+export function getH4AuthorityExpansionFields(inputs: {
+  h4AuthoritySpineEligible?: MaybeBoolean;
+  h4AuthoritySpineAuthoritative?: MaybeBoolean;
+  h4AuthoritySpineCutoverActive?: MaybeBoolean;
+  workflowCandidateDiscoveryEligible?: MaybeBoolean;
+  workflowSkeletonInferenceEligible?: MaybeBoolean;
+  workflowCandidateScoringEligible?: MaybeBoolean;
+  workflowCandidateRubricEligible?: MaybeBoolean;
+  workflowCandidatePromotionEligible?: MaybeBoolean;
+  workflowDraftArtifactEligible?: MaybeBoolean;
+}): H4AuthorityExpansionFields {
+  return buildH4AuthorityExpansionFields({
+    h4AuthoritySpineEligible:
+      inputs.h4AuthoritySpineEligible ?? null,
+    h4AuthoritySpineAuthoritative:
+      inputs.h4AuthoritySpineAuthoritative ?? null,
+    h4AuthoritySpineCutoverActive:
+      inputs.h4AuthoritySpineCutoverActive ?? null,
+    workflowCandidateDiscoveryEligible:
+      inputs.workflowCandidateDiscoveryEligible ?? null,
+    workflowSkeletonInferenceEligible:
+      inputs.workflowSkeletonInferenceEligible ?? null,
+    workflowCandidateScoringEligible:
+      inputs.workflowCandidateScoringEligible ?? null,
+    workflowCandidateRubricEligible:
+      inputs.workflowCandidateRubricEligible ?? null,
+    workflowCandidatePromotionEligible:
+      inputs.workflowCandidatePromotionEligible ?? null,
+    workflowDraftArtifactEligible:
+      inputs.workflowDraftArtifactEligible ?? null,
+  });
+}
 
 /**
  * When speaking, chunks go through the following states:
@@ -152,7 +190,7 @@ export default class ChunkManager {
   private chunkUseParakeetCommandFast = new Map<string, boolean>();
   private chunkParakeetStream = new Map<string, ParakeetStreamSession>();
   private chunkFinalizationRequested = new Set<string>();
-  private chunkFinalizeWatchdogs = new Map<string, NodeJS.Timeout>();
+  private chunkFinalizeWatchdogs = new Map<string, ReturnType<typeof setTimeout>>();
   private chunkTranscriptionInFlight = new Set<string>();
   private loggedWhisperUnavailable = false;
   private loggedForceLegacyCommandLane = false;
@@ -2409,6 +2447,24 @@ private getWorkflowCandidatePromotionFields(
     });
   }
 
+  private getH4AuthorityExpansionFields(
+    _chunkId: string,
+    _eventName: string,
+    overrides: Record<string, any> = {}
+  ): H4AuthorityExpansionFields {
+    return getH4AuthorityExpansionFields({
+      h4AuthoritySpineEligible: overrides.h4AuthoritySpineEligible ?? null,
+      h4AuthoritySpineAuthoritative: overrides.h4AuthoritySpineAuthoritative ?? null,
+      h4AuthoritySpineCutoverActive: overrides.h4AuthoritySpineCutoverActive ?? null,
+      workflowCandidateDiscoveryEligible: overrides.workflowCandidateDiscoveryEligible ?? null,
+      workflowSkeletonInferenceEligible: overrides.workflowSkeletonInferenceEligible ?? null,
+      workflowCandidateScoringEligible: overrides.workflowCandidateScoringEligible ?? null,
+      workflowCandidateRubricEligible: overrides.workflowCandidateRubricEligible ?? null,
+      workflowCandidatePromotionEligible: overrides.workflowCandidatePromotionEligible ?? null,
+      workflowDraftArtifactEligible: overrides.workflowDraftArtifactEligible ?? null,
+    });
+  }
+
 
   private emitH3Evidence(
 
@@ -2661,6 +2717,23 @@ const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionField
         workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
       familySplitRequired:
         workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    });
+    const h4AuthorityExpansionFields = this.getH4AuthorityExpansionFields(chunkId, eventName, {
+      h4AuthoritySpineEligible: h4AuthoritySpineFields.h4AuthoritySpineEligible ?? null,
+      h4AuthoritySpineAuthoritative: h4AuthoritySpineFields.h4AuthoritySpineAuthoritative ?? null,
+      h4AuthoritySpineCutoverActive: h4AuthoritySpineFields.h4AuthoritySpineCutoverActive ?? null,
+      workflowCandidateDiscoveryEligible:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEligible ?? null,
+      workflowSkeletonInferenceEligible:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceEligible ?? null,
+      workflowCandidateScoringEligible:
+        workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+      workflowCandidateRubricEligible:
+        workflowCandidateRubricFields.workflowCandidateRubricEligible ?? null,
+      workflowCandidatePromotionEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionEligible ?? null,
+      workflowDraftArtifactEligible:
+        workflowDraftArtifactFields.workflowDraftArtifactEligible ?? null,
     });
     emitH3RuntimeEvidence({
       event: eventName,
@@ -3271,6 +3344,34 @@ h4AuthoritySpineSource:
   overrides.h4AuthoritySpineSource ?? h4AuthoritySpineFields.h4AuthoritySpineSource,
 h4AuthoritySpineReasonCodes:
   overrides.h4AuthoritySpineReasonCodes ?? h4AuthoritySpineFields.h4AuthoritySpineReasonCodes,
+h4AuthorityExpansionSchemaVersion:
+  overrides.h4AuthorityExpansionSchemaVersion ?? h4AuthorityExpansionFields.h4AuthorityExpansionSchemaVersion,
+h4AuthorityExpansionPolicyVersion:
+  overrides.h4AuthorityExpansionPolicyVersion ?? h4AuthorityExpansionFields.h4AuthorityExpansionPolicyVersion,
+h4AuthorityExpansionEligible:
+  overrides.h4AuthorityExpansionEligible ?? h4AuthorityExpansionFields.h4AuthorityExpansionEligible,
+h4AuthorityExpansionPrimaryPath:
+  overrides.h4AuthorityExpansionPrimaryPath ?? h4AuthorityExpansionFields.h4AuthorityExpansionPrimaryPath,
+h4AuthorityExpansionBroadRuntimeActive:
+  overrides.h4AuthorityExpansionBroadRuntimeActive ?? h4AuthorityExpansionFields.h4AuthorityExpansionBroadRuntimeActive,
+h4AuthorityExpansionDiscoveryIntegrated:
+  overrides.h4AuthorityExpansionDiscoveryIntegrated ?? h4AuthorityExpansionFields.h4AuthorityExpansionDiscoveryIntegrated,
+h4AuthorityExpansionSkeletonIntegrated:
+  overrides.h4AuthorityExpansionSkeletonIntegrated ?? h4AuthorityExpansionFields.h4AuthorityExpansionSkeletonIntegrated,
+h4AuthorityExpansionScoringIntegrated:
+  overrides.h4AuthorityExpansionScoringIntegrated ?? h4AuthorityExpansionFields.h4AuthorityExpansionScoringIntegrated,
+h4AuthorityExpansionRubricIntegrated:
+  overrides.h4AuthorityExpansionRubricIntegrated ?? h4AuthorityExpansionFields.h4AuthorityExpansionRubricIntegrated,
+h4AuthorityExpansionPromotionIntegrated:
+  overrides.h4AuthorityExpansionPromotionIntegrated ?? h4AuthorityExpansionFields.h4AuthorityExpansionPromotionIntegrated,
+h4AuthorityExpansionDraftPreviewIntegrated:
+  overrides.h4AuthorityExpansionDraftPreviewIntegrated ?? h4AuthorityExpansionFields.h4AuthorityExpansionDraftPreviewIntegrated,
+h4AuthorityExpansionFallbackOnlySurfaces:
+  overrides.h4AuthorityExpansionFallbackOnlySurfaces ?? h4AuthorityExpansionFields.h4AuthorityExpansionFallbackOnlySurfaces,
+h4AuthorityExpansionSource:
+  overrides.h4AuthorityExpansionSource ?? h4AuthorityExpansionFields.h4AuthorityExpansionSource,
+h4AuthorityExpansionReasonCodes:
+  overrides.h4AuthorityExpansionReasonCodes ?? h4AuthorityExpansionFields.h4AuthorityExpansionReasonCodes,
 workflowCandidatePromotionSource:
   overrides.workflowCandidatePromotionSource ?? workflowCandidatePromotionFields.workflowCandidatePromotionSource,
 workflowCandidatePromotionReasonCodes:

@@ -450,6 +450,20 @@ export interface H3RuntimeEvidenceEvent {
   h4AuthoritySpineFallbackReason: string | null;
   h4AuthoritySpineSource: string | null;
   h4AuthoritySpineReasonCodes: string[] | null;
+  h4AuthorityExpansionSchemaVersion: string | null;
+  h4AuthorityExpansionPolicyVersion: string | null;
+  h4AuthorityExpansionEligible: boolean | null;
+  h4AuthorityExpansionPrimaryPath: string | null;
+  h4AuthorityExpansionBroadRuntimeActive: boolean | null;
+  h4AuthorityExpansionDiscoveryIntegrated: boolean | null;
+  h4AuthorityExpansionSkeletonIntegrated: boolean | null;
+  h4AuthorityExpansionScoringIntegrated: boolean | null;
+  h4AuthorityExpansionRubricIntegrated: boolean | null;
+  h4AuthorityExpansionPromotionIntegrated: boolean | null;
+  h4AuthorityExpansionDraftPreviewIntegrated: boolean | null;
+  h4AuthorityExpansionFallbackOnlySurfaces: string[] | null;
+  h4AuthorityExpansionSource: string | null;
+  h4AuthorityExpansionReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -1228,6 +1242,34 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.h4AuthoritySpineSource ?? null,
     h4AuthoritySpineReasonCodes:
       input.h4AuthoritySpineReasonCodes ?? null,
+    h4AuthorityExpansionSchemaVersion:
+      input.h4AuthorityExpansionSchemaVersion ?? null,
+    h4AuthorityExpansionPolicyVersion:
+      input.h4AuthorityExpansionPolicyVersion ?? null,
+    h4AuthorityExpansionEligible:
+      input.h4AuthorityExpansionEligible ?? null,
+    h4AuthorityExpansionPrimaryPath:
+      input.h4AuthorityExpansionPrimaryPath ?? null,
+    h4AuthorityExpansionBroadRuntimeActive:
+      input.h4AuthorityExpansionBroadRuntimeActive ?? null,
+    h4AuthorityExpansionDiscoveryIntegrated:
+      input.h4AuthorityExpansionDiscoveryIntegrated ?? null,
+    h4AuthorityExpansionSkeletonIntegrated:
+      input.h4AuthorityExpansionSkeletonIntegrated ?? null,
+    h4AuthorityExpansionScoringIntegrated:
+      input.h4AuthorityExpansionScoringIntegrated ?? null,
+    h4AuthorityExpansionRubricIntegrated:
+      input.h4AuthorityExpansionRubricIntegrated ?? null,
+    h4AuthorityExpansionPromotionIntegrated:
+      input.h4AuthorityExpansionPromotionIntegrated ?? null,
+    h4AuthorityExpansionDraftPreviewIntegrated:
+      input.h4AuthorityExpansionDraftPreviewIntegrated ?? null,
+    h4AuthorityExpansionFallbackOnlySurfaces:
+      input.h4AuthorityExpansionFallbackOnlySurfaces ?? null,
+    h4AuthorityExpansionSource:
+      input.h4AuthorityExpansionSource ?? null,
+    h4AuthorityExpansionReasonCodes:
+      input.h4AuthorityExpansionReasonCodes ?? null,
   };
 }
 
