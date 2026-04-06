@@ -1,4 +1,4 @@
-# Arqon Maestro Docs
+# Your will, serialized into executable control language
 
 Arqon Maestro is a **Voice Operating System** for governed command authority across applications, systems, and networks.
 

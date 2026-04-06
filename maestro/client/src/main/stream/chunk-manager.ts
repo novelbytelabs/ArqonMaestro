@@ -89,6 +89,10 @@ import { deriveH4GeometricOnlyCommandResolution } from "../runtime/h4-geometric-
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
 const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
 const FORCE_LEGACY_COMMAND_LANE = process.env.MAESTRO_FORCE_LEGACY_COMMAND_LANE === "1";
+const H4_DELTA_ONLY_REFLEX_CLOSED =
+  process.env.MAESTRO_H4_DELTA_ONLY_REFLEX_CLOSED !== "0";
+const MAESTRO_HARD_FAIL_ON_PARAKEET =
+  process.env.MAESTRO_HARD_FAIL_ON_PARAKEET !== "0";
 const ENABLE_FASTER_WHISPER_DICTATION_FALLBACK =
   process.env.MAESTRO_ENABLE_FASTER_WHISPER_DICTATION_FALLBACK === "1";
 const H3_GEOMETRIC_ENABLED = process.env.H3_GEOMETRIC_ENABLED === "true";
@@ -196,6 +200,7 @@ export default class ChunkManager {
   private chunkTranscriptionInFlight = new Set<string>();
   private loggedWhisperUnavailable = false;
   private loggedForceLegacyCommandLane = false;
+  private loggedParakeetHardFail = false;
   private loggedFasterWhisperUnavailable = false;
   private loggedQwen3Unavailable = false;
   private dictationPreflightLastOk = false;
@@ -3706,6 +3711,11 @@ workflowLibraryApiReasonCodes:
     } else if (request.requestType == "audio") {
       // Parakeet takes precedence over whisper for command lane
       if (request.chunkId && this.chunkUseParakeetCommandFast.get(request.chunkId)) {
+        if (MAESTRO_HARD_FAIL_ON_PARAKEET) {
+          throw new Error(
+            "parakeet_forbidden_hard_fail:audio_path_invoked"
+          );
+        }
         const stream = this.chunkParakeetStream.get(request.chunkId);
         if (stream && request.audio) {
           stream.sendAudio(request.audio);
@@ -3728,6 +3738,11 @@ workflowLibraryApiReasonCodes:
     } else if (request.requestType == "endpoint") {
       // Parakeet takes precedence over whisper for command lane
       if (request.chunkId && this.chunkUseParakeetCommandFast.get(request.chunkId)) {
+        if (MAESTRO_HARD_FAIL_ON_PARAKEET) {
+          throw new Error(
+            "parakeet_forbidden_hard_fail:endpoint_finalize_path_invoked"
+          );
+        }
         if (request.finalize) {
           const handled = await this.handleParakeetFinalize(request.chunkId);
           if (!handled) {
@@ -3735,6 +3750,23 @@ workflowLibraryApiReasonCodes:
               ? await this.handleWhisperFinalize(request.chunkId)
               : false;
             if (!whisperHandled) {
+              if (H4_DELTA_ONLY_REFLEX_CLOSED) {
+                this.emitH3Evidence(
+                  request.chunkId,
+                  "geometric_only_delta_strict_endpoint_fallback_blocked",
+                  {
+                    source: "microphone",
+                    routeBefore: this.chunkH3Route.get(request.chunkId) ?? "legacy_text",
+                    routeAfter: this.chunkH3Route.get(request.chunkId) ?? "legacy_text",
+                    reason: "delta_only_strict_mode_blocks_endpoint_transcript_fallback",
+                    fallbackAllowed: false,
+                  }
+                );
+                this.log.logVerbose(
+                  `[Chunk][H4] strict delta-only blocked endpoint fallback for ${request.chunkId}`
+                );
+                return;
+              }
               await this.replayBufferedAudioAndFallbackToEndpoint(request.chunkId, request.finalize!);
             }
           }
@@ -3812,6 +3844,16 @@ workflowLibraryApiReasonCodes:
    * Parakeet takes precedence over whisper.cpp when available.
    */
   private shouldUseParakeetForCurrentChunk(): boolean {
+    if (MAESTRO_HARD_FAIL_ON_PARAKEET) {
+      if (!this.loggedParakeetHardFail) {
+        this.loggedParakeetHardFail = true;
+        this.log.logVerbose(
+          "[Chunk][H4] Parakeet hard-disabled via MAESTRO_HARD_FAIL_ON_PARAKEET; any attempted invocation will fail loudly."
+        );
+      }
+      return false;
+    }
+
     if (FORCE_LEGACY_COMMAND_LANE) {
       if (!this.loggedForceLegacyCommandLane) {
         this.loggedForceLegacyCommandLane = true;
@@ -3944,6 +3986,107 @@ workflowLibraryApiReasonCodes:
     }
   }
 
+  private isStrictDeltaOnlyReflexClosedChunk(chunkId: string): boolean {
+    if (!this.h3GeometricEnabled || !H4_DELTA_ONLY_REFLEX_CLOSED) {
+      return false;
+    }
+    const event = this.chunkH3LatestGeometricEvent.get(chunkId);
+    if (event?.commandClass === "reflex" || event?.commandClass === "closed_structure") {
+      return true;
+    }
+    if (this.chunkH3GeometricOnlyLocked.get(chunkId) === true) {
+      return true;
+    }
+    return this.chunkH3Route.get(chunkId) === "geometric_only";
+  }
+
+  private isRailDeltaReflexClosedTranscript(transcript: string | null | undefined): boolean {
+    const normalized = (transcript ?? "").trim().toLowerCase();
+    return normalized === "pause" || normalized === "new tab";
+  }
+
+  private isRailDeltaReflexClosedCommandType(commandType: number | null | undefined): boolean {
+    return (
+      commandType === core.CommandType.COMMAND_TYPE_PAUSE ||
+      commandType === core.CommandType.COMMAND_TYPE_CREATE_TAB
+    );
+  }
+
+  private shouldHardBlockLegacyExecutionForRailDeltaChunk(
+    chunkId: string,
+    response: core.ICommandsResponse
+  ): boolean {
+    if (!this.h3GeometricEnabled || !H4_DELTA_ONLY_REFLEX_CLOSED || !response?.final) {
+      return false;
+    }
+
+    if (this.chunkH3Route.get(chunkId) === "geometric_only") {
+      return false;
+    }
+
+    const event = this.chunkH3LatestGeometricEvent.get(chunkId);
+    if (event?.commandClass === "reflex" || event?.commandClass === "closed_structure") {
+      return true;
+    }
+
+    const commands = response.execute?.commands || [];
+    if (commands.some((command) => this.isRailDeltaReflexClosedCommandType(command?.type))) {
+      return true;
+    }
+
+    return this.isRailDeltaReflexClosedTranscript(
+      response.execute?.transcript || response.alternatives?.[0]?.transcript
+    );
+  }
+
+  private hardBlockLegacyExecutionForRailDeltaChunk(
+    chunkId: string,
+    response: core.ICommandsResponse
+  ): core.ICommandsResponse {
+    if (!this.shouldHardBlockLegacyExecutionForRailDeltaChunk(chunkId, response)) {
+      return response;
+    }
+
+    const transcript = response.execute?.transcript || response.alternatives?.[0]?.transcript || "";
+    const commandTypes = (response.execute?.commands || [])
+      .map((command) => commandTypeToString(command?.type as core.CommandType))
+      .filter(Boolean)
+      .join(",");
+    const route = this.chunkH3Route.get(chunkId) ?? "legacy_text";
+
+    console.error(
+      `[H4][HARD_FAIL] blocked legacy transcript execution for chunk ${chunkId}; route=${route}; transcript="${transcript}"; commandTypes="${commandTypes}"`
+    );
+    this.log.logVerbose(
+      `[Chunk][H4][HARD_FAIL] blocked legacy execution for ${chunkId}; expected geometric_only rail-delta resolution`
+    );
+    this.emitH3Evidence(chunkId, "geometric_only_delta_strict_legacy_execution_blocked", {
+      source: "microphone",
+      routeBefore: route,
+      routeAfter: route,
+      transcriptText: transcript || null,
+      reason: "delta_only_reflex_closed_blocked_legacy_commands_response_execution",
+      fallbackAllowed: false,
+      fallbackInvoked: false,
+    });
+    this.bridge.setState(
+      {
+        backendIssue:
+          "H4 strict gate blocked legacy transcript execution for reflex/closed command. Geometric-only RAIL resolution required.",
+        backendIssueAction: "",
+        backendIssueActionLabel: "",
+      },
+      [this.mainWindow, this.miniModeWindow]
+    );
+
+    return {
+      ...response,
+      execute: undefined,
+      alternatives: [],
+      final: true,
+    };
+  }
+
   private async handleParakeetFinalize(chunkId: string): Promise<boolean> {
     if (this.chunkTranscriptionInFlight.has(chunkId)) {
       this.log.logVerbose(`[Chunk] parakeet finalize deduped while in-flight for ${chunkId}`);
@@ -3952,6 +4095,18 @@ workflowLibraryApiReasonCodes:
 
     const stream = this.chunkParakeetStream.get(chunkId);
     if (!stream) {
+      if (this.isStrictDeltaOnlyReflexClosedChunk(chunkId)) {
+        this.emitH3Evidence(chunkId, "geometric_only_delta_strict_no_parakeet_stream", {
+          source: "spectral_manifold",
+          reason: "delta_only_reflex_closed_without_parakeet_stream",
+          routeBefore: this.chunkH3Route.get(chunkId) ?? "legacy_text",
+          routeAfter: this.chunkH3Route.get(chunkId) ?? "legacy_text",
+        });
+        this.log.logVerbose(
+          `[Chunk][H4] delta-only strict gate consumed ${chunkId}: no Parakeet stream and no transcript fallback`
+        );
+        return true;
+      }
       this.log.logVerbose(`[Chunk] parakeet stream not found for ${chunkId}`);
       return false;
     }
@@ -3959,8 +4114,37 @@ workflowLibraryApiReasonCodes:
     this.chunkTranscriptionInFlight.add(chunkId);
     let success = false;
     try {
+      // For strict delta-only reflex/closed chunks, first attempt to harvest the
+      // final geometric event from stream finalize, then resolve command text from
+      // geometric evidence only (never from transcript fallback).
+      if (this.isStrictDeltaOnlyReflexClosedChunk(chunkId)) {
+        try {
+          const finalProbe = await this.finalizeParakeetStreamWithSingleRetry(chunkId, stream);
+          this.observeH3GeometricEvent(chunkId, finalProbe.geometricEvent, true);
+        } catch (error) {
+          const reason = error instanceof Error ? error.message : String(error);
+          this.log.logVerbose(
+            `[Chunk][H4] delta-only final geometric probe failed for ${chunkId}: ${reason}`
+          );
+        }
+      }
+
       const handledByH3GeometricOnly = await this.tryHandleH3GeometricOnlyFinalize(chunkId);
       if (handledByH3GeometricOnly) {
+        stream.cancel();
+        success = true;
+        return true;
+      }
+      if (this.isStrictDeltaOnlyReflexClosedChunk(chunkId)) {
+        this.emitH3Evidence(chunkId, "geometric_only_delta_strict_parakeet_blocked", {
+          source: "spectral_manifold",
+          reason: "delta_only_reflex_closed_requires_rail_resolution",
+          routeBefore: this.chunkH3Route.get(chunkId) ?? "legacy_text",
+          routeAfter: this.chunkH3Route.get(chunkId) ?? "legacy_text",
+        });
+        this.log.logVerbose(
+          `[Chunk][H4] delta-only strict gate blocked Parakeet finalize for ${chunkId}; no transcript fallback`
+        );
         stream.cancel();
         success = true;
         return true;
@@ -4026,6 +4210,16 @@ workflowLibraryApiReasonCodes:
         error_code: errorMsg,
         retryable: true,
       });
+      if (this.isStrictDeltaOnlyReflexClosedChunk(chunkId)) {
+        this.emitH3Evidence(chunkId, "geometric_only_delta_strict_finalize_failed", {
+          source: "spectral_manifold",
+          reason: "delta_only_reflex_closed_finalize_error_no_fallback",
+          routeBefore: this.chunkH3Route.get(chunkId) ?? "legacy_text",
+          routeAfter: this.chunkH3Route.get(chunkId) ?? "legacy_text",
+          fallbackAllowed: false,
+        });
+        return true;
+      }
       
       // Strict failure for sidecar mode - do not fallback to local here to avoid blowout
       return false;
@@ -4525,6 +4719,7 @@ workflowLibraryApiReasonCodes:
       response.final ? "final_response" : "partial_response",
       sessionId
     );
+    response = this.hardBlockLegacyExecutionForRailDeltaChunk(chunk.id, response);
 
     this.transcriptResponseObserver.observe({
       chunkId: chunk.id,

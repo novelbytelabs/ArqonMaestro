@@ -49,6 +49,11 @@ PY
 }
 
 ensure_parakeet_sidecar_ready() {
+  if [[ "${MAESTRO_HARD_FAIL_ON_PARAKEET:-0}" == "1" ]]; then
+    print_yellow "[ArqonMaestro] Skipping Parakeet sidecar preflight (MAESTRO_HARD_FAIL_ON_PARAKEET=1)."
+    return 0
+  fi
+
   if [[ "${MAESTRO_SKIP_PARAKEET_SIDECAR_PREFLIGHT:-0}" == "1" ]]; then
     print_yellow "[ArqonMaestro] Skipping Parakeet sidecar preflight (MAESTRO_SKIP_PARAKEET_SIDECAR_PREFLIGHT=1)."
     return 0
