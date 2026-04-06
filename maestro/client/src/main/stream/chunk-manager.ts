@@ -83,6 +83,7 @@ import {
 } from "../runtime/h4-broad-runtime-authority";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
+import { deriveH4ParameterizedCommandResolution } from "../runtime/h4-parameter-resolution";
 
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
 const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
@@ -1410,17 +1411,6 @@ export default class ChunkManager {
     }
   }
 
-  private composeH3MergedTranscript(prefix: string, tailTranscript: string): string {
-    const tail = tailTranscript.trim().toLowerCase();
-    if (!tail) {
-      return prefix;
-    }
-    if (tail.startsWith(prefix)) {
-      return tail;
-    }
-    return `${prefix} ${tail}`.trim();
-  }
-
   private async tryHandleH3ParameterizedTailFinalize(chunkId: string): Promise<boolean> {
     if (!this.h3GeometricEnabled) {
       return false;
@@ -1475,7 +1465,18 @@ export default class ChunkManager {
         ? H3_OPEN_STRATEGY_VERSION
         : null,
     });
-    let mergedTranscript = this.composeH3MergedTranscript(prefix, tailResult.transcript);
+    if (!this.chunkH3NumericStrategyEnabled.get(chunkId) && !this.chunkH3OpenStrategyEnabled.get(chunkId)) {
+      this.emitH3Evidence(chunkId, "parameter_resolution_bypassed", {
+        routeBefore: "geometric_prefix_asr_tail",
+        routeAfter: "geometric_prefix_asr_tail",
+        reason: "no_parameter_only_strategy_enabled",
+        tailText: tailResult.transcript,
+      });
+      return false;
+    }
+
+    let resolvedNumericParameter: string | null = null;
+    let resolvedOpenParameter: string | null = null;
     let openTailNormalization: ReturnType<typeof normalizeOpenTail> | null = null;
     const numericStrategyEnabled = this.chunkH3NumericStrategyEnabled.get(chunkId) === true;
     if (numericStrategyEnabled && prefix === "go to line") {
@@ -1519,7 +1520,7 @@ export default class ChunkManager {
         });
         return true;
       }
-      mergedTranscript = `${prefix} ${normalized.normalized}`.trim();
+      resolvedNumericParameter = normalized.normalized;
     }
     const openStrategyEnabled = this.chunkH3OpenStrategyEnabled.get(chunkId) === true;
     if (openStrategyEnabled && (prefix === "go to" || prefix === "open")) {
@@ -1584,7 +1585,7 @@ export default class ChunkManager {
         });
         return true;
       }
-      mergedTranscript = `${prefix} ${normalized.normalized}`.trim();
+      resolvedOpenParameter = normalized.normalized;
       this.emitH3Evidence(chunkId, "open_tail_decode_completed", {
         routeBefore: "geometric_prefix_asr_tail",
         routeAfter: "geometric_prefix_asr_tail",
@@ -1598,11 +1599,40 @@ export default class ChunkManager {
         openTargetKind: normalized.targetKind,
       });
     }
+    const parameterResolution = deriveH4ParameterizedCommandResolution({
+      prefixRegionId: prefix,
+      parameterType: numericStrategyEnabled ? "numeric" : openStrategyEnabled ? "open" : null,
+      numericNormalized: resolvedNumericParameter,
+      openNormalized: resolvedOpenParameter,
+    });
+    if (
+      !parameterResolution.h4ParameterizedResolutionEligible ||
+      !parameterResolution.h4ParameterizedResolutionCanonicalCommandText
+    ) {
+      this.emitH3Evidence(chunkId, "parameter_resolution_rejected", {
+        routeBefore: "geometric_prefix_asr_tail",
+        routeAfter: "geometric_prefix_asr_tail",
+        reason: parameterResolution.h4ParameterizedResolutionReasonCodes.join("|"),
+        parameterType: parameterResolution.h4ParameterizedResolutionParameterType,
+        tailText: tailResult.transcript,
+      });
+      return false;
+    }
+    const resolvedCommandText =
+      parameterResolution.h4ParameterizedResolutionCanonicalCommandText;
+    this.emitH3Evidence(chunkId, "parameter_resolution_completed", {
+      routeBefore: "geometric_prefix_asr_tail",
+      routeAfter: "geometric_prefix_asr_tail",
+      reason: parameterResolution.h4ParameterizedResolutionReasonCodes.join("|"),
+      parameterType: parameterResolution.h4ParameterizedResolutionParameterType,
+      tailText: tailResult.transcript,
+      mergedText: resolvedCommandText,
+    });
     const warmLookup = this.chunkH3WarmLookup?.get(chunkId);
     const liveEvidenceOverride = Boolean(
       warmLookup?.warmApplied &&
         warmLookup.bestCanonicalMergedText &&
-        warmLookup.bestCanonicalMergedText.trim().toLowerCase() !== mergedTranscript.trim().toLowerCase()
+        warmLookup.bestCanonicalMergedText.trim().toLowerCase() !== resolvedCommandText.trim().toLowerCase()
     );
     if (liveEvidenceOverride) {
       this.emitH3Evidence(chunkId, "voice_semantic_address_warm_discarded", {
@@ -1689,12 +1719,12 @@ export default class ChunkManager {
     const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
     this.observeH3GeometricEvent(chunkId, geometricEvent, true, tailResult.transcript);
     const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
-    h23Recorder.recordFinal(chunkId, mergedTranscript, h23StepIndex, 0.95);
+    h23Recorder.recordFinal(chunkId, resolvedCommandText, h23StepIndex, 0.95);
     this.emitH3Evidence(chunkId, "merged_transcript_emitted", {
       routeBefore: "geometric_prefix_asr_tail",
       routeAfter: "geometric_prefix_asr_tail",
       tailText: tailResult.transcript,
-      mergedText: mergedTranscript,
+      mergedText: resolvedCommandText,
       semanticAddressId: warmLookup?.bestCandidateId ?? undefined,
       canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? undefined,
       bestCandidateId: warmLookup?.bestCandidateId ?? undefined,
@@ -1734,21 +1764,21 @@ export default class ChunkManager {
       warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
       liveEvidenceOverride,
       lookupPath: warmLookup?.lookupPath ?? undefined,
-      reason: "merged_from_geometric_prefix_and_asr_tail",
+      reason: "canonical_command_text_from_rail_prefix_and_parameter_resolution",
       parameterType: numericStrategyEnabled ? "numeric" : openStrategyEnabled ? "open" : null,
       numericRaw: numericStrategyEnabled ? tailResult.transcript : null,
-      numericNormalized: numericStrategyEnabled ? mergedTranscript.slice(prefix.length).trim() : null,
+      numericNormalized: resolvedNumericParameter,
       numericStrategyVersion: numericStrategyEnabled ? H3_NUMERIC_STRATEGY_VERSION : null,
       openRaw: openStrategyEnabled ? tailResult.transcript : null,
-      openNormalized: openStrategyEnabled ? mergedTranscript.slice(prefix.length).trim() : null,
+      openNormalized: resolvedOpenParameter,
       openStrategyVersion: openStrategyEnabled ? H3_OPEN_STRATEGY_VERSION : null,
       openTargetKind: openStrategyEnabled ? (openTailNormalization?.targetKind ?? "unknown") : null,
     });
 
     this.log.logVerbose(
-      `[Chunk][H3] merged transcript ${chunkId}: "${mergedTranscript}" (tail ${tailResult.latencyMs}ms)`
+      `[Chunk][H3] canonical parameter-resolved command ${chunkId}: "${resolvedCommandText}" (tail ${tailResult.latencyMs}ms)`
     );
-    await this.stream.sendTextRequest(mergedTranscript, true, chunkId);
+    await this.stream.sendTextRequest(resolvedCommandText, true, chunkId);
     return true;
   }
 
