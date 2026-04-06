@@ -75,6 +75,7 @@ import { deriveWorkflowCandidateTiming } from "../runtime/workflow-candidate-tim
 import { deriveWorkflowCandidateRubrics } from "../runtime/workflow-candidate-rubrics";
 import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-promotion";
 import { deriveWorkflowDraftArtifacts } from "../runtime/workflow-draft-artifacts";
+import { deriveH4AuthorityEntryObservation } from "../runtime/h4-live-mic-authority-entry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -177,6 +178,9 @@ export default class ChunkManager {
   private chunkH3NumericStrategyEnabled = new Map<string, boolean>();
   private chunkH3OpenStrategyEnabled = new Map<string, boolean>();
   private chunkH3LatestTailHintText = new Map<string, string>();
+  private chunkH4AuthorityDefaultPath = new Map<string, string>();
+  private chunkH4FallbackInvoked = new Map<string, boolean>();
+  private chunkH4FallbackReason = new Map<string, string>();
   private chunkH3WarmLookup = new Map<
     string,
     {
@@ -2352,6 +2356,34 @@ private getWorkflowCandidatePromotionFields(
     return fields;
   }
 
+  private getH4AuthorityEntryFields(
+    chunkId: string,
+    _eventName: string,
+    overrides: Record<string, any> = {}
+  ) {
+    return deriveH4AuthorityEntryObservation({
+      liveMicActive: overrides.liveMicActive ?? true,
+      streamConnected: overrides.streamConnected ?? (this.stream?.connected?.() ?? false),
+      dictateMode: overrides.dictateMode ?? (this.active?.dictateMode ?? false),
+      forceLegacyCommandLane: overrides.forceLegacyCommandLane ?? FORCE_LEGACY_COMMAND_LANE,
+      h3AuthorityEnabled: overrides.h3AuthorityEnabled ?? this.h3GeometricEnabled,
+      defaultPath:
+        overrides.defaultPath ??
+        this.chunkH4AuthorityDefaultPath?.get(chunkId) ??
+        null,
+      fallbackInvoked:
+        overrides.fallbackInvoked ??
+        this.chunkH4FallbackInvoked?.get(chunkId) ??
+        false,
+      fallbackReason:
+        overrides.fallbackReason ??
+        this.chunkH4FallbackReason?.get(chunkId) ??
+        null,
+      source: overrides.source ?? "microphone",
+    });
+  }
+
+
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
@@ -2561,36 +2593,42 @@ const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionField
           ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
           : overrides.bestCandidateScore ?? null;
     
-const workflowDraftArtifactFields = this.getWorkflowDraftArtifactFields(chunkId, eventName, {
-    promotionEligible:
-      workflowCandidatePromotionFields.workflowCandidatePromotionEligible ?? null,
-    promotionDecision:
-      workflowCandidatePromotionFields.workflowCandidatePromotionDecision ?? null,
-    promotionAutoCreateEligible:
-      workflowCandidatePromotionFields.workflowCandidatePromotionAutoCreateEligible ?? null,
-    promotionAutoSaveEligible:
-      workflowCandidatePromotionFields.workflowCandidatePromotionAutoSaveEligible ?? null,
-    workflowClass:
-      workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass ?? null,
-    patternKey:
-      workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ??
-      workflowSkeletonInferenceFields.workflowSkeletonInferencePatternKey ?? null,
-    canonicalStepSemanticAddressIds:
-      workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
-    confidenceScore:
-      workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
-    utilityScore:
-      workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
-    creationRiskBand:
-      workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
-    timingChannel:
-      workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
-    policyTrustBand:
-      workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
-    familySplitRequired:
-      workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
-});
-emitH3RuntimeEvidence({
+    const h4AuthorityEntryFields = this.getH4AuthorityEntryFields(chunkId, eventName, {
+      source: overrides.source ?? latest?.source ?? "microphone",
+      liveMicActive: true,
+      streamConnected: this.stream?.connected?.() ?? false,
+      dictateMode: this.active?.dictateMode ?? false,
+    });
+    const workflowDraftArtifactFields = this.getWorkflowDraftArtifactFields(chunkId, eventName, {
+      promotionEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionEligible ?? null,
+      promotionDecision:
+        workflowCandidatePromotionFields.workflowCandidatePromotionDecision ?? null,
+      promotionAutoCreateEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionAutoCreateEligible ?? null,
+      promotionAutoSaveEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionAutoSaveEligible ?? null,
+      workflowClass:
+        workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass ?? null,
+      patternKey:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ??
+        workflowSkeletonInferenceFields.workflowSkeletonInferencePatternKey ?? null,
+      canonicalStepSemanticAddressIds:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
+      confidenceScore:
+        workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+      utilityScore:
+        workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+      creationRiskBand:
+        workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+      timingChannel:
+        workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
+      policyTrustBand:
+        workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+      familySplitRequired:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    });
+    emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
       timestampMs: this.relativeChunkNowMs(chunkId),
@@ -3139,6 +3177,34 @@ workflowCandidatePromotionFloor:
   overrides.workflowCandidatePromotionFloor ?? workflowCandidatePromotionFields.workflowCandidatePromotionFloor,
 workflowCandidatePromotionDecisionConfidence:
   overrides.workflowCandidatePromotionDecisionConfidence ?? workflowCandidatePromotionFields.workflowCandidatePromotionDecisionConfidence,
+h4AuthorityEntrySchemaVersion:
+  overrides.h4AuthorityEntrySchemaVersion ?? h4AuthorityEntryFields.h4AuthorityEntrySchemaVersion,
+h4AuthorityEntryPolicyVersion:
+  overrides.h4AuthorityEntryPolicyVersion ?? h4AuthorityEntryFields.h4AuthorityEntryPolicyVersion,
+h4AuthorityEntryEligible:
+  overrides.h4AuthorityEntryEligible ?? h4AuthorityEntryFields.h4AuthorityEntryEligible,
+h4AuthorityEntryLiveMicActive:
+  overrides.h4AuthorityEntryLiveMicActive ?? h4AuthorityEntryFields.h4AuthorityEntryLiveMicActive,
+h4AuthorityEntryCommandLane:
+  overrides.h4AuthorityEntryCommandLane ?? h4AuthorityEntryFields.h4AuthorityEntryCommandLane,
+h4AuthorityEntryDictationMode:
+  overrides.h4AuthorityEntryDictationMode ?? h4AuthorityEntryFields.h4AuthorityEntryDictationMode,
+h4AuthorityEntryDefaultPath:
+  overrides.h4AuthorityEntryDefaultPath ?? h4AuthorityEntryFields.h4AuthorityEntryDefaultPath,
+h4AuthorityEntryAuthoritative:
+  overrides.h4AuthorityEntryAuthoritative ?? h4AuthorityEntryFields.h4AuthorityEntryAuthoritative,
+h4AuthorityEntryFallbackAllowed:
+  overrides.h4AuthorityEntryFallbackAllowed ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackAllowed,
+h4AuthorityEntryFallbackInvoked:
+  overrides.h4AuthorityEntryFallbackInvoked ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackInvoked,
+h4AuthorityEntryFallbackReason:
+  overrides.h4AuthorityEntryFallbackReason ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackReason,
+h4AuthorityEntryStreamConnected:
+  overrides.h4AuthorityEntryStreamConnected ?? h4AuthorityEntryFields.h4AuthorityEntryStreamConnected,
+h4AuthorityEntrySource:
+  overrides.h4AuthorityEntrySource ?? h4AuthorityEntryFields.h4AuthorityEntrySource,
+h4AuthorityEntryReasonCodes:
+  overrides.h4AuthorityEntryReasonCodes ?? h4AuthorityEntryFields.h4AuthorityEntryReasonCodes,
 workflowCandidatePromotionSource:
   overrides.workflowCandidatePromotionSource ?? workflowCandidatePromotionFields.workflowCandidatePromotionSource,
 workflowCandidatePromotionReasonCodes:
@@ -3955,6 +4021,17 @@ workflowLibraryApiReasonCodes:
     chunkId: string,
     finalize: boolean
   ): Promise<void> {
+    this.chunkH4FallbackInvoked.set(chunkId, true);
+    this.chunkH4FallbackReason.set(
+      chunkId,
+      "authoritative_path_failed_to_produce_lawful_final_decision"
+    );
+    this.emitH3Evidence(chunkId, "h4_authority_fallback_invoked", {
+      source: "microphone",
+      reason: "authoritative_path_failed_to_produce_lawful_final_decision",
+      fallbackInvoked: true,
+      fallbackReason: "authoritative_path_failed_to_produce_lawful_final_decision",
+    });
     const frames = this.chunkAudioFrames.get(chunkId) || [];
     for (const frame of frames) {
       this.stream.sendAudioRequest(frame, chunkId);
@@ -4449,11 +4526,29 @@ workflowLibraryApiReasonCodes:
     this.chunkUseParakeetCommandFast.set(id, useParakeetCommandFast);
     this.chunkUseQwen3AsrDictation.set(id, useQwen3Dictation);
     this.chunkUseFasterWhisperDictation.set(id, useFasterWhisperDictation);
+    const h4AuthorityEntry = deriveH4AuthorityEntryObservation({
+      liveMicActive: true,
+      streamConnected: this.stream.connected(),
+      dictateMode: this.active.dictateMode,
+      forceLegacyCommandLane: FORCE_LEGACY_COMMAND_LANE,
+      h3AuthorityEnabled: this.h3GeometricEnabled,
+      source: "microphone",
+    });
+    this.chunkH4AuthorityDefaultPath.set(
+      id,
+      h4AuthorityEntry.h4AuthorityEntryDefaultPath ?? "legacy_fallback"
+    );
+    this.chunkH4FallbackInvoked.set(id, false);
+    this.chunkH4FallbackReason.delete(id);
     this.chunkH3StepIndex.set(id, 0);
     this.chunkH3Route.set(id, "legacy_text");
     this.chunkH3ParameterizedPrefix.delete(id);
     this.chunkH3TailDecodeActive.set(id, false);
     this.chunkH3TailAudioFrames.set(id, []);
+    this.emitH3Evidence(id, "h4_live_mic_authority_entry", {
+      source: "microphone",
+      reason: "live_mic_entry_default_authority_path_selected",
+    });
     this.chunkH3LatestGeometricEvent.delete(id);
     this.chunkH3TailCaptureStartMs.delete(id);
     this.chunkH3NumericStrategyEnabled.delete(id);

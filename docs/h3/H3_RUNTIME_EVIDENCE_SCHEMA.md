@@ -74,8 +74,7 @@ Notes:
 - no antibody gate activation yet
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
-## Stage 3H — Dynamic Precision Regimes
-Stage 3H introduced bounded dynamic precision observational and pilot fields:
+## Stage 3H-S1 dynamic precision observational contract
 - dynamicPrecisionSchemaVersion
 - dynamicPrecisionPolicyVersion
 - dynamicPrecisionEligible
@@ -88,66 +87,198 @@ Stage 3H introduced bounded dynamic precision observational and pilot fields:
 - dynamicPrecisionObservedStressBand
 - dynamicPrecisionSource
 - dynamicPrecisionReasonCodes
+
+Notes:
+- observational contract only
+- no live Turbo/Tight/Ultra switching yet
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+## Stage 3H-S2 bounded escalation trigger pilot
 - dynamicPrecisionEscalationPilotVersion
 - dynamicPrecisionCurrentRegime
 - dynamicPrecisionProposedRegime
 - dynamicPrecisionEscalationSuggested
-- dynamicPrecisionStressBand
+- dynamicPrecisionObservedGuardrailSuggested
+- dynamicPrecisionObservedGuardrailKind
+- dynamicPrecisionFamilyPolicyId
 - dynamicPrecisionHysteresisState
 - dynamicPrecisionTransitionAllowed
 
 Notes:
 - bounded advisory pilot only
-- no live Turbo/Tight/Ultra switching authority
+- ambiguity / repair / guardrail signals may suggest escalation
+- dynamicPrecisionTransitionAllowed remains false in this slice
+- no live Turbo/Tight/Ultra actuation yet
+- no authority change, no H23/H24 bypass, no Stage 3A drift
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
-## Stage 3I — Workflow Memory / Semantic-Address Sequences
-Stage 3I introduced bounded workflow-memory observability, continuity ranking, ordering, reuse, and draft/library preparation surfaces, including:
+## Stage 3H-S3 family-aware regime switching
+- dynamicPrecisionFamilySwitchingVersion
+- dynamicPrecisionTransitionDecision
+- dynamicPrecisionActiveRegime
+- dynamicPrecisionSwitchApplied
+- dynamicPrecisionStrategyProfileId
+
+Notes:
+- bounded upward family-aware switching only
+- structured families may switch turbo -> tight
+- numeric families may switch tight -> ultra
+- open-tail families remain at their governed active regime in this slice
+- de-escalation is deferred until Stage 3H-S4
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache; active regime is runtime-local only in this slice
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+## Stage 3H-S4 hysteresis / de-escalation
+- dynamicPrecisionHysteresisVersion
+- dynamicPrecisionDeescalationEligible
+- dynamicPrecisionDeescalationSuggested
+- dynamicPrecisionStabilityTickCount
+- dynamicPrecisionCooldownTicksRemaining
+
+Notes:
+- bounded hysteresis / de-escalation only
+- structured and numeric families may de-escalate only after steady recovery evidence, cooldown exhaustion, and bounded stability threshold satisfaction
+- open-tail families remain pinned to governed ultra in this slice
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache; hysteresis state is runtime-local only in this slice
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+## Stage 3H schema freeze at closure
+
+Authoritative closure baseline:
+- branch: feature/h3
+- commit: cc385b1
+
+Schema freeze statement:
+- Stage 3H closes with the fields listed above
+- Stage 3H-S5 introduces no additional runtime evidence fields
+- future Dynamic Precision schema expansion must open under a new stage or a new bounded post-closure slice
+
+
+## Stage 3I-S1 workflow memory observational contract
 - workflowMemorySchemaVersion
 - workflowMemoryPolicyVersion
 - workflowMemoryEligible
 - workflowMemoryCurrentSemanticAddressId
 - workflowMemoryPreviousSemanticAddressId
+- workflowMemoryTransitionObserved
 - workflowMemoryTransitionKey
+- workflowMemoryTransitionSeenBefore
+- workflowMemoryTransitionCount
+- workflowMemorySequenceLength
+- workflowMemoryRepeatDetected
+- workflowMemoryRepeatCount
 - workflowMemoryContinuationSuggested
-- workflowMemoryObservedSequenceLength
-- workflowMemoryOccurrenceCount
-- workflowMemoryDistinctRunCount
+- workflowMemoryGovernedStateUpdated
 - workflowMemorySource
 - workflowMemoryReasonCodes
+
+Notes:
+- session-local observational contract only
+- state advances only from governed semantic-address observations
+- no persistence / distributed cache
+- no ranking actuation yet
+- no macro execution
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+## Stage 3I-S2 bounded continuity ranking pilot
 - workflowMemoryRankingVersion
 - workflowMemoryRankingEligible
 - workflowMemoryRankingApplied
 - workflowMemoryRankingBoost
+- workflowMemoryRankingPreviousSemanticAddressId
+- workflowMemoryRankingCandidateSemanticAddressId
+- workflowMemoryRankingMatchedTransitionKey
+- workflowMemoryRankingTransitionCount
+- workflowMemoryRankingSeenBefore
 - workflowMemoryRankingSource
 - workflowMemoryRankingReasonCodes
+
+Notes:
+- bounded advisory continuity-ranking pilot only
+- ranking prior is derived from previously seen governed transitions
+- the pilot currently emits continuity-ranking metadata on best-candidate / semantic-address evidence surfaces
+- no persistence / distributed cache
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3I-S3 continuity-assisted candidate ordering hookup
 - workflowMemoryOrderingVersion
 - workflowMemoryOrderingEligible
 - workflowMemoryOrderingApplied
+- workflowMemoryOrderingBaseScore
 - workflowMemoryOrderingAdjustedScore
+- workflowMemoryOrderingBoost
+- workflowMemoryOrderingPreviousSemanticAddressId
+- workflowMemoryOrderingCandidateSemanticAddressId
+- workflowMemoryOrderingMatchedTransitionKey
+- workflowMemoryOrderingTransitionCount
 - workflowMemoryOrderingSource
 - workflowMemoryOrderingReasonCodes
+
+Notes:
+- bounded advisory continuity-assisted ordering hookup only
+- continuity priors may shape best-candidate ordering score inside governed lookup evidence
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache
+- candidate-pool-wide ordering remains intentionally bounded in this slice
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3I-S4 candidate-pool-wide ordering expansion
 - workflowMemoryCandidatePoolOrderingVersion
 - workflowMemoryCandidatePoolOrderingEligible
 - workflowMemoryCandidatePoolOrderingApplied
+- workflowMemoryCandidatePoolCandidateCountBefore
+- workflowMemoryCandidatePoolCandidateCountAfter
+- workflowMemoryCandidatePoolSemanticAddressIdsBefore
+- workflowMemoryCandidatePoolSemanticAddressIdsAfter
+- workflowMemoryCandidatePoolScoresBefore
+- workflowMemoryCandidatePoolScoresAfter
+- workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore
 - workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+- workflowMemoryCandidatePoolTopCandidateScoreBefore
 - workflowMemoryCandidatePoolTopCandidateScoreAfter
 - workflowMemoryCandidatePoolSource
 - workflowMemoryCandidatePoolReasonCodes
+
+Notes:
+- bounded advisory candidate-pool ordering expansion only
+- candidate-pool ordering may reshape emitted best-candidate identity / score when a previously seen governed transition overtakes the earlier pool leader
+- workflow memory remains session-local only
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache
+- live multi-candidate activation depends on the registry surfacing a candidate pool; when no multi-candidate pool is present these fields remain explicit pass-through / non-applied
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3I-S5 workflow reuse substrate
 - workflowMemoryReuseVersion
 - workflowMemoryReuseEligible
 - workflowMemoryReuseApplied
+- workflowMemoryReusePatternLength
+- workflowMemoryReuseMatchedSequenceSemanticAddressIds
+- workflowMemoryReuseMatchedSequenceKey
+- workflowMemoryReuseSeenBefore
+- workflowMemoryReuseOccurrenceCount
 - workflowMemoryReuseSuggestedNextSemanticAddressId
+- workflowMemoryReuseSuggestedNextCount
 - workflowMemoryReuseSource
 - workflowMemoryReuseReasonCodes
 
 Notes:
-- bounded advisory workflow-memory substrate only
-- no execution authority granted
+- bounded advisory workflow reuse substrate only
+- repeated governed semantic-address sequences may surface a suggested next semantic address prior
+- workflow memory remains session-local only
+- no authority change, no H23/H24 bypass, no Stage 3A drift
+- no persistence / distributed cache
+- no macro execution or hidden action chaining
 - internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
 
-## Stage 3J — Workflow Creation Intelligence
-Stage 3J introduced bounded workflow-creation judgment surfaces:
+
+## Stage 3J-S1 workflow candidate discovery foundations
 - workflowCandidateDiscoverySchemaVersion
 - workflowCandidateDiscoveryPolicyVersion
 - workflowCandidateDiscoveryEligible
@@ -165,6 +296,17 @@ Stage 3J introduced bounded workflow-creation judgment surfaces:
 - workflowCandidateDiscoverySource
 - workflowCandidateDiscoveryReasonCodes
 
+Notes:
+- governed repeated subsequence discovery only
+- session-local observational foundations for workflow candidate emergence
+- no skeleton inference yet
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics or hidden action chaining
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3J-S2 workflow skeleton inference foundations
 - workflowSkeletonInferenceSchemaVersion
 - workflowSkeletonInferencePolicyVersion
 - workflowSkeletonInferenceEligible
@@ -183,6 +325,19 @@ Stage 3J introduced bounded workflow-creation judgment surfaces:
 - workflowSkeletonInferenceSource
 - workflowSkeletonInferenceReasonCodes
 
+Notes:
+- bounded workflow skeleton inference foundations only
+- fixed, variable, and optional step indices are inferred from governed repeated subsequence families
+- inferred slot count is bounded and conservative in this slice
+- family split is surfaced explicitly when abstraction is not yet stable
+- no workflow candidate scoring / risk / promotion yet
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics or hidden action chaining
+- internal surfaces remain type-directed / protobuf-aligned; JSON remains human-facing only
+
+
+## Stage 3J-S3 workflow candidate scoring + risk core
 - workflowCandidateScoringSchemaVersion
 - workflowCandidateScoringPolicyVersion
 - workflowCandidateScoringEligible
@@ -206,96 +361,116 @@ Stage 3J introduced bounded workflow-creation judgment surfaces:
 - workflowCandidateScoringReasonCodes
 - workflowCandidateRiskReasonCodes
 
-- workflowCandidateRubricSchemaVersion
-- workflowCandidateRubricPolicyVersion
-- workflowCandidateRubricEligible
-- workflowCandidateBaselineRubricPassed
-- workflowCandidateClassRubricPassed
-- workflowCandidateUserRubricPassed
-- workflowCandidateTimingRubricPassed
-- workflowCandidateRubricVetoApplied
-- workflowCandidateRubricWorkflowClass
-- workflowCandidateRubricSuggestedSurface
-- workflowCandidateRubricSource
-- workflowCandidateRubricReasonCodes
+Notes:
+- bounded scoring/risk substrate only
+- no rubric framework yet
+- no promotion engine yet
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics
 
-- workflowCandidatePromotionSchemaVersion
-- workflowCandidatePromotionPolicyVersion
-- workflowCandidatePromotionEligible
-- workflowCandidatePromotionDecision
-- workflowCandidatePromotionAutoCreateEligible
-- workflowCandidatePromotionAutoSaveEligible
-- workflowCandidatePromotionCeiling
-- workflowCandidatePromotionFloor
-- workflowCandidatePromotionDecisionConfidence
-- workflowCandidatePromotionSource
-- workflowCandidatePromotionReasonCodes
 
-- workflowCandidatePolicySchemaVersion
-- workflowCandidatePolicyVersion
-- workflowCandidatePolicyEligible
-- workflowCandidatePolicyWorkflowClass
-- workflowCandidatePolicyTrustBand
-- workflowCandidatePolicyTrainingModeActive
-- workflowCandidatePolicyQuietModeEnabled
-- workflowCandidatePolicyInboxOnly
-- workflowCandidatePolicyAutoCreateLowRiskEnabled
-- workflowCandidatePolicyAutoSaveVeryLowRiskEnabled
-- workflowCandidatePolicyClassTrustAllowsAutoCreate
-- workflowCandidatePolicyClassTrustAllowsAutoSave
-- workflowCandidatePolicySource
-- workflowCandidatePolicyReasonCodes
+## Stage 3J-S4 — workflow candidate rubrics and promotion
 
-- workflowCandidateTimingSchemaVersion
-- workflowCandidateTimingPolicyVersion
-- workflowCandidateTimingEligible
-- workflowCandidateTimingChannel
-- workflowCandidateTimingQueuePressureClass
-- workflowCandidateTimingCooldownActive
-- workflowCandidateTimingHoldSuppressed
-- workflowCandidateTimingDigestPreferred
-- workflowCandidateTimingTrainingModeActive
-- workflowCandidateTimingQuietModeEnabled
-- workflowCandidateTimingSource
-- workflowCandidateTimingReasonCodes
+Fields added in 3J-S4:
+- `workflowCandidateRubricSchemaVersion`
+- `workflowCandidateRubricPolicyVersion`
+- `workflowCandidateRubricEligible`
+- `workflowCandidateBaselineRubricPassed`
+- `workflowCandidateClassRubricPassed`
+- `workflowCandidateUserRubricPassed`
+- `workflowCandidateTimingRubricPassed`
+- `workflowCandidateRubricVetoApplied`
+- `workflowCandidateRubricWorkflowClass`
+- `workflowCandidateRubricSuggestedSurface`
+- `workflowCandidateRubricSource`
+- `workflowCandidateRubricReasonCodes`
+- `workflowCandidatePromotionSchemaVersion`
+- `workflowCandidatePromotionPolicyVersion`
+- `workflowCandidatePromotionEligible`
+- `workflowCandidatePromotionDecision`
+- `workflowCandidatePromotionAutoCreateEligible`
+- `workflowCandidatePromotionAutoSaveEligible`
+- `workflowCandidatePromotionCeiling`
+- `workflowCandidatePromotionFloor`
+- `workflowCandidatePromotionDecisionConfidence`
+- `workflowCandidatePromotionSource`
+- `workflowCandidatePromotionReasonCodes`
 
-- workflowDraftArtifactSchemaVersion
-- workflowDraftArtifactVersion
-- workflowDraftArtifactEligible
-- workflowDraftArtifactDraftIdPreview
-- workflowDraftArtifactTitle
-- workflowDraftArtifactSummary
-- workflowDraftArtifactReviewState
-- workflowDraftArtifactAutoCreated
-- workflowDraftArtifactAutoSaved
-- workflowDraftArtifactApprovalRequired
-- workflowDraftArtifactLibraryEligible
-- workflowDraftArtifactShareTemplateEligible
-- workflowDraftArtifactContainsUserSpecificBindings
-- workflowDraftArtifactLifecycleState
-- workflowDraftArtifactSource
-- workflowDraftArtifactReasonCodes
+3J-S4 status:
+- rubric framework core only
+- promotion engine core only
+- no workflow draft creation yet
+- no persistence / distributed cache
+- no execution semantics
+- auto-save remains reserved for later policy shaping
 
-- workflowLibraryApiSchemaVersion
-- workflowLibraryApiVersion
-- workflowLibraryApiEligible
-- workflowLibraryApiCandidateState
-- workflowLibraryApiPersistentDraftEligible
-- workflowLibraryApiApprovedWorkflowPlaceholderId
-- workflowLibraryApiExecutionPolicyRequired
-- workflowLibraryApiExecutableByDefault
-- workflowLibraryApiSource
-- workflowLibraryApiReasonCodes
 
-Stage 3J-S7 adds no new runtime evidence fields.
-Stage 3J is schema-frozen at closure on the green validated baseline:
-- repo: ArqonMaestro
-- branch: feature/h3
-- commit: 36b6d39
+## Stage 3J-S5
 
-Closure notes:
-- workflow creation remains separate from execution
-- draft/library surfaces are preview / API-ready only
-- no persisted storage backend was opened in Stage 3J
-- no execution semantics were introduced
-- any future workflow-creation schema expansion must open under a later stage or explicit post-closure slice
+Added workflow candidate policy and timing evidence fields:
+- `workflowCandidatePolicy*`
+- `workflowCandidateTiming*`
+
+These fields shape rubric and promotion behavior but do not introduce workflow draft creation or execution semantics.
+
+## Stage 3J-S6 — Draft and library API preview fields
+
+This slice adds bounded API-ready workflow draft and library placeholder surfaces only.
+
+Added fields:
+- `workflowDraftArtifactSchemaVersion`
+- `workflowDraftArtifactVersion`
+- `workflowDraftArtifactEligible`
+- `workflowDraftArtifactDraftIdPreview`
+- `workflowDraftArtifactTitle`
+- `workflowDraftArtifactSummary`
+- `workflowDraftArtifactReviewState`
+- `workflowDraftArtifactAutoCreated`
+- `workflowDraftArtifactAutoSaved`
+- `workflowDraftArtifactApprovalRequired`
+- `workflowDraftArtifactLibraryEligible`
+- `workflowDraftArtifactShareTemplateEligible`
+- `workflowDraftArtifactContainsUserSpecificBindings`
+- `workflowDraftArtifactLifecycleState`
+- `workflowDraftArtifactSource`
+- `workflowDraftArtifactReasonCodes`
+- `workflowLibraryApiSchemaVersion`
+- `workflowLibraryApiVersion`
+- `workflowLibraryApiEligible`
+- `workflowLibraryApiCandidateState`
+- `workflowLibraryApiPersistentDraftEligible`
+- `workflowLibraryApiApprovedWorkflowPlaceholderId`
+- `workflowLibraryApiExecutionPolicyRequired`
+- `workflowLibraryApiExecutableByDefault`
+- `workflowLibraryApiSource`
+- `workflowLibraryApiReasonCodes`
+
+Notes:
+- These fields are API-ready artifact previews only in `3J-S6`.
+- No persisted storage backend is introduced in this slice.
+- No workflow execution semantics are introduced in this slice.
+
+
+## H4 — Live Microphone Authority Entry
+
+Stage H4-S2 adds explicit live microphone authority entry evidence fields in `h4_live_mic_entry_integration_v1`:
+- h4AuthorityEntrySchemaVersion
+- h4AuthorityEntryPolicyVersion
+- h4AuthorityEntryEligible
+- h4AuthorityEntryLiveMicActive
+- h4AuthorityEntryCommandLane
+- h4AuthorityEntryDictationMode
+- h4AuthorityEntryDefaultPath
+- h4AuthorityEntryAuthoritative
+- h4AuthorityEntryFallbackAllowed
+- h4AuthorityEntryFallbackInvoked
+- h4AuthorityEntryFallbackReason
+- h4AuthorityEntryStreamConnected
+- h4AuthorityEntrySource
+- h4AuthorityEntryReasonCodes
+
+Notes:
+- These fields make live-mic authority explicit at command-lane entry in development.
+- Fallback is allowed only when the authoritative path fails to produce a lawful final decision.
+- Fallback must remain explicit, logged, and reversible.

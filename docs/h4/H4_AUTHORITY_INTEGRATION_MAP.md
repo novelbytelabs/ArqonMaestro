@@ -129,3 +129,14 @@ The old path remains:
 ## 9. H4-S1 completion statement
 
 H4-S1 is complete when this map is present, explicit, and sufficient for H4-S2 to wire the live microphone into the authority path without ambiguity.
+
+
+## 10. H4-S2 completion statement
+
+H4-S2 makes live microphone authority entry explicit in runtime evidence.
+
+What is now true:
+- live microphone chunk entry emits an explicit H4 authority-entry event
+- default command-lane path selection is explicit in evidence
+- fallback invocation is explicit in evidence when replay-to-endpoint recovery runs
+- no silent fallback is permitted at the live mic entry seam

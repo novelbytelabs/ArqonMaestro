@@ -74,7 +74,7 @@ All H4 work must preserve these rules:
 ## 4. H4 stage status
 
 Overall H4 status:
-`planned / H4-S1 ready`
+`H4-S3 ready`
 
 Immediate top priority:
 `live authoritative command-lane rollout from real microphone input`

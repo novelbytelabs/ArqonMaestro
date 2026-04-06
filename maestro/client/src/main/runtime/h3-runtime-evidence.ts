@@ -420,6 +420,20 @@ export interface H3RuntimeEvidenceEvent {
   workflowLibraryApiExecutableByDefault: boolean | null;
   workflowLibraryApiSource: string | null;
   workflowLibraryApiReasonCodes: string[] | null;
+  h4AuthorityEntrySchemaVersion: string | null;
+  h4AuthorityEntryPolicyVersion: string | null;
+  h4AuthorityEntryEligible: boolean | null;
+  h4AuthorityEntryLiveMicActive: boolean | null;
+  h4AuthorityEntryCommandLane: boolean | null;
+  h4AuthorityEntryDictationMode: boolean | null;
+  h4AuthorityEntryDefaultPath: string | null;
+  h4AuthorityEntryAuthoritative: boolean | null;
+  h4AuthorityEntryFallbackAllowed: boolean | null;
+  h4AuthorityEntryFallbackInvoked: boolean | null;
+  h4AuthorityEntryFallbackReason: string | null;
+  h4AuthorityEntryStreamConnected: boolean | null;
+  h4AuthorityEntrySource: string | null;
+  h4AuthorityEntryReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -1138,6 +1152,34 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.workflowLibraryApiSource ?? null,
     workflowLibraryApiReasonCodes:
       input.workflowLibraryApiReasonCodes ?? null,
+    h4AuthorityEntrySchemaVersion:
+      input.h4AuthorityEntrySchemaVersion ?? null,
+    h4AuthorityEntryPolicyVersion:
+      input.h4AuthorityEntryPolicyVersion ?? null,
+    h4AuthorityEntryEligible:
+      input.h4AuthorityEntryEligible ?? null,
+    h4AuthorityEntryLiveMicActive:
+      input.h4AuthorityEntryLiveMicActive ?? null,
+    h4AuthorityEntryCommandLane:
+      input.h4AuthorityEntryCommandLane ?? null,
+    h4AuthorityEntryDictationMode:
+      input.h4AuthorityEntryDictationMode ?? null,
+    h4AuthorityEntryDefaultPath:
+      input.h4AuthorityEntryDefaultPath ?? null,
+    h4AuthorityEntryAuthoritative:
+      input.h4AuthorityEntryAuthoritative ?? null,
+    h4AuthorityEntryFallbackAllowed:
+      input.h4AuthorityEntryFallbackAllowed ?? null,
+    h4AuthorityEntryFallbackInvoked:
+      input.h4AuthorityEntryFallbackInvoked ?? null,
+    h4AuthorityEntryFallbackReason:
+      input.h4AuthorityEntryFallbackReason ?? null,
+    h4AuthorityEntryStreamConnected:
+      input.h4AuthorityEntryStreamConnected ?? null,
+    h4AuthorityEntrySource:
+      input.h4AuthorityEntrySource ?? null,
+    h4AuthorityEntryReasonCodes:
+      input.h4AuthorityEntryReasonCodes ?? null,
   };
 }
 
