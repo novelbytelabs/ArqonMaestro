@@ -76,6 +76,7 @@ import { deriveWorkflowCandidateRubrics } from "../runtime/workflow-candidate-ru
 import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-promotion";
 import { deriveWorkflowDraftArtifacts } from "../runtime/workflow-draft-artifacts";
 import { deriveH4AuthorityEntryObservation } from "../runtime/h4-live-mic-authority-entry";
+import { deriveH4AuthoritySpineObservation } from "../runtime/h4-command-lane-authority-spine";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -2383,8 +2384,34 @@ private getWorkflowCandidatePromotionFields(
     });
   }
 
+  private getH4AuthoritySpineFields(
+    chunkId: string,
+    eventName: string,
+    overrides: Record<string, any> = {}
+  ) {
+    const entryFields = this.getH4AuthorityEntryFields(chunkId, eventName, overrides);
+    const decision = h23Recorder.getLatestDecision(chunkId);
+    return deriveH4AuthoritySpineObservation({
+      liveMicActive: overrides.liveMicActive ?? true,
+      commandLane: overrides.commandLane ?? entryFields.h4AuthorityEntryCommandLane ?? null,
+      dictateMode: overrides.dictateMode ?? entryFields.h4AuthorityEntryDictationMode ?? null,
+      defaultPath: overrides.defaultPath ?? entryFields.h4AuthorityEntryDefaultPath ?? null,
+      authoritative: overrides.authoritative ?? entryFields.h4AuthorityEntryAuthoritative ?? null,
+      streamConnected: overrides.streamConnected ?? entryFields.h4AuthorityEntryStreamConnected ?? this.stream?.connected?.() ?? null,
+      semanticResultPresent:
+        overrides.semanticResultPresent ??
+        Boolean(overrides.semanticAddressId ?? (decision?.granted ? decision.normalizedTranscript : null)),
+      finalGranted: overrides.finalGranted ?? decision?.granted ?? null,
+      fallbackInvoked: overrides.fallbackInvoked ?? entryFields.h4AuthorityEntryFallbackInvoked ?? null,
+      fallbackReason: overrides.fallbackReason ?? entryFields.h4AuthorityEntryFallbackReason ?? null,
+      sourceEventName: eventName,
+      source: overrides.source ?? "microphone",
+    });
+  }
+
 
   private emitH3Evidence(
+
     chunkId: string,
     eventName: string,
     overrides: Record<string, any> = {}
@@ -2596,8 +2623,15 @@ const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionField
     const h4AuthorityEntryFields = this.getH4AuthorityEntryFields(chunkId, eventName, {
       source: overrides.source ?? latest?.source ?? "microphone",
       liveMicActive: true,
-      streamConnected: this.stream?.connected?.() ?? false,
+      streamConnected: this.stream?.connected?.() ?? true,
       dictateMode: this.active?.dictateMode ?? false,
+    });
+    const h4AuthoritySpineFields = this.getH4AuthoritySpineFields(chunkId, eventName, {
+      source: overrides.source ?? latest?.source ?? "microphone",
+      semanticAddressId: overrides.semanticAddressId ?? null,
+      finalGranted: overrides.finalGranted ?? decision?.granted ?? null,
+      fallbackInvoked: overrides.fallbackInvoked ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackInvoked ?? false,
+      fallbackReason: overrides.fallbackReason ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackReason ?? null,
     });
     const workflowDraftArtifactFields = this.getWorkflowDraftArtifactFields(chunkId, eventName, {
       promotionEligible:
@@ -3205,6 +3239,38 @@ h4AuthorityEntrySource:
   overrides.h4AuthorityEntrySource ?? h4AuthorityEntryFields.h4AuthorityEntrySource,
 h4AuthorityEntryReasonCodes:
   overrides.h4AuthorityEntryReasonCodes ?? h4AuthorityEntryFields.h4AuthorityEntryReasonCodes,
+h4AuthoritySpineSchemaVersion:
+  overrides.h4AuthoritySpineSchemaVersion ?? h4AuthoritySpineFields.h4AuthoritySpineSchemaVersion,
+h4AuthoritySpinePolicyVersion:
+  overrides.h4AuthoritySpinePolicyVersion ?? h4AuthoritySpineFields.h4AuthoritySpinePolicyVersion,
+h4AuthoritySpineEligible:
+  overrides.h4AuthoritySpineEligible ?? h4AuthoritySpineFields.h4AuthoritySpineEligible,
+h4AuthoritySpineLiveMicActive:
+  overrides.h4AuthoritySpineLiveMicActive ?? h4AuthoritySpineFields.h4AuthoritySpineLiveMicActive,
+h4AuthoritySpineCommandLane:
+  overrides.h4AuthoritySpineCommandLane ?? h4AuthoritySpineFields.h4AuthoritySpineCommandLane,
+h4AuthoritySpineDefaultPath:
+  overrides.h4AuthoritySpineDefaultPath ?? h4AuthoritySpineFields.h4AuthoritySpineDefaultPath,
+h4AuthoritySpineAuthoritative:
+  overrides.h4AuthoritySpineAuthoritative ?? h4AuthoritySpineFields.h4AuthoritySpineAuthoritative,
+h4AuthoritySpineCutoverActive:
+  overrides.h4AuthoritySpineCutoverActive ?? h4AuthoritySpineFields.h4AuthoritySpineCutoverActive,
+h4AuthoritySpineDecisionStage:
+  overrides.h4AuthoritySpineDecisionStage ?? h4AuthoritySpineFields.h4AuthoritySpineDecisionStage,
+h4AuthoritySpineSemanticResultPresent:
+  overrides.h4AuthoritySpineSemanticResultPresent ?? h4AuthoritySpineFields.h4AuthoritySpineSemanticResultPresent,
+h4AuthoritySpineLawfulFinalDecision:
+  overrides.h4AuthoritySpineLawfulFinalDecision ?? h4AuthoritySpineFields.h4AuthoritySpineLawfulFinalDecision,
+h4AuthoritySpineFallbackAllowed:
+  overrides.h4AuthoritySpineFallbackAllowed ?? h4AuthoritySpineFields.h4AuthoritySpineFallbackAllowed,
+h4AuthoritySpineFallbackInvoked:
+  overrides.h4AuthoritySpineFallbackInvoked ?? h4AuthoritySpineFields.h4AuthoritySpineFallbackInvoked,
+h4AuthoritySpineFallbackReason:
+  overrides.h4AuthoritySpineFallbackReason ?? h4AuthoritySpineFields.h4AuthoritySpineFallbackReason,
+h4AuthoritySpineSource:
+  overrides.h4AuthoritySpineSource ?? h4AuthoritySpineFields.h4AuthoritySpineSource,
+h4AuthoritySpineReasonCodes:
+  overrides.h4AuthoritySpineReasonCodes ?? h4AuthoritySpineFields.h4AuthoritySpineReasonCodes,
 workflowCandidatePromotionSource:
   overrides.workflowCandidatePromotionSource ?? workflowCandidatePromotionFields.workflowCandidatePromotionSource,
 workflowCandidatePromotionReasonCodes:

@@ -140,3 +140,22 @@ What is now true:
 - default command-lane path selection is explicit in evidence
 - fallback invocation is explicit in evidence when replay-to-endpoint recovery runs
 - no silent fallback is permitted at the live mic entry seam
+
+
+## H4-S3 spine cutover target
+
+H4-S2 made live microphone authority entry explicit at runtime evidence level.
+H4-S3 is the next boundary: the command-lane authority spine itself becomes explicit and primary at the decision stage.
+
+This means the runtime must now record:
+- whether the command lane remained on the H3/3J authority path through the decision stage
+- whether a lawful final decision was produced by the authoritative path
+- whether fallback was invoked because the authority path failed to produce a lawful final decision
+
+The intended primary path remains:
+- live mic ingress
+- command-lane routing
+- H3/3J authority path
+- lawful final decision
+
+Legacy behavior remains fallback only.

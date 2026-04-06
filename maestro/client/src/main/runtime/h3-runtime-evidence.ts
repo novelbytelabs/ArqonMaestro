@@ -434,6 +434,22 @@ export interface H3RuntimeEvidenceEvent {
   h4AuthorityEntryStreamConnected: boolean | null;
   h4AuthorityEntrySource: string | null;
   h4AuthorityEntryReasonCodes: string[] | null;
+  h4AuthoritySpineSchemaVersion: string | null;
+  h4AuthoritySpinePolicyVersion: string | null;
+  h4AuthoritySpineEligible: boolean | null;
+  h4AuthoritySpineLiveMicActive: boolean | null;
+  h4AuthoritySpineCommandLane: boolean | null;
+  h4AuthoritySpineDefaultPath: string | null;
+  h4AuthoritySpineAuthoritative: boolean | null;
+  h4AuthoritySpineCutoverActive: boolean | null;
+  h4AuthoritySpineDecisionStage: string | null;
+  h4AuthoritySpineSemanticResultPresent: boolean | null;
+  h4AuthoritySpineLawfulFinalDecision: boolean | null;
+  h4AuthoritySpineFallbackAllowed: boolean | null;
+  h4AuthoritySpineFallbackInvoked: boolean | null;
+  h4AuthoritySpineFallbackReason: string | null;
+  h4AuthoritySpineSource: string | null;
+  h4AuthoritySpineReasonCodes: string[] | null;
 }
 
 const h3EvidenceDir = path.resolve(process.cwd(), "artifacts/reports/h3_runtime_evidence");
@@ -1180,6 +1196,38 @@ function buildDefaultEvent(input: Partial<H3RuntimeEvidenceEvent>): H3RuntimeEvi
       input.h4AuthorityEntrySource ?? null,
     h4AuthorityEntryReasonCodes:
       input.h4AuthorityEntryReasonCodes ?? null,
+    h4AuthoritySpineSchemaVersion:
+      input.h4AuthoritySpineSchemaVersion ?? null,
+    h4AuthoritySpinePolicyVersion:
+      input.h4AuthoritySpinePolicyVersion ?? null,
+    h4AuthoritySpineEligible:
+      input.h4AuthoritySpineEligible ?? null,
+    h4AuthoritySpineLiveMicActive:
+      input.h4AuthoritySpineLiveMicActive ?? null,
+    h4AuthoritySpineCommandLane:
+      input.h4AuthoritySpineCommandLane ?? null,
+    h4AuthoritySpineDefaultPath:
+      input.h4AuthoritySpineDefaultPath ?? null,
+    h4AuthoritySpineAuthoritative:
+      input.h4AuthoritySpineAuthoritative ?? null,
+    h4AuthoritySpineCutoverActive:
+      input.h4AuthoritySpineCutoverActive ?? null,
+    h4AuthoritySpineDecisionStage:
+      input.h4AuthoritySpineDecisionStage ?? null,
+    h4AuthoritySpineSemanticResultPresent:
+      input.h4AuthoritySpineSemanticResultPresent ?? null,
+    h4AuthoritySpineLawfulFinalDecision:
+      input.h4AuthoritySpineLawfulFinalDecision ?? null,
+    h4AuthoritySpineFallbackAllowed:
+      input.h4AuthoritySpineFallbackAllowed ?? null,
+    h4AuthoritySpineFallbackInvoked:
+      input.h4AuthoritySpineFallbackInvoked ?? null,
+    h4AuthoritySpineFallbackReason:
+      input.h4AuthoritySpineFallbackReason ?? null,
+    h4AuthoritySpineSource:
+      input.h4AuthoritySpineSource ?? null,
+    h4AuthoritySpineReasonCodes:
+      input.h4AuthoritySpineReasonCodes ?? null,
   };
 }
 

@@ -79,6 +79,9 @@ Overall H4 status:
 Immediate top priority:
 `live authoritative command-lane rollout from real microphone input`
 
+Current implemented slice baseline:
+`H4-S2 green on feature/h4`
+
 ---
 
 ## 5. H4 rollout sequence

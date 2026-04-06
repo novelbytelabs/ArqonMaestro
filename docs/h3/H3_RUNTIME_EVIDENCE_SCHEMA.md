@@ -474,3 +474,27 @@ Notes:
 - These fields make live-mic authority explicit at command-lane entry in development.
 - Fallback is allowed only when the authoritative path fails to produce a lawful final decision.
 - Fallback must remain explicit, logged, and reversible.
+
+
+## H4 authority spine fields
+
+The H4-S3 slice adds bounded command-lane authority-spine evidence fields:
+
+- `h4AuthoritySpineSchemaVersion`
+- `h4AuthoritySpinePolicyVersion`
+- `h4AuthoritySpineEligible`
+- `h4AuthoritySpineLiveMicActive`
+- `h4AuthoritySpineCommandLane`
+- `h4AuthoritySpineDefaultPath`
+- `h4AuthoritySpineAuthoritative`
+- `h4AuthoritySpineCutoverActive`
+- `h4AuthoritySpineDecisionStage`
+- `h4AuthoritySpineSemanticResultPresent`
+- `h4AuthoritySpineLawfulFinalDecision`
+- `h4AuthoritySpineFallbackAllowed`
+- `h4AuthoritySpineFallbackInvoked`
+- `h4AuthoritySpineFallbackReason`
+- `h4AuthoritySpineSource`
+- `h4AuthoritySpineReasonCodes`
+
+These fields are bounded runtime observability surfaces only. They do not introduce execution semantics.
