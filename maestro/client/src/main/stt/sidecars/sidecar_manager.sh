@@ -17,7 +17,7 @@ set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISOLATED_ENV="${MAESTRO_QWEN3_SIDECAR_ENV:-helios-gpu-118}"
+ISOLATED_ENV="${MAESTRO_QWEN3_SIDECAR_ENV:-helios-asr-isolated}"
 PARAKEET_PORT=5001
 QWEN3_PORT=5002
 if [ -n "${MAESTRO_PARAKEET_MODEL_PATH:-}" ]; then

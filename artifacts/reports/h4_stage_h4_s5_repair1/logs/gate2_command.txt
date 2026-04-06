@@ -1,0 +1,34 @@
+cd maestro/client && npx jest --config jest.config.js --runInBand \
+  src/test/audio/h4-broad-runtime-authority.unit.spec.ts \
+  src/test/audio/chunk-manager-h4-broad-runtime-authority.unit.spec.ts \
+  src/test/audio/h4-command-lane-authority-spine.unit.spec.ts \
+  src/test/audio/chunk-manager-h4-command-lane-authority-spine.unit.spec.ts \
+  src/test/audio/h4-live-mic-authority-entry.unit.spec.ts \
+  src/test/audio/chunk-manager-h4-live-mic-authority-entry.unit.spec.ts \
+  src/test/audio/workflow-draft-artifacts.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-draft-artifacts.unit.spec.ts \
+  src/test/audio/workflow-candidate-policy-timing.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-candidate-policy-timing.unit.spec.ts \
+  src/test/audio/workflow-candidate-rubrics.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-candidate-promotion.unit.spec.ts \
+  src/test/audio/workflow-candidate-scoring.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-candidate-scoring.unit.spec.ts \
+  src/test/audio/workflow-skeleton-inference.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-skeleton-inference.unit.spec.ts \
+  src/test/audio/workflow-candidate-discovery.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-candidate-discovery.unit.spec.ts \
+  src/test/audio/workflow-memory-observation.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-workflow-memory.unit.spec.ts \
+  src/test/audio/dynamic-precision-regimes.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-dynamic-precision.unit.spec.ts \
+  src/test/audio/counterfactual-repair-intelligence.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-counterfactual-repair.unit.spec.ts \
+  src/test/audio/multi-resolution-atlas.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-multi-resolution-atlas.unit.spec.ts \
+  src/test/audio/policy-shaped-atlas-shards.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-atlas-shard.unit.spec.ts \
+  src/test/audio/focus-conditioned-command-context.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-focus-context.unit.spec.ts \
+  src/test/audio/voice-semantic-address-registry.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-numeric-tail.unit.spec.ts \
+  src/test/audio/chunk-manager-h3-open-tail.unit.spec.ts

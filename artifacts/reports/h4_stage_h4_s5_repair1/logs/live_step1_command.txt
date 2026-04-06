@@ -1,0 +1,1 @@
+cd maestro/client/src/main/stt/sidecars && ./sidecar_manager.sh preflight parakeet
