@@ -1,0 +1,14 @@
+[0;31m============================================================[0m
+[0;31mFATAL: Parakeet sidecar is NOT ready (127.0.0.1:5001/ready failed)[0m
+[0;31mRefusing to start ArqonMaestro with local endpoint.[0m
+[0;31m============================================================[0m
+[0;31m[0m
+[0;31mStart and warmup Parakeet sidecar first:[0m
+[0;31m  cd /home/irbsurfer/Projects/arqon/ArqonMaestro/maestro/client/src/main/stt/sidecars[0m
+[0;31m  ./sidecar_manager.sh start parakeet[0m
+[0;31m  ./sidecar_manager.sh warmup parakeet[0m
+[0;31m[0m
+[0;31mThen retry: ./scripts/run_client.sh[0m
+[0;31m[0m
+[1;33mEmergency bypass (not recommended):[0m
+[1;33m  MAESTRO_SKIP_PARAKEET_SIDECAR_PREFLIGHT=1 ./scripts/run_client.sh[0m

@@ -38,6 +38,7 @@ import ParakeetCommandFastProvider, {
   GeometricRegionEvent,
   ParakeetStreamSession,
 } from "../stt/parakeet-command-fast-provider";
+import GeometricStreamProvider, { GeometricStreamSession } from "../stt/geometric-stream-provider";
 import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-provider";
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 import GeometricRoutingService from "./geometric-routing-service";
@@ -84,6 +85,7 @@ import {
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 import { deriveH4ParameterizedCommandResolution } from "../runtime/h4-parameter-resolution";
+import { deriveH4GeometricOnlyCommandResolution } from "../runtime/h4-geometric-only-command-resolution";
 
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
 const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
@@ -182,6 +184,7 @@ export default class ChunkManager {
   private transcriptResponseObserver: TranscriptResponseObserver;
   private whisperCommandFastProvider: WhisperCommandFastProvider;
   private parakeetCommandFastProvider: ParakeetCommandFastProvider;
+  private geometricStreamProvider: GeometricStreamProvider;
   private fasterWhisperDictationProvider: FasterWhisperDictationProvider;
   private qwen3AsrDictationProvider: Qwen3ASRDictationProvider;
   private chunkAudioFrames = new Map<string, Buffer[]>();
@@ -190,6 +193,7 @@ export default class ChunkManager {
   private chunkUseQwen3AsrDictation = new Map<string, boolean>();
   private chunkUseParakeetCommandFast = new Map<string, boolean>();
   private chunkParakeetStream = new Map<string, ParakeetStreamSession>();
+  private chunkGeometricStream = new Map<string, GeometricStreamSession>();
   private chunkFinalizationRequested = new Set<string>();
   private chunkFinalizeWatchdogs = new Map<string, ReturnType<typeof setTimeout>>();
   private chunkTranscriptionInFlight = new Set<string>();
@@ -370,6 +374,7 @@ export default class ChunkManager {
       sidecarUrl: this.settings.getArqonAsrParakeetCommandUrl(),
       timeoutMs: this.settings.getArqonAsrSidecarTimeoutMs(),
     }, log);
+    this.geometricStreamProvider = new GeometricStreamProvider({}, log);
     this.qwen3AsrDictationProvider = new Qwen3ASRDictationProvider({
       sidecarMode: this.settings.getArqonAsrQwen3Mode(),
       sidecarUrl: this.settings.getArqonAsrQwen3DictationUrl(),
@@ -3641,6 +3646,12 @@ workflowLibraryApiReasonCodes:
       await this.stream.sendInitializeRequest();
       await this.stopBufferingAndFlush();
     } else if (request.requestType == "audio") {
+      if (request.chunkId) {
+        const geometricStream = this.chunkGeometricStream.get(request.chunkId);
+        if (geometricStream && request.audio) {
+          geometricStream.sendAudio(request.audio);
+        }
+      }
       // Parakeet takes precedence over whisper for command lane
       if (request.chunkId && this.chunkUseParakeetCommandFast.get(request.chunkId)) {
         const stream = this.chunkParakeetStream.get(request.chunkId);
@@ -3663,6 +3674,15 @@ workflowLibraryApiReasonCodes:
     } else if (request.requestType == "editor") {
       await this.stream.sendEditorStateRequest();
     } else if (request.requestType == "endpoint") {
+      if (request.chunkId && this.chunkGeometricStream.has(request.chunkId)) {
+        if (request.finalize) {
+          const handled = await this.handleGeometricFinalize(request.chunkId);
+          if (!handled) {
+            await this.replayBufferedAudioAndFallbackToEndpoint(request.chunkId, request.finalize!);
+          }
+        }
+        return;
+      }
       // Parakeet takes precedence over whisper for command lane
       if (request.chunkId && this.chunkUseParakeetCommandFast.get(request.chunkId)) {
         if (request.finalize) {
@@ -3965,6 +3985,79 @@ workflowLibraryApiReasonCodes:
       }
       this.chunkParakeetStream.delete(chunkId);
       this.chunkTranscriptionInFlight.delete(chunkId);
+    }
+  }
+
+  private async tryHandleH3GeometricOnlyFinalize(chunkId: string): Promise<boolean> {
+    if (!this.h3GeometricEnabled) {
+      return false;
+    }
+    if (this.chunkH3Route.get(chunkId) !== "geometric_only") {
+      return false;
+    }
+
+    const latestEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
+    const resolution = deriveH4GeometricOnlyCommandResolution({
+      regionId: latestEvent?.regionId ?? null,
+      commandClass: latestEvent?.commandClass ?? null,
+      source: "geometric_sidecar",
+    });
+
+    if (!resolution.h4GeometricOnlyResolutionEligible || !resolution.h4GeometricOnlyResolutionCanonicalCommandText) {
+      this.emitH3Evidence(chunkId, "geometric_only_command_rejected", {
+        source: "microphone",
+        reason: resolution.h4GeometricOnlyResolutionReasonCodes.join("|"),
+        regionId: latestEvent?.regionId ?? undefined,
+        commandClass: latestEvent?.commandClass ?? undefined,
+      });
+      return false;
+    }
+
+    const resolvedCommandText = resolution.h4GeometricOnlyResolutionCanonicalCommandText;
+    const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
+    h23Recorder.recordFinal(chunkId, resolvedCommandText, h23StepIndex, 0.98);
+    this.emitH3Evidence(chunkId, "geometric_only_command_resolved", {
+      source: "microphone",
+      regionId: latestEvent?.regionId ?? undefined,
+      commandClass: latestEvent?.commandClass ?? undefined,
+      mergedText: resolvedCommandText,
+      reason: resolution.h4GeometricOnlyResolutionReasonCodes.join("|"),
+    });
+    await this.stream.sendTextRequest(resolvedCommandText, true, chunkId);
+    return true;
+  }
+
+  private async handleGeometricFinalize(chunkId: string): Promise<boolean> {
+    const stream = this.chunkGeometricStream.get(chunkId);
+    if (!stream) {
+      this.log.logVerbose(`[Chunk] geometric stream not found for ${chunkId}`);
+      return false;
+    }
+
+    try {
+      const finalEvent = await stream.finalize();
+      if (finalEvent) {
+        this.observeH3GeometricEvent(chunkId, finalEvent, true);
+      }
+
+      const geometricOnlyHandled = await this.tryHandleH3GeometricOnlyFinalize(chunkId);
+      if (geometricOnlyHandled) {
+        return true;
+      }
+
+      const parameterizedHandled = await this.tryHandleH3ParameterizedTailFinalize(chunkId);
+      if (parameterizedHandled) {
+        return true;
+      }
+
+      return false;
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      this.log.logVerbose(`[Chunk] geometric finalize failed: ${errorMsg}`);
+      return false;
+    } finally {
+      stream.cancel();
+      this.chunkGeometricStream.delete(chunkId);
     }
   }
 
@@ -4539,6 +4632,8 @@ workflowLibraryApiReasonCodes:
       voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
+      this.chunkGeometricStream.get(chunk.id)?.cancel();
+      this.chunkGeometricStream.delete(chunk.id);
       this.chunkFinalizationRequested.delete(chunk.id);
       this.clearFinalizeWatchdog(chunk.id);
       this.chunkTranscriptionInFlight.delete(chunk.id);
@@ -4749,7 +4844,8 @@ workflowLibraryApiReasonCodes:
     // Reset audio sequence number for new chunk
     this.audioSequenceNumber = 0;
     const useWhisperCommandFast = this.shouldUseWhisperForCurrentChunk();
-    const useParakeetCommandFast = this.shouldUseParakeetForCurrentChunk();
+    const useStandaloneGeometric = this.h3GeometricEnabled && this.geometricStreamProvider.isReady() && !this.active.dictateMode;
+    const useParakeetCommandFast = this.shouldUseParakeetForCurrentChunk() && !useStandaloneGeometric;
     const useQwen3Dictation = this.shouldUseQwen3ForCurrentChunk();
     const useFasterWhisperDictation = !useQwen3Dictation && this.shouldUseFasterWhisperForCurrentChunk();
     this.chunkUseWhisperCommandFast.set(id, useWhisperCommandFast);
@@ -4800,6 +4896,17 @@ workflowLibraryApiReasonCodes:
         chunkId: id,
         stage: "chunk_started",
       });
+    }
+
+    if (useStandaloneGeometric) {
+      try {
+        const geometricStream = this.geometricStreamProvider.createStream(id, (geometricEvent) => {
+          this.observeH3GeometricEvent(id, geometricEvent, false);
+        });
+        this.chunkGeometricStream.set(id, geometricStream);
+      } catch (err) {
+        this.log.logVerbose(`Failed to start geometric WS stream: ${err}`);
+      }
     }
 
     if (useParakeetCommandFast && this.parakeetCommandFastProvider.isStreamingSupported()) {
@@ -4894,6 +5001,8 @@ workflowLibraryApiReasonCodes:
     this.chunkH3LatestTailHintText.clear();
     this.chunkParakeetStream.forEach((stream) => stream.cancel());
     this.chunkParakeetStream.clear();
+    this.chunkGeometricStream.forEach((stream) => stream.cancel());
+    this.chunkGeometricStream.clear();
     this.chunkFinalizationRequested.clear();
     this.chunkFinalizeWatchdogs.forEach((timer) => clearTimeout(timer));
     this.chunkFinalizeWatchdogs.clear();

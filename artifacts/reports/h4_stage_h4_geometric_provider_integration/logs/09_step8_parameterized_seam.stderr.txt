@@ -1,0 +1,10 @@
+PASS src/test/audio/chunk-manager-h4-geometric-provider-integration.unit.spec.ts
+  ChunkManager H4 geometric provider integration
+    ✓ lets parameterized route continue to the tail resolver (152 ms)
+    ○ skipped resolves geometric_only commands without Parakeet finalize
+
+Test Suites: 1 passed, 1 total
+Tests:       1 skipped, 1 passed, 2 total
+Snapshots:   0 total
+Time:        4.039 s
+Ran all test suites matching /src\/test\/audio\/chunk-manager-h4-geometric-provider-integration.unit.spec.ts/i with tests matching "parameterized route continue to the tail resolver".
