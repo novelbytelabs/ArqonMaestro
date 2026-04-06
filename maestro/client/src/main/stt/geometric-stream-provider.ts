@@ -139,6 +139,9 @@ export default class GeometricStreamProvider {
         }
       });
     });
+    // Attach a no-op handler immediately so connection errors do not surface
+    // as unhandled rejections before finalize() awaits the promise.
+    finalizePromise.catch(() => undefined);
 
     return {
       sendAudio: (audio: Buffer) => {

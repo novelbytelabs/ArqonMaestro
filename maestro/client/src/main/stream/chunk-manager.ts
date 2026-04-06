@@ -3678,7 +3678,10 @@ workflowLibraryApiReasonCodes:
         if (request.finalize) {
           const handled = await this.handleGeometricFinalize(request.chunkId);
           if (!handled) {
-            await this.replayBufferedAudioAndFallbackToEndpoint(request.chunkId, request.finalize!);
+            this.handleGeometricAuthorityHardFailure(
+              request.chunkId,
+              "authoritative_path_failed_to_produce_lawful_final_decision"
+            );
           }
         }
         return;
@@ -4059,6 +4062,35 @@ workflowLibraryApiReasonCodes:
       stream.cancel();
       this.chunkGeometricStream.delete(chunkId);
     }
+  }
+
+  private handleGeometricAuthorityHardFailure(chunkId: string, reason: string): void {
+    const route = this.chunkH3Route.get(chunkId) ?? "legacy_text";
+    const authorityPath = this.chunkH4AuthorityDefaultPath.get(chunkId) ?? "unknown";
+    const timestampMs = Date.now();
+    this.chunkH4FallbackInvoked.set(chunkId, false);
+    this.chunkH4FallbackReason.set(chunkId, reason);
+    const hardFailureMessage =
+      `[H4_GEOMETRIC_HARD_FAILURE] ts=${timestampMs} chunk=${chunkId} route=${route} ` +
+      `authority=${authorityPath} reason=${reason} fail_closed=true`;
+    this.log.logVerbose(hardFailureMessage);
+    console.error(hardFailureMessage);
+    this.tracking.logMetric("stt.command_lane.geometric.hard_failure", {
+      chunk_id: chunkId,
+      reason,
+      route,
+      authority_path: authorityPath,
+      fail_closed: true,
+      timestamp_ms: timestampMs,
+    });
+    this.emitH3Evidence(chunkId, "h4_authority_hard_failure", {
+      source: "microphone",
+      reason,
+      routeBefore: route,
+      routeAfter: route,
+      fallbackInvoked: false,
+      fallbackReason: reason,
+    });
   }
 
   private async finalizeParakeetStreamWithSingleRetry(
@@ -4845,7 +4877,10 @@ workflowLibraryApiReasonCodes:
     this.audioSequenceNumber = 0;
     const useWhisperCommandFast = this.shouldUseWhisperForCurrentChunk();
     const useStandaloneGeometric = this.h3GeometricEnabled && this.geometricStreamProvider.isReady() && !this.active.dictateMode;
-    const useParakeetCommandFast = this.shouldUseParakeetForCurrentChunk() && !useStandaloneGeometric;
+    const failClosedGeometricCommandLane = this.h3GeometricEnabled && !this.active.dictateMode;
+    const useParakeetCommandFast = this.shouldUseParakeetForCurrentChunk() &&
+      !useStandaloneGeometric &&
+      !failClosedGeometricCommandLane;
     const useQwen3Dictation = this.shouldUseQwen3ForCurrentChunk();
     const useFasterWhisperDictation = !useQwen3Dictation && this.shouldUseFasterWhisperForCurrentChunk();
     this.chunkUseWhisperCommandFast.set(id, useWhisperCommandFast);
@@ -4906,7 +4941,16 @@ workflowLibraryApiReasonCodes:
         this.chunkGeometricStream.set(id, geometricStream);
       } catch (err) {
         this.log.logVerbose(`Failed to start geometric WS stream: ${err}`);
+        this.handleGeometricAuthorityHardFailure(
+          id,
+          `geometric_stream_start_failed:${err instanceof Error ? err.message : String(err)}`
+        );
       }
+    } else if (failClosedGeometricCommandLane) {
+      this.handleGeometricAuthorityHardFailure(
+        id,
+        "geometric_stream_not_ready_fail_closed_command_lane"
+      );
     }
 
     if (useParakeetCommandFast && this.parakeetCommandFastProvider.isStreamingSupported()) {
