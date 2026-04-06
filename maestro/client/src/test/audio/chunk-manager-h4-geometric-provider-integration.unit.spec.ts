@@ -56,11 +56,11 @@ describe("ChunkManager H4 geometric provider integration", () => {
     return { ChunkManager, manager, h23Recorder, streamSession };
   }
 
-  it("resolves geometric_only commands without Parakeet finalize", async () => {
+  it("resolves allowlisted geometric_only commands without Parakeet finalize", async () => {
     const latestEvent = {
       source: "spectral_manifold",
-      regionId: "pause",
-      commandClass: "reflex",
+      regionId: "focus chrome",
+      commandClass: "closed_structure",
       parameterType: null,
       atlasVersion: "v1",
       atlasSchema: "h3_command_atlas_v1",
@@ -74,7 +74,7 @@ describe("ChunkManager H4 geometric provider integration", () => {
 
     expect(handled).toBe(true);
     expect(streamSession.finalize).toHaveBeenCalled();
-    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("pause", true, "chunk-1");
+    expect(manager.stream.sendTextRequest).toHaveBeenCalledWith("focus chrome", true, "chunk-1");
   });
 
   it("lets parameterized route continue to the tail resolver", async () => {
