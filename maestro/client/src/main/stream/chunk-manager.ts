@@ -93,6 +93,10 @@ const FORCE_LEGACY_COMMAND_LANE = process.env.MAESTRO_FORCE_LEGACY_COMMAND_LANE 
 const ENABLE_FASTER_WHISPER_DICTATION_FALLBACK =
   process.env.MAESTRO_ENABLE_FASTER_WHISPER_DICTATION_FALLBACK === "1";
 const H3_GEOMETRIC_ENABLED = process.env.H3_GEOMETRIC_ENABLED !== "false";
+const H3_GEOMETRIC_CHUNK_CARRYOVER_FRAMES = Math.max(
+  0,
+  Number.parseInt(process.env.MAESTRO_H3_GEOMETRIC_CHUNK_CARRYOVER_FRAMES || "6", 10) || 0
+);
 
 type DictationProviderPreference = "qwen3" | "legacy" | "faster_whisper";
 
@@ -225,6 +229,8 @@ export default class ChunkManager {
   private chunkH4AuthorityDefaultPath = new Map<string, string>();
   private chunkH4FallbackInvoked = new Map<string, boolean>();
   private chunkH4FallbackReason = new Map<string, string>();
+  private chunkH4LastGeometricRejectReason = new Map<string, string>();
+  private pendingGeometricCarryoverFrames: Buffer[] = [];
   private chunkH3WarmLookup = new Map<
     string,
     {
@@ -4039,8 +4045,14 @@ workflowLibraryApiReasonCodes:
 
     try {
       const finalEvent = await stream.finalize();
+      this.chunkH4LastGeometricRejectReason.delete(chunkId);
       if (finalEvent) {
         this.observeH3GeometricEvent(chunkId, finalEvent, true);
+      } else {
+        const rejectReason = stream.getLastRejectReason();
+        if (rejectReason) {
+          this.chunkH4LastGeometricRejectReason.set(chunkId, rejectReason);
+        }
       }
 
       const geometricOnlyHandled = await this.tryHandleH3GeometricOnlyFinalize(chunkId);
@@ -4057,6 +4069,7 @@ workflowLibraryApiReasonCodes:
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.log.logVerbose(`[Chunk] geometric finalize failed: ${errorMsg}`);
+      this.chunkH4LastGeometricRejectReason.set(chunkId, `geometric_finalize_error:${errorMsg}`);
       return false;
     } finally {
       stream.cancel();
@@ -4070,27 +4083,66 @@ workflowLibraryApiReasonCodes:
     const timestampMs = Date.now();
     this.chunkH4FallbackInvoked.set(chunkId, false);
     this.chunkH4FallbackReason.set(chunkId, reason);
+    const geometricRejectReason = this.chunkH4LastGeometricRejectReason.get(chunkId);
+    const reasonWithReject = geometricRejectReason
+      ? `${reason};geometric_reject=${geometricRejectReason}`
+      : reason;
     const hardFailureMessage =
       `[H4_GEOMETRIC_HARD_FAILURE] ts=${timestampMs} chunk=${chunkId} route=${route} ` +
-      `authority=${authorityPath} reason=${reason} fail_closed=true`;
+      `authority=${authorityPath} reason=${reasonWithReject} fail_closed=true`;
     this.log.logVerbose(hardFailureMessage);
     console.error(hardFailureMessage);
     this.tracking.logMetric("stt.command_lane.geometric.hard_failure", {
       chunk_id: chunkId,
-      reason,
+      reason: reasonWithReject,
       route,
       authority_path: authorityPath,
       fail_closed: true,
       timestamp_ms: timestampMs,
+      geometric_reject_reason: geometricRejectReason || undefined,
     });
     this.emitH3Evidence(chunkId, "h4_authority_hard_failure", {
       source: "microphone",
-      reason,
+      reason: reasonWithReject,
       routeBefore: route,
       routeAfter: route,
       fallbackInvoked: false,
       fallbackReason: reason,
     });
+  }
+
+  private captureChunkEndCarryover(chunkId: string): void {
+    if (!this.h3GeometricEnabled || H3_GEOMETRIC_CHUNK_CARRYOVER_FRAMES <= 0) {
+      this.pendingGeometricCarryoverFrames = [];
+      return;
+    }
+    const frames = this.chunkAudioFrames.get(chunkId) || [];
+    if (frames.length === 0) {
+      this.pendingGeometricCarryoverFrames = [];
+      return;
+    }
+    const carryoverCount = Math.min(H3_GEOMETRIC_CHUNK_CARRYOVER_FRAMES, frames.length);
+    this.pendingGeometricCarryoverFrames = frames.slice(frames.length - carryoverCount);
+    this.log.logVerbose(
+      `[Chunk][H3] carryover captured chunk=${chunkId} frames=${this.pendingGeometricCarryoverFrames.length}`
+    );
+  }
+
+  private applyGeometricCarryoverToChunk(chunkId: string): void {
+    if (!this.h3GeometricEnabled || this.active.dictateMode || this.pendingGeometricCarryoverFrames.length === 0) {
+      return;
+    }
+    const stream = this.chunkGeometricStream.get(chunkId);
+    if (!stream) {
+      return;
+    }
+    for (const frame of this.pendingGeometricCarryoverFrames) {
+      stream.sendAudio(frame);
+    }
+    this.log.logVerbose(
+      `[Chunk][H3] carryover applied chunk=${chunkId} frames=${this.pendingGeometricCarryoverFrames.length}`
+    );
+    this.pendingGeometricCarryoverFrames = [];
   }
 
   private async finalizeParakeetStreamWithSingleRetry(
@@ -4661,6 +4713,7 @@ workflowLibraryApiReasonCodes:
       this.chunkH3WarmLookup?.delete(chunk.id);
       this.chunkH3FocusContextEnvelope.delete(chunk.id);
       this.chunkH3AtlasShardHint.delete(chunk.id);
+      this.chunkH4LastGeometricRejectReason.delete(chunk.id);
       voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
@@ -4829,6 +4882,7 @@ workflowLibraryApiReasonCodes:
     }
 
     this.log.logVerbose(`Chunk end for ${current.id}`);
+    this.captureChunkEndCarryover(current.id);
     
     this.sttShadowPublisher.publishEndpointRequest(true, "force_final");
     
@@ -4901,6 +4955,7 @@ workflowLibraryApiReasonCodes:
     );
     this.chunkH4FallbackInvoked.set(id, false);
     this.chunkH4FallbackReason.delete(id);
+    this.chunkH4LastGeometricRejectReason.delete(id);
     this.chunkH3StepIndex.set(id, 0);
     this.chunkH3Route.set(id, "legacy_text");
     this.chunkH3ParameterizedPrefix.delete(id);
@@ -4939,6 +4994,7 @@ workflowLibraryApiReasonCodes:
           this.observeH3GeometricEvent(id, geometricEvent, false);
         });
         this.chunkGeometricStream.set(id, geometricStream);
+        this.applyGeometricCarryoverToChunk(id);
       } catch (err) {
         this.log.logVerbose(`Failed to start geometric WS stream: ${err}`);
         this.handleGeometricAuthorityHardFailure(
@@ -5043,6 +5099,8 @@ workflowLibraryApiReasonCodes:
     this.chunkH3NumericStrategyEnabled.clear();
     this.chunkH3OpenStrategyEnabled.clear();
     this.chunkH3LatestTailHintText.clear();
+    this.chunkH4LastGeometricRejectReason.clear();
+    this.pendingGeometricCarryoverFrames = [];
     this.chunkParakeetStream.forEach((stream) => stream.cancel());
     this.chunkParakeetStream.clear();
     this.chunkGeometricStream.forEach((stream) => stream.cancel());

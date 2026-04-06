@@ -11,6 +11,7 @@ export interface GeometricStreamProviderConfig {
 export interface GeometricStreamSession {
   sendAudio(audio: Buffer): void;
   finalize(): Promise<GeometricRegionEvent | null>;
+  getLastRejectReason(): string | null;
   cancel(): void;
 }
 
@@ -18,6 +19,10 @@ interface GeometricSidecarResponse {
   ok: boolean;
   is_final?: boolean;
   geometric_event?: GeometricRegionEvent | null;
+  geometric_reject?: {
+    reason?: string;
+    [key: string]: unknown;
+  } | null;
   error?: string;
 }
 
@@ -78,6 +83,7 @@ export default class GeometricStreamProvider {
     let settled = false;
     let canceled = false;
     let latestEvent: GeometricRegionEvent | null = null;
+    let lastRejectReason: string | null = null;
     let initTimeout: ReturnType<typeof setTimeout> | undefined;
 
     const finalizePromise = new Promise<GeometricRegionEvent | null>((resolve, reject) => {
@@ -116,6 +122,9 @@ export default class GeometricStreamProvider {
           if (response.geometric_event) {
             latestEvent = response.geometric_event;
             onGeometricEvent?.(response.geometric_event);
+          }
+          if (response.is_final && response.geometric_reject?.reason) {
+            lastRejectReason = String(response.geometric_reject.reason);
           }
           if (response.is_final) {
             settleResolve(latestEvent);
@@ -158,6 +167,7 @@ export default class GeometricStreamProvider {
         }
         return finalizePromise;
       },
+      getLastRejectReason: () => lastRejectReason,
       cancel: () => {
         if (!settled) {
           canceled = true;

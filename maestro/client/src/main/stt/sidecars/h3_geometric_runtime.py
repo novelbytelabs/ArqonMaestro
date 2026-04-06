@@ -95,6 +95,8 @@ class H3GeometricDetector:
         self.atlas_version = "unknown"
         self.bootstrap_mode = False
         self._bootstrap_validated_region_warning_emitted = False
+        self.trace_rejections = os.getenv("MAESTRO_H3_GEOMETRIC_TRACE_REJECTIONS", "0") == "1"
+        self.last_reject_payload: Optional[Dict[str, Any]] = None
         if not self.enabled:
             return
 
@@ -137,6 +139,28 @@ class H3GeometricDetector:
             self.error = str(exc)
             self.ready = False
             logger.warning("[H3] geometric detector unavailable: %s", self.error)
+
+    def _activation_threshold_for(self, meta: Dict[str, Any]) -> float:
+        raw = os.getenv("MAESTRO_H3_GEOMETRIC_ACTIVATION_THRESHOLD_OVERRIDE", "").strip()
+        if raw:
+            try:
+                value = float(raw)
+                return max(0.0, min(1.0, value))
+            except ValueError:
+                if self.trace_rejections:
+                    logger.warning("[H3] invalid MAESTRO_H3_GEOMETRIC_ACTIVATION_THRESHOLD_OVERRIDE=%s", raw)
+        return float(meta.get("activation_threshold", 0.12))
+
+    def _trace_reject(self, reason: str, **fields: Any) -> None:
+        self.last_reject_payload = {"reason": reason, **fields}
+        if not self.trace_rejections:
+            return
+        logger.info("[H3_GEOMETRIC_REJECT] %s", json.dumps(self.last_reject_payload, separators=(",", ":")))
+
+    def consume_last_reject_payload(self) -> Optional[Dict[str, Any]]:
+        payload = self.last_reject_payload
+        self.last_reject_payload = None
+        return payload
 
     def _load_atlas(self) -> Dict[str, Any]:
         atlas_path_env = os.getenv("MAESTRO_H3_ATLAS_PATH", "").strip()
@@ -286,12 +310,15 @@ class H3GeometricDetector:
 
     def detect(self, audio_bytes: bytes, timestamp_ms: int) -> Optional[Dict[str, Any]]:
         if not self.ready:
+            self._trace_reject("detector_not_ready")
             return None
         audio_float, err = normalize_pcm16_to_float32(audio_bytes)
         if err or not audio_float:
+            self._trace_reject("audio_invalid_or_empty", error=err)
             return None
         signature, frame_count = self._aggregate_signature(audio_float)
         if signature is None or frame_count == 0:
+            self._trace_reject("signature_empty", frame_count=frame_count)
             return None
         bits = (signature >= 0.0).astype(self.np.uint8)
         query_words = self._pack_bits_to_u64(bits)
@@ -306,15 +333,31 @@ class H3GeometricDetector:
                     "set MAESTRO_H3_ALLOW_BOOTSTRAP_VALIDATED_V1=1 to override"
                 )
                 self._bootstrap_validated_region_warning_emitted = True
+            self._trace_reject("bootstrap_validated_region_suppressed", region_id=command_name)
             return None
         min_frames = int(meta.get("min_frames", 1))
         if frame_count < min_frames:
+            self._trace_reject(
+                "insufficient_frames",
+                region_id=command_name,
+                frame_count=int(frame_count),
+                min_frames=min_frames,
+            )
             return None
         denom = max(abs(best_score), 1)
         confidence = max(0.0, min(1.0, (best_score - second_score) / float(denom)))
-        activation_threshold = float(meta.get("activation_threshold", 0.12))
+        activation_threshold = self._activation_threshold_for(meta)
         if confidence < activation_threshold:
+            self._trace_reject(
+                "confidence_below_activation_threshold",
+                region_id=command_name,
+                confidence=confidence,
+                activation_threshold=activation_threshold,
+                best_score=best_score,
+                second_score=second_score,
+            )
             return None
+        self.last_reject_payload = None
         return {
             "source": "spectral_manifold",
             "region_id": command_name,

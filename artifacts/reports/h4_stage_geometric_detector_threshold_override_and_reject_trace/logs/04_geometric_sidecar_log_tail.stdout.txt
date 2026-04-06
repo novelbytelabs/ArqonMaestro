@@ -1,0 +1,2 @@
+2026-04-06 18:32:21,940 - h3_geometric_runtime - INFO - [H3] geometric detector ready (spectral/manifold runtime), schema=h3_command_atlas_v1, atlas_version=stage3a-postmerge-verify
+2026-04-06 18:32:21,940 - __main__ - INFO - Standalone geometric detector ready: schema=h3_command_atlas_v1 atlas_version=stage3a-postmerge-verify

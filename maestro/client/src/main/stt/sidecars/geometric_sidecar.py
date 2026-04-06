@@ -156,6 +156,8 @@ async def websocket_detect(websocket: WebSocket):
                 ),
             )
             final_payload["geometric_event"] = final_event
+        else:
+            final_payload["geometric_reject"] = detector.consume_last_reject_payload()
         await websocket.send_json(final_payload)
     except WebSocketDisconnect:
         logger.info("Geometric WebSocket disconnected gracefully")
