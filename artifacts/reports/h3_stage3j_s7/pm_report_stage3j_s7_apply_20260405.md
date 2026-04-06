@@ -397,10 +397,10 @@ cd /home/irbsurfer/Projects/arqon/ArqonMaestro && conda run -n helios-gpu-118 py
 - All three gates passed.
 
 ## Final Commit
-- Pending at report generation time.
+- `7735a20`
 
 ## Pushed Status
-- Pending at report generation time.
+- `pushed`
 
 ## PM Report Path
 - `artifacts/reports/h3_stage3j_s7/pm_report_stage3j_s7_apply_20260405.md`
