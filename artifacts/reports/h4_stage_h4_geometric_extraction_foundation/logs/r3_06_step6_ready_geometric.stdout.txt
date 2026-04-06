@@ -1,0 +1,1 @@
+{"status":"ready","detector_enabled":true,"detector_ready":true,"detector_error":"","atlas_schema":"h3_command_atlas_v1","atlas_version":"stage3a-postmerge-verify"}

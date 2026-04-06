@@ -1,0 +1,13 @@
+[0;32m[INFO][0m Starting Parakeet sidecar on port 5001...
+[0;32m[INFO][0m Running preflight checks for parakeet...
+[0;32m[INFO][0m ✓ Environment 'helios-gpu-118' exists
+[0;32m[INFO][0m ✓ nemo available
+[0;32m[INFO][0m ✓ Parakeet model resolved: /home/irbsurfer/Projects/arqon/arqon-maestro-command/artifacts/models/parakeet-tdt_ctc-1.1b/parakeet-tdt_ctc-1.1b.nemo
+[0;32m[INFO][0m ✓ Port 5001 available
+[0;32m[INFO][0m ✓ Preflight checks passed for parakeet
+[0;32m[INFO][0m Parakeet sidecar started (PID: 372942, Port: 5001)
+[0;32m[INFO][0m Log: /tmp/parakeet_sidecar.log
+[0;32m[INFO][0m Warming up parakeet sidecar (/ready)...
+[1;33m[WARN][0m ⚠ Warmup probe failed after 24 attempts
+[1;33m[WARN][0m Health payload: {"status":"ok","model":"parakeet","streaming_enabled":true,"model_loaded":false,"model_error":"model_load_failed: Could not deserialize ATN with version 3 (expected 4)."}
+[1;33m[WARN][0m Parakeet sidecar started but is not healthy yet

@@ -1,0 +1,11 @@
+[0;32m[INFO][0m Starting Parakeet sidecar on port 5001...
+[0;32m[INFO][0m Running preflight checks for parakeet...
+[0;32m[INFO][0m ✓ Environment 'helios-gpu-118' exists
+[0;32m[INFO][0m ✓ nemo available
+[0;32m[INFO][0m ✓ Parakeet model resolved: /home/irbsurfer/Projects/arqon/arqon-maestro-command/artifacts/models/parakeet-tdt_ctc-1.1b/parakeet-tdt_ctc-1.1b.nemo
+[0;32m[INFO][0m ✓ Port 5001 available
+[0;32m[INFO][0m ✓ Preflight checks passed for parakeet
+[0;32m[INFO][0m Parakeet sidecar started (PID: 367771, Port: 5001)
+[0;32m[INFO][0m Log: /tmp/parakeet_sidecar.log
+[0;32m[INFO][0m Warming up parakeet sidecar (/ready)...
+[0;32m[INFO][0m ✓ parakeet warmup complete

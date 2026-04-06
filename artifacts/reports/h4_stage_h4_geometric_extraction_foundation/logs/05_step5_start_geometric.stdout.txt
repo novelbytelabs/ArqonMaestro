@@ -1,0 +1,10 @@
+[0;32m[INFO][0m Starting geometric sidecar on port 5003...
+[0;32m[INFO][0m Running preflight checks for geometric...
+[0;32m[INFO][0m ✓ Environment 'helios-gpu-118' exists
+[0;32m[INFO][0m ✓ geometric runtime imports available
+[0;32m[INFO][0m ✓ Port 5003 available
+[0;32m[INFO][0m ✓ Preflight checks passed for geometric
+[0;32m[INFO][0m Geometric sidecar started (PID: 366264, Port: 5003)
+[0;32m[INFO][0m Log: /tmp/geometric_sidecar.log
+[0;32m[INFO][0m Warming up geometric sidecar (/ready)...
+[0;32m[INFO][0m ✓ geometric warmup complete

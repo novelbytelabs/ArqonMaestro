@@ -1,0 +1,30 @@
+{
+  "artifact": "artifacts/reports/h3_stage3d2/warm_path_timing.json",
+  "stage": "3D2",
+  "generatedAt": "2026-04-02T16:28:32.442Z",
+  "checks": {
+    "reflex_improves": true,
+    "numeric_improves": true,
+    "warm_miss_non_authorizing": true,
+    "warm_miss_uses_baseline_path": true
+  },
+  "status": "pass",
+  "reflex": {
+    "slotIndexAvgMs": 0.0011219703333333335,
+    "candidateScanAvgMs": 0.007777685333333333,
+    "improvementMs": 0.0066557149999999995,
+    "improvementPct": 85.57449568543444
+  },
+  "parameterizedNumeric": {
+    "slotIndexAvgMs": 0.00370009,
+    "candidateScanAvgMs": 0.008305238333333333,
+    "improvementMs": 0.004605148333333333,
+    "improvementPct": 55.44871981398085
+  },
+  "warmMissProof": {
+    "warmHitClass": "miss",
+    "lookupPath": "candidate_scan",
+    "mismatchReason": null
+  }
+}
+
