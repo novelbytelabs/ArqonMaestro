@@ -3909,7 +3909,7 @@ workflowLibraryApiReasonCodes:
         return true;
       }
 
-      const result = await stream.finalize();
+      const result = await this.finalizeParakeetStreamWithSingleRetry(chunkId, stream);
       this.observeH3GeometricEvent(chunkId, result.geometricEvent, true);
       this.log.logVerbose(
         `[Chunk] parakeet command-fast transcript ${chunkId}: "${result.transcript}" (${result.latencyMs}ms)`
@@ -3965,6 +3965,39 @@ workflowLibraryApiReasonCodes:
       }
       this.chunkParakeetStream.delete(chunkId);
       this.chunkTranscriptionInFlight.delete(chunkId);
+    }
+  }
+
+  private async finalizeParakeetStreamWithSingleRetry(
+    chunkId: string,
+    stream: ParakeetStreamSession
+  ) {
+    try {
+      return await stream.finalize();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (
+        !reason.includes("parakeet_sidecar_error:inference_failed") ||
+        !this.parakeetCommandFastProvider.isStreamingSupported()
+      ) {
+        throw error;
+      }
+
+      this.log.logVerbose(
+        `[Chunk] parakeet finalize retry for ${chunkId}: ${reason}`
+      );
+
+      stream.cancel();
+
+      const retryStream = this.parakeetCommandFastProvider.createStream(chunkId);
+      this.chunkParakeetStream.set(chunkId, retryStream);
+
+      const frames = this.chunkAudioFrames.get(chunkId) || [];
+      for (const frame of frames) {
+        retryStream.sendAudio(frame);
+      }
+
+      return retryStream.finalize();
     }
   }
 
