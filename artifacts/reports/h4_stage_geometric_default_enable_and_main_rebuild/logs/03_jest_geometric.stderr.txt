@@ -1,0 +1,23 @@
+PASS src/test/audio/chunk-manager-h4-geometric-provider-integration.unit.spec.ts
+  ChunkManager H4 geometric provider integration
+    ✓ resolves allowlisted geometric_only commands without Parakeet finalize (123 ms)
+    ✓ lets parameterized route continue to the tail resolver (19 ms)
+
+PASS src/test/audio/geometric-stream-provider.unit.spec.ts
+  GeometricStreamProvider
+    ✓ is ready when enabled and sidecar url is present (1 ms)
+    ✓ is unavailable when disabled (1 ms)
+
+PASS src/test/audio/h4-geometric-only-command-resolution.unit.spec.ts
+  H4 geometric-only command resolution
+    ✓ resolves pause directly from validated v1 geometric region (1 ms)
+    ✓ resolves focus chrome directly from validated v1 geometric region (1 ms)
+    ✓ rejects unsupported geometric-only regions even when class is closed_structure (1 ms)
+    ✓ rejects non-validated atlas schemas when provided
+    ✓ rejects parameterized regions (1 ms)
+
+Test Suites: 3 passed, 3 total
+Tests:       9 passed, 9 total
+Snapshots:   0 total
+Time:        4.075 s, estimated 7 s
+Ran all test suites matching /src\/test\/audio\/geometric-stream-provider.unit.spec.ts|src\/test\/audio\/h4-geometric-only-command-resolution.unit.spec.ts|src\/test\/audio\/chunk-manager-h4-geometric-provider-integration.unit.spec.ts/i.

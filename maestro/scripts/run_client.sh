@@ -100,6 +100,10 @@ ensure_geometric_sidecar_ready() {
     return 0
   fi
 
+  # Force-enable H4 geometric command lane for local endpoint launches.
+  export H3_GEOMETRIC_ENABLED="${H3_GEOMETRIC_ENABLED:-true}"
+  export MAESTRO_GEOMETRIC_SIDECAR_URL="${MAESTRO_GEOMETRIC_SIDECAR_URL:-http://127.0.0.1:5003/detect_stream}"
+
   local manager="${ROOT_DIR}/client/src/main/stt/sidecars/sidecar_manager.sh"
   if [[ ! -x "${manager}" ]]; then
     print_red "FATAL: missing sidecar manager at ${manager}"

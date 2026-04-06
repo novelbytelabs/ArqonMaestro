@@ -29,7 +29,7 @@ export default class GeometricStreamProvider {
   constructor(config: GeometricStreamProviderConfig = {}, private log?: Log) {
     const defaultUrl = process.env.MAESTRO_GEOMETRIC_SIDECAR_URL || "http://127.0.0.1:5003/detect_stream";
     this.config = {
-      enabled: config.enabled !== undefined ? config.enabled : process.env.H3_GEOMETRIC_ENABLED === "true",
+      enabled: config.enabled !== undefined ? config.enabled : process.env.H3_GEOMETRIC_ENABLED !== "false",
       sidecarUrl: config.sidecarUrl || defaultUrl,
       timeoutMs: config.timeoutMs || 5000,
     };

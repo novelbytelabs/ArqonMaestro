@@ -1,0 +1,22 @@
+
+> arqon-maestro@2.0.2 build:main
+> webpack --config main.webpack.ts --mode=production
+
+Executing post-build scripts
+assets by status 577 KiB [cached] 21 assets
+asset main.js 1.65 MiB [compared for emit] [minimized] (name: main) 1 related asset
+orphan modules 9.42 KiB [orphan] 14 modules
+runtime modules 1.06 KiB 6 modules
+javascript modules 2.84 MiB
+  cacheable modules 2.84 MiB 286 modules
+  optional modules 168 bytes [optional] 4 modules
+  + 20 modules
+json modules 260 KiB
+  modules by path ./src/ 174 KiB 13 modules
+  modules by path ./node_modules/ 86.7 KiB 8 modules
+asset modules 882 bytes (javascript) 577 KiB (asset)
+  ./static/img/bash.png 42 bytes (javascript) 5.44 KiB (asset) [built] [code generated]
+  ./static/img/csharp.png 42 bytes (javascript) 15.4 KiB (asset) [built] [code generated]
+  ./static/img/c.png 42 bytes (javascript) 7.92 KiB (asset) [built] [code generated]
+  + 18 modules
+webpack 5.72.0 compiled successfully in 19389 ms

@@ -92,7 +92,7 @@ const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND
 const FORCE_LEGACY_COMMAND_LANE = process.env.MAESTRO_FORCE_LEGACY_COMMAND_LANE === "1";
 const ENABLE_FASTER_WHISPER_DICTATION_FALLBACK =
   process.env.MAESTRO_ENABLE_FASTER_WHISPER_DICTATION_FALLBACK === "1";
-const H3_GEOMETRIC_ENABLED = process.env.H3_GEOMETRIC_ENABLED === "true";
+const H3_GEOMETRIC_ENABLED = process.env.H3_GEOMETRIC_ENABLED !== "false";
 
 type DictationProviderPreference = "qwen3" | "legacy" | "faster_whisper";
 
