@@ -566,12 +566,10 @@ export default class ParakeetCommandFastProvider {
     let isConnected = false;
     let settled = false;
     let canceled = false;
-    let finalizeRequested = false;
     let initTimeout: ReturnType<typeof setTimeout> | undefined;
     let h23StepIndex = 0;
     let lastGeometricEventSignature: string | null = null;
     let lastGeometricEventAtMs = 0;
-    const pendingAudioFrames: Buffer[] = [];
 
     h23Recorder.startChunk(chunkId);
 
@@ -612,13 +610,6 @@ export default class ParakeetCommandFastProvider {
           model_path: this.config.modelPath,
           sample_rate_hz: 16000,
         }));
-        for (const frame of pendingAudioFrames) {
-          ws.send(frame);
-        }
-        pendingAudioFrames.length = 0;
-        if (finalizeRequested) {
-          ws.send(JSON.stringify({ eof: true }));
-        }
       });
 
       ws.on("message", (data) => {
@@ -728,20 +719,14 @@ export default class ParakeetCommandFastProvider {
 
     return {
       sendAudio: (audio: Buffer) => {
-        if (settled || canceled) {
-          return;
-        }
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(audio);
-          return;
         }
-        pendingAudioFrames.push(audio);
       },
       finalize: async () => {
         if (canceled) {
           throw new Error("parakeet_sidecar_error:websocket_canceled");
         }
-        finalizeRequested = true;
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ eof: true }));
         }
