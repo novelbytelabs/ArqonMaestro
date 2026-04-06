@@ -88,6 +88,23 @@ is_running() {
     return 1
 }
 
+is_port_listening() {
+    local port=$1
+    if netstat -tuln 2>/dev/null | grep -q ":${port} " || ss -tuln 2>/dev/null | grep -q ":${port} "; then
+        return 0
+    fi
+    return 1
+}
+
+get_listening_pid() {
+    local port=$1
+    local pid
+    pid="$(ss -ltnp 2>/dev/null | awk -v p=":${port}" '$4 ~ p {print $NF}' | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | head -n 1)"
+    if [ -n "${pid}" ]; then
+        echo "${pid}"
+    fi
+}
+
 parakeet_model_resolved_path() {
     local input_path="$1"
     if [ -f "$input_path" ]; then
@@ -170,7 +187,7 @@ preflight_check() {
         fi
     fi
 
-    if netstat -tuln 2>/dev/null | grep -q ":${port} " || ss -tuln 2>/dev/null | grep -q ":${port} "; then
+    if is_port_listening "${port}"; then
         log_warn "⚠ Port ${port} already in use"
     else
         log_info "✓ Port ${port} available"
@@ -214,12 +231,34 @@ warmup_sidecar() {
 
 start_geometric() {
     log_info "Starting geometric sidecar on port ${GEOMETRIC_PORT}..."
-    if is_running "$GEOMETRIC_PID_FILE"; then
-        log_warn "Geometric sidecar already running (PID: $(cat $GEOMETRIC_PID_FILE))"
+    if curl -s -f "http://127.0.0.1:${GEOMETRIC_PORT}/ready" > /dev/null 2>&1; then
+        local active_pid
+        active_pid="$(get_listening_pid "${GEOMETRIC_PORT}")"
+        if [ -n "${active_pid}" ]; then
+            echo "${active_pid}" > "${GEOMETRIC_PID_FILE}"
+            log_info "Geometric sidecar already ready (PID: ${active_pid}, Port: ${GEOMETRIC_PORT})"
+        else
+            log_info "Geometric sidecar already ready (Port: ${GEOMETRIC_PORT})"
+        fi
         return 0
     fi
+    if is_running "$GEOMETRIC_PID_FILE"; then
+        log_warn "Geometric sidecar process exists but /ready is not healthy yet (PID: $(cat $GEOMETRIC_PID_FILE)); retrying warmup"
+        if warmup_sidecar "geometric" "$GEOMETRIC_PORT" 6 2; then
+            return 0
+        fi
+        log_warn "Geometric sidecar process did not become ready; restarting"
+        stop_one "Geometric" "$GEOMETRIC_PID_FILE"
+    fi
+    if is_port_listening "${GEOMETRIC_PORT}"; then
+        local occupied_pid
+        occupied_pid="$(get_listening_pid "${GEOMETRIC_PORT}")"
+        log_error "Port ${GEOMETRIC_PORT} is in use by PID ${occupied_pid:-unknown}, but /ready is failing"
+        log_error "Resolve the conflicting process or stop it, then retry"
+        return 1
+    fi
     preflight_check "geometric" "$GEOMETRIC_PORT" "" || return 1
-    if netstat -tuln 2>/dev/null | grep -q ":${GEOMETRIC_PORT} " || ss -tuln 2>/dev/null | grep -q ":${GEOMETRIC_PORT} "; then
+    if is_port_listening "${GEOMETRIC_PORT}"; then
         log_error "Port ${GEOMETRIC_PORT} already in use"
         return 1
     fi

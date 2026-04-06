@@ -88,6 +88,46 @@ ensure_parakeet_sidecar_ready() {
   exit 1
 }
 
+ensure_geometric_sidecar_ready() {
+  if [[ "${MAESTRO_SKIP_GEOMETRIC_SIDECAR_PREFLIGHT:-0}" == "1" ]]; then
+    print_yellow "[ArqonMaestro] Skipping geometric sidecar preflight (MAESTRO_SKIP_GEOMETRIC_SIDECAR_PREFLIGHT=1)."
+    return 0
+  fi
+
+  local endpoint
+  endpoint="$(get_streaming_endpoint)"
+  if [[ "${endpoint}" != "local" ]]; then
+    return 0
+  fi
+
+  local manager="${ROOT_DIR}/client/src/main/stt/sidecars/sidecar_manager.sh"
+  if [[ ! -x "${manager}" ]]; then
+    print_red "FATAL: missing sidecar manager at ${manager}"
+    exit 1
+  fi
+
+  if curl -fsS "http://127.0.0.1:5003/ready" >/dev/null 2>&1; then
+    print_green "✅ [ArqonMaestro] Geometric sidecar READY at http://127.0.0.1:5003/ready"
+    return 0
+  fi
+
+  print_yellow "[ArqonMaestro] Geometric sidecar not ready; attempting idempotent start..."
+  if ! "${manager}" start geometric >/dev/null; then
+    print_red "FATAL: failed to start geometric sidecar via sidecar_manager.sh"
+    exit 1
+  fi
+
+  if curl -fsS "http://127.0.0.1:5003/ready" >/dev/null 2>&1; then
+    print_green "✅ [ArqonMaestro] Geometric sidecar READY after auto-start"
+    return 0
+  fi
+
+  print_red "FATAL: geometric sidecar still not ready on :5003 after auto-start."
+  print_red "Try: ${manager} preflight geometric && ${manager} start geometric"
+  exit 1
+}
+
+ensure_geometric_sidecar_ready
 ensure_parakeet_sidecar_ready
 
 cd "${CLIENT_DIR}"
