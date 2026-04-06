@@ -84,7 +84,6 @@ import {
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 import { deriveH4ParameterizedCommandResolution } from "../runtime/h4-parameter-resolution";
-import { deriveH4GeometricOnlyCommandResolution } from "../runtime/h4-geometric-only-command-resolution";
 
 const ENABLE_WHISPER_COMMAND_LANE = process.env.MAESTRO_ENABLE_WHISPER_COMMAND_LANE === "1";
 const ENABLE_PARAKEET_COMMAND_LANE = process.env.MAESTRO_ENABLE_PARAKEET_COMMAND_LANE !== "0";
@@ -1780,56 +1779,6 @@ export default class ChunkManager {
       `[Chunk][H3] canonical parameter-resolved command ${chunkId}: "${resolvedCommandText}" (tail ${tailResult.latencyMs}ms)`
     );
     await this.stream.sendTextRequest(resolvedCommandText, true, chunkId);
-    return true;
-  }
-
-  private async tryHandleH3GeometricOnlyFinalize(chunkId: string): Promise<boolean> {
-    if (!this.h3GeometricEnabled) {
-      return false;
-    }
-    if (this.chunkH3Route.get(chunkId) !== "geometric_only") {
-      return false;
-    }
-
-    const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
-    const resolution = deriveH4GeometricOnlyCommandResolution({
-      regionId: geometricEvent?.regionId ?? null,
-      commandClass: geometricEvent?.commandClass ?? null,
-    });
-
-    if (
-      !resolution.h4GeometricOnlyResolutionEligible ||
-      !resolution.h4GeometricOnlyResolutionCanonicalCommandText
-    ) {
-      this.emitH3Evidence(chunkId, "geometric_only_resolution_bypassed", {
-        source: "spectral_manifold",
-        regionId: geometricEvent?.regionId ?? null,
-        commandClass: geometricEvent?.commandClass ?? null,
-        routeBefore: "geometric_only",
-        routeAfter: "geometric_only",
-        reason: resolution.h4GeometricOnlyResolutionReasonCodes.join("|"),
-      });
-      return false;
-    }
-
-    const canonicalCommandText =
-      resolution.h4GeometricOnlyResolutionCanonicalCommandText;
-    const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
-    h23Recorder.recordFinal(chunkId, canonicalCommandText, h23StepIndex, 0.95);
-    this.emitH3Evidence(chunkId, "geometric_only_command_resolved", {
-      source: "spectral_manifold",
-      regionId: geometricEvent?.regionId ?? null,
-      commandClass: geometricEvent?.commandClass ?? null,
-      routeBefore: "geometric_only",
-      routeAfter: "geometric_only",
-      mergedText: canonicalCommandText,
-      reason: resolution.h4GeometricOnlyResolutionReasonCodes.join("|"),
-    });
-
-    this.log.logVerbose(
-      `[Chunk][H4] geometric-only command ${chunkId}: "${canonicalCommandText}" (no parakeet finalize)`
-    );
-    await this.stream.sendTextRequest(canonicalCommandText, true, chunkId);
     return true;
   }
 
@@ -3947,13 +3896,6 @@ workflowLibraryApiReasonCodes:
     this.chunkTranscriptionInFlight.add(chunkId);
     let success = false;
     try {
-      const handledByH3GeometricOnly = await this.tryHandleH3GeometricOnlyFinalize(chunkId);
-      if (handledByH3GeometricOnly) {
-        stream.cancel();
-        success = true;
-        return true;
-      }
-
       let handledByH3TailDecode = false;
       try {
         handledByH3TailDecode = await this.tryHandleH3ParameterizedTailFinalize(chunkId);
