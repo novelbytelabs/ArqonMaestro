@@ -1,0 +1,13 @@
+{
+  "ALL_MATCH": true,
+  "results": [
+    {
+      "path": "maestro/client/src/test/audio/chunk-manager-h3-counterfactual-repair.unit.spec.ts",
+      "expected_bytes": 6365,
+      "actual_bytes": 6365,
+      "expected_sha256": "7ff6db28f53e1e0ab644912568f1d7ee64a041b39e8efa62e1c5c9344fc529e4",
+      "actual_sha256": "7ff6db28f53e1e0ab644912568f1d7ee64a041b39e8efa62e1c5c9344fc529e4",
+      "match": true
+    }
+  ]
+}

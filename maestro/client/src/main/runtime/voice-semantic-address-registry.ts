@@ -1,6 +1,24 @@
 import * as crypto from "crypto";
 import { normalizeNumericTail } from "../stream/numeric-tail-normalizer";
 import { normalizeOpenTail } from "../stream/open-tail-normalizer";
+import {
+  FocusConditionedCommandContextEnvelope,
+  deriveFocusContextLegalityAssessment,
+  deriveFocusContextRankingAdjustment,
+  deriveFocusContextTaskMomentumAssessment,
+} from "./focus-conditioned-command-context";
+import {
+  PolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardLookupNarrowing,
+  derivePolicyShapedAtlasShardRankingAdjustment,
+} from "./policy-shaped-atlas-shards";
+import {
+  MultiResolutionAtlasPlan,
+  deriveMultiResolutionAtlasCandidateFamilyAtlasId,
+  deriveMultiResolutionAtlasFamilyRoutingAdjustment as deriveMultiResolutionAtlasFamilyRoutingHelper,
+  deriveMultiResolutionAtlasPrefixBandRoutingAdjustment as deriveMultiResolutionAtlasPrefixBandRoutingHelper,
+  deriveMultiResolutionAtlasTailStrategyRoutingAdjustment as deriveMultiResolutionAtlasTailStrategyRoutingHelper,
+} from "./multi-resolution-atlas";
 
 export type SemanticCommandFamily =
   | "reflex"
@@ -30,9 +48,19 @@ export interface SemanticAddressRecord {
   successCount: number;
   lastSuccessChunkId: string;
   lastSuccessSessionId: string | null;
+  conflictCount: number;
+  lastConflictAtMs: number | null;
   governanceVersion: { h23: string; h24: string };
   governanceQualified: boolean;
   evictionScore: number;
+}
+
+interface WarmPolicyProfile {
+  weakThreshold: number;
+  strongThreshold: number;
+  decayFloor: number;
+  staleMs: number;
+  recentConflictMultiplier: number;
 }
 
 interface PendingGeometricContext {
@@ -62,19 +90,94 @@ interface LookupInput {
   regionId: string;
   parameterType: "numeric" | "open" | null;
   transcriptTailHint?: string;
+  atlasVersion?: string;
+  atlasSchema?: string;
+  forceCandidateScan?: boolean;
+  focusContextEnvelope?: FocusConditionedCommandContextEnvelope | null;
+  atlasShardHint?: PolicyShapedAtlasShardHint | null;
+  multiResolutionAtlasPlan?: MultiResolutionAtlasPlan | null;
 }
 
 export interface LookupResult {
   lookupCandidateCount: number;
   bestCandidateId: string | null;
   bestCandidateScore: number | null;
+  bestCanonicalMergedText: string | null;
   warmHitClass: "strong" | "weak" | "miss";
+  lookupPath: "slot_signature_index" | "candidate_scan" | "none";
+  slotSignature: string | null;
+  atlasCompatible: boolean;
+  mismatchReason: string | null;
+  confidencePolicyVersion: string;
+  weakThreshold: number;
+  strongThreshold: number;
+  candidateAgeMs: number | null;
+  recentConflictPenaltyApplied: boolean;
+  staleProtectionApplied: boolean;
+  focusRankingApplied: boolean;
+  focusRankingBoost: number;
+  focusRankingReasonCodes: string[];
+  focusLegalityApplied: boolean;
+  focusLegalityLawful: boolean | null;
+  focusLegalityPenaltyApplied: boolean;
+  focusLegalityPenalty: number;
+  focusLegalityReasonCodes: string[];
+  focusLegalityCommandKind: string | null;
+  focusTaskMomentumApplied?: boolean;
+  focusTaskMomentumBoost?: number;
+  focusTaskMomentumPenaltyApplied?: boolean;
+  focusTaskMomentumPenalty?: number;
+  focusTaskMomentumReasonCodes?: string[];
+  focusTaskMomentumMatchedSemanticAddressId?: string | null;
+  atlasShardRankingApplied: boolean;
+  atlasShardRankingBoost: number;
+  atlasShardRankingReasonCodes: string[];
+  atlasShardRankingCandidateKind: string | null;
+  atlasShardNarrowingApplied?: boolean;
+  atlasShardNarrowingFallbackUsed?: boolean;
+  atlasShardNarrowingCandidateCountBefore?: number;
+  atlasShardNarrowingCandidateCountAfter?: number;
+  atlasShardNarrowingReasonCodes?: string[];
+  atlasShardNarrowingAllowedCandidateKinds?: string[] | null;
+  multiResolutionAtlasFamilyRoutingApplied?: boolean;
+  multiResolutionAtlasFamilyRoutingBoost?: number;
+  multiResolutionAtlasFamilyRoutingReasonCodes?: string[];
+  multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId?: string | null;
+  multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId?: string | null;
+  multiResolutionAtlasPrefixBandRoutingApplied?: boolean;
+  multiResolutionAtlasPrefixBandRoutingBoost?: number;
+  multiResolutionAtlasPrefixBandRoutingReasonCodes?: string[];
+  multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId?: string | null;
+  multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId?: string | null;
+  multiResolutionAtlasTailStrategyRoutingApplied?: boolean;
+  multiResolutionAtlasTailStrategyRoutingBoost?: number;
+  multiResolutionAtlasTailStrategyRoutingReasonCodes?: string[];
+  multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId?: string | null;
+  multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId?: string | null;
 }
 
 const V1_REGION_IDS = new Set(["pause", "new tab", "go to line", "go to", "open"]);
 const SCHEMA_VERSION = "h3_voice_semantic_address_v1" as const;
 const H23_VERSION = "h23_live_trace_v1";
 const H24_VERSION = "h24_policy_proof_v1";
+export const VOICE_SEMANTIC_WARM_POLICY_VERSION = "3d3_conflict_aware_warm_confidence_v1";
+export const VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD = 0.78;
+export const VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD = 0.93;
+export const VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS = 5 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_STALE_MS = 10 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_DECAY_FLOOR = 0.88;
+export const VOICE_SEMANTIC_WARM_RECENT_CONFLICT_WINDOW_MS = 2 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER = 0.84;
+export const VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD = 0.76;
+export const VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD = 0.92;
+export const VOICE_SEMANTIC_WARM_NUMERIC_DECAY_FLOOR = 0.9;
+export const VOICE_SEMANTIC_WARM_NUMERIC_STALE_MS = 10 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_NUMERIC_RECENT_CONFLICT_MULTIPLIER = 0.86;
+export const VOICE_SEMANTIC_WARM_OPEN_WEAK_THRESHOLD = 0.82;
+export const VOICE_SEMANTIC_WARM_OPEN_STRONG_THRESHOLD = 0.95;
+export const VOICE_SEMANTIC_WARM_OPEN_DECAY_FLOOR = 0.84;
+export const VOICE_SEMANTIC_WARM_OPEN_STALE_MS = 7 * 60 * 1000;
+export const VOICE_SEMANTIC_WARM_OPEN_RECENT_CONFLICT_MULTIPLIER = 0.8;
 
 export class VoiceSemanticAddressRegistry {
   private recordsById = new Map<string, SemanticAddressRecord>();
@@ -114,37 +217,527 @@ export class VoiceSemanticAddressRegistry {
   }
 
   lookup(input: LookupInput): LookupResult {
-    const candidates = [...this.recordsById.values()].filter(
+    const normalizedHint = (input.transcriptTailHint || "").trim().toLowerCase();
+    const derivedSlotSignature = this.deriveSlotSignature(
+      input.regionId,
+      input.parameterType,
+      normalizedHint
+    );
+    const lookupProfile = this.getWarmPolicyProfileForCommandFamily(
+      this.inferCommandFamily(input.regionId, input.parameterType)
+    );
+    if (derivedSlotSignature && input.forceCandidateScan !== true) {
+      const indexedId = this.idsByRegionAndSlot.get(`${input.regionId}|${derivedSlotSignature}`) ?? null;
+      if (indexedId) {
+        const indexedRecord = this.recordsById.get(indexedId);
+        if (indexedRecord) {
+          const atlasCompatible = this.isAtlasCompatible(indexedRecord, input);
+          if (!atlasCompatible) {
+            return {
+              lookupCandidateCount: 1,
+              bestCandidateId: indexedRecord.semanticAddressId,
+              bestCandidateScore: null,
+              bestCanonicalMergedText: indexedRecord.canonicalMergedText,
+              warmHitClass: "miss",
+              lookupPath: "slot_signature_index",
+              slotSignature: derivedSlotSignature,
+              atlasCompatible: false,
+              mismatchReason: "warm_miss_atlas_incompatible",
+              confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+              weakThreshold: this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily)
+                .weakThreshold,
+              strongThreshold: this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily)
+                .strongThreshold,
+              candidateAgeMs: Math.max(0, Date.now() - indexedRecord.updatedAtMs),
+              recentConflictPenaltyApplied: false,
+              staleProtectionApplied: false,
+              focusRankingApplied: false,
+              focusRankingBoost: 0,
+              focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+              focusLegalityApplied: false,
+              focusLegalityLawful: null,
+              focusLegalityPenaltyApplied: false,
+              focusLegalityPenalty: 0,
+              focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+              focusLegalityCommandKind: null,
+              focusTaskMomentumApplied: false,
+              focusTaskMomentumBoost: 0,
+              focusTaskMomentumPenaltyApplied: false,
+              focusTaskMomentumPenalty: 0,
+              focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
+              focusTaskMomentumMatchedSemanticAddressId: null,
+              atlasShardRankingApplied: false,
+              atlasShardRankingBoost: 0,
+              atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+              atlasShardRankingCandidateKind: null,
+              atlasShardNarrowingApplied: false,
+              atlasShardNarrowingFallbackUsed: false,
+              atlasShardNarrowingCandidateCountBefore: 1,
+              atlasShardNarrowingCandidateCountAfter: 1,
+              atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_evaluated_slot_signature_index"],
+              atlasShardNarrowingAllowedCandidateKinds: null,
+              multiResolutionAtlasFamilyRoutingApplied: false,
+              multiResolutionAtlasFamilyRoutingBoost: 0,
+              multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_evaluated"],
+              multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+              multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
+              multiResolutionAtlasPrefixBandRoutingApplied: false,
+              multiResolutionAtlasPrefixBandRoutingBoost: 0,
+              multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_evaluated"],
+              multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
+              multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+              multiResolutionAtlasTailStrategyRoutingApplied: false,
+              multiResolutionAtlasTailStrategyRoutingBoost: 0,
+              multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_evaluated"],
+              multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+              multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
+            };
+          }
+          const indexedProfile = this.getWarmPolicyProfileForCommandFamily(indexedRecord.commandFamily);
+          const focusAdjustment = this.deriveFocusRankingAdjustment(input, indexedRecord);
+          const focusLegality = this.deriveFocusLegalityAssessment(input, indexedRecord);
+          const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, indexedRecord);
+          const atlasShardAdjustment = this.deriveAtlasShardRankingAdjustment(input, indexedRecord);
+          const multiResolutionAtlasFamilyRouting =
+            this.deriveMultiResolutionAtlasFamilyRoutingAdjustment(input, indexedRecord);
+          const multiResolutionAtlasPrefixBandRouting =
+            this.deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(input, indexedRecord);
+          const multiResolutionAtlasTailStrategyRouting =
+            this.deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(input, indexedRecord);
+          const indexedBaseScore = Math.max(
+            0,
+            Math.min(
+              0.999,
+              this.scoreCandidate(indexedRecord, normalizedHint) +
+                focusAdjustment.focusRankingBoost -
+                focusLegality.focusLegalityPenalty +
+                focusTaskMomentum.focusTaskMomentumBoost -
+                focusTaskMomentum.focusTaskMomentumPenalty +
+                atlasShardAdjustment.atlasShardRankingBoost +
+                multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost +
+                multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost +
+                multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost
+            )
+          );
+          const policy = this.applyConfidencePolicy(indexedRecord, indexedBaseScore, indexedProfile);
+          return {
+            lookupCandidateCount: 1,
+            bestCandidateId: indexedRecord.semanticAddressId,
+            bestCandidateScore: policy.score,
+            bestCanonicalMergedText: indexedRecord.canonicalMergedText,
+            warmHitClass: policy.warmHitClass,
+            lookupPath: "slot_signature_index",
+            slotSignature: derivedSlotSignature,
+            atlasCompatible: true,
+            mismatchReason: policy.mismatchReason,
+            confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+            weakThreshold: indexedProfile.weakThreshold,
+            strongThreshold: indexedProfile.strongThreshold,
+            candidateAgeMs: policy.ageMs,
+            recentConflictPenaltyApplied: policy.recentConflictPenaltyApplied,
+            staleProtectionApplied: policy.staleProtectionApplied,
+            focusRankingApplied: focusAdjustment.focusRankingApplied,
+            focusRankingBoost: focusAdjustment.focusRankingBoost,
+            focusRankingReasonCodes: focusAdjustment.focusRankingReasonCodes,
+            focusLegalityApplied: focusLegality.focusLegalityApplied,
+            focusLegalityLawful: focusLegality.focusLegalityLawful,
+            focusLegalityPenaltyApplied: focusLegality.focusLegalityPenaltyApplied,
+            focusLegalityPenalty: focusLegality.focusLegalityPenalty,
+            focusLegalityReasonCodes: focusLegality.focusLegalityReasonCodes,
+            focusLegalityCommandKind: focusLegality.focusLegalityCommandKind,
+            focusTaskMomentumApplied: focusTaskMomentum.focusTaskMomentumApplied,
+            focusTaskMomentumBoost: focusTaskMomentum.focusTaskMomentumBoost,
+            focusTaskMomentumPenaltyApplied: focusTaskMomentum.focusTaskMomentumPenaltyApplied,
+            focusTaskMomentumPenalty: focusTaskMomentum.focusTaskMomentumPenalty,
+            focusTaskMomentumReasonCodes: focusTaskMomentum.focusTaskMomentumReasonCodes,
+            focusTaskMomentumMatchedSemanticAddressId: focusTaskMomentum.focusTaskMomentumMatchedSemanticAddressId,
+            atlasShardRankingApplied: atlasShardAdjustment.atlasShardRankingApplied,
+            atlasShardRankingBoost: atlasShardAdjustment.atlasShardRankingBoost,
+            atlasShardRankingReasonCodes: atlasShardAdjustment.atlasShardRankingReasonCodes,
+            atlasShardRankingCandidateKind: atlasShardAdjustment.atlasShardRankingCandidateKind,
+            atlasShardNarrowingApplied: false,
+            atlasShardNarrowingFallbackUsed: false,
+            atlasShardNarrowingCandidateCountBefore: 1,
+            atlasShardNarrowingCandidateCountAfter: 1,
+            atlasShardNarrowingReasonCodes: ["atlas_shard_narrowing_not_evaluated_slot_signature_index"],
+            atlasShardNarrowingAllowedCandidateKinds: null,
+            multiResolutionAtlasFamilyRoutingApplied:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingApplied,
+            multiResolutionAtlasFamilyRoutingBoost:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost,
+            multiResolutionAtlasFamilyRoutingReasonCodes:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingReasonCodes,
+            multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId,
+            multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+              multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId,
+            multiResolutionAtlasPrefixBandRoutingApplied:
+              multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingApplied,
+            multiResolutionAtlasPrefixBandRoutingBoost:
+              multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost,
+            multiResolutionAtlasPrefixBandRoutingReasonCodes:
+              multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingReasonCodes,
+            multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+              multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId,
+            multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+              multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId,
+            multiResolutionAtlasTailStrategyRoutingApplied:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingApplied,
+            multiResolutionAtlasTailStrategyRoutingBoost:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost,
+            multiResolutionAtlasTailStrategyRoutingReasonCodes:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingReasonCodes,
+            multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId,
+            multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+              multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId,
+          };
+        }
+      }
+    }
+
+    const exactCandidates = [...this.recordsById.values()].filter(
       (record) => record.regionId === input.regionId && record.parameterType === input.parameterType
     );
+    const candidates = this.deriveMultiResolutionAtlasCandidatePool(input, exactCandidates);
+    const atlasShardNarrowing = this.deriveAtlasShardLookupNarrowing(input, candidates);
+    const narrowedCandidates = atlasShardNarrowing.narrowedCandidates as SemanticAddressRecord[];
     if (candidates.length === 0) {
       return {
         lookupCandidateCount: 0,
         bestCandidateId: null,
         bestCandidateScore: null,
+        bestCanonicalMergedText: null,
         warmHitClass: "miss",
+        lookupPath: "candidate_scan",
+        slotSignature: derivedSlotSignature,
+        atlasCompatible: true,
+        mismatchReason: null,
+        confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+        weakThreshold: lookupProfile.weakThreshold,
+        strongThreshold: lookupProfile.strongThreshold,
+        candidateAgeMs: null,
+        recentConflictPenaltyApplied: false,
+        staleProtectionApplied: false,
+        focusRankingApplied: false,
+        focusRankingBoost: 0,
+        focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+        focusLegalityApplied: false,
+        focusLegalityLawful: null,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+        focusLegalityCommandKind: null,
+        focusTaskMomentumApplied: false,
+        focusTaskMomentumBoost: 0,
+        focusTaskMomentumPenaltyApplied: false,
+        focusTaskMomentumPenalty: 0,
+        focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: null,
+        atlasShardRankingApplied: false,
+        atlasShardRankingBoost: 0,
+        atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+        atlasShardRankingCandidateKind: null,
+        atlasShardNarrowingApplied: atlasShardNarrowing.atlasShardNarrowingApplied,
+        atlasShardNarrowingFallbackUsed: atlasShardNarrowing.atlasShardNarrowingFallbackUsed,
+        atlasShardNarrowingCandidateCountBefore: atlasShardNarrowing.atlasShardNarrowingCandidateCountBefore,
+        atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
+        atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
+        multiResolutionAtlasFamilyRoutingApplied: false,
+        multiResolutionAtlasFamilyRoutingBoost: 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
+        multiResolutionAtlasPrefixBandRoutingApplied: false,
+        multiResolutionAtlasPrefixBandRoutingBoost: 0,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_evaluated"],
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+        multiResolutionAtlasTailStrategyRoutingApplied: false,
+        multiResolutionAtlasTailStrategyRoutingBoost: 0,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_evaluated"],
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
       };
     }
 
     let best: SemanticAddressRecord | null = null;
-    let bestScore = -1;
-    const normalizedHint = (input.transcriptTailHint || "").trim().toLowerCase();
-    for (const candidate of candidates) {
-      const score = this.scoreCandidate(candidate, normalizedHint);
-      if (score > bestScore) {
+    let bestPolicy:
+      | {
+          score: number | null;
+          warmHitClass: "strong" | "weak" | "miss";
+          mismatchReason: string | null;
+          ageMs: number;
+          recentConflictPenaltyApplied: boolean;
+          staleProtectionApplied: boolean;
+          focusRankingApplied: boolean;
+          focusRankingBoost: number;
+          focusRankingReasonCodes: string[];
+          focusLegalityApplied: boolean;
+          focusLegalityLawful: boolean | null;
+          focusLegalityPenaltyApplied: boolean;
+          focusLegalityPenalty: number;
+          focusLegalityReasonCodes: string[];
+          focusLegalityCommandKind: string | null;
+          focusTaskMomentumApplied: boolean;
+          focusTaskMomentumBoost: number;
+          focusTaskMomentumPenaltyApplied: boolean;
+          focusTaskMomentumPenalty: number;
+          focusTaskMomentumReasonCodes: string[];
+          focusTaskMomentumMatchedSemanticAddressId: string | null;
+          atlasShardRankingApplied: boolean;
+          atlasShardRankingBoost: number;
+          atlasShardRankingReasonCodes: string[];
+          atlasShardRankingCandidateKind: string | null;
+          atlasShardNarrowingApplied: boolean;
+          atlasShardNarrowingFallbackUsed: boolean;
+          atlasShardNarrowingCandidateCountBefore: number;
+          atlasShardNarrowingCandidateCountAfter: number;
+          atlasShardNarrowingReasonCodes: string[];
+          atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+          multiResolutionAtlasFamilyRoutingApplied: boolean;
+          multiResolutionAtlasFamilyRoutingBoost: number;
+          multiResolutionAtlasFamilyRoutingReasonCodes: string[];
+          multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
+          multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
+          multiResolutionAtlasPrefixBandRoutingApplied: boolean;
+          multiResolutionAtlasPrefixBandRoutingBoost: number;
+          multiResolutionAtlasPrefixBandRoutingReasonCodes: string[];
+          multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
+          multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
+          multiResolutionAtlasTailStrategyRoutingApplied: boolean;
+          multiResolutionAtlasTailStrategyRoutingBoost: number;
+          multiResolutionAtlasTailStrategyRoutingReasonCodes: string[];
+          multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
+          multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
+        }
+      | null = null;
+    let bestComparableScore = -2;
+    for (const candidate of narrowedCandidates) {
+      if (!this.isAtlasCompatible(candidate, input)) {
+        continue;
+      }
+      const candidateProfile = this.getWarmPolicyProfileForCommandFamily(candidate.commandFamily);
+      const focusAdjustment = this.deriveFocusRankingAdjustment(input, candidate);
+      const focusLegality = this.deriveFocusLegalityAssessment(input, candidate);
+      const focusTaskMomentum = this.deriveFocusTaskMomentumAssessment(input, candidate);
+      const atlasShardAdjustment = this.deriveAtlasShardRankingAdjustment(input, candidate);
+      const multiResolutionAtlasFamilyRouting =
+        this.deriveMultiResolutionAtlasFamilyRoutingAdjustment(input, candidate);
+      const multiResolutionAtlasPrefixBandRouting =
+        this.deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(input, candidate);
+      const multiResolutionAtlasTailStrategyRouting =
+        this.deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(input, candidate);
+      const candidateBaseScore = Math.max(
+        0,
+        Math.min(
+          0.999,
+          this.scoreCandidate(candidate, normalizedHint) +
+            focusAdjustment.focusRankingBoost -
+            focusLegality.focusLegalityPenalty +
+            focusTaskMomentum.focusTaskMomentumBoost -
+            focusTaskMomentum.focusTaskMomentumPenalty +
+            atlasShardAdjustment.atlasShardRankingBoost +
+            multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost +
+            multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost +
+            multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost
+        )
+      );
+      const basePolicy = this.applyConfidencePolicy(candidate, candidateBaseScore, candidateProfile);
+      const policy = {
+        ...basePolicy,
+        focusRankingApplied: focusAdjustment.focusRankingApplied,
+        focusRankingBoost: focusAdjustment.focusRankingBoost,
+        focusRankingReasonCodes: focusAdjustment.focusRankingReasonCodes,
+        focusLegalityApplied: focusLegality.focusLegalityApplied,
+        focusLegalityLawful: focusLegality.focusLegalityLawful,
+        focusLegalityPenaltyApplied: focusLegality.focusLegalityPenaltyApplied,
+        focusLegalityPenalty: focusLegality.focusLegalityPenalty,
+        focusLegalityReasonCodes: focusLegality.focusLegalityReasonCodes,
+        focusLegalityCommandKind: focusLegality.focusLegalityCommandKind,
+        focusTaskMomentumApplied: focusTaskMomentum.focusTaskMomentumApplied,
+        focusTaskMomentumBoost: focusTaskMomentum.focusTaskMomentumBoost,
+        focusTaskMomentumPenaltyApplied: focusTaskMomentum.focusTaskMomentumPenaltyApplied,
+        focusTaskMomentumPenalty: focusTaskMomentum.focusTaskMomentumPenalty,
+        focusTaskMomentumReasonCodes: focusTaskMomentum.focusTaskMomentumReasonCodes,
+        focusTaskMomentumMatchedSemanticAddressId: focusTaskMomentum.focusTaskMomentumMatchedSemanticAddressId,
+        atlasShardRankingApplied: atlasShardAdjustment.atlasShardRankingApplied,
+        atlasShardRankingBoost: atlasShardAdjustment.atlasShardRankingBoost,
+        atlasShardRankingReasonCodes: atlasShardAdjustment.atlasShardRankingReasonCodes,
+        atlasShardRankingCandidateKind: atlasShardAdjustment.atlasShardRankingCandidateKind,
+        atlasShardNarrowingApplied: atlasShardNarrowing.atlasShardNarrowingApplied,
+        atlasShardNarrowingFallbackUsed: atlasShardNarrowing.atlasShardNarrowingFallbackUsed,
+        atlasShardNarrowingCandidateCountBefore: atlasShardNarrowing.atlasShardNarrowingCandidateCountBefore,
+        atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
+        atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
+        multiResolutionAtlasFamilyRoutingApplied:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingApplied,
+        multiResolutionAtlasFamilyRoutingBoost:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingBoost,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingReasonCodes,
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          multiResolutionAtlasFamilyRouting.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingApplied,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingBoost,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingReasonCodes,
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          multiResolutionAtlasPrefixBandRouting.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId,
+        multiResolutionAtlasTailStrategyRoutingApplied:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingApplied,
+        multiResolutionAtlasTailStrategyRoutingBoost:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingBoost,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingReasonCodes,
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId,
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          multiResolutionAtlasTailStrategyRouting.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId,
+      };
+      const comparableScore = policy.score ?? -1;
+      if (comparableScore > bestComparableScore) {
         best = candidate;
-        bestScore = score;
+        bestPolicy = policy;
+        bestComparableScore = comparableScore;
       }
     }
-
-    const warmHitClass =
-      bestScore >= 0.92 ? "strong" : bestScore >= 0.75 ? "weak" : "miss";
+    if (!best || !bestPolicy) {
+      return {
+        lookupCandidateCount: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        bestCandidateId: null,
+        bestCandidateScore: null,
+        bestCanonicalMergedText: null,
+        warmHitClass: "miss",
+        lookupPath: "candidate_scan",
+        slotSignature: derivedSlotSignature,
+        atlasCompatible: false,
+        mismatchReason: "warm_miss_atlas_incompatible",
+        confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+        weakThreshold: lookupProfile.weakThreshold,
+        strongThreshold: lookupProfile.strongThreshold,
+        candidateAgeMs: null,
+        recentConflictPenaltyApplied: false,
+        staleProtectionApplied: false,
+        focusRankingApplied: false,
+        focusRankingBoost: 0,
+        focusRankingReasonCodes: ["focus_ranking_not_evaluated"],
+        focusLegalityApplied: false,
+        focusLegalityLawful: null,
+        focusLegalityPenaltyApplied: false,
+        focusLegalityPenalty: 0,
+        focusLegalityReasonCodes: ["focus_legality_not_evaluated"],
+        focusLegalityCommandKind: null,
+        focusTaskMomentumApplied: false,
+        focusTaskMomentumBoost: 0,
+        focusTaskMomentumPenaltyApplied: false,
+        focusTaskMomentumPenalty: 0,
+        focusTaskMomentumReasonCodes: ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: null,
+        atlasShardRankingApplied: false,
+        atlasShardRankingBoost: 0,
+        atlasShardRankingReasonCodes: ["atlas_shard_ranking_not_evaluated"],
+        atlasShardRankingCandidateKind: null,
+        atlasShardNarrowingApplied: atlasShardNarrowing.atlasShardNarrowingApplied,
+        atlasShardNarrowingFallbackUsed: atlasShardNarrowing.atlasShardNarrowingFallbackUsed,
+        atlasShardNarrowingCandidateCountBefore: atlasShardNarrowing.atlasShardNarrowingCandidateCountBefore,
+        atlasShardNarrowingCandidateCountAfter: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+        atlasShardNarrowingReasonCodes: atlasShardNarrowing.atlasShardNarrowingReasonCodes,
+        atlasShardNarrowingAllowedCandidateKinds: atlasShardNarrowing.atlasShardNarrowingAllowedCandidateKinds,
+        multiResolutionAtlasFamilyRoutingApplied: false,
+        multiResolutionAtlasFamilyRoutingBoost: 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes: ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: null,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: null,
+        multiResolutionAtlasPrefixBandRoutingApplied: false,
+        multiResolutionAtlasPrefixBandRoutingBoost: 0,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes: ["multi_resolution_prefix_band_routing_not_evaluated"],
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: null,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: null,
+        multiResolutionAtlasTailStrategyRoutingApplied: false,
+        multiResolutionAtlasTailStrategyRoutingBoost: 0,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes: ["multi_resolution_tail_strategy_routing_not_evaluated"],
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: null,
+        multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: null,
+      };
+    }
 
     return {
-      lookupCandidateCount: candidates.length,
-      bestCandidateId: best?.semanticAddressId ?? null,
-      bestCandidateScore: best ? Number(bestScore.toFixed(3)) : null,
-      warmHitClass,
+      lookupCandidateCount: atlasShardNarrowing.atlasShardNarrowingCandidateCountAfter,
+      bestCandidateId: best.semanticAddressId,
+      bestCandidateScore: bestPolicy.score,
+      bestCanonicalMergedText: best.canonicalMergedText,
+      warmHitClass: bestPolicy.warmHitClass,
+      lookupPath: "candidate_scan",
+      slotSignature: derivedSlotSignature,
+      atlasCompatible: true,
+      mismatchReason: bestPolicy.mismatchReason,
+      confidencePolicyVersion: VOICE_SEMANTIC_WARM_POLICY_VERSION,
+      weakThreshold: this.getWarmPolicyProfileForCommandFamily(best.commandFamily).weakThreshold,
+      strongThreshold: this.getWarmPolicyProfileForCommandFamily(best.commandFamily).strongThreshold,
+      candidateAgeMs: bestPolicy.ageMs,
+      recentConflictPenaltyApplied: bestPolicy.recentConflictPenaltyApplied,
+      staleProtectionApplied: bestPolicy.staleProtectionApplied,
+      focusRankingApplied: bestPolicy.focusRankingApplied,
+      focusRankingBoost: bestPolicy.focusRankingBoost,
+      focusRankingReasonCodes: bestPolicy.focusRankingReasonCodes,
+      focusLegalityApplied: bestPolicy.focusLegalityApplied,
+      focusLegalityLawful: bestPolicy.focusLegalityLawful,
+      focusLegalityPenaltyApplied: bestPolicy.focusLegalityPenaltyApplied,
+      focusLegalityPenalty: bestPolicy.focusLegalityPenalty,
+      focusLegalityReasonCodes: bestPolicy.focusLegalityReasonCodes,
+      focusLegalityCommandKind: bestPolicy.focusLegalityCommandKind,
+      focusTaskMomentumApplied: bestPolicy.focusTaskMomentumApplied,
+      focusTaskMomentumBoost: bestPolicy.focusTaskMomentumBoost,
+      focusTaskMomentumPenaltyApplied: bestPolicy.focusTaskMomentumPenaltyApplied,
+      focusTaskMomentumPenalty: bestPolicy.focusTaskMomentumPenalty,
+      focusTaskMomentumReasonCodes: bestPolicy.focusTaskMomentumReasonCodes,
+      focusTaskMomentumMatchedSemanticAddressId: bestPolicy.focusTaskMomentumMatchedSemanticAddressId,
+      atlasShardRankingApplied: bestPolicy.atlasShardRankingApplied,
+      atlasShardRankingBoost: bestPolicy.atlasShardRankingBoost,
+      atlasShardRankingReasonCodes: bestPolicy.atlasShardRankingReasonCodes,
+      atlasShardRankingCandidateKind: bestPolicy.atlasShardRankingCandidateKind,
+      atlasShardNarrowingApplied: bestPolicy.atlasShardNarrowingApplied,
+      atlasShardNarrowingFallbackUsed: bestPolicy.atlasShardNarrowingFallbackUsed,
+      atlasShardNarrowingCandidateCountBefore: bestPolicy.atlasShardNarrowingCandidateCountBefore,
+      atlasShardNarrowingCandidateCountAfter: bestPolicy.atlasShardNarrowingCandidateCountAfter,
+      atlasShardNarrowingReasonCodes: bestPolicy.atlasShardNarrowingReasonCodes,
+      atlasShardNarrowingAllowedCandidateKinds: bestPolicy.atlasShardNarrowingAllowedCandidateKinds,
+      multiResolutionAtlasFamilyRoutingApplied: bestPolicy.multiResolutionAtlasFamilyRoutingApplied,
+      multiResolutionAtlasFamilyRoutingBoost: bestPolicy.multiResolutionAtlasFamilyRoutingBoost,
+      multiResolutionAtlasFamilyRoutingReasonCodes: bestPolicy.multiResolutionAtlasFamilyRoutingReasonCodes,
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+        bestPolicy.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+        bestPolicy.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId,
+      multiResolutionAtlasPrefixBandRoutingApplied:
+        bestPolicy.multiResolutionAtlasPrefixBandRoutingApplied,
+      multiResolutionAtlasPrefixBandRoutingBoost:
+        bestPolicy.multiResolutionAtlasPrefixBandRoutingBoost,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes:
+        bestPolicy.multiResolutionAtlasPrefixBandRoutingReasonCodes,
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+        bestPolicy.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId,
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+        bestPolicy.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId,
+      multiResolutionAtlasTailStrategyRoutingApplied:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingApplied,
+      multiResolutionAtlasTailStrategyRoutingBoost:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingBoost,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingReasonCodes,
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId,
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+        bestPolicy.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId,
     };
   }
 
@@ -191,6 +784,8 @@ export class VoiceSemanticAddressRegistry {
       successCount: (existing?.successCount ?? 0) + 1,
       lastSuccessChunkId: input.chunkId,
       lastSuccessSessionId: input.sessionId ?? null,
+      conflictCount: 0,
+      lastConflictAtMs: null,
       governanceVersion: { h23: H23_VERSION, h24: H24_VERSION },
       governanceQualified: input.h24FinalGranted === true,
       evictionScore: Math.max(0, input.h23StepCount - 1),
@@ -201,6 +796,20 @@ export class VoiceSemanticAddressRegistry {
     this.pendingByChunk.delete(input.chunkId);
     this.evictIfNeeded();
     return record;
+  }
+
+  markWarmConflict(semanticAddressId: string): SemanticAddressRecord | null {
+    const existing = this.recordsById.get(semanticAddressId);
+    if (!existing) {
+      return null;
+    }
+    const updated: SemanticAddressRecord = {
+      ...existing,
+      conflictCount: existing.conflictCount + 1,
+      lastConflictAtMs: Date.now(),
+    };
+    this.recordsById.set(semanticAddressId, updated);
+    return updated;
   }
 
   clearChunk(chunkId: string): void {
@@ -280,6 +889,175 @@ export class VoiceSemanticAddressRegistry {
     return null;
   }
 
+  private deriveFocusRankingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): { focusRankingApplied: boolean; focusRankingBoost: number; focusRankingReasonCodes: string[] } {
+    return deriveFocusContextRankingAdjustment(input.focusContextEnvelope ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+    });
+  }
+
+  private deriveFocusLegalityAssessment(input: LookupInput, candidate: SemanticAddressRecord): {
+    focusLegalityApplied: boolean;
+    focusLegalityLawful: boolean | null;
+    focusLegalityPenaltyApplied: boolean;
+    focusLegalityPenalty: number;
+    focusLegalityReasonCodes: string[];
+    focusLegalityCommandKind: string | null;
+  } {
+    return deriveFocusContextLegalityAssessment(input.focusContextEnvelope ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+    });
+  }
+
+
+  private deriveFocusTaskMomentumAssessment(input: LookupInput, candidate: SemanticAddressRecord): {
+    focusTaskMomentumApplied: boolean;
+    focusTaskMomentumBoost: number;
+    focusTaskMomentumPenaltyApplied: boolean;
+    focusTaskMomentumPenalty: number;
+    focusTaskMomentumReasonCodes: string[];
+    focusTaskMomentumMatchedSemanticAddressId: string | null;
+  } {
+    return deriveFocusContextTaskMomentumAssessment(input.focusContextEnvelope ?? null, {
+      semanticAddressId: candidate.semanticAddressId,
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+    });
+  }
+
+  private deriveAtlasShardRankingAdjustment(input: LookupInput, candidate: SemanticAddressRecord): {
+    atlasShardRankingApplied: boolean;
+    atlasShardRankingBoost: number;
+    atlasShardRankingReasonCodes: string[];
+    atlasShardRankingCandidateKind: string | null;
+  } {
+    return derivePolicyShapedAtlasShardRankingAdjustment(input.atlasShardHint ?? null, {
+      regionId: candidate.regionId,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
+    });
+  }
+
+  private deriveMultiResolutionAtlasFamilyRoutingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): {
+    multiResolutionAtlasFamilyRoutingApplied: boolean;
+    multiResolutionAtlasFamilyRoutingBoost: number;
+    multiResolutionAtlasFamilyRoutingReasonCodes: string[];
+    multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId: string | null;
+    multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId: string | null;
+  } {
+    return deriveMultiResolutionAtlasFamilyRoutingHelper(input.multiResolutionAtlasPlan ?? null, {
+      regionId: candidate.regionId,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+    });
+  }
+
+  private deriveAtlasShardLookupNarrowing(
+    input: LookupInput,
+    candidates: SemanticAddressRecord[]
+  ): {
+    atlasShardNarrowingApplied: boolean;
+    atlasShardNarrowingFallbackUsed: boolean;
+    atlasShardNarrowingCandidateCountBefore: number;
+    atlasShardNarrowingCandidateCountAfter: number;
+    atlasShardNarrowingReasonCodes: string[];
+    atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+    narrowedCandidates: SemanticAddressRecord[];
+  } {
+    return derivePolicyShapedAtlasShardLookupNarrowing(
+      input.atlasShardHint ?? null,
+      candidates
+    ) as {
+      atlasShardNarrowingApplied: boolean;
+      atlasShardNarrowingFallbackUsed: boolean;
+      atlasShardNarrowingCandidateCountBefore: number;
+      atlasShardNarrowingCandidateCountAfter: number;
+      atlasShardNarrowingReasonCodes: string[];
+      atlasShardNarrowingAllowedCandidateKinds: string[] | null;
+      narrowedCandidates: SemanticAddressRecord[];
+    };
+  }
+
+  private deriveMultiResolutionAtlasCandidatePool(
+    input: LookupInput,
+    exactCandidates: SemanticAddressRecord[]
+  ): SemanticAddressRecord[] {
+    const plan = input.multiResolutionAtlasPlan ?? null;
+    if (!plan || !plan.multiResolutionAtlasEligible || !plan.multiResolutionAtlasFamilyAtlasId) {
+      return exactCandidates;
+    }
+    const familyCandidates = [...this.recordsById.values()].filter((record) => {
+      if (record.parameterType !== input.parameterType) {
+        return false;
+      }
+      return (
+        deriveMultiResolutionAtlasCandidateFamilyAtlasId({
+          regionId: record.regionId,
+          commandFamily: record.commandFamily,
+          parameterType: record.parameterType,
+          canonicalPrefix: record.canonicalPrefix,
+          canonicalMergedText: record.canonicalMergedText,
+        }) === plan.multiResolutionAtlasFamilyAtlasId
+      );
+    });
+    return familyCandidates.length > 0 ? familyCandidates : exactCandidates;
+  }
+
+  private deriveMultiResolutionAtlasPrefixBandRoutingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): {
+    multiResolutionAtlasPrefixBandRoutingApplied: boolean;
+    multiResolutionAtlasPrefixBandRoutingBoost: number;
+    multiResolutionAtlasPrefixBandRoutingReasonCodes: string[];
+    multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId: string | null;
+    multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId: string | null;
+  } {
+    return deriveMultiResolutionAtlasPrefixBandRoutingHelper(input.multiResolutionAtlasPlan ?? null, {
+      regionId: candidate.regionId,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+    });
+  }
+
+  private deriveMultiResolutionAtlasTailStrategyRoutingAdjustment(
+    input: LookupInput,
+    candidate: SemanticAddressRecord
+  ): {
+    multiResolutionAtlasTailStrategyRoutingApplied: boolean;
+    multiResolutionAtlasTailStrategyRoutingBoost: number;
+    multiResolutionAtlasTailStrategyRoutingReasonCodes: string[];
+    multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId: string | null;
+    multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId: string | null;
+  } {
+    return deriveMultiResolutionAtlasTailStrategyRoutingHelper(input.multiResolutionAtlasPlan ?? null, {
+      regionId: candidate.regionId,
+      commandFamily: candidate.commandFamily,
+      parameterType: candidate.parameterType,
+      canonicalPrefix: candidate.canonicalPrefix,
+      canonicalMergedText: candidate.canonicalMergedText,
+    });
+  }
+
   private scoreCandidate(candidate: SemanticAddressRecord, normalizedHint: string): number {
     if (!normalizedHint) {
       return 0.76;
@@ -291,6 +1069,169 @@ export class VoiceSemanticAddressRegistry {
       return 0.85;
     }
     return 0.72;
+  }
+
+  private applyConfidencePolicy(
+    candidate: SemanticAddressRecord,
+    baseScore: number,
+    profile: WarmPolicyProfile
+  ): {
+    score: number | null;
+    warmHitClass: "strong" | "weak" | "miss";
+    mismatchReason: string | null;
+    ageMs: number;
+    recentConflictPenaltyApplied: boolean;
+    staleProtectionApplied: boolean;
+    focusRankingApplied: boolean;
+    focusRankingBoost: number;
+    focusRankingReasonCodes: string[];
+  } {
+    const ageMs = Math.max(0, Date.now() - candidate.updatedAtMs);
+    if (ageMs >= profile.staleMs) {
+      return {
+        score: null,
+        warmHitClass: "miss",
+        mismatchReason: "warm_miss_stale_protection",
+        ageMs,
+        recentConflictPenaltyApplied: false,
+        staleProtectionApplied: true,
+        focusRankingApplied: false,
+        focusRankingBoost: 0,
+        focusRankingReasonCodes: [],
+      };
+    }
+
+    const boundedAgeMs = Math.min(ageMs, VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS);
+    const freshnessMultiplier =
+      1 -
+      (boundedAgeMs / VOICE_SEMANTIC_WARM_DECAY_WINDOW_MS) *
+        (1 - profile.decayFloor);
+    const recentConflictPenaltyApplied =
+      candidate.lastConflictAtMs !== null &&
+      Date.now() - candidate.lastConflictAtMs <= VOICE_SEMANTIC_WARM_RECENT_CONFLICT_WINDOW_MS;
+    const conflictMultiplier = recentConflictPenaltyApplied
+      ? profile.recentConflictMultiplier
+      : 1;
+    const score = Number((baseScore * freshnessMultiplier * conflictMultiplier).toFixed(3));
+    const warmHitClass = this.classifyWarmHit(score, profile);
+    return {
+      score,
+      warmHitClass,
+      mismatchReason:
+        warmHitClass === "miss" && recentConflictPenaltyApplied
+          ? "warm_miss_conflict_penalized"
+          : null,
+      ageMs,
+      recentConflictPenaltyApplied,
+      staleProtectionApplied: false,
+      focusRankingApplied: false,
+      focusRankingBoost: 0,
+      focusRankingReasonCodes: [],
+    };
+  }
+
+  private classifyWarmHit(score: number, profile: WarmPolicyProfile): "strong" | "weak" | "miss" {
+    if (score >= profile.strongThreshold) {
+      return "strong";
+    }
+    if (score >= profile.weakThreshold) {
+      return "weak";
+    }
+    return "miss";
+  }
+
+  private inferCommandFamily(
+    regionId: string,
+    parameterType: "numeric" | "open" | null
+  ): SemanticCommandFamily | null {
+    if (regionId === "pause" && parameterType === null) {
+      return "reflex";
+    }
+    if (regionId === "new tab" && parameterType === null) {
+      return "closed_structure";
+    }
+    if (parameterType === "numeric") {
+      return "parameterized_numeric";
+    }
+    if (parameterType === "open") {
+      return "parameterized_open";
+    }
+    return null;
+  }
+
+  private getWarmPolicyProfileForCommandFamily(
+    commandFamily: SemanticCommandFamily | null
+  ): WarmPolicyProfile {
+    if (commandFamily === "parameterized_numeric") {
+      return {
+        weakThreshold: VOICE_SEMANTIC_WARM_NUMERIC_WEAK_THRESHOLD,
+        strongThreshold: VOICE_SEMANTIC_WARM_NUMERIC_STRONG_THRESHOLD,
+        decayFloor: VOICE_SEMANTIC_WARM_NUMERIC_DECAY_FLOOR,
+        staleMs: VOICE_SEMANTIC_WARM_NUMERIC_STALE_MS,
+        recentConflictMultiplier: VOICE_SEMANTIC_WARM_NUMERIC_RECENT_CONFLICT_MULTIPLIER,
+      };
+    }
+    if (commandFamily === "parameterized_open") {
+      return {
+        weakThreshold: VOICE_SEMANTIC_WARM_OPEN_WEAK_THRESHOLD,
+        strongThreshold: VOICE_SEMANTIC_WARM_OPEN_STRONG_THRESHOLD,
+        decayFloor: VOICE_SEMANTIC_WARM_OPEN_DECAY_FLOOR,
+        staleMs: VOICE_SEMANTIC_WARM_OPEN_STALE_MS,
+        recentConflictMultiplier: VOICE_SEMANTIC_WARM_OPEN_RECENT_CONFLICT_MULTIPLIER,
+      };
+    }
+    return {
+      weakThreshold: VOICE_SEMANTIC_WARM_HIT_WEAK_THRESHOLD,
+      strongThreshold: VOICE_SEMANTIC_WARM_HIT_STRONG_THRESHOLD,
+      decayFloor: VOICE_SEMANTIC_WARM_DECAY_FLOOR,
+      staleMs: VOICE_SEMANTIC_WARM_STALE_MS,
+      recentConflictMultiplier: VOICE_SEMANTIC_WARM_RECENT_CONFLICT_MULTIPLIER,
+    };
+  }
+
+  private isAtlasCompatible(record: SemanticAddressRecord, input: LookupInput): boolean {
+    if (input.atlasSchema && input.atlasSchema !== record.atlasSchema) {
+      return false;
+    }
+    if (input.atlasVersion && input.atlasVersion !== record.atlasVersion) {
+      return false;
+    }
+    return true;
+  }
+
+  private deriveSlotSignature(
+    regionId: string,
+    parameterType: "numeric" | "open" | null,
+    transcriptTailHint: string
+  ): string | null {
+    if (regionId === "pause" && parameterType === null) {
+      return "pause";
+    }
+    if (regionId === "new tab" && parameterType === null) {
+      return "new_tab";
+    }
+    if (regionId === "go to line" && parameterType === "numeric") {
+      const normalized = normalizeNumericTail(transcriptTailHint);
+      if (!normalized.normalized) {
+        return null;
+      }
+      return `goto_line:${normalized.normalized}`;
+    }
+    if (regionId === "go to" && parameterType === "open") {
+      const normalized = normalizeOpenTail(transcriptTailHint, { commandPrefix: "go to" });
+      if (normalized.status !== "ok" || !normalized.normalized) {
+        return null;
+      }
+      return `goto_open:${normalized.normalized}`;
+    }
+    if (regionId === "open" && parameterType === "open") {
+      const normalized = normalizeOpenTail(transcriptTailHint, { commandPrefix: "open" });
+      if (normalized.status !== "ok" || !normalized.normalized) {
+        return null;
+      }
+      return `open_target:${normalized.normalized}`;
+    }
+    return null;
   }
 
   private makeSemanticAddressId(regionId: string, slotSignature: string, canonical: string): string {

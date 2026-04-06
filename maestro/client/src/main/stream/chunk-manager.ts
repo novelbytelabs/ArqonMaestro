@@ -42,7 +42,40 @@ import FasterWhisperDictationProvider from "../stt/faster-whisper-dictation-prov
 import Qwen3ASRDictationProvider from "../stt/qwen3-asr-dictation-provider";
 import GeometricRoutingService from "./geometric-routing-service";
 import { emitH3RuntimeEvidence } from "../runtime/h3-runtime-evidence";
+import {
+  FocusConditionedCommandContextEnvelope,
+  deriveFocusContextEvidenceFields,
+} from "../runtime/focus-conditioned-command-context";
+import {
+  PolicyShapedAtlasShardHint,
+  derivePolicyShapedAtlasShardEvidenceFields,
+  derivePolicyShapedAtlasShardHint,
+} from "../runtime/policy-shaped-atlas-shards";
+import {
+  deriveMultiResolutionAtlasEvidenceFields,
+  deriveMultiResolutionAtlasPlan,
+} from "../runtime/multi-resolution-atlas";
+import {
+  deriveCounterfactualRepairEvidenceFields,
+} from "../runtime/counterfactual-repair-intelligence";
+import {
+  deriveDynamicPrecisionRegimeObservation,
+} from "../runtime/dynamic-precision-regimes";
 import { voiceSemanticAddressRegistry } from "../runtime/voice-semantic-address-registry";
+import { deriveWorkflowMemoryObservation } from "../runtime/workflow-memory-observation";
+import { deriveWorkflowMemoryContinuityRanking } from "../runtime/workflow-memory-continuity-ranking";
+import { deriveWorkflowMemoryContinuityOrdering } from "../runtime/workflow-memory-continuity-ordering";
+import { deriveWorkflowMemoryCandidatePoolOrdering } from "../runtime/workflow-memory-candidate-pool-ordering";
+import { deriveWorkflowMemoryReuseSubstrate } from "../runtime/workflow-memory-reuse-substrate";
+import { deriveEmptyWorkflowCandidateDiscoveryState, deriveWorkflowCandidateDiscovery } from "../runtime/workflow-candidate-discovery";
+import { deriveEmptyWorkflowSkeletonInferenceState, deriveWorkflowSkeletonInference } from "../runtime/workflow-skeleton-inference";
+import { deriveWorkflowCandidateScoring } from "../runtime/workflow-candidate-scoring";
+import { deriveWorkflowCandidatePreferencesPolicy } from "../runtime/workflow-candidate-preferences-policy";
+import { deriveWorkflowCandidateTiming } from "../runtime/workflow-candidate-timing";
+import { deriveWorkflowCandidateRubrics } from "../runtime/workflow-candidate-rubrics";
+import { deriveWorkflowCandidatePromotion } from "../runtime/workflow-candidate-promotion";
+import { deriveWorkflowDraftArtifacts } from "../runtime/workflow-draft-artifacts";
+import { deriveH4AuthorityEntryObservation } from "../runtime/h4-live-mic-authority-entry";
 import { normalizeNumericTail } from "./numeric-tail-normalizer";
 import { normalizeOpenTail } from "./open-tail-normalizer";
 
@@ -145,6 +178,73 @@ export default class ChunkManager {
   private chunkH3NumericStrategyEnabled = new Map<string, boolean>();
   private chunkH3OpenStrategyEnabled = new Map<string, boolean>();
   private chunkH3LatestTailHintText = new Map<string, string>();
+  private chunkH4AuthorityDefaultPath = new Map<string, string>();
+  private chunkH4FallbackInvoked = new Map<string, boolean>();
+  private chunkH4FallbackReason = new Map<string, string>();
+  private chunkH3WarmLookup = new Map<
+    string,
+    {
+      warmHitClass: "strong" | "weak" | "miss";
+      bestCandidateId: string | null;
+      bestCandidateScore: number | null;
+      bestCanonicalMergedText: string | null;
+      lookupPath: string;
+      confidencePolicyVersion: string;
+      weakThreshold: number;
+      strongThreshold: number;
+      candidateAgeMs: number | null;
+      recentConflictPenaltyApplied: boolean;
+      staleProtectionApplied: boolean;
+      focusRankingApplied: boolean;
+      focusRankingBoost: number;
+      focusRankingReasonCodes: string[];
+      focusLegalityApplied: boolean;
+      focusLegalityLawful: boolean | null;
+      focusLegalityPenaltyApplied: boolean;
+      focusLegalityPenalty: number;
+      focusLegalityReasonCodes: string[];
+      focusLegalityCommandKind: string | null;
+      focusTaskMomentumApplied?: boolean;
+      focusTaskMomentumBoost?: number;
+      focusTaskMomentumPenaltyApplied?: boolean;
+      focusTaskMomentumPenalty?: number;
+      focusTaskMomentumReasonCodes?: string[];
+      focusTaskMomentumMatchedSemanticAddressId?: string | null;
+      atlasShardRankingApplied?: boolean;
+      atlasShardRankingBoost?: number;
+      atlasShardRankingReasonCodes?: string[];
+      atlasShardRankingCandidateKind?: string | null;
+      atlasShardNarrowingApplied?: boolean;
+      atlasShardNarrowingFallbackUsed?: boolean;
+      atlasShardNarrowingCandidateCountBefore?: number;
+      atlasShardNarrowingCandidateCountAfter?: number;
+      atlasShardNarrowingReasonCodes?: string[];
+      atlasShardNarrowingAllowedCandidateKinds?: string[] | null;
+      multiResolutionAtlasFamilyRoutingApplied?: boolean;
+      multiResolutionAtlasFamilyRoutingBoost?: number;
+      multiResolutionAtlasFamilyRoutingReasonCodes?: string[];
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId?: string | null;
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId?: string | null;
+      multiResolutionAtlasPrefixBandRoutingApplied?: boolean;
+      multiResolutionAtlasPrefixBandRoutingBoost?: number;
+      multiResolutionAtlasPrefixBandRoutingReasonCodes?: string[];
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId?: string | null;
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId?: string | null;
+      multiResolutionAtlasTailStrategyRoutingApplied?: boolean;
+      multiResolutionAtlasTailStrategyRoutingBoost?: number;
+      multiResolutionAtlasTailStrategyRoutingReasonCodes?: string[];
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId?: string | null;
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId?: string | null;
+      warmApplied: boolean;
+      warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null;
+      workflowMemoryOrderingApplied?: boolean;
+      workflowMemoryOrderingBoost?: number;
+      workflowMemoryOrderingAdjustedScore?: number | null;
+      workflowMemoryOrderingReasonCodes?: string[];
+    }
+  >();
+  private chunkH3FocusContextEnvelope = new Map<string, FocusConditionedCommandContextEnvelope>();
+  private chunkH3AtlasShardHint = new Map<string, PolicyShapedAtlasShardHint>();
 
   listening: boolean = false;
 
@@ -772,7 +872,55 @@ export default class ChunkManager {
         regionId: event.regionId,
         parameterType: event.parameterType ?? null,
         transcriptTailHint: transcriptTail,
+        atlasVersion: event.atlasVersion,
+        atlasSchema: event.atlasSchema,
+        focusContextEnvelope: this.chunkH3FocusContextEnvelope.get(chunkId) ?? undefined,
+        atlasShardHint: this.chunkH3AtlasShardHint.get(chunkId) ?? undefined,
+        multiResolutionAtlasPlan: this.getMultiResolutionAtlasPlan(chunkId, {
+          regionId: event.regionId,
+          commandClass: event.commandClass,
+          parameterType: event.parameterType ?? null,
+          canonicalMergedText: transcriptTail && transcriptTail.trim().length > 0 ? transcriptTail : null,
+        }),
       });
+      const semanticLookupCandidatePoolSemanticAddressIds =
+        Array.isArray((semanticLookup as any).candidateSemanticAddressIds)
+          ? ((semanticLookup as any).candidateSemanticAddressIds as string[])
+          : Array.isArray((semanticLookup as any).topCandidateSemanticAddressIds)
+            ? ((semanticLookup as any).topCandidateSemanticAddressIds as string[])
+            : null;
+      const semanticLookupCandidatePoolScores =
+        Array.isArray((semanticLookup as any).candidateScores)
+          ? ((semanticLookup as any).candidateScores as number[])
+          : Array.isArray((semanticLookup as any).candidateNormalizedScores)
+            ? ((semanticLookup as any).candidateNormalizedScores as number[])
+            : Array.isArray((semanticLookup as any).topCandidateNormalizedScores)
+              ? ((semanticLookup as any).topCandidateNormalizedScores as number[])
+              : null;
+      const workflowMemoryOrderingFields = this.getWorkflowMemoryOrderingFields({
+        candidateSemanticAddressId: semanticLookup.bestCandidateId,
+        baseScore: semanticLookup.bestCandidateScore ?? null,
+        continuationSuggested: null,
+      });
+      const workflowMemoryCandidatePoolOrderingFields =
+        this.getWorkflowMemoryCandidatePoolOrderingFields({
+          candidateSemanticAddressIds: semanticLookupCandidatePoolSemanticAddressIds,
+          candidateScores: semanticLookupCandidatePoolScores,
+          continuationSuggested: null,
+        });
+      const adjustedSemanticLookupBestCandidateId =
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+          ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+          : semanticLookup.bestCandidateId;
+      const adjustedSemanticLookupBestCandidateScore =
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+        workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter !== null
+          ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter
+          : workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
+            workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
+            ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
+            : semanticLookup.bestCandidateScore;
       this.emitH3Evidence(chunkId, "voice_semantic_address_lookup_completed", {
         source: event.source,
         regionId: event.regionId,
@@ -780,14 +928,83 @@ export default class ChunkManager {
         parameterType: event.parameterType ?? null,
         atlasVersion: event.atlasVersion ?? "unknown",
         lookupCandidateCount: semanticLookup.lookupCandidateCount,
-        bestCandidateId: semanticLookup.bestCandidateId,
-        bestCandidateScore: semanticLookup.bestCandidateScore,
+        bestCandidateId: adjustedSemanticLookupBestCandidateId,
+        bestCandidateScore: adjustedSemanticLookupBestCandidateScore,
+        workflowMemoryCandidatePoolSemanticAddressIdsBefore:
+          semanticLookupCandidatePoolSemanticAddressIds ?? undefined,
+        workflowMemoryCandidatePoolScoresBefore:
+          semanticLookupCandidatePoolScores ?? undefined,
+        canonicalMergedText: semanticLookup.bestCanonicalMergedText,
         warmHitClass: semanticLookup.warmHitClass,
+        lookupPath: semanticLookup.lookupPath,
+        confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+        weakThreshold: semanticLookup.weakThreshold,
+        strongThreshold: semanticLookup.strongThreshold,
+        candidateAgeMs: semanticLookup.candidateAgeMs,
+        recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+        staleProtectionApplied: semanticLookup.staleProtectionApplied,
+        focusRankingApplied: semanticLookup.focusRankingApplied,
+        focusRankingBoost: semanticLookup.focusRankingBoost,
+        focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+        focusLegalityApplied: semanticLookup.focusLegalityApplied,
+        focusLegalityLawful: semanticLookup.focusLegalityLawful,
+        focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+        focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+        focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+        focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+        focusTaskMomentumApplied: semanticLookup.focusTaskMomentumApplied ?? false,
+        focusTaskMomentumBoost: semanticLookup.focusTaskMomentumBoost ?? 0,
+        focusTaskMomentumPenaltyApplied: semanticLookup.focusTaskMomentumPenaltyApplied ?? false,
+        focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
+        focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
+        atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+        atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+        atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+        atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+        atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
+        atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
+        atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
+        atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
+        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
+        multiResolutionAtlasFamilyRoutingApplied:
+          semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
+        multiResolutionAtlasFamilyRoutingBoost:
+          semanticLookup.multiResolutionAtlasFamilyRoutingBoost ?? 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingBoost ?? 0,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
+        multiResolutionAtlasTailStrategyRoutingApplied:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingApplied ?? false,
+        multiResolutionAtlasTailStrategyRoutingBoost:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingBoost ?? 0,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+  
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
         governanceRequired: true,
         reason:
-          semanticLookup.warmHitClass === "miss"
+          semanticLookup.mismatchReason ??
+          (semanticLookup.warmHitClass === "miss"
             ? "semantic_lookup_miss_advisory_only"
-            : "semantic_lookup_hit_advisory_only",
+            : "semantic_lookup_hit_advisory_only"),
       });
       this.emitH3Evidence(
         chunkId,
@@ -802,13 +1019,238 @@ export default class ChunkManager {
           atlasVersion: event.atlasVersion ?? "unknown",
           lookupCandidateCount: semanticLookup.lookupCandidateCount,
           bestCandidateId: semanticLookup.bestCandidateId,
-          bestCandidateScore: semanticLookup.bestCandidateScore,
+          bestCandidateScore: adjustedSemanticLookupBestCandidateScore,
+          canonicalMergedText: semanticLookup.bestCanonicalMergedText,
           warmHitClass: semanticLookup.warmHitClass,
+          lookupPath: semanticLookup.lookupPath,
+          confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+          weakThreshold: semanticLookup.weakThreshold,
+          strongThreshold: semanticLookup.strongThreshold,
+          candidateAgeMs: semanticLookup.candidateAgeMs,
+          recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+          staleProtectionApplied: semanticLookup.staleProtectionApplied,
+          focusRankingApplied: semanticLookup.focusRankingApplied,
+          focusRankingBoost: semanticLookup.focusRankingBoost,
+          focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+          focusLegalityApplied: semanticLookup.focusLegalityApplied,
+          focusLegalityLawful: semanticLookup.focusLegalityLawful,
+          focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+          focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+          focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+          focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+          atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+          atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+          atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+          atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+          atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
+          atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
+          atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
+          atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
+          atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
+          atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
           governanceRequired: true,
           reason:
-            semanticLookup.warmHitClass === "miss"
+            semanticLookup.mismatchReason ??
+            (semanticLookup.warmHitClass === "miss"
               ? "warm_cache_miss_continue_normal_path"
-              : "warm_cache_hit_advisory_continue_governed_path",
+              : "warm_cache_hit_advisory_continue_governed_path"),
+        }
+      );
+      const canApplyWarm = semanticLookup.atlasCompatible && event.atlasBacked === true;
+      let warmApplied = false;
+      let warmAppliedStage: "candidate_rank" | "tail_strategy_prearm" | "shortlist_only" | null = null;
+      let warmDiscardReason: string | null = null;
+      if (!canApplyWarm) {
+        warmDiscardReason = semanticLookup.mismatchReason ?? "warm_discarded_requires_live_atlas_backed_event";
+      } else if (semanticLookup.warmHitClass === "strong") {
+        warmApplied = true;
+        warmAppliedStage = event.commandClass === "parameterized" ? "tail_strategy_prearm" : "candidate_rank";
+      } else if (semanticLookup.warmHitClass === "weak") {
+        warmApplied = true;
+        warmAppliedStage = "shortlist_only";
+      } else {
+        warmDiscardReason = "warm_miss_continue_normal_path";
+      }
+
+      if (warmApplied && warmAppliedStage === "tail_strategy_prearm") {
+        if (event.regionId === "go to line" && event.parameterType === "numeric") {
+          this.chunkH3NumericStrategyEnabled.set(chunkId, true);
+        }
+        if ((event.regionId === "go to" || event.regionId === "open") && event.parameterType === "open") {
+          this.chunkH3OpenStrategyEnabled.set(chunkId, true);
+        }
+      }
+
+      const warmLookupStore =
+        this.chunkH3WarmLookup ?? (this.chunkH3WarmLookup = new Map());
+      warmLookupStore.set(chunkId, {
+        warmHitClass: semanticLookup.warmHitClass,
+        bestCandidateId: semanticLookup.bestCandidateId,
+        bestCandidateScore: semanticLookup.bestCandidateScore,
+        bestCanonicalMergedText: semanticLookup.bestCanonicalMergedText,
+        lookupPath: semanticLookup.lookupPath,
+        confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+        weakThreshold: semanticLookup.weakThreshold,
+        strongThreshold: semanticLookup.strongThreshold,
+        candidateAgeMs: semanticLookup.candidateAgeMs,
+        recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+        staleProtectionApplied: semanticLookup.staleProtectionApplied,
+        focusRankingApplied: semanticLookup.focusRankingApplied,
+        focusRankingBoost: semanticLookup.focusRankingBoost,
+        focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+        focusLegalityApplied: semanticLookup.focusLegalityApplied,
+        focusLegalityLawful: semanticLookup.focusLegalityLawful,
+        focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+        focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+        focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+        focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+        focusTaskMomentumApplied: semanticLookup.focusTaskMomentumApplied ?? false,
+        focusTaskMomentumBoost: semanticLookup.focusTaskMomentumBoost ?? 0,
+        focusTaskMomentumPenaltyApplied: semanticLookup.focusTaskMomentumPenaltyApplied ?? false,
+        focusTaskMomentumPenalty: semanticLookup.focusTaskMomentumPenalty ?? 0,
+        focusTaskMomentumReasonCodes: semanticLookup.focusTaskMomentumReasonCodes ?? ["focus_task_momentum_not_evaluated"],
+        focusTaskMomentumMatchedSemanticAddressId: semanticLookup.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
+        atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+        atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+        atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+        atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+        atlasShardNarrowingApplied: semanticLookup.atlasShardNarrowingApplied ?? false,
+        atlasShardNarrowingFallbackUsed: semanticLookup.atlasShardNarrowingFallbackUsed ?? false,
+        atlasShardNarrowingCandidateCountBefore: semanticLookup.atlasShardNarrowingCandidateCountBefore ?? undefined,
+        atlasShardNarrowingCandidateCountAfter: semanticLookup.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingReasonCodes: semanticLookup.atlasShardNarrowingReasonCodes ?? ["atlas_shard_narrowing_not_evaluated"],
+        atlasShardNarrowingAllowedCandidateKinds: semanticLookup.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
+        multiResolutionAtlasFamilyRoutingApplied:
+          semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
+        multiResolutionAtlasFamilyRoutingBoost:
+          semanticLookup.multiResolutionAtlasFamilyRoutingBoost ?? 0,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingBoost ?? 0,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
+        multiResolutionAtlasTailStrategyRoutingApplied:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingApplied ?? false,
+        multiResolutionAtlasTailStrategyRoutingBoost:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingBoost ?? 0,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+  
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
+        warmApplied,
+        warmAppliedStage,
+      });
+
+      this.emitH3Evidence(
+        chunkId,
+        warmApplied ? "voice_semantic_address_warm_applied" : "voice_semantic_address_warm_discarded",
+        {
+          source: event.source,
+          regionId: event.regionId,
+          commandClass: event.commandClass,
+          parameterType: event.parameterType ?? null,
+          warmHitClass: semanticLookup.warmHitClass,
+          semanticAddressId: semanticLookup.bestCandidateId,
+          canonicalMergedText: semanticLookup.bestCanonicalMergedText,
+          bestCandidateId: semanticLookup.bestCandidateId,
+          bestCandidateScore: semanticLookup.bestCandidateScore,
+          lookupPath: semanticLookup.lookupPath,
+          confidencePolicyVersion: semanticLookup.confidencePolicyVersion,
+          weakThreshold: semanticLookup.weakThreshold,
+          strongThreshold: semanticLookup.strongThreshold,
+          candidateAgeMs: semanticLookup.candidateAgeMs,
+          recentConflictPenaltyApplied: semanticLookup.recentConflictPenaltyApplied,
+          staleProtectionApplied: semanticLookup.staleProtectionApplied,
+          focusRankingApplied: semanticLookup.focusRankingApplied,
+          focusRankingBoost: semanticLookup.focusRankingBoost,
+          focusRankingReasonCodes: semanticLookup.focusRankingReasonCodes,
+          focusLegalityApplied: semanticLookup.focusLegalityApplied,
+          focusLegalityLawful: semanticLookup.focusLegalityLawful,
+          focusLegalityPenaltyApplied: semanticLookup.focusLegalityPenaltyApplied,
+          focusLegalityPenalty: semanticLookup.focusLegalityPenalty,
+          focusLegalityReasonCodes: semanticLookup.focusLegalityReasonCodes,
+          focusLegalityCommandKind: semanticLookup.focusLegalityCommandKind,
+          atlasShardRankingApplied: semanticLookup.atlasShardRankingApplied,
+          atlasShardRankingBoost: semanticLookup.atlasShardRankingBoost,
+          atlasShardRankingReasonCodes: semanticLookup.atlasShardRankingReasonCodes,
+          atlasShardRankingCandidateKind: semanticLookup.atlasShardRankingCandidateKind,
+          workflowMemoryOrderingVersion:
+            workflowMemoryOrderingFields.workflowMemoryOrderingVersion,
+          workflowMemoryOrderingEligible:
+            workflowMemoryOrderingFields.workflowMemoryOrderingEligible,
+          workflowMemoryOrderingApplied:
+            workflowMemoryOrderingFields.workflowMemoryOrderingApplied,
+          workflowMemoryOrderingBaseScore:
+            workflowMemoryOrderingFields.workflowMemoryOrderingBaseScore,
+          workflowMemoryOrderingAdjustedScore:
+            workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore,
+          workflowMemoryOrderingBoost:
+            workflowMemoryOrderingFields.workflowMemoryOrderingBoost,
+          workflowMemoryOrderingPreviousSemanticAddressId:
+            workflowMemoryOrderingFields.workflowMemoryOrderingPreviousSemanticAddressId,
+          workflowMemoryOrderingCandidateSemanticAddressId:
+            workflowMemoryOrderingFields.workflowMemoryOrderingCandidateSemanticAddressId,
+          workflowMemoryOrderingMatchedTransitionKey:
+            workflowMemoryOrderingFields.workflowMemoryOrderingMatchedTransitionKey,
+          workflowMemoryOrderingTransitionCount:
+            workflowMemoryOrderingFields.workflowMemoryOrderingTransitionCount,
+          workflowMemoryOrderingSource:
+            workflowMemoryOrderingFields.workflowMemoryOrderingSource,
+          workflowMemoryOrderingReasonCodes:
+            workflowMemoryOrderingFields.workflowMemoryOrderingReasonCodes,
+          multiResolutionAtlasFamilyRoutingApplied:
+            semanticLookup.multiResolutionAtlasFamilyRoutingApplied ?? false,
+          multiResolutionAtlasFamilyRoutingBoost:
+            semanticLookup.multiResolutionAtlasFamilyRoutingBoost ?? 0,
+          multiResolutionAtlasFamilyRoutingReasonCodes:
+            semanticLookup.multiResolutionAtlasFamilyRoutingReasonCodes ?? ["multi_resolution_family_routing_not_evaluated"],
+          multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+            semanticLookup.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
+          multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+            semanticLookup.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
+          multiResolutionAtlasPrefixBandRoutingApplied:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingApplied ?? false,
+          multiResolutionAtlasPrefixBandRoutingBoost:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingBoost ?? 0,
+          multiResolutionAtlasPrefixBandRoutingReasonCodes:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? ["multi_resolution_prefix_band_routing_not_evaluated"],
+          multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
+          multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+            semanticLookup.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
+          multiResolutionAtlasTailStrategyRoutingApplied:
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingApplied ?? false,
+          multiResolutionAtlasTailStrategyRoutingBoost:
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingBoost ?? 0,
+          multiResolutionAtlasTailStrategyRoutingReasonCodes:
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? ["multi_resolution_tail_strategy_routing_not_evaluated"],
+          multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+    
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+            semanticLookup.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
+          warmApplied,
+          warmAppliedStage,
+          warmDiscardReason,
+          liveEvidenceOverride: false,
+          governanceRequired: true,
+          reason: warmApplied
+            ? "warm_applied_pre_dispatch_advisory_only"
+            : warmDiscardReason ?? "warm_discarded_continue_normal_path",
         }
       );
     }
@@ -1117,6 +1559,94 @@ export default class ChunkManager {
         openTargetKind: normalized.targetKind,
       });
     }
+    const warmLookup = this.chunkH3WarmLookup?.get(chunkId);
+    const liveEvidenceOverride = Boolean(
+      warmLookup?.warmApplied &&
+        warmLookup.bestCanonicalMergedText &&
+        warmLookup.bestCanonicalMergedText.trim().toLowerCase() !== mergedTranscript.trim().toLowerCase()
+    );
+    if (liveEvidenceOverride) {
+      this.emitH3Evidence(chunkId, "voice_semantic_address_warm_discarded", {
+        semanticAddressId: warmLookup?.bestCandidateId ?? undefined,
+        canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? undefined,
+        bestCandidateId: warmLookup?.bestCandidateId ?? undefined,
+        bestCandidateScore: warmLookup?.bestCandidateScore ?? undefined,
+        warmHitClass: warmLookup?.warmHitClass ?? undefined,
+        warmApplied: warmLookup?.warmApplied ?? undefined,
+        warmAppliedStage: warmLookup?.warmAppliedStage ?? undefined,
+        confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? undefined,
+        weakThreshold: warmLookup?.weakThreshold ?? undefined,
+        strongThreshold: warmLookup?.strongThreshold ?? undefined,
+        candidateAgeMs: warmLookup?.candidateAgeMs ?? undefined,
+        recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? undefined,
+        staleProtectionApplied: warmLookup?.staleProtectionApplied ?? undefined,
+        focusRankingApplied: warmLookup?.focusRankingApplied ?? undefined,
+        focusRankingBoost: warmLookup?.focusRankingBoost ?? undefined,
+        focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? undefined,
+        focusLegalityApplied: warmLookup?.focusLegalityApplied ?? undefined,
+        focusLegalityLawful: warmLookup?.focusLegalityLawful ?? undefined,
+        focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? undefined,
+        focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? undefined,
+        focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? undefined,
+        focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? undefined,
+        focusTaskMomentumApplied: warmLookup?.focusTaskMomentumApplied ?? undefined,
+        focusTaskMomentumBoost: warmLookup?.focusTaskMomentumBoost ?? undefined,
+        focusTaskMomentumPenaltyApplied: warmLookup?.focusTaskMomentumPenaltyApplied ?? undefined,
+        focusTaskMomentumPenalty: warmLookup?.focusTaskMomentumPenalty ?? undefined,
+        focusTaskMomentumReasonCodes: warmLookup?.focusTaskMomentumReasonCodes ?? undefined,
+        focusTaskMomentumMatchedSemanticAddressId: warmLookup?.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
+        atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? undefined,
+        atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? undefined,
+        atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? undefined,
+        atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? undefined,
+        atlasShardNarrowingApplied: warmLookup?.atlasShardNarrowingApplied ?? undefined,
+        atlasShardNarrowingFallbackUsed: warmLookup?.atlasShardNarrowingFallbackUsed ?? undefined,
+        atlasShardNarrowingCandidateCountBefore: warmLookup?.atlasShardNarrowingCandidateCountBefore ?? undefined,
+        atlasShardNarrowingCandidateCountAfter: warmLookup?.atlasShardNarrowingCandidateCountAfter ?? undefined,
+        atlasShardNarrowingReasonCodes: warmLookup?.atlasShardNarrowingReasonCodes ?? undefined,
+        atlasShardNarrowingAllowedCandidateKinds: warmLookup?.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
+        multiResolutionAtlasFamilyRoutingApplied:
+          warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? undefined,
+        multiResolutionAtlasFamilyRoutingBoost:
+          warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? undefined,
+        multiResolutionAtlasFamilyRoutingReasonCodes:
+          warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? undefined,
+        multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+          warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
+        multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+          warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingApplied:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingApplied ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingBoost:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingBoost ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingReasonCodes:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
+        multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+          warmLookup?.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
+        multiResolutionAtlasTailStrategyRoutingApplied:
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingApplied ?? undefined,
+        multiResolutionAtlasTailStrategyRoutingBoost:
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingBoost ?? undefined,
+        multiResolutionAtlasTailStrategyRoutingReasonCodes:
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? undefined,
+        multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+  
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+          warmLookup?.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
+        warmDiscardReason: "live_geometric_evidence_override",
+        liveEvidenceOverride: true,
+        lookupPath: warmLookup?.lookupPath ?? undefined,
+        reason: "live_geometric_evidence_override",
+      });
+      if (warmLookup?.bestCandidateId) {
+        voiceSemanticAddressRegistry.markWarmConflict(warmLookup.bestCandidateId);
+      }
+      this.chunkH3WarmLookup?.delete(chunkId);
+    }
+
     const geometricEvent = this.chunkH3LatestGeometricEvent.get(chunkId);
     this.observeH3GeometricEvent(chunkId, geometricEvent, true, tailResult.transcript);
     const h23StepIndex = h23Recorder.getTraceSnapshot(chunkId).length + 1;
@@ -1126,6 +1656,45 @@ export default class ChunkManager {
       routeAfter: "geometric_prefix_asr_tail",
       tailText: tailResult.transcript,
       mergedText: mergedTranscript,
+      semanticAddressId: warmLookup?.bestCandidateId ?? undefined,
+      canonicalMergedText: warmLookup?.bestCanonicalMergedText ?? undefined,
+      bestCandidateId: warmLookup?.bestCandidateId ?? undefined,
+      bestCandidateScore: warmLookup?.bestCandidateScore ?? undefined,
+      warmHitClass: warmLookup?.warmHitClass ?? undefined,
+      warmApplied: warmLookup?.warmApplied ?? undefined,
+      warmAppliedStage: warmLookup?.warmAppliedStage ?? undefined,
+      confidencePolicyVersion: warmLookup?.confidencePolicyVersion ?? undefined,
+      weakThreshold: warmLookup?.weakThreshold ?? undefined,
+      strongThreshold: warmLookup?.strongThreshold ?? undefined,
+      candidateAgeMs: warmLookup?.candidateAgeMs ?? undefined,
+      recentConflictPenaltyApplied: warmLookup?.recentConflictPenaltyApplied ?? undefined,
+      staleProtectionApplied: warmLookup?.staleProtectionApplied ?? undefined,
+      focusRankingApplied: warmLookup?.focusRankingApplied ?? undefined,
+      focusRankingBoost: warmLookup?.focusRankingBoost ?? undefined,
+      focusRankingReasonCodes: warmLookup?.focusRankingReasonCodes ?? undefined,
+      focusLegalityApplied: warmLookup?.focusLegalityApplied ?? undefined,
+      focusLegalityLawful: warmLookup?.focusLegalityLawful ?? undefined,
+      focusLegalityPenaltyApplied: warmLookup?.focusLegalityPenaltyApplied ?? undefined,
+      focusLegalityPenalty: warmLookup?.focusLegalityPenalty ?? undefined,
+      focusLegalityReasonCodes: warmLookup?.focusLegalityReasonCodes ?? undefined,
+      focusLegalityCommandKind: warmLookup?.focusLegalityCommandKind ?? undefined,
+      atlasShardRankingApplied: warmLookup?.atlasShardRankingApplied ?? undefined,
+      atlasShardRankingBoost: warmLookup?.atlasShardRankingBoost ?? undefined,
+      atlasShardRankingReasonCodes: warmLookup?.atlasShardRankingReasonCodes ?? undefined,
+      atlasShardRankingCandidateKind: warmLookup?.atlasShardRankingCandidateKind ?? undefined,
+      multiResolutionAtlasFamilyRoutingApplied:
+        warmLookup?.multiResolutionAtlasFamilyRoutingApplied ?? undefined,
+      multiResolutionAtlasFamilyRoutingBoost:
+        warmLookup?.multiResolutionAtlasFamilyRoutingBoost ?? undefined,
+      multiResolutionAtlasFamilyRoutingReasonCodes:
+        warmLookup?.multiResolutionAtlasFamilyRoutingReasonCodes ?? undefined,
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+        warmLookup?.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+        warmLookup?.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
+      warmDiscardReason: liveEvidenceOverride ? "live_geometric_evidence_override" : null,
+      liveEvidenceOverride,
+      lookupPath: warmLookup?.lookupPath ?? undefined,
       reason: "merged_from_geometric_prefix_and_asr_tail",
       parameterType: numericStrategyEnabled ? "numeric" : openStrategyEnabled ? "open" : null,
       numericRaw: numericStrategyEnabled ? tailResult.transcript : null,
@@ -1149,91 +1718,1621 @@ export default class ChunkManager {
     return receivedAt ? Date.now() - receivedAt : Date.now();
   }
 
+  setFocusConditionedCommandContextForChunk(
+    chunkId: string,
+    envelope: FocusConditionedCommandContextEnvelope | null | undefined
+  ): void {
+    if (!envelope) {
+      this.chunkH3FocusContextEnvelope.delete(chunkId);
+      this.chunkH3AtlasShardHint.delete(chunkId);
+      return;
+    }
+    this.chunkH3FocusContextEnvelope.set(chunkId, envelope);
+    this.chunkH3AtlasShardHint.set(chunkId, derivePolicyShapedAtlasShardHint(envelope));
+  }
+
+  clearFocusConditionedCommandContextForChunk(chunkId: string): void {
+    this.chunkH3FocusContextEnvelope.delete(chunkId);
+    this.chunkH3AtlasShardHint.delete(chunkId);
+  }
+
+  private getFocusContextEvidenceFields(chunkId: string) {
+    return deriveFocusContextEvidenceFields(this.chunkH3FocusContextEnvelope.get(chunkId) ?? null);
+  }
+
+  private getAtlasShardEvidenceFields(chunkId: string) {
+    return derivePolicyShapedAtlasShardEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? null);
+  }
+
+  private getMultiResolutionAtlasEvidenceFields(
+    chunkId: string,
+    seed: Partial<{ regionId: string | null; commandClass: string | null; parameterType: string | null; canonicalMergedText: string | null }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveMultiResolutionAtlasEvidenceFields(this.chunkH3AtlasShardHint.get(chunkId) ?? undefined, {
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      canonicalMergedText: seed.canonicalMergedText ?? null,
+    });
+  }
+
+  private getMultiResolutionAtlasPlan(
+    chunkId: string,
+    seed: Partial<{ regionId: string | null; commandClass: string | null; parameterType: string | null; canonicalMergedText: string | null }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveMultiResolutionAtlasPlan(this.chunkH3AtlasShardHint.get(chunkId) ?? undefined, {
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      canonicalMergedText: seed.canonicalMergedText ?? null,
+    });
+  }
+
+
+
+  private getCounterfactualRepairEvidenceFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{ semanticAddressId: string | null; canonicalMergedText: string | null; regionId: string | null; commandClass: string | null; parameterType: string | null; transcriptText: string | null; reason: string | null; finalGranted: boolean | null }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    return deriveCounterfactualRepairEvidenceFields({
+      semanticAddressId: seed.semanticAddressId ?? null,
+      canonicalMergedText: seed.canonicalMergedText ?? null,
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      transcriptText: seed.transcriptText ?? null,
+      eventName,
+      reason: seed.reason ?? null,
+      finalGranted: seed.finalGranted ?? undefined,
+    });
+  }
+
+  private getDynamicPrecisionActiveRegimeMap() {
+    const self = this as any;
+    if (!(self.chunkH3DynamicPrecisionActiveRegime instanceof Map)) {
+      self.chunkH3DynamicPrecisionActiveRegime = new Map<string, string>();
+    }
+    return self.chunkH3DynamicPrecisionActiveRegime as Map<string, string>;
+  }
+
+  private getDynamicPrecisionStabilityTickMap() {
+    const self = this as any;
+    if (!(self.chunkH3DynamicPrecisionStabilityTickCount instanceof Map)) {
+      self.chunkH3DynamicPrecisionStabilityTickCount = new Map<string, number>();
+    }
+    return self.chunkH3DynamicPrecisionStabilityTickCount as Map<string, number>;
+  }
+
+  private getDynamicPrecisionCooldownMap() {
+    const self = this as any;
+    if (!(self.chunkH3DynamicPrecisionCooldownTicksRemaining instanceof Map)) {
+      self.chunkH3DynamicPrecisionCooldownTicksRemaining = new Map<string, number>();
+    }
+    return self.chunkH3DynamicPrecisionCooldownTicksRemaining as Map<string, number>;
+  }
+
+  private getWorkflowCandidateDiscoveryState() {
+    const self = this as any;
+    if (!self.h3WorkflowCandidateDiscoveryState || typeof self.h3WorkflowCandidateDiscoveryState !== "object") {
+      self.h3WorkflowCandidateDiscoveryState = deriveEmptyWorkflowCandidateDiscoveryState();
+    }
+    return self.h3WorkflowCandidateDiscoveryState as ReturnType<typeof deriveEmptyWorkflowCandidateDiscoveryState>;
+  }
+
+  private getWorkflowCandidateDiscoveryFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    const fields = deriveWorkflowCandidateDiscovery({
+      semanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
+      source: "h3_runtime_evidence",
+      previousState: this.getWorkflowCandidateDiscoveryState(),
+    });
+
+    if (fields.workflowCandidateDiscoveryGovernedStateUpdated && fields.nextState) {
+      const self = this as any;
+      self.h3WorkflowCandidateDiscoveryState = fields.nextState;
+    }
+
+    return fields;
+  }
+
+  private getWorkflowMemoryState() {
+    const self = this as any;
+    if (!self.h3WorkflowMemoryState || typeof self.h3WorkflowMemoryState !== "object") {
+      self.h3WorkflowMemoryState = {
+        lastGovernedSemanticAddressId: null,
+        sequenceLength: 0,
+        consecutiveRepeatCount: 0,
+        transitionCounts: {},
+      };
+    }
+    return self.h3WorkflowMemoryState as {
+      lastGovernedSemanticAddressId: string | null;
+      sequenceLength: number;
+      consecutiveRepeatCount: number;
+      transitionCounts: Record<string, number>;
+    };
+  }
+
+  private getWorkflowReuseHistory() {
+    const self = this as any;
+    if (!Array.isArray(self.h3WorkflowReuseGovernedHistory)) {
+      self.h3WorkflowReuseGovernedHistory = [];
+    }
+    return self.h3WorkflowReuseGovernedHistory as string[];
+  }
+
+  private updateWorkflowReuseHistory(semanticAddressId: string | null): void {
+    if (!semanticAddressId) {
+      return;
+    }
+    const self = this as any;
+    const governedHistory = this.getWorkflowReuseHistory();
+    const nextHistory = [...governedHistory, semanticAddressId].slice(-16);
+    self.h3WorkflowReuseGovernedHistory = nextHistory;
+  }
+
+  private getWorkflowSkeletonInferenceState() {
+    const self = this as any;
+    if (!self.h3WorkflowSkeletonInferenceState || typeof self.h3WorkflowSkeletonInferenceState !== "object") {
+      self.h3WorkflowSkeletonInferenceState = deriveEmptyWorkflowSkeletonInferenceState();
+    }
+    return self.h3WorkflowSkeletonInferenceState as ReturnType<typeof deriveEmptyWorkflowSkeletonInferenceState>;
+  }
+
+  private getWorkflowSkeletonInferenceFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      discoverySequenceSemanticAddressIds: string[] | null;
+      discoveryPatternKey: string | null;
+      discoveryThresholdMet: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    const fields = deriveWorkflowSkeletonInference({
+      discoverySequenceSemanticAddressIds: seed.discoverySequenceSemanticAddressIds ?? null,
+      discoveryPatternKey: seed.discoveryPatternKey ?? null,
+      discoveryThresholdMet: seed.discoveryThresholdMet ?? null,
+      source: "h3_runtime_evidence",
+      previousState: this.getWorkflowSkeletonInferenceState(),
+    });
+
+    if (fields.workflowSkeletonInferenceGovernedStateUpdated && fields.nextState) {
+      const self = this as any;
+      self.h3WorkflowSkeletonInferenceState = fields.nextState;
+    }
+
+    return fields;
+  }
+
+  private getWorkflowCandidateScoringFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      discoveryEligible: boolean | null;
+      discoveryOccurrenceCount: number | null;
+      discoveryDistinctRunCount: number | null;
+      discoverySequenceLength: number | null;
+      discoveryStartBoundaryConfidence: number | null;
+      discoveryEndBoundaryConfidence: number | null;
+      discoveryRepeatedSubsequenceDetected: boolean | null;
+      discoveryRediscoveryMerged: boolean | null;
+      skeletonEligible: boolean | null;
+      skeletonCanonicalStepSemanticAddressIds: string[] | null;
+      skeletonFixedStepIndices: number[] | null;
+      skeletonVariableStepIndices: number[] | null;
+      skeletonOptionalStepIndices: number[] | null;
+      skeletonInferredSlotCount: number | null;
+      skeletonGeneralizationConfidence: number | null;
+      skeletonAbstractionEligible: boolean | null;
+      skeletonFamilyVariantCount: number | null;
+      skeletonFamilySplitRequired: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    return deriveWorkflowCandidateScoring({
+      discoveryEligible: seed.discoveryEligible ?? null,
+      discoveryOccurrenceCount: seed.discoveryOccurrenceCount ?? null,
+      discoveryDistinctRunCount: seed.discoveryDistinctRunCount ?? null,
+      discoverySequenceLength: seed.discoverySequenceLength ?? null,
+      discoveryStartBoundaryConfidence: seed.discoveryStartBoundaryConfidence ?? null,
+      discoveryEndBoundaryConfidence: seed.discoveryEndBoundaryConfidence ?? null,
+      discoveryRepeatedSubsequenceDetected: seed.discoveryRepeatedSubsequenceDetected ?? null,
+      discoveryRediscoveryMerged: seed.discoveryRediscoveryMerged ?? null,
+      skeletonEligible: seed.skeletonEligible ?? null,
+      skeletonCanonicalStepSemanticAddressIds:
+        seed.skeletonCanonicalStepSemanticAddressIds ?? null,
+      skeletonFixedStepIndices: seed.skeletonFixedStepIndices ?? null,
+      skeletonVariableStepIndices: seed.skeletonVariableStepIndices ?? null,
+      skeletonOptionalStepIndices: seed.skeletonOptionalStepIndices ?? null,
+      skeletonInferredSlotCount: seed.skeletonInferredSlotCount ?? null,
+      skeletonGeneralizationConfidence: seed.skeletonGeneralizationConfidence ?? null,
+      skeletonAbstractionEligible: seed.skeletonAbstractionEligible ?? null,
+      skeletonFamilyVariantCount: seed.skeletonFamilyVariantCount ?? null,
+      skeletonFamilySplitRequired: seed.skeletonFamilySplitRequired ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
+
+
+
+private getWorkflowCandidatePolicyFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    scoringEligible: boolean | null;
+    workflowClass: string | null;
+    trustScore: number | null;
+    creationRiskBand: string | null;
+    duplicateRiskScore: number | null;
+    familySplitRequired: boolean | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidatePreferencesPolicy({
+    scoringEligible: seed.scoringEligible ?? null,
+    workflowClass: seed.workflowClass ?? null,
+    trustScore: seed.trustScore ?? null,
+    creationRiskBand: seed.creationRiskBand ?? null,
+    duplicateRiskScore: seed.duplicateRiskScore ?? null,
+    familySplitRequired: seed.familySplitRequired ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+
+private getWorkflowCandidateTimingFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    rubricEligible: boolean | null;
+    suggestedSurface: string | null;
+    suggestionPressureScore: number | null;
+    utilityScore: number | null;
+    noveltyScore: number | null;
+    trainingModeActive: boolean | null;
+    quietModeEnabled: boolean | null;
+    inboxOnly: boolean | null;
+    autoCreateLowRiskEnabled: boolean | null;
+    cooldownActive: boolean | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidateTiming({
+    rubricEligible: seed.rubricEligible ?? null,
+    suggestedSurface: seed.suggestedSurface ?? null,
+    suggestionPressureScore: seed.suggestionPressureScore ?? null,
+    utilityScore: seed.utilityScore ?? null,
+    noveltyScore: seed.noveltyScore ?? null,
+    trainingModeActive: seed.trainingModeActive ?? null,
+    quietModeEnabled: seed.quietModeEnabled ?? null,
+    inboxOnly: seed.inboxOnly ?? null,
+    autoCreateLowRiskEnabled: seed.autoCreateLowRiskEnabled ?? null,
+    cooldownActive: seed.cooldownActive ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+
+private getWorkflowCandidateRubricFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    scoringEligible: boolean | null;
+    confidenceScore: number | null;
+    utilityScore: number | null;
+    creationRiskScore: number | null;
+    suggestionPressureScore: number | null;
+    trustScore: number | null;
+    noveltyScore: number | null;
+    duplicateRiskScore: number | null;
+    creationRiskBand: string | null;
+    familySplitRequired: boolean | null;
+    latentExecutionHazardRisk: number | null;
+    policyEligible: boolean | null;
+    policyWorkflowClass: string | null;
+    policyTrustBand: string | null;
+    policyInboxOnly: boolean | null;
+    policyQuietModeEnabled: boolean | null;
+    policyTrainingModeActive: boolean | null;
+    timingEligible: boolean | null;
+    timingChannel: string | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidateRubrics({
+    scoringEligible: seed.scoringEligible ?? null,
+    confidenceScore: seed.confidenceScore ?? null,
+    utilityScore: seed.utilityScore ?? null,
+    creationRiskScore: seed.creationRiskScore ?? null,
+    suggestionPressureScore: seed.suggestionPressureScore ?? null,
+    trustScore: seed.trustScore ?? null,
+    noveltyScore: seed.noveltyScore ?? null,
+    duplicateRiskScore: seed.duplicateRiskScore ?? null,
+    creationRiskBand: seed.creationRiskBand ?? null,
+    familySplitRequired: seed.familySplitRequired ?? null,
+    latentExecutionHazardRisk: seed.latentExecutionHazardRisk ?? null,
+    policyEligible: seed.policyEligible ?? null,
+    policyWorkflowClass: seed.policyWorkflowClass ?? null,
+    policyTrustBand: seed.policyTrustBand ?? null,
+    policyInboxOnly: seed.policyInboxOnly ?? null,
+    policyQuietModeEnabled: seed.policyQuietModeEnabled ?? null,
+    policyTrainingModeActive: seed.policyTrainingModeActive ?? null,
+    timingEligible: seed.timingEligible ?? null,
+    timingChannel: seed.timingChannel ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+
+private getWorkflowCandidatePromotionFields(
+  chunkId: string,
+  eventName: string,
+  seed: Partial<{
+    rubricEligible: boolean | null;
+    baselineRubricPassed: boolean | null;
+    classRubricPassed: boolean | null;
+    userRubricPassed: boolean | null;
+    timingRubricPassed: boolean | null;
+    rubricVetoApplied: boolean | null;
+    suggestedSurface: string | null;
+    confidenceScore: number | null;
+    utilityScore: number | null;
+    creationRiskScore: number | null;
+    suggestionPressureScore: number | null;
+    trustScore: number | null;
+    noveltyScore: number | null;
+    duplicateRiskScore: number | null;
+    creationRiskBand: string | null;
+    policyEligible: boolean | null;
+    policyAutoCreateLowRiskEnabled: boolean | null;
+    policyAutoSaveVeryLowRiskEnabled: boolean | null;
+    policyInboxOnly: boolean | null;
+    policyTrustBand: string | null;
+    timingEligible: boolean | null;
+    timingChannel: string | null;
+  }> = {}
+) {
+  void chunkId;
+  void eventName;
+  return deriveWorkflowCandidatePromotion({
+    rubricEligible: seed.rubricEligible ?? null,
+    baselineRubricPassed: seed.baselineRubricPassed ?? null,
+    classRubricPassed: seed.classRubricPassed ?? null,
+    userRubricPassed: seed.userRubricPassed ?? null,
+    timingRubricPassed: seed.timingRubricPassed ?? null,
+    rubricVetoApplied: seed.rubricVetoApplied ?? null,
+    suggestedSurface: seed.suggestedSurface ?? null,
+    confidenceScore: seed.confidenceScore ?? null,
+    utilityScore: seed.utilityScore ?? null,
+    creationRiskScore: seed.creationRiskScore ?? null,
+    suggestionPressureScore: seed.suggestionPressureScore ?? null,
+    trustScore: seed.trustScore ?? null,
+    noveltyScore: seed.noveltyScore ?? null,
+    duplicateRiskScore: seed.duplicateRiskScore ?? null,
+    creationRiskBand: seed.creationRiskBand ?? null,
+    policyEligible: seed.policyEligible ?? null,
+    policyAutoCreateLowRiskEnabled: seed.policyAutoCreateLowRiskEnabled ?? null,
+    policyAutoSaveVeryLowRiskEnabled: seed.policyAutoSaveVeryLowRiskEnabled ?? null,
+    policyInboxOnly: seed.policyInboxOnly ?? null,
+    policyTrustBand: seed.policyTrustBand ?? null,
+    timingEligible: seed.timingEligible ?? null,
+    timingChannel: seed.timingChannel ?? null,
+    source: "h3_runtime_evidence",
+  });
+}
+  private getWorkflowDraftArtifactFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      promotionEligible: boolean | null;
+      promotionDecision: string | null;
+      promotionAutoCreateEligible: boolean | null;
+      promotionAutoSaveEligible: boolean | null;
+      workflowClass: string | null;
+      patternKey: string | null;
+      canonicalStepSemanticAddressIds: string[] | null;
+      confidenceScore: number | null;
+      utilityScore: number | null;
+      creationRiskBand: string | null;
+      timingChannel: string | null;
+      policyTrustBand: string | null;
+      familySplitRequired: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    return deriveWorkflowDraftArtifacts({
+      promotionEligible: seed.promotionEligible ?? null,
+      promotionDecision: seed.promotionDecision ?? null,
+      promotionAutoCreateEligible: seed.promotionAutoCreateEligible ?? null,
+      promotionAutoSaveEligible: seed.promotionAutoSaveEligible ?? null,
+      workflowClass: seed.workflowClass ?? null,
+      patternKey: seed.patternKey ?? null,
+      canonicalStepSemanticAddressIds: seed.canonicalStepSemanticAddressIds ?? null,
+      confidenceScore: seed.confidenceScore ?? null,
+      utilityScore: seed.utilityScore ?? null,
+      creationRiskBand: seed.creationRiskBand ?? null,
+      timingChannel: seed.timingChannel ?? null,
+      policyTrustBand: seed.policyTrustBand ?? null,
+      familySplitRequired: seed.familySplitRequired ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+  private getWorkflowMemoryReuseFields(
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    return deriveWorkflowMemoryReuseSubstrate({
+      governedHistory: this.getWorkflowReuseHistory(),
+      currentSemanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
+  private getWorkflowMemoryEvidenceFields(
+    chunkId: string,
+    eventName: string,
+    seed: Partial<{
+      semanticAddressId: string | null;
+      finalGranted: boolean | null;
+    }> = {}
+  ) {
+    void chunkId;
+    void eventName;
+    const workflowState = this.getWorkflowMemoryState();
+    const fields = deriveWorkflowMemoryObservation({
+      semanticAddressId: seed.semanticAddressId ?? null,
+      finalGranted: seed.finalGranted ?? null,
+      source: "h3_runtime_evidence",
+      previousState: workflowState,
+    });
+
+    if (fields.workflowMemoryGovernedStateUpdated && fields.nextState) {
+      const self = this as any;
+      self.h3WorkflowMemoryState = fields.nextState;
+    }
+
+    return fields;
+  }
+
+  private getWorkflowMemoryRankingFields(
+    seed: Partial<{
+      candidateSemanticAddressId: string | null;
+      continuationSuggested: boolean | null;
+    }> = {}
+  ) {
+    const workflowState = this.getWorkflowMemoryState();
+    const candidateSemanticAddressId = seed.candidateSemanticAddressId ?? null;
+    const previousSemanticAddressId = workflowState.lastGovernedSemanticAddressId ?? null;
+    const transitionKey =
+      previousSemanticAddressId &&
+      candidateSemanticAddressId &&
+      previousSemanticAddressId !== candidateSemanticAddressId
+        ? `${previousSemanticAddressId}->${candidateSemanticAddressId}`
+        : null;
+    const transitionCount = transitionKey ? (workflowState.transitionCounts[transitionKey] ?? 0) : 0;
+    const continuationSuggested =
+      seed.continuationSuggested ?? (transitionKey ? transitionCount > 0 : false);
+
+    return deriveWorkflowMemoryContinuityRanking({
+      previousSemanticAddressId,
+      candidateSemanticAddressId,
+      transitionCounts: workflowState.transitionCounts,
+      continuationSuggested,
+      source: "h3_runtime_evidence",
+    });
+  }
+
+  private getWorkflowMemoryOrderingFields(
+    seed: Partial<{
+      candidateSemanticAddressId: string | null;
+      baseScore: number | null;
+      continuationSuggested: boolean | null;
+    }> = {}
+  ) {
+    const rankingFields = this.getWorkflowMemoryRankingFields({
+      candidateSemanticAddressId: seed.candidateSemanticAddressId ?? null,
+      continuationSuggested: seed.continuationSuggested ?? null,
+    });
+
+    return deriveWorkflowMemoryContinuityOrdering({
+      baseScore: seed.baseScore ?? null,
+      previousSemanticAddressId:
+        rankingFields.workflowMemoryRankingPreviousSemanticAddressId ?? null,
+      candidateSemanticAddressId:
+        rankingFields.workflowMemoryRankingCandidateSemanticAddressId ?? null,
+      matchedTransitionKey:
+        rankingFields.workflowMemoryRankingMatchedTransitionKey ?? null,
+      transitionCount:
+        rankingFields.workflowMemoryRankingTransitionCount ?? null,
+      rankingApplied: rankingFields.workflowMemoryRankingApplied ?? false,
+      rankingBoost: rankingFields.workflowMemoryRankingBoost ?? 0,
+      source: "h3_runtime_evidence",
+    });
+  }
+
+
+  private getWorkflowMemoryCandidatePoolOrderingFields(
+    seed: Partial<{
+      candidateSemanticAddressIds: string[] | null;
+      candidateScores: number[] | null;
+      continuationSuggested: boolean | null;
+    }> = {}
+  ) {
+    const workflowState = this.getWorkflowMemoryState();
+
+    return deriveWorkflowMemoryCandidatePoolOrdering({
+      previousSemanticAddressId: workflowState.lastGovernedSemanticAddressId ?? null,
+      candidateSemanticAddressIds: seed.candidateSemanticAddressIds ?? null,
+      candidateScores: seed.candidateScores ?? null,
+      transitionCounts: workflowState.transitionCounts,
+      continuationSuggested: seed.continuationSuggested ?? null,
+      source: "h3_runtime_evidence",
+    });
+  }
+
+  private getDynamicPrecisionEvidenceFields(
+    chunkId: string,
+    seed: Partial<{
+      regionId: string | null;
+      commandClass: string | null;
+      parameterType: string | null;
+      ambiguityBand: string | null;
+      repairWindowOpen: boolean | null;
+      stressBand: string | null;
+      guardrailSuggested: boolean | null;
+      guardrailKind: string | null;
+    }> = {}
+  ) {
+    const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
+    const activeRegimeMap = this.getDynamicPrecisionActiveRegimeMap();
+    const stabilityTickMap = this.getDynamicPrecisionStabilityTickMap();
+    const cooldownMap = this.getDynamicPrecisionCooldownMap();
+    const fields = deriveDynamicPrecisionRegimeObservation({
+      regionId: seed.regionId ?? latest?.regionId ?? null,
+      commandClass: seed.commandClass ?? latest?.commandClass ?? null,
+      parameterType: seed.parameterType === "numeric" || seed.parameterType === "open"
+        ? seed.parameterType
+        : (latest?.parameterType ?? null),
+      ambiguityBand:
+        seed.ambiguityBand === "low" || seed.ambiguityBand === "medium" || seed.ambiguityBand === "high"
+          ? seed.ambiguityBand
+          : null,
+      repairWindowOpen: seed.repairWindowOpen ?? null,
+      stressBand:
+        seed.stressBand === "nominal" || seed.stressBand === "elevated" || seed.stressBand === "critical"
+          ? seed.stressBand
+          : null,
+      guardrailSuggested: seed.guardrailSuggested ?? null,
+      guardrailKind: seed.guardrailKind ?? null,
+      source: "h3_runtime_evidence",
+      currentRegime: activeRegimeMap.get(chunkId) as any ?? null,
+      stabilityTickCount: stabilityTickMap.get(chunkId) ?? null,
+      cooldownTicksRemaining: cooldownMap.get(chunkId) ?? null,
+    });
+
+    if (fields.dynamicPrecisionEligible) {
+      if (fields.dynamicPrecisionActiveRegime) {
+        activeRegimeMap.set(chunkId, fields.dynamicPrecisionActiveRegime);
+      }
+      if (typeof fields.dynamicPrecisionStabilityTickCount === "number") {
+        stabilityTickMap.set(chunkId, fields.dynamicPrecisionStabilityTickCount);
+      }
+      if (typeof fields.dynamicPrecisionCooldownTicksRemaining === "number") {
+        cooldownMap.set(chunkId, fields.dynamicPrecisionCooldownTicksRemaining);
+      }
+    } else {
+      activeRegimeMap.delete(chunkId);
+      stabilityTickMap.delete(chunkId);
+      cooldownMap.delete(chunkId);
+    }
+
+    return fields;
+  }
+
+  private getH4AuthorityEntryFields(
+    chunkId: string,
+    _eventName: string,
+    overrides: Record<string, any> = {}
+  ) {
+    return deriveH4AuthorityEntryObservation({
+      liveMicActive: overrides.liveMicActive ?? true,
+      streamConnected: overrides.streamConnected ?? (this.stream?.connected?.() ?? false),
+      dictateMode: overrides.dictateMode ?? (this.active?.dictateMode ?? false),
+      forceLegacyCommandLane: overrides.forceLegacyCommandLane ?? FORCE_LEGACY_COMMAND_LANE,
+      h3AuthorityEnabled: overrides.h3AuthorityEnabled ?? this.h3GeometricEnabled,
+      defaultPath:
+        overrides.defaultPath ??
+        this.chunkH4AuthorityDefaultPath?.get(chunkId) ??
+        null,
+      fallbackInvoked:
+        overrides.fallbackInvoked ??
+        this.chunkH4FallbackInvoked?.get(chunkId) ??
+        false,
+      fallbackReason:
+        overrides.fallbackReason ??
+        this.chunkH4FallbackReason?.get(chunkId) ??
+        null,
+      source: overrides.source ?? "microphone",
+    });
+  }
+
+
   private emitH3Evidence(
     chunkId: string,
     eventName: string,
-    overrides: Partial<{
-      source: string;
-      regionId: string;
-      commandClass: string;
-      hadTranscriptText: boolean;
-      transcriptText: string | null;
-      routeBefore: string;
-      routeAfter: string;
-      tailEndMs: number;
-      tailText: string;
-      mergedText: string;
-      reason: string;
-      parameterType: string | null;
-      numericRaw: string | null;
-      numericNormalized: string | null;
-      numericParseConfidence: number | null;
-      numericStrategyVersion: string | null;
-      openRaw: string | null;
-      openNormalized: string | null;
-      openParseConfidence: number | null;
-      openStrategyVersion: string | null;
-      openTargetKind: string | null;
-      semanticAddressId: string | null;
-      canonicalMergedText: string | null;
-      slotSignature: string | null;
-      atlasVersion: string | null;
-      lookupCandidateCount: number | null;
-      bestCandidateId: string | null;
-      bestCandidateScore: number | null;
-      warmHitClass: string | null;
-      governanceRequired: boolean | null;
-      governanceQualified: boolean | null;
-      h23StepCount: number | null;
-      h24FinalGranted: boolean | null;
-      successCount: number | null;
-    }> = {}
+    overrides: Record<string, any> = {}
   ): void {
     const latest = this.chunkH3LatestGeometricEvent.get(chunkId);
     const trace = h23Recorder.getTraceSnapshot(chunkId);
     const decision = h23Recorder.getLatestDecision(chunkId);
+    const focusFields = this.getFocusContextEvidenceFields(chunkId);
+    const atlasShardFields = this.getAtlasShardEvidenceFields(chunkId);
+    const multiResolutionAtlasFields = this.getMultiResolutionAtlasEvidenceFields(chunkId, {
+      regionId: overrides.regionId ?? latest?.regionId ?? undefined,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? undefined,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? undefined,
+      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? undefined,
+    });
+    const counterfactualRepairFields = this.getCounterfactualRepairEvidenceFields(chunkId, eventName, {
+      semanticAddressId: overrides.semanticAddressId ?? undefined,
+      canonicalMergedText: overrides.canonicalMergedText ?? overrides.mergedText ?? undefined,
+      regionId: overrides.regionId ?? latest?.regionId ?? undefined,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? undefined,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? undefined,
+      transcriptText: overrides.transcriptText ?? undefined,
+      reason: (overrides as any).reason ?? undefined,
+      finalGranted: decision?.granted ?? undefined,
+    });
+    const dynamicPrecisionFields = this.getDynamicPrecisionEvidenceFields(chunkId, {
+      regionId: overrides.regionId ?? latest?.regionId ?? null,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
+      parameterType: overrides.parameterType ?? latest?.parameterType ?? null,
+      ambiguityBand: counterfactualRepairFields.counterfactualRepairAmbiguityBand,
+      repairWindowOpen: counterfactualRepairFields.counterfactualRepairSignalRepairWindowOpen,
+      stressBand: counterfactualRepairFields.counterfactualRepairStressBand,
+      guardrailSuggested: counterfactualRepairFields.counterfactualRepairRankingGuardrailSuggested,
+      guardrailKind: counterfactualRepairFields.counterfactualRepairRankingGuardrailKind,
+    });
+    const workflowMemoryFields = this.getWorkflowMemoryEvidenceFields(chunkId, eventName, {
+      semanticAddressId: overrides.semanticAddressId ?? null,
+      finalGranted: decision?.granted ?? null,
+    });
+    const workflowCandidateDiscoveryFields = this.getWorkflowCandidateDiscoveryFields(chunkId, eventName, {
+      semanticAddressId: overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
+      finalGranted: decision?.granted ?? null,
+    });
+    const workflowSkeletonInferenceFields = this.getWorkflowSkeletonInferenceFields(chunkId, eventName, {
+      discoverySequenceSemanticAddressIds:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceSemanticAddressIds ?? null,
+      discoveryPatternKey:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ?? null,
+      discoveryThresholdMet:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? null,
+    });
+    const workflowCandidateScoringFields = this.getWorkflowCandidateScoringFields(chunkId, eventName, {
+      discoveryEligible:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEligible ?? null,
+      discoveryOccurrenceCount:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryOccurrenceCount ?? null,
+      discoveryDistinctRunCount:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryDistinctRunCount ?? null,
+      discoverySequenceLength:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceLength ?? null,
+      discoveryStartBoundaryConfidence:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryStartBoundaryConfidence ?? null,
+      discoveryEndBoundaryConfidence:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEndBoundaryConfidence ?? null,
+      discoveryRepeatedSubsequenceDetected:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? null,
+      discoveryRediscoveryMerged:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRediscoveryMerged ?? null,
+      skeletonEligible:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceEligible ?? null,
+      skeletonCanonicalStepSemanticAddressIds:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
+      skeletonFixedStepIndices:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFixedStepIndices ?? null,
+      skeletonVariableStepIndices:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceVariableStepIndices ?? null,
+      skeletonOptionalStepIndices:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceOptionalStepIndices ?? null,
+      skeletonInferredSlotCount:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceInferredSlotCount ?? null,
+      skeletonGeneralizationConfidence:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceGeneralizationConfidence ?? null,
+      skeletonAbstractionEligible:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceAbstractionEligible ?? null,
+      skeletonFamilyVariantCount:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilyVariantCount ?? null,
+      skeletonFamilySplitRequired:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    });
+    const workflowMemoryRankingFields = this.getWorkflowMemoryRankingFields({
+      candidateSemanticAddressId:
+        overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
+      continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
+    });
+    const workflowMemoryOrderingFields = this.getWorkflowMemoryOrderingFields({
+      candidateSemanticAddressId:
+        overrides.semanticAddressId ?? overrides.bestCandidateId ?? null,
+      baseScore: overrides.bestCandidateScore ?? null,
+      continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
+    });
+    const workflowMemoryCandidatePoolOrderingFields =
+      this.getWorkflowMemoryCandidatePoolOrderingFields({
+        candidateSemanticAddressIds:
+          overrides.workflowMemoryCandidatePoolSemanticAddressIdsBefore ?? null,
+        candidateScores:
+          overrides.workflowMemoryCandidatePoolScoresBefore ?? null,
+        continuationSuggested: overrides.workflowMemoryContinuationSuggested ?? null,
+      });
+
+const workflowCandidatePolicyFields = this.getWorkflowCandidatePolicyFields(chunkId, eventName, {
+    scoringEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+    workflowClass:
+      workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk != null &&
+      (workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk ?? 0) >= 28
+        ? "cross_app"
+        : "workflow_candidate_default",
+    trustScore: workflowCandidateScoringFields.workflowCandidateTrustScore ?? null,
+    creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
+    familySplitRequired:
+      workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+});
+const workflowCandidateTimingFields = this.getWorkflowCandidateTimingFields(chunkId, eventName, {
+    rubricEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+    suggestedSurface:
+      ((workflowCandidateScoringFields.workflowCandidateCreationRiskBand === "very_low" ||
+        workflowCandidateScoringFields.workflowCandidateCreationRiskBand === "low") &&
+      (workflowCandidateScoringFields.workflowCandidateUtilityScore ?? 0) >= 72)
+        ? "inline"
+        : "inbox",
+    suggestionPressureScore:
+      workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore ?? null,
+    utilityScore: workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
+    trainingModeActive:
+      workflowCandidatePolicyFields.workflowCandidatePolicyTrainingModeActive ?? null,
+    quietModeEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyQuietModeEnabled ?? null,
+    inboxOnly: workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly ?? null,
+    autoCreateLowRiskEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? null,
+    cooldownActive: false,
+});
+const workflowCandidateRubricFields = this.getWorkflowCandidateRubricFields(chunkId, eventName, {
+    scoringEligible: workflowCandidateScoringFields.workflowCandidateScoringEligible ?? null,
+    confidenceScore: workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+    utilityScore: workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    creationRiskScore: workflowCandidateScoringFields.workflowCandidateCreationRiskScore ?? null,
+    suggestionPressureScore: workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore ?? null,
+    trustScore: workflowCandidateScoringFields.workflowCandidateTrustScore ?? null,
+    noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
+    duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
+    creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    familySplitRequired: workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    latentExecutionHazardRisk: workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk ?? null,
+    policyEligible: workflowCandidatePolicyFields.workflowCandidatePolicyEligible ?? null,
+    policyWorkflowClass: workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass ?? null,
+    policyTrustBand: workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+    policyInboxOnly: workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly ?? null,
+    policyQuietModeEnabled: workflowCandidatePolicyFields.workflowCandidatePolicyQuietModeEnabled ?? null,
+    policyTrainingModeActive: workflowCandidatePolicyFields.workflowCandidatePolicyTrainingModeActive ?? null,
+    timingEligible: workflowCandidateTimingFields.workflowCandidateTimingEligible ?? null,
+    timingChannel: workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
+});
+const workflowCandidatePromotionFields = this.getWorkflowCandidatePromotionFields(chunkId, eventName, {
+    rubricEligible: workflowCandidateRubricFields.workflowCandidateRubricEligible ?? null,
+    baselineRubricPassed: workflowCandidateRubricFields.workflowCandidateBaselineRubricPassed ?? null,
+    classRubricPassed: workflowCandidateRubricFields.workflowCandidateClassRubricPassed ?? null,
+    userRubricPassed: workflowCandidateRubricFields.workflowCandidateUserRubricPassed ?? null,
+    timingRubricPassed: workflowCandidateRubricFields.workflowCandidateTimingRubricPassed ?? null,
+    rubricVetoApplied: workflowCandidateRubricFields.workflowCandidateRubricVetoApplied ?? null,
+    suggestedSurface: workflowCandidateRubricFields.workflowCandidateRubricSuggestedSurface ?? null,
+    confidenceScore: workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+    utilityScore: workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+    creationRiskScore: workflowCandidateScoringFields.workflowCandidateCreationRiskScore ?? null,
+    suggestionPressureScore: workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore ?? null,
+    trustScore: workflowCandidateScoringFields.workflowCandidateTrustScore ?? null,
+    noveltyScore: workflowCandidateScoringFields.workflowCandidateNoveltyScore ?? null,
+    duplicateRiskScore: workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore ?? null,
+    creationRiskBand: workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+    policyEligible: workflowCandidatePolicyFields.workflowCandidatePolicyEligible ?? null,
+    policyAutoCreateLowRiskEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? null,
+    policyAutoSaveVeryLowRiskEnabled:
+      workflowCandidatePolicyFields.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled ?? null,
+    policyInboxOnly: workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly ?? null,
+    policyTrustBand: workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+    timingEligible: workflowCandidateTimingFields.workflowCandidateTimingEligible ?? null,
+    timingChannel: workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
+});
+    const workflowMemoryReuseFields = this.getWorkflowMemoryReuseFields({
+      semanticAddressId: overrides.semanticAddressId ?? null,
+      finalGranted: decision?.granted ?? null,
+    });
+    const adjustedBestCandidateId =
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+        ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter
+        : overrides.bestCandidateId ?? null;
+    const adjustedBestCandidateScore =
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied &&
+      workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter !== null
+        ? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter
+        : workflowMemoryOrderingFields.workflowMemoryOrderingApplied &&
+          workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore !== null
+          ? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore
+          : overrides.bestCandidateScore ?? null;
+    
+    const h4AuthorityEntryFields = this.getH4AuthorityEntryFields(chunkId, eventName, {
+      source: overrides.source ?? latest?.source ?? "microphone",
+      liveMicActive: true,
+      streamConnected: this.stream?.connected?.() ?? false,
+      dictateMode: this.active?.dictateMode ?? false,
+    });
+    const workflowDraftArtifactFields = this.getWorkflowDraftArtifactFields(chunkId, eventName, {
+      promotionEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionEligible ?? null,
+      promotionDecision:
+        workflowCandidatePromotionFields.workflowCandidatePromotionDecision ?? null,
+      promotionAutoCreateEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionAutoCreateEligible ?? null,
+      promotionAutoSaveEligible:
+        workflowCandidatePromotionFields.workflowCandidatePromotionAutoSaveEligible ?? null,
+      workflowClass:
+        workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass ?? null,
+      patternKey:
+        workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey ??
+        workflowSkeletonInferenceFields.workflowSkeletonInferencePatternKey ?? null,
+      canonicalStepSemanticAddressIds:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? null,
+      confidenceScore:
+        workflowCandidateScoringFields.workflowCandidateConfidenceScore ?? null,
+      utilityScore:
+        workflowCandidateScoringFields.workflowCandidateUtilityScore ?? null,
+      creationRiskBand:
+        workflowCandidateScoringFields.workflowCandidateCreationRiskBand ?? null,
+      timingChannel:
+        workflowCandidateTimingFields.workflowCandidateTimingChannel ?? null,
+      policyTrustBand:
+        workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand ?? null,
+      familySplitRequired:
+        workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired ?? null,
+    });
     emitH3RuntimeEvidence({
       event: eventName,
       chunkId,
       timestampMs: this.relativeChunkNowMs(chunkId),
-      source: overrides.source ?? latest?.source ?? null,
-      regionId: overrides.regionId ?? latest?.regionId ?? null,
-      commandClass: overrides.commandClass ?? latest?.commandClass ?? null,
-      hadTranscriptText: overrides.hadTranscriptText ?? null,
-      transcriptText: overrides.transcriptText ?? null,
-      routeBefore: overrides.routeBefore ?? this.chunkH3Route.get(chunkId) ?? null,
-      routeAfter: overrides.routeAfter ?? this.chunkH3Route.get(chunkId) ?? null,
-      tailStartMs: this.chunkH3TailCaptureStartMs.get(chunkId) ?? null,
-      tailEndMs: overrides.tailEndMs ?? null,
-      tailText: overrides.tailText ?? null,
-      mergedText: overrides.mergedText ?? null,
+      source: overrides.source ?? latest?.source ?? undefined,
+      regionId: overrides.regionId ?? latest?.regionId ?? undefined,
+      commandClass: overrides.commandClass ?? latest?.commandClass ?? undefined,
+      hadTranscriptText: overrides.hadTranscriptText ?? undefined,
+      transcriptText: overrides.transcriptText ?? undefined,
+      routeBefore: overrides.routeBefore ?? this.chunkH3Route.get(chunkId) ?? undefined,
+      routeAfter: overrides.routeAfter ?? this.chunkH3Route.get(chunkId) ?? undefined,
+      tailStartMs: this.chunkH3TailCaptureStartMs.get(chunkId) ?? undefined,
+      tailEndMs: overrides.tailEndMs ?? undefined,
+      tailText: overrides.tailText ?? undefined,
+      mergedText: overrides.mergedText ?? undefined,
       stepCount: trace.length,
-      finalGranted: decision?.granted ?? null,
-      reason: overrides.reason ?? decision?.reason ?? null,
-      parameterType: overrides.parameterType ?? null,
-      numericRaw: overrides.numericRaw ?? null,
-      numericNormalized: overrides.numericNormalized ?? null,
-      numericParseConfidence: overrides.numericParseConfidence ?? null,
-      numericStrategyVersion: overrides.numericStrategyVersion ?? null,
-      openRaw: overrides.openRaw ?? null,
-      openNormalized: overrides.openNormalized ?? null,
-      openParseConfidence: overrides.openParseConfidence ?? null,
-      openStrategyVersion: overrides.openStrategyVersion ?? null,
-      openTargetKind: overrides.openTargetKind ?? null,
-      semanticAddressId: overrides.semanticAddressId ?? null,
-      canonicalMergedText: overrides.canonicalMergedText ?? null,
-      slotSignature: overrides.slotSignature ?? null,
-      atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? null,
-      lookupCandidateCount: overrides.lookupCandidateCount ?? null,
-      bestCandidateId: overrides.bestCandidateId ?? null,
-      bestCandidateScore: overrides.bestCandidateScore ?? null,
-      warmHitClass: overrides.warmHitClass ?? null,
-      governanceRequired: overrides.governanceRequired ?? null,
-      governanceQualified: overrides.governanceQualified ?? null,
-      h23StepCount: overrides.h23StepCount ?? null,
-      h24FinalGranted: overrides.h24FinalGranted ?? null,
-      successCount: overrides.successCount ?? null,
+      finalGranted: decision?.granted ?? undefined,
+      reason: overrides.reason ?? decision?.reason ?? undefined,
+      parameterType: overrides.parameterType ?? undefined,
+      numericRaw: overrides.numericRaw ?? undefined,
+      numericNormalized: overrides.numericNormalized ?? undefined,
+      numericParseConfidence: overrides.numericParseConfidence ?? undefined,
+      numericStrategyVersion: overrides.numericStrategyVersion ?? undefined,
+      openRaw: overrides.openRaw ?? undefined,
+      openNormalized: overrides.openNormalized ?? undefined,
+      openParseConfidence: overrides.openParseConfidence ?? undefined,
+      openStrategyVersion: overrides.openStrategyVersion ?? undefined,
+      openTargetKind: overrides.openTargetKind ?? undefined,
+      semanticAddressId: overrides.semanticAddressId ?? undefined,
+      canonicalMergedText: overrides.canonicalMergedText ?? undefined,
+      slotSignature: overrides.slotSignature ?? undefined,
+      atlasVersion: overrides.atlasVersion ?? latest?.atlasVersion ?? undefined,
+      lookupCandidateCount: overrides.lookupCandidateCount ?? undefined,
+      bestCandidateId: adjustedBestCandidateId ?? undefined,
+      bestCandidateScore: adjustedBestCandidateScore ?? undefined,
+      warmHitClass: overrides.warmHitClass ?? undefined,
+      governanceRequired: overrides.governanceRequired ?? undefined,
+      governanceQualified: overrides.governanceQualified ?? undefined,
+      h23StepCount: overrides.h23StepCount ?? undefined,
+      h24FinalGranted: overrides.h24FinalGranted ?? undefined,
+      successCount: overrides.successCount ?? undefined,
+      warmApplied: overrides.warmApplied ?? undefined,
+      warmAppliedStage: overrides.warmAppliedStage ?? undefined,
+      confidencePolicyVersion: overrides.confidencePolicyVersion ?? undefined,
+      weakThreshold: overrides.weakThreshold ?? undefined,
+      strongThreshold: overrides.strongThreshold ?? undefined,
+      candidateAgeMs: overrides.candidateAgeMs ?? undefined,
+      recentConflictPenaltyApplied: overrides.recentConflictPenaltyApplied ?? undefined,
+      staleProtectionApplied: overrides.staleProtectionApplied ?? undefined,
+      focusRankingApplied: overrides.focusRankingApplied ?? undefined,
+      focusRankingBoost: overrides.focusRankingBoost ?? undefined,
+      focusRankingReasonCodes: overrides.focusRankingReasonCodes ?? undefined,
+      focusLegalityApplied: overrides.focusLegalityApplied ?? focusFields.focusLegalityApplied,
+      focusLegalityLawful: overrides.focusLegalityLawful ?? focusFields.focusLegalityLawful,
+      focusLegalityPenaltyApplied: overrides.focusLegalityPenaltyApplied ?? focusFields.focusLegalityPenaltyApplied,
+      focusLegalityPenalty: overrides.focusLegalityPenalty ?? focusFields.focusLegalityPenalty,
+      focusLegalityReasonCodes: overrides.focusLegalityReasonCodes ?? focusFields.focusLegalityReasonCodes,
+      focusLegalityCommandKind: overrides.focusLegalityCommandKind ?? focusFields.focusLegalityCommandKind,
+      focusTaskMomentumApplied: overrides.focusTaskMomentumApplied ?? undefined,
+      focusTaskMomentumBoost: overrides.focusTaskMomentumBoost ?? undefined,
+      focusTaskMomentumPenaltyApplied: overrides.focusTaskMomentumPenaltyApplied ?? undefined,
+      focusTaskMomentumPenalty: overrides.focusTaskMomentumPenalty ?? undefined,
+      focusTaskMomentumReasonCodes: overrides.focusTaskMomentumReasonCodes ?? undefined,
+      focusTaskMomentumMatchedSemanticAddressId: overrides.focusTaskMomentumMatchedSemanticAddressId ?? undefined,
+      warmDiscardReason: overrides.warmDiscardReason ?? undefined,
+      liveEvidenceOverride: overrides.liveEvidenceOverride ?? undefined,
+      lookupPath: overrides.lookupPath ?? undefined,
+      focusContextSchemaVersion: focusFields.focusContextSchemaVersion,
+      focusContextEligible: focusFields.focusContextEligible,
+      focusSnapshotFresh: focusFields.focusSnapshotFresh,
+      focusAuthorityType: focusFields.focusAuthorityType,
+      focusAppId: focusFields.focusAppId,
+      focusWindowId: focusFields.focusWindowId,
+      focusRegionId: focusFields.focusRegionId,
+      focusSubregionId: focusFields.focusSubregionId,
+      focusControlId: focusFields.focusControlId,
+      focusHasSelection: focusFields.focusHasSelection,
+      focusSelectionTextLength: focusFields.focusSelectionTextLength,
+      focusCaretOffset: focusFields.focusCaretOffset,
+      focusSnapshotAgeMs: focusFields.focusSnapshotAgeMs,
+      focusConfidence: focusFields.focusConfidence,
+      focusRecentDeltaCount: focusFields.focusRecentDeltaCount,
+      focusRecentTaskHistoryCount: focusFields.focusRecentTaskHistoryCount,
+      focusDeicticResolutionEligible: focusFields.focusDeicticResolutionEligible,
+      focusRankingEligible: focusFields.focusRankingEligible,
+      focusLegalityEligible: focusFields.focusLegalityEligible,
+      focusReasonCodes: focusFields.focusReasonCodes,
+      atlasShardPolicyVersion: atlasShardFields.atlasShardPolicyVersion,
+      atlasShardHintId: atlasShardFields.atlasShardHintId,
+      atlasShardHintEligible: atlasShardFields.atlasShardHintEligible,
+      atlasShardHintSource: atlasShardFields.atlasShardHintSource,
+      atlasShardHintPriority: atlasShardFields.atlasShardHintPriority,
+      atlasShardReasonCodes: atlasShardFields.atlasShardReasonCodes,
+      atlasShardRankingApplied: overrides.atlasShardRankingApplied ?? undefined,
+      atlasShardRankingBoost: overrides.atlasShardRankingBoost ?? undefined,
+      atlasShardRankingReasonCodes: overrides.atlasShardRankingReasonCodes ?? undefined,
+      atlasShardRankingCandidateKind: overrides.atlasShardRankingCandidateKind ?? undefined,
+      atlasShardNarrowingApplied: overrides.atlasShardNarrowingApplied ?? undefined,
+      atlasShardNarrowingFallbackUsed: overrides.atlasShardNarrowingFallbackUsed ?? undefined,
+      atlasShardNarrowingCandidateCountBefore: overrides.atlasShardNarrowingCandidateCountBefore ?? undefined,
+      atlasShardNarrowingCandidateCountAfter: overrides.atlasShardNarrowingCandidateCountAfter ?? undefined,
+      atlasShardNarrowingReasonCodes: overrides.atlasShardNarrowingReasonCodes ?? undefined,
+      atlasShardNarrowingAllowedCandidateKinds: overrides.atlasShardNarrowingAllowedCandidateKinds ?? undefined,
+      multiResolutionAtlasSchemaVersion:
+        overrides.multiResolutionAtlasSchemaVersion ?? multiResolutionAtlasFields.multiResolutionAtlasSchemaVersion,
+      multiResolutionAtlasPolicyVersion:
+        overrides.multiResolutionAtlasPolicyVersion ?? multiResolutionAtlasFields.multiResolutionAtlasPolicyVersion,
+      multiResolutionAtlasEligible:
+        overrides.multiResolutionAtlasEligible ?? multiResolutionAtlasFields.multiResolutionAtlasEligible,
+      multiResolutionAtlasCoarseRegionId:
+        overrides.multiResolutionAtlasCoarseRegionId ?? multiResolutionAtlasFields.multiResolutionAtlasCoarseRegionId,
+      multiResolutionAtlasFamilyAtlasId:
+        overrides.multiResolutionAtlasFamilyAtlasId ?? multiResolutionAtlasFields.multiResolutionAtlasFamilyAtlasId,
+      multiResolutionAtlasPrefixBandId:
+        overrides.multiResolutionAtlasPrefixBandId ?? multiResolutionAtlasFields.multiResolutionAtlasPrefixBandId,
+      multiResolutionAtlasTailStrategyId:
+        overrides.multiResolutionAtlasTailStrategyId ?? multiResolutionAtlasFields.multiResolutionAtlasTailStrategyId,
+      multiResolutionAtlasSource:
+        overrides.multiResolutionAtlasSource ?? multiResolutionAtlasFields.multiResolutionAtlasSource,
+      multiResolutionAtlasReasonCodes:
+        overrides.multiResolutionAtlasReasonCodes ?? multiResolutionAtlasFields.multiResolutionAtlasReasonCodes,
+      multiResolutionAtlasFamilyRoutingApplied:
+        overrides.multiResolutionAtlasFamilyRoutingApplied ?? undefined,
+      multiResolutionAtlasFamilyRoutingBoost:
+        overrides.multiResolutionAtlasFamilyRoutingBoost ?? undefined,
+      multiResolutionAtlasFamilyRoutingReasonCodes:
+        overrides.multiResolutionAtlasFamilyRoutingReasonCodes ?? undefined,
+      multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId:
+        overrides.multiResolutionAtlasFamilyRoutingMatchedFamilyAtlasId ?? undefined,
+      multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId:
+        overrides.multiResolutionAtlasFamilyRoutingCandidateFamilyAtlasId ?? undefined,
+      multiResolutionAtlasPrefixBandRoutingApplied:
+        overrides.multiResolutionAtlasPrefixBandRoutingApplied ?? undefined,
+      multiResolutionAtlasPrefixBandRoutingBoost:
+        overrides.multiResolutionAtlasPrefixBandRoutingBoost ?? undefined,
+      multiResolutionAtlasPrefixBandRoutingReasonCodes:
+        overrides.multiResolutionAtlasPrefixBandRoutingReasonCodes ?? undefined,
+      multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId:
+        overrides.multiResolutionAtlasPrefixBandRoutingMatchedPrefixBandId ?? undefined,
+      multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId:
+        overrides.multiResolutionAtlasPrefixBandRoutingCandidatePrefixBandId ?? undefined,
+      multiResolutionAtlasTailStrategyRoutingApplied:
+        overrides.multiResolutionAtlasTailStrategyRoutingApplied ?? undefined,
+      multiResolutionAtlasTailStrategyRoutingBoost:
+        overrides.multiResolutionAtlasTailStrategyRoutingBoost ?? undefined,
+      multiResolutionAtlasTailStrategyRoutingReasonCodes:
+        overrides.multiResolutionAtlasTailStrategyRoutingReasonCodes ?? undefined,
+      multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId:
+        overrides.multiResolutionAtlasTailStrategyRoutingMatchedTailStrategyId ?? undefined,
+
+      dynamicPrecisionSchemaVersion:
+        overrides.dynamicPrecisionSchemaVersion ?? dynamicPrecisionFields.dynamicPrecisionSchemaVersion,
+      dynamicPrecisionPolicyVersion:
+        overrides.dynamicPrecisionPolicyVersion ?? dynamicPrecisionFields.dynamicPrecisionPolicyVersion,
+      dynamicPrecisionEscalationPilotVersion:
+        overrides.dynamicPrecisionEscalationPilotVersion ?? dynamicPrecisionFields.dynamicPrecisionEscalationPilotVersion,
+      dynamicPrecisionFamilySwitchingVersion:
+        overrides.dynamicPrecisionFamilySwitchingVersion ?? dynamicPrecisionFields.dynamicPrecisionFamilySwitchingVersion,
+      dynamicPrecisionHysteresisVersion:
+        overrides.dynamicPrecisionHysteresisVersion ?? dynamicPrecisionFields.dynamicPrecisionHysteresisVersion,
+      dynamicPrecisionEligible:
+        overrides.dynamicPrecisionEligible ?? dynamicPrecisionFields.dynamicPrecisionEligible,
+      dynamicPrecisionObservedFamily:
+        overrides.dynamicPrecisionObservedFamily ?? dynamicPrecisionFields.dynamicPrecisionObservedFamily,
+      dynamicPrecisionBaselineRegime:
+        overrides.dynamicPrecisionBaselineRegime ?? dynamicPrecisionFields.dynamicPrecisionBaselineRegime,
+      dynamicPrecisionSuggestedRegime:
+        overrides.dynamicPrecisionSuggestedRegime ?? dynamicPrecisionFields.dynamicPrecisionSuggestedRegime,
+      dynamicPrecisionCurrentRegime:
+        overrides.dynamicPrecisionCurrentRegime ?? dynamicPrecisionFields.dynamicPrecisionCurrentRegime,
+      dynamicPrecisionProposedRegime:
+        overrides.dynamicPrecisionProposedRegime ?? dynamicPrecisionFields.dynamicPrecisionProposedRegime,
+      dynamicPrecisionEscalationEligible:
+        overrides.dynamicPrecisionEscalationEligible ?? dynamicPrecisionFields.dynamicPrecisionEscalationEligible,
+      dynamicPrecisionEscalationSuggested:
+        overrides.dynamicPrecisionEscalationSuggested ?? dynamicPrecisionFields.dynamicPrecisionEscalationSuggested,
+      dynamicPrecisionDeescalationEligible:
+        overrides.dynamicPrecisionDeescalationEligible ?? dynamicPrecisionFields.dynamicPrecisionDeescalationEligible,
+      dynamicPrecisionDeescalationSuggested:
+        overrides.dynamicPrecisionDeescalationSuggested ?? dynamicPrecisionFields.dynamicPrecisionDeescalationSuggested,
+      dynamicPrecisionObservedAmbiguityBand:
+        overrides.dynamicPrecisionObservedAmbiguityBand ?? dynamicPrecisionFields.dynamicPrecisionObservedAmbiguityBand,
+      dynamicPrecisionObservedRepairWindowOpen:
+        overrides.dynamicPrecisionObservedRepairWindowOpen ?? dynamicPrecisionFields.dynamicPrecisionObservedRepairWindowOpen,
+      dynamicPrecisionObservedStressBand:
+        overrides.dynamicPrecisionObservedStressBand ?? dynamicPrecisionFields.dynamicPrecisionObservedStressBand,
+      dynamicPrecisionObservedGuardrailSuggested:
+        overrides.dynamicPrecisionObservedGuardrailSuggested ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailSuggested,
+      dynamicPrecisionObservedGuardrailKind:
+        overrides.dynamicPrecisionObservedGuardrailKind ?? dynamicPrecisionFields.dynamicPrecisionObservedGuardrailKind,
+      dynamicPrecisionSource:
+        overrides.dynamicPrecisionSource ?? dynamicPrecisionFields.dynamicPrecisionSource,
+      dynamicPrecisionFamilyPolicyId:
+        overrides.dynamicPrecisionFamilyPolicyId ?? dynamicPrecisionFields.dynamicPrecisionFamilyPolicyId,
+      dynamicPrecisionHysteresisState:
+        overrides.dynamicPrecisionHysteresisState ?? dynamicPrecisionFields.dynamicPrecisionHysteresisState,
+      dynamicPrecisionStabilityTickCount:
+        overrides.dynamicPrecisionStabilityTickCount ?? dynamicPrecisionFields.dynamicPrecisionStabilityTickCount,
+      dynamicPrecisionCooldownTicksRemaining:
+        overrides.dynamicPrecisionCooldownTicksRemaining ?? dynamicPrecisionFields.dynamicPrecisionCooldownTicksRemaining,
+      dynamicPrecisionTransitionAllowed:
+        overrides.dynamicPrecisionTransitionAllowed ?? dynamicPrecisionFields.dynamicPrecisionTransitionAllowed,
+      dynamicPrecisionTransitionDecision:
+        overrides.dynamicPrecisionTransitionDecision ?? dynamicPrecisionFields.dynamicPrecisionTransitionDecision,
+      dynamicPrecisionActiveRegime:
+        overrides.dynamicPrecisionActiveRegime ?? dynamicPrecisionFields.dynamicPrecisionActiveRegime,
+      dynamicPrecisionSwitchApplied:
+        overrides.dynamicPrecisionSwitchApplied ?? dynamicPrecisionFields.dynamicPrecisionSwitchApplied,
+      dynamicPrecisionStrategyProfileId:
+        overrides.dynamicPrecisionStrategyProfileId ?? dynamicPrecisionFields.dynamicPrecisionStrategyProfileId,
+      dynamicPrecisionReasonCodes:
+        overrides.dynamicPrecisionReasonCodes ?? dynamicPrecisionFields.dynamicPrecisionReasonCodes,
+      workflowMemorySchemaVersion:
+        overrides.workflowMemorySchemaVersion ?? workflowMemoryFields.workflowMemorySchemaVersion,
+      workflowMemoryPolicyVersion:
+        overrides.workflowMemoryPolicyVersion ?? workflowMemoryFields.workflowMemoryPolicyVersion,
+      workflowMemoryEligible:
+        overrides.workflowMemoryEligible ?? workflowMemoryFields.workflowMemoryEligible,
+      workflowMemoryCurrentSemanticAddressId:
+        overrides.workflowMemoryCurrentSemanticAddressId ?? workflowMemoryFields.workflowMemoryCurrentSemanticAddressId,
+      workflowMemoryPreviousSemanticAddressId:
+        overrides.workflowMemoryPreviousSemanticAddressId ?? workflowMemoryFields.workflowMemoryPreviousSemanticAddressId,
+      workflowMemoryTransitionObserved:
+        overrides.workflowMemoryTransitionObserved ?? workflowMemoryFields.workflowMemoryTransitionObserved,
+      workflowMemoryTransitionKey:
+        overrides.workflowMemoryTransitionKey ?? workflowMemoryFields.workflowMemoryTransitionKey,
+      workflowMemoryTransitionSeenBefore:
+        overrides.workflowMemoryTransitionSeenBefore ?? workflowMemoryFields.workflowMemoryTransitionSeenBefore,
+      workflowMemoryTransitionCount:
+        overrides.workflowMemoryTransitionCount ?? workflowMemoryFields.workflowMemoryTransitionCount,
+      workflowMemorySequenceLength:
+        overrides.workflowMemorySequenceLength ?? workflowMemoryFields.workflowMemorySequenceLength,
+      workflowMemoryRepeatDetected:
+        overrides.workflowMemoryRepeatDetected ?? workflowMemoryFields.workflowMemoryRepeatDetected,
+      workflowMemoryRepeatCount:
+        overrides.workflowMemoryRepeatCount ?? workflowMemoryFields.workflowMemoryRepeatCount,
+      workflowMemoryContinuationSuggested:
+        overrides.workflowMemoryContinuationSuggested ?? workflowMemoryFields.workflowMemoryContinuationSuggested,
+      workflowMemoryGovernedStateUpdated:
+        overrides.workflowMemoryGovernedStateUpdated ?? workflowMemoryFields.workflowMemoryGovernedStateUpdated,
+      workflowMemorySource:
+        overrides.workflowMemorySource ?? workflowMemoryFields.workflowMemorySource,
+      workflowMemoryReasonCodes:
+        overrides.workflowMemoryReasonCodes ?? workflowMemoryFields.workflowMemoryReasonCodes,
+      workflowMemoryRankingVersion:
+        overrides.workflowMemoryRankingVersion ?? workflowMemoryRankingFields.workflowMemoryRankingVersion,
+      workflowMemoryRankingEligible:
+        overrides.workflowMemoryRankingEligible ?? workflowMemoryRankingFields.workflowMemoryRankingEligible,
+      workflowMemoryRankingApplied:
+        overrides.workflowMemoryRankingApplied ?? workflowMemoryRankingFields.workflowMemoryRankingApplied,
+      workflowMemoryRankingBoost:
+        overrides.workflowMemoryRankingBoost ?? workflowMemoryRankingFields.workflowMemoryRankingBoost,
+      workflowMemoryRankingPreviousSemanticAddressId:
+        overrides.workflowMemoryRankingPreviousSemanticAddressId ?? workflowMemoryRankingFields.workflowMemoryRankingPreviousSemanticAddressId,
+      workflowMemoryRankingCandidateSemanticAddressId:
+        overrides.workflowMemoryRankingCandidateSemanticAddressId ?? workflowMemoryRankingFields.workflowMemoryRankingCandidateSemanticAddressId,
+      workflowMemoryRankingMatchedTransitionKey:
+        overrides.workflowMemoryRankingMatchedTransitionKey ?? workflowMemoryRankingFields.workflowMemoryRankingMatchedTransitionKey,
+      workflowMemoryRankingTransitionCount:
+        overrides.workflowMemoryRankingTransitionCount ?? workflowMemoryRankingFields.workflowMemoryRankingTransitionCount,
+      workflowMemoryRankingSeenBefore:
+        overrides.workflowMemoryRankingSeenBefore ?? workflowMemoryRankingFields.workflowMemoryRankingSeenBefore,
+      workflowMemoryRankingSource:
+        overrides.workflowMemoryRankingSource ?? workflowMemoryRankingFields.workflowMemoryRankingSource,
+      workflowMemoryRankingReasonCodes:
+        overrides.workflowMemoryRankingReasonCodes ?? workflowMemoryRankingFields.workflowMemoryRankingReasonCodes,
+      workflowMemoryOrderingVersion:
+        overrides.workflowMemoryOrderingVersion ?? workflowMemoryOrderingFields.workflowMemoryOrderingVersion,
+      workflowMemoryOrderingEligible:
+        overrides.workflowMemoryOrderingEligible ?? workflowMemoryOrderingFields.workflowMemoryOrderingEligible,
+      workflowMemoryOrderingApplied:
+        overrides.workflowMemoryOrderingApplied ?? workflowMemoryOrderingFields.workflowMemoryOrderingApplied,
+      workflowMemoryOrderingBaseScore:
+        overrides.workflowMemoryOrderingBaseScore ?? workflowMemoryOrderingFields.workflowMemoryOrderingBaseScore,
+      workflowMemoryOrderingAdjustedScore:
+        overrides.workflowMemoryOrderingAdjustedScore ?? workflowMemoryOrderingFields.workflowMemoryOrderingAdjustedScore,
+      workflowMemoryOrderingBoost:
+        overrides.workflowMemoryOrderingBoost ?? workflowMemoryOrderingFields.workflowMemoryOrderingBoost,
+      workflowMemoryOrderingPreviousSemanticAddressId:
+        overrides.workflowMemoryOrderingPreviousSemanticAddressId ?? workflowMemoryOrderingFields.workflowMemoryOrderingPreviousSemanticAddressId,
+      workflowMemoryOrderingCandidateSemanticAddressId:
+        overrides.workflowMemoryOrderingCandidateSemanticAddressId ?? workflowMemoryOrderingFields.workflowMemoryOrderingCandidateSemanticAddressId,
+      workflowMemoryOrderingMatchedTransitionKey:
+        overrides.workflowMemoryOrderingMatchedTransitionKey ?? workflowMemoryOrderingFields.workflowMemoryOrderingMatchedTransitionKey,
+      workflowMemoryOrderingTransitionCount:
+        overrides.workflowMemoryOrderingTransitionCount ?? workflowMemoryOrderingFields.workflowMemoryOrderingTransitionCount,
+      workflowMemoryOrderingSource:
+        overrides.workflowMemoryOrderingSource ?? workflowMemoryOrderingFields.workflowMemoryOrderingSource,
+      workflowMemoryOrderingReasonCodes:
+        overrides.workflowMemoryOrderingReasonCodes ?? workflowMemoryOrderingFields.workflowMemoryOrderingReasonCodes,
+      workflowMemoryCandidatePoolOrderingVersion:
+        overrides.workflowMemoryCandidatePoolOrderingVersion ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingVersion,
+      workflowMemoryCandidatePoolOrderingEligible:
+        overrides.workflowMemoryCandidatePoolOrderingEligible ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingEligible,
+      workflowMemoryCandidatePoolOrderingApplied:
+        overrides.workflowMemoryCandidatePoolOrderingApplied ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolOrderingApplied,
+      workflowMemoryCandidatePoolCandidateCountBefore:
+        overrides.workflowMemoryCandidatePoolCandidateCountBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolCandidateCountBefore,
+      workflowMemoryCandidatePoolCandidateCountAfter:
+        overrides.workflowMemoryCandidatePoolCandidateCountAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolCandidateCountAfter,
+      workflowMemoryCandidatePoolSemanticAddressIdsBefore:
+        overrides.workflowMemoryCandidatePoolSemanticAddressIdsBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSemanticAddressIdsBefore,
+      workflowMemoryCandidatePoolSemanticAddressIdsAfter:
+        overrides.workflowMemoryCandidatePoolSemanticAddressIdsAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSemanticAddressIdsAfter,
+      workflowMemoryCandidatePoolScoresBefore:
+        overrides.workflowMemoryCandidatePoolScoresBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolScoresBefore,
+      workflowMemoryCandidatePoolScoresAfter:
+        overrides.workflowMemoryCandidatePoolScoresAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolScoresAfter,
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore:
+        overrides.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdBefore,
+      workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter:
+        overrides.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateSemanticAddressIdAfter,
+      workflowMemoryCandidatePoolTopCandidateScoreBefore:
+        overrides.workflowMemoryCandidatePoolTopCandidateScoreBefore ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreBefore,
+      workflowMemoryCandidatePoolTopCandidateScoreAfter:
+        overrides.workflowMemoryCandidatePoolTopCandidateScoreAfter ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolTopCandidateScoreAfter,
+      workflowMemoryCandidatePoolSource:
+        overrides.workflowMemoryCandidatePoolSource ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolSource,
+      workflowMemoryCandidatePoolReasonCodes:
+        overrides.workflowMemoryCandidatePoolReasonCodes ?? workflowMemoryCandidatePoolOrderingFields.workflowMemoryCandidatePoolReasonCodes,
+      workflowMemoryReuseVersion:
+        overrides.workflowMemoryReuseVersion ?? workflowMemoryReuseFields.workflowMemoryReuseVersion,
+      workflowMemoryReuseEligible:
+        overrides.workflowMemoryReuseEligible ?? workflowMemoryReuseFields.workflowMemoryReuseEligible,
+      workflowMemoryReuseApplied:
+        overrides.workflowMemoryReuseApplied ?? workflowMemoryReuseFields.workflowMemoryReuseApplied,
+      workflowMemoryReusePatternLength:
+        overrides.workflowMemoryReusePatternLength ?? workflowMemoryReuseFields.workflowMemoryReusePatternLength,
+      workflowMemoryReuseMatchedSequenceSemanticAddressIds:
+        overrides.workflowMemoryReuseMatchedSequenceSemanticAddressIds ?? workflowMemoryReuseFields.workflowMemoryReuseMatchedSequenceSemanticAddressIds,
+      workflowMemoryReuseMatchedSequenceKey:
+        overrides.workflowMemoryReuseMatchedSequenceKey ?? workflowMemoryReuseFields.workflowMemoryReuseMatchedSequenceKey,
+      workflowMemoryReuseSeenBefore:
+        overrides.workflowMemoryReuseSeenBefore ?? workflowMemoryReuseFields.workflowMemoryReuseSeenBefore,
+      workflowMemoryReuseOccurrenceCount:
+        overrides.workflowMemoryReuseOccurrenceCount ?? workflowMemoryReuseFields.workflowMemoryReuseOccurrenceCount,
+      workflowMemoryReuseSuggestedNextSemanticAddressId:
+        overrides.workflowMemoryReuseSuggestedNextSemanticAddressId ?? workflowMemoryReuseFields.workflowMemoryReuseSuggestedNextSemanticAddressId,
+      workflowMemoryReuseSuggestedNextCount:
+        overrides.workflowMemoryReuseSuggestedNextCount ?? workflowMemoryReuseFields.workflowMemoryReuseSuggestedNextCount,
+      workflowMemoryReuseSource:
+        overrides.workflowMemoryReuseSource ?? workflowMemoryReuseFields.workflowMemoryReuseSource,
+      workflowMemoryReuseReasonCodes:
+        overrides.workflowMemoryReuseReasonCodes ?? workflowMemoryReuseFields.workflowMemoryReuseReasonCodes,
+      workflowCandidateDiscoverySchemaVersion:
+        overrides.workflowCandidateDiscoverySchemaVersion ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySchemaVersion,
+      workflowCandidateDiscoveryPolicyVersion:
+        overrides.workflowCandidateDiscoveryPolicyVersion ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPolicyVersion,
+      workflowCandidateDiscoveryEligible:
+        overrides.workflowCandidateDiscoveryEligible ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEligible,
+      workflowCandidateDiscoverySequenceSemanticAddressIds:
+        overrides.workflowCandidateDiscoverySequenceSemanticAddressIds ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceSemanticAddressIds,
+      workflowCandidateDiscoveryPatternKey:
+        overrides.workflowCandidateDiscoveryPatternKey ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryPatternKey,
+      workflowCandidateDiscoveryOccurrenceCount:
+        overrides.workflowCandidateDiscoveryOccurrenceCount ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryOccurrenceCount,
+      workflowCandidateDiscoveryDistinctRunCount:
+        overrides.workflowCandidateDiscoveryDistinctRunCount ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryDistinctRunCount,
+      workflowCandidateDiscoverySequenceLength:
+        overrides.workflowCandidateDiscoverySequenceLength ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySequenceLength,
+      workflowCandidateDiscoveryStartBoundaryConfidence:
+        overrides.workflowCandidateDiscoveryStartBoundaryConfidence ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryStartBoundaryConfidence,
+      workflowCandidateDiscoveryEndBoundaryConfidence:
+        overrides.workflowCandidateDiscoveryEndBoundaryConfidence ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryEndBoundaryConfidence,
+      workflowCandidateDiscoveryRepeatedSubsequenceDetected:
+        overrides.workflowCandidateDiscoveryRepeatedSubsequenceDetected ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRepeatedSubsequenceDetected,
+      workflowCandidateDiscoveryCandidateEmergenceThresholdMet:
+        overrides.workflowCandidateDiscoveryCandidateEmergenceThresholdMet ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryCandidateEmergenceThresholdMet,
+      workflowCandidateDiscoveryRediscoveryMerged:
+        overrides.workflowCandidateDiscoveryRediscoveryMerged ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryRediscoveryMerged,
+      workflowCandidateDiscoveryGovernedStateUpdated:
+        overrides.workflowCandidateDiscoveryGovernedStateUpdated ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryGovernedStateUpdated,
+      workflowCandidateDiscoverySource:
+        overrides.workflowCandidateDiscoverySource ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoverySource,
+      workflowCandidateDiscoveryReasonCodes:
+        overrides.workflowCandidateDiscoveryReasonCodes ?? workflowCandidateDiscoveryFields.workflowCandidateDiscoveryReasonCodes,
+      workflowSkeletonInferenceSchemaVersion:
+        overrides.workflowSkeletonInferenceSchemaVersion ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceSchemaVersion,
+      workflowSkeletonInferencePolicyVersion:
+        overrides.workflowSkeletonInferencePolicyVersion ?? workflowSkeletonInferenceFields.workflowSkeletonInferencePolicyVersion,
+      workflowSkeletonInferenceEligible:
+        overrides.workflowSkeletonInferenceEligible ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceEligible,
+      workflowSkeletonInferenceFamilyKey:
+        overrides.workflowSkeletonInferenceFamilyKey ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilyKey,
+      workflowSkeletonInferencePatternKey:
+        overrides.workflowSkeletonInferencePatternKey ?? workflowSkeletonInferenceFields.workflowSkeletonInferencePatternKey,
+      workflowSkeletonInferenceCanonicalStepSemanticAddressIds:
+        overrides.workflowSkeletonInferenceCanonicalStepSemanticAddressIds ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceCanonicalStepSemanticAddressIds,
+      workflowSkeletonInferenceFixedStepIndices:
+        overrides.workflowSkeletonInferenceFixedStepIndices ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFixedStepIndices,
+      workflowSkeletonInferenceVariableStepIndices:
+        overrides.workflowSkeletonInferenceVariableStepIndices ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceVariableStepIndices,
+      workflowSkeletonInferenceOptionalStepIndices:
+        overrides.workflowSkeletonInferenceOptionalStepIndices ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceOptionalStepIndices,
+      workflowSkeletonInferenceInferredSlotCount:
+        overrides.workflowSkeletonInferenceInferredSlotCount ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceInferredSlotCount,
+      workflowSkeletonInferenceGeneralizationConfidence:
+        overrides.workflowSkeletonInferenceGeneralizationConfidence ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceGeneralizationConfidence,
+      workflowSkeletonInferenceAbstractionEligible:
+        overrides.workflowSkeletonInferenceAbstractionEligible ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceAbstractionEligible,
+      workflowSkeletonInferenceFamilyVariantCount:
+        overrides.workflowSkeletonInferenceFamilyVariantCount ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilyVariantCount,
+      workflowSkeletonInferenceFamilySplitRequired:
+        overrides.workflowSkeletonInferenceFamilySplitRequired ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceFamilySplitRequired,
+      workflowSkeletonInferenceGovernedStateUpdated:
+        overrides.workflowSkeletonInferenceGovernedStateUpdated ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceGovernedStateUpdated,
+      workflowSkeletonInferenceSource:
+        overrides.workflowSkeletonInferenceSource ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceSource,
+      workflowSkeletonInferenceReasonCodes:
+        overrides.workflowSkeletonInferenceReasonCodes ?? workflowSkeletonInferenceFields.workflowSkeletonInferenceReasonCodes,
+
+workflowCandidateScoringSchemaVersion:
+  overrides.workflowCandidateScoringSchemaVersion ?? workflowCandidateScoringFields.workflowCandidateScoringSchemaVersion,
+workflowCandidateScoringPolicyVersion:
+  overrides.workflowCandidateScoringPolicyVersion ?? workflowCandidateScoringFields.workflowCandidateScoringPolicyVersion,
+workflowCandidateScoringEligible:
+  overrides.workflowCandidateScoringEligible ?? workflowCandidateScoringFields.workflowCandidateScoringEligible,
+workflowCandidateScoreVersion:
+  overrides.workflowCandidateScoreVersion ?? workflowCandidateScoringFields.workflowCandidateScoreVersion,
+workflowCandidateConfidenceScore:
+  overrides.workflowCandidateConfidenceScore ?? workflowCandidateScoringFields.workflowCandidateConfidenceScore,
+workflowCandidateUtilityScore:
+  overrides.workflowCandidateUtilityScore ?? workflowCandidateScoringFields.workflowCandidateUtilityScore,
+workflowCandidateCreationRiskScore:
+  overrides.workflowCandidateCreationRiskScore ?? workflowCandidateScoringFields.workflowCandidateCreationRiskScore,
+workflowCandidateSuggestionPressureScore:
+  overrides.workflowCandidateSuggestionPressureScore ?? workflowCandidateScoringFields.workflowCandidateSuggestionPressureScore,
+workflowCandidateTrustScore:
+  overrides.workflowCandidateTrustScore ?? workflowCandidateScoringFields.workflowCandidateTrustScore,
+workflowCandidateNoveltyScore:
+  overrides.workflowCandidateNoveltyScore ?? workflowCandidateScoringFields.workflowCandidateNoveltyScore,
+workflowCandidateDuplicateRiskScore:
+  overrides.workflowCandidateDuplicateRiskScore ?? workflowCandidateScoringFields.workflowCandidateDuplicateRiskScore,
+workflowCandidateStructuralStabilityRisk:
+  overrides.workflowCandidateStructuralStabilityRisk ?? workflowCandidateScoringFields.workflowCandidateStructuralStabilityRisk,
+workflowCandidateParameterVolatilityRisk:
+  overrides.workflowCandidateParameterVolatilityRisk ?? workflowCandidateScoringFields.workflowCandidateParameterVolatilityRisk,
+workflowCandidateBoundaryClarityRisk:
+  overrides.workflowCandidateBoundaryClarityRisk ?? workflowCandidateScoringFields.workflowCandidateBoundaryClarityRisk,
+workflowCandidateAbstractionRiskComponent:
+  overrides.workflowCandidateAbstractionRiskComponent ?? workflowCandidateScoringFields.workflowCandidateAbstractionRiskComponent,
+workflowCandidateLatentExecutionHazardRisk:
+  overrides.workflowCandidateLatentExecutionHazardRisk ?? workflowCandidateScoringFields.workflowCandidateLatentExecutionHazardRisk,
+workflowCandidateClutterRisk:
+  overrides.workflowCandidateClutterRisk ?? workflowCandidateScoringFields.workflowCandidateClutterRisk,
+workflowCandidateUserMisalignmentRisk:
+  overrides.workflowCandidateUserMisalignmentRisk ?? workflowCandidateScoringFields.workflowCandidateUserMisalignmentRisk,
+workflowCandidateCreationRiskBand:
+  overrides.workflowCandidateCreationRiskBand ?? workflowCandidateScoringFields.workflowCandidateCreationRiskBand,
+workflowCandidateScoringSource:
+  overrides.workflowCandidateScoringSource ?? workflowCandidateScoringFields.workflowCandidateScoringSource,
+workflowCandidateScoringReasonCodes:
+  overrides.workflowCandidateScoringReasonCodes ?? workflowCandidateScoringFields.workflowCandidateScoringReasonCodes,
+workflowCandidateRiskReasonCodes:
+  overrides.workflowCandidateRiskReasonCodes ?? workflowCandidateScoringFields.workflowCandidateRiskReasonCodes,
+workflowCandidatePolicySchemaVersion:
+  overrides.workflowCandidatePolicySchemaVersion ?? workflowCandidatePolicyFields.workflowCandidatePolicySchemaVersion,
+workflowCandidatePolicyVersion:
+  overrides.workflowCandidatePolicyVersion ?? workflowCandidatePolicyFields.workflowCandidatePolicyVersion,
+workflowCandidatePolicyEligible:
+  overrides.workflowCandidatePolicyEligible ?? workflowCandidatePolicyFields.workflowCandidatePolicyEligible,
+workflowCandidatePolicyWorkflowClass:
+  overrides.workflowCandidatePolicyWorkflowClass ?? workflowCandidatePolicyFields.workflowCandidatePolicyWorkflowClass,
+workflowCandidatePolicyTrustBand:
+  overrides.workflowCandidatePolicyTrustBand ?? workflowCandidatePolicyFields.workflowCandidatePolicyTrustBand,
+workflowCandidatePolicyTrainingModeActive:
+  overrides.workflowCandidatePolicyTrainingModeActive ?? workflowCandidatePolicyFields.workflowCandidatePolicyTrainingModeActive,
+workflowCandidatePolicyQuietModeEnabled:
+  overrides.workflowCandidatePolicyQuietModeEnabled ?? workflowCandidatePolicyFields.workflowCandidatePolicyQuietModeEnabled,
+workflowCandidatePolicyInboxOnly:
+  overrides.workflowCandidatePolicyInboxOnly ?? workflowCandidatePolicyFields.workflowCandidatePolicyInboxOnly,
+workflowCandidatePolicyAutoCreateLowRiskEnabled:
+  overrides.workflowCandidatePolicyAutoCreateLowRiskEnabled ?? workflowCandidatePolicyFields.workflowCandidatePolicyAutoCreateLowRiskEnabled,
+workflowCandidatePolicyAutoSaveVeryLowRiskEnabled:
+  overrides.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled ?? workflowCandidatePolicyFields.workflowCandidatePolicyAutoSaveVeryLowRiskEnabled,
+workflowCandidatePolicyClassTrustAllowsAutoCreate:
+  overrides.workflowCandidatePolicyClassTrustAllowsAutoCreate ?? workflowCandidatePolicyFields.workflowCandidatePolicyClassTrustAllowsAutoCreate,
+workflowCandidatePolicyClassTrustAllowsAutoSave:
+  overrides.workflowCandidatePolicyClassTrustAllowsAutoSave ?? workflowCandidatePolicyFields.workflowCandidatePolicyClassTrustAllowsAutoSave,
+workflowCandidatePolicySource:
+  overrides.workflowCandidatePolicySource ?? workflowCandidatePolicyFields.workflowCandidatePolicySource,
+workflowCandidatePolicyReasonCodes:
+  overrides.workflowCandidatePolicyReasonCodes ?? workflowCandidatePolicyFields.workflowCandidatePolicyReasonCodes,
+workflowCandidateTimingSchemaVersion:
+  overrides.workflowCandidateTimingSchemaVersion ?? workflowCandidateTimingFields.workflowCandidateTimingSchemaVersion,
+workflowCandidateTimingPolicyVersion:
+  overrides.workflowCandidateTimingPolicyVersion ?? workflowCandidateTimingFields.workflowCandidateTimingPolicyVersion,
+workflowCandidateTimingEligible:
+  overrides.workflowCandidateTimingEligible ?? workflowCandidateTimingFields.workflowCandidateTimingEligible,
+workflowCandidateTimingChannel:
+  overrides.workflowCandidateTimingChannel ?? workflowCandidateTimingFields.workflowCandidateTimingChannel,
+workflowCandidateTimingQueuePressureClass:
+  overrides.workflowCandidateTimingQueuePressureClass ?? workflowCandidateTimingFields.workflowCandidateTimingQueuePressureClass,
+workflowCandidateTimingCooldownActive:
+  overrides.workflowCandidateTimingCooldownActive ?? workflowCandidateTimingFields.workflowCandidateTimingCooldownActive,
+workflowCandidateTimingHoldSuppressed:
+  overrides.workflowCandidateTimingHoldSuppressed ?? workflowCandidateTimingFields.workflowCandidateTimingHoldSuppressed,
+workflowCandidateTimingDigestPreferred:
+  overrides.workflowCandidateTimingDigestPreferred ?? workflowCandidateTimingFields.workflowCandidateTimingDigestPreferred,
+workflowCandidateTimingTrainingModeActive:
+  overrides.workflowCandidateTimingTrainingModeActive ?? workflowCandidateTimingFields.workflowCandidateTimingTrainingModeActive,
+workflowCandidateTimingQuietModeEnabled:
+  overrides.workflowCandidateTimingQuietModeEnabled ?? workflowCandidateTimingFields.workflowCandidateTimingQuietModeEnabled,
+workflowCandidateTimingSource:
+  overrides.workflowCandidateTimingSource ?? workflowCandidateTimingFields.workflowCandidateTimingSource,
+workflowCandidateTimingReasonCodes:
+  overrides.workflowCandidateTimingReasonCodes ?? workflowCandidateTimingFields.workflowCandidateTimingReasonCodes,
+workflowCandidateRubricSchemaVersion:
+  overrides.workflowCandidateRubricSchemaVersion ?? workflowCandidateRubricFields.workflowCandidateRubricSchemaVersion,
+workflowCandidateRubricPolicyVersion:
+  overrides.workflowCandidateRubricPolicyVersion ?? workflowCandidateRubricFields.workflowCandidateRubricPolicyVersion,
+workflowCandidateRubricEligible:
+  overrides.workflowCandidateRubricEligible ?? workflowCandidateRubricFields.workflowCandidateRubricEligible,
+workflowCandidateBaselineRubricPassed:
+  overrides.workflowCandidateBaselineRubricPassed ?? workflowCandidateRubricFields.workflowCandidateBaselineRubricPassed,
+workflowCandidateClassRubricPassed:
+  overrides.workflowCandidateClassRubricPassed ?? workflowCandidateRubricFields.workflowCandidateClassRubricPassed,
+workflowCandidateUserRubricPassed:
+  overrides.workflowCandidateUserRubricPassed ?? workflowCandidateRubricFields.workflowCandidateUserRubricPassed,
+workflowCandidateTimingRubricPassed:
+  overrides.workflowCandidateTimingRubricPassed ?? workflowCandidateRubricFields.workflowCandidateTimingRubricPassed,
+workflowCandidateRubricVetoApplied:
+  overrides.workflowCandidateRubricVetoApplied ?? workflowCandidateRubricFields.workflowCandidateRubricVetoApplied,
+workflowCandidateRubricWorkflowClass:
+  overrides.workflowCandidateRubricWorkflowClass ?? workflowCandidateRubricFields.workflowCandidateRubricWorkflowClass,
+workflowCandidateRubricSuggestedSurface:
+  overrides.workflowCandidateRubricSuggestedSurface ?? workflowCandidateRubricFields.workflowCandidateRubricSuggestedSurface,
+workflowCandidateRubricSource:
+  overrides.workflowCandidateRubricSource ?? workflowCandidateRubricFields.workflowCandidateRubricSource,
+workflowCandidateRubricReasonCodes:
+  overrides.workflowCandidateRubricReasonCodes ?? workflowCandidateRubricFields.workflowCandidateRubricReasonCodes,
+workflowCandidatePromotionSchemaVersion:
+  overrides.workflowCandidatePromotionSchemaVersion ?? workflowCandidatePromotionFields.workflowCandidatePromotionSchemaVersion,
+workflowCandidatePromotionPolicyVersion:
+  overrides.workflowCandidatePromotionPolicyVersion ?? workflowCandidatePromotionFields.workflowCandidatePromotionPolicyVersion,
+workflowCandidatePromotionEligible:
+  overrides.workflowCandidatePromotionEligible ?? workflowCandidatePromotionFields.workflowCandidatePromotionEligible,
+workflowCandidatePromotionDecision:
+  overrides.workflowCandidatePromotionDecision ?? workflowCandidatePromotionFields.workflowCandidatePromotionDecision,
+workflowCandidatePromotionAutoCreateEligible:
+  overrides.workflowCandidatePromotionAutoCreateEligible ?? workflowCandidatePromotionFields.workflowCandidatePromotionAutoCreateEligible,
+workflowCandidatePromotionAutoSaveEligible:
+  overrides.workflowCandidatePromotionAutoSaveEligible ?? workflowCandidatePromotionFields.workflowCandidatePromotionAutoSaveEligible,
+workflowCandidatePromotionCeiling:
+  overrides.workflowCandidatePromotionCeiling ?? workflowCandidatePromotionFields.workflowCandidatePromotionCeiling,
+workflowCandidatePromotionFloor:
+  overrides.workflowCandidatePromotionFloor ?? workflowCandidatePromotionFields.workflowCandidatePromotionFloor,
+workflowCandidatePromotionDecisionConfidence:
+  overrides.workflowCandidatePromotionDecisionConfidence ?? workflowCandidatePromotionFields.workflowCandidatePromotionDecisionConfidence,
+h4AuthorityEntrySchemaVersion:
+  overrides.h4AuthorityEntrySchemaVersion ?? h4AuthorityEntryFields.h4AuthorityEntrySchemaVersion,
+h4AuthorityEntryPolicyVersion:
+  overrides.h4AuthorityEntryPolicyVersion ?? h4AuthorityEntryFields.h4AuthorityEntryPolicyVersion,
+h4AuthorityEntryEligible:
+  overrides.h4AuthorityEntryEligible ?? h4AuthorityEntryFields.h4AuthorityEntryEligible,
+h4AuthorityEntryLiveMicActive:
+  overrides.h4AuthorityEntryLiveMicActive ?? h4AuthorityEntryFields.h4AuthorityEntryLiveMicActive,
+h4AuthorityEntryCommandLane:
+  overrides.h4AuthorityEntryCommandLane ?? h4AuthorityEntryFields.h4AuthorityEntryCommandLane,
+h4AuthorityEntryDictationMode:
+  overrides.h4AuthorityEntryDictationMode ?? h4AuthorityEntryFields.h4AuthorityEntryDictationMode,
+h4AuthorityEntryDefaultPath:
+  overrides.h4AuthorityEntryDefaultPath ?? h4AuthorityEntryFields.h4AuthorityEntryDefaultPath,
+h4AuthorityEntryAuthoritative:
+  overrides.h4AuthorityEntryAuthoritative ?? h4AuthorityEntryFields.h4AuthorityEntryAuthoritative,
+h4AuthorityEntryFallbackAllowed:
+  overrides.h4AuthorityEntryFallbackAllowed ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackAllowed,
+h4AuthorityEntryFallbackInvoked:
+  overrides.h4AuthorityEntryFallbackInvoked ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackInvoked,
+h4AuthorityEntryFallbackReason:
+  overrides.h4AuthorityEntryFallbackReason ?? h4AuthorityEntryFields.h4AuthorityEntryFallbackReason,
+h4AuthorityEntryStreamConnected:
+  overrides.h4AuthorityEntryStreamConnected ?? h4AuthorityEntryFields.h4AuthorityEntryStreamConnected,
+h4AuthorityEntrySource:
+  overrides.h4AuthorityEntrySource ?? h4AuthorityEntryFields.h4AuthorityEntrySource,
+h4AuthorityEntryReasonCodes:
+  overrides.h4AuthorityEntryReasonCodes ?? h4AuthorityEntryFields.h4AuthorityEntryReasonCodes,
+workflowCandidatePromotionSource:
+  overrides.workflowCandidatePromotionSource ?? workflowCandidatePromotionFields.workflowCandidatePromotionSource,
+workflowCandidatePromotionReasonCodes:
+  overrides.workflowCandidatePromotionReasonCodes ?? workflowCandidatePromotionFields.workflowCandidatePromotionReasonCodes,
+workflowDraftArtifactSchemaVersion:
+  overrides.workflowDraftArtifactSchemaVersion ?? workflowDraftArtifactFields.workflowDraftArtifactSchemaVersion,
+workflowDraftArtifactVersion:
+  overrides.workflowDraftArtifactVersion ?? workflowDraftArtifactFields.workflowDraftArtifactVersion,
+workflowDraftArtifactEligible:
+  overrides.workflowDraftArtifactEligible ?? workflowDraftArtifactFields.workflowDraftArtifactEligible,
+workflowDraftArtifactDraftIdPreview:
+  overrides.workflowDraftArtifactDraftIdPreview ?? workflowDraftArtifactFields.workflowDraftArtifactDraftIdPreview,
+workflowDraftArtifactTitle:
+  overrides.workflowDraftArtifactTitle ?? workflowDraftArtifactFields.workflowDraftArtifactTitle,
+workflowDraftArtifactSummary:
+  overrides.workflowDraftArtifactSummary ?? workflowDraftArtifactFields.workflowDraftArtifactSummary,
+workflowDraftArtifactReviewState:
+  overrides.workflowDraftArtifactReviewState ?? workflowDraftArtifactFields.workflowDraftArtifactReviewState,
+workflowDraftArtifactAutoCreated:
+  overrides.workflowDraftArtifactAutoCreated ?? workflowDraftArtifactFields.workflowDraftArtifactAutoCreated,
+workflowDraftArtifactAutoSaved:
+  overrides.workflowDraftArtifactAutoSaved ?? workflowDraftArtifactFields.workflowDraftArtifactAutoSaved,
+workflowDraftArtifactApprovalRequired:
+  overrides.workflowDraftArtifactApprovalRequired ?? workflowDraftArtifactFields.workflowDraftArtifactApprovalRequired,
+workflowDraftArtifactLibraryEligible:
+  overrides.workflowDraftArtifactLibraryEligible ?? workflowDraftArtifactFields.workflowDraftArtifactLibraryEligible,
+workflowDraftArtifactShareTemplateEligible:
+  overrides.workflowDraftArtifactShareTemplateEligible ?? workflowDraftArtifactFields.workflowDraftArtifactShareTemplateEligible,
+workflowDraftArtifactContainsUserSpecificBindings:
+  overrides.workflowDraftArtifactContainsUserSpecificBindings ?? workflowDraftArtifactFields.workflowDraftArtifactContainsUserSpecificBindings,
+workflowDraftArtifactLifecycleState:
+  overrides.workflowDraftArtifactLifecycleState ?? workflowDraftArtifactFields.workflowDraftArtifactLifecycleState,
+workflowDraftArtifactSource:
+  overrides.workflowDraftArtifactSource ?? workflowDraftArtifactFields.workflowDraftArtifactSource,
+workflowDraftArtifactReasonCodes:
+  overrides.workflowDraftArtifactReasonCodes ?? workflowDraftArtifactFields.workflowDraftArtifactReasonCodes,
+workflowLibraryApiSchemaVersion:
+  overrides.workflowLibraryApiSchemaVersion ?? workflowDraftArtifactFields.workflowLibraryApiSchemaVersion,
+workflowLibraryApiVersion:
+  overrides.workflowLibraryApiVersion ?? workflowDraftArtifactFields.workflowLibraryApiVersion,
+workflowLibraryApiEligible:
+  overrides.workflowLibraryApiEligible ?? workflowDraftArtifactFields.workflowLibraryApiEligible,
+workflowLibraryApiCandidateState:
+  overrides.workflowLibraryApiCandidateState ?? workflowDraftArtifactFields.workflowLibraryApiCandidateState,
+workflowLibraryApiPersistentDraftEligible:
+  overrides.workflowLibraryApiPersistentDraftEligible ?? workflowDraftArtifactFields.workflowLibraryApiPersistentDraftEligible,
+workflowLibraryApiApprovedWorkflowPlaceholderId:
+  overrides.workflowLibraryApiApprovedWorkflowPlaceholderId ?? workflowDraftArtifactFields.workflowLibraryApiApprovedWorkflowPlaceholderId,
+workflowLibraryApiExecutionPolicyRequired:
+  overrides.workflowLibraryApiExecutionPolicyRequired ?? workflowDraftArtifactFields.workflowLibraryApiExecutionPolicyRequired,
+workflowLibraryApiExecutableByDefault:
+  overrides.workflowLibraryApiExecutableByDefault ?? workflowDraftArtifactFields.workflowLibraryApiExecutableByDefault,
+workflowLibraryApiSource:
+  overrides.workflowLibraryApiSource ?? workflowDraftArtifactFields.workflowLibraryApiSource,
+workflowLibraryApiReasonCodes:
+  overrides.workflowLibraryApiReasonCodes ?? workflowDraftArtifactFields.workflowLibraryApiReasonCodes,
+      counterfactualRepairSchemaVersion: overrides.counterfactualRepairSchemaVersion ?? counterfactualRepairFields.counterfactualRepairSchemaVersion,
+      counterfactualRepairPolicyVersion: overrides.counterfactualRepairPolicyVersion ?? counterfactualRepairFields.counterfactualRepairPolicyVersion,
+      counterfactualRepairEligible: overrides.counterfactualRepairEligible ?? counterfactualRepairFields.counterfactualRepairEligible,
+      counterfactualRepairPrimarySemanticAddressId: overrides.counterfactualRepairPrimarySemanticAddressId ?? counterfactualRepairFields.counterfactualRepairPrimarySemanticAddressId,
+      counterfactualRepairNearestAlternativeSemanticAddressId: overrides.counterfactualRepairNearestAlternativeSemanticAddressId ?? counterfactualRepairFields.counterfactualRepairNearestAlternativeSemanticAddressId,
+      counterfactualRepairNearestAlternativeCanonicalMergedText: overrides.counterfactualRepairNearestAlternativeCanonicalMergedText ?? counterfactualRepairFields.counterfactualRepairNearestAlternativeCanonicalMergedText,
+      counterfactualRepairAmbiguityBand: overrides.counterfactualRepairAmbiguityBand ?? counterfactualRepairFields.counterfactualRepairAmbiguityBand,
+      counterfactualRepairRepairEligible: overrides.counterfactualRepairRepairEligible ?? counterfactualRepairFields.counterfactualRepairRepairEligible,
+      counterfactualRepairRepairSignal: overrides.counterfactualRepairRepairSignal ?? counterfactualRepairFields.counterfactualRepairRepairSignal,
+      counterfactualRepairSelectionFunctionVersion: overrides.counterfactualRepairSelectionFunctionVersion ?? counterfactualRepairFields.counterfactualRepairSelectionFunctionVersion,
+      counterfactualRepairCandidatePopulationSize: overrides.counterfactualRepairCandidatePopulationSize ?? counterfactualRepairFields.counterfactualRepairCandidatePopulationSize,
+      counterfactualRepairTopCandidateSemanticAddressIds: overrides.counterfactualRepairTopCandidateSemanticAddressIds ?? counterfactualRepairFields.counterfactualRepairTopCandidateSemanticAddressIds,
+      counterfactualRepairTopCandidateNormalizedScores: overrides.counterfactualRepairTopCandidateNormalizedScores ?? counterfactualRepairFields.counterfactualRepairTopCandidateNormalizedScores,
+      counterfactualRepairSelectionWinnerSemanticAddressId: overrides.counterfactualRepairSelectionWinnerSemanticAddressId ?? counterfactualRepairFields.counterfactualRepairSelectionWinnerSemanticAddressId,
+      counterfactualRepairDeadDetected: overrides.counterfactualRepairDeadDetected ?? counterfactualRepairFields.counterfactualRepairDeadDetected,
+      counterfactualRepairDeadReason: overrides.counterfactualRepairDeadReason ?? counterfactualRepairFields.counterfactualRepairDeadReason,
+      counterfactualRepairCounterexampleCaptured: overrides.counterfactualRepairCounterexampleCaptured ?? counterfactualRepairFields.counterfactualRepairCounterexampleCaptured,
+      counterfactualRepairCounterexampleKind: overrides.counterfactualRepairCounterexampleKind ?? counterfactualRepairFields.counterfactualRepairCounterexampleKind,
+      counterfactualRepairAntibodyEligible: overrides.counterfactualRepairAntibodyEligible ?? counterfactualRepairFields.counterfactualRepairAntibodyEligible,
+      counterfactualRepairAntibodyHint: overrides.counterfactualRepairAntibodyHint ?? counterfactualRepairFields.counterfactualRepairAntibodyHint,
+      counterfactualRepairStressEvent: overrides.counterfactualRepairStressEvent ?? counterfactualRepairFields.counterfactualRepairStressEvent,
+      counterfactualRepairStressBand: overrides.counterfactualRepairStressBand ?? counterfactualRepairFields.counterfactualRepairStressBand,
+      counterfactualRepairOuroborosEvent: overrides.counterfactualRepairOuroborosEvent ?? counterfactualRepairFields.counterfactualRepairOuroborosEvent,
+      counterfactualRepairSource: overrides.counterfactualRepairSource ?? counterfactualRepairFields.counterfactualRepairSource,
+      counterfactualRepairReasonCodes: overrides.counterfactualRepairReasonCodes ?? counterfactualRepairFields.counterfactualRepairReasonCodes,
+      counterfactualRepairAmbiguityPilotVersion: overrides.counterfactualRepairAmbiguityPilotVersion ?? counterfactualRepairFields.counterfactualRepairAmbiguityPilotVersion,
+      counterfactualRepairAmbiguityPilotApplied: overrides.counterfactualRepairAmbiguityPilotApplied ?? counterfactualRepairFields.counterfactualRepairAmbiguityPilotApplied,
+      counterfactualRepairAmbiguityPrimaryScore: overrides.counterfactualRepairAmbiguityPrimaryScore ?? counterfactualRepairFields.counterfactualRepairAmbiguityPrimaryScore,
+      counterfactualRepairAmbiguityAlternativeScore: overrides.counterfactualRepairAmbiguityAlternativeScore ?? counterfactualRepairFields.counterfactualRepairAmbiguityAlternativeScore,
+      counterfactualRepairAmbiguityScoreGap: overrides.counterfactualRepairAmbiguityScoreGap ?? counterfactualRepairFields.counterfactualRepairAmbiguityScoreGap,
+      counterfactualRepairAmbiguityEscalationSuggested: overrides.counterfactualRepairAmbiguityEscalationSuggested ?? counterfactualRepairFields.counterfactualRepairAmbiguityEscalationSuggested,
+      counterfactualRepairAmbiguityEscalationKind: overrides.counterfactualRepairAmbiguityEscalationKind ?? counterfactualRepairFields.counterfactualRepairAmbiguityEscalationKind,
+      counterfactualRepairAmbiguityReasonCodes: overrides.counterfactualRepairAmbiguityReasonCodes ?? counterfactualRepairFields.counterfactualRepairAmbiguityReasonCodes,
+      counterfactualRepairSignalPilotVersion: overrides.counterfactualRepairSignalPilotVersion ?? counterfactualRepairFields.counterfactualRepairSignalPilotVersion,
+      counterfactualRepairSignalPilotApplied: overrides.counterfactualRepairSignalPilotApplied ?? counterfactualRepairFields.counterfactualRepairSignalPilotApplied,
+      counterfactualRepairSignalTrajectoryState: overrides.counterfactualRepairSignalTrajectoryState ?? counterfactualRepairFields.counterfactualRepairSignalTrajectoryState,
+      counterfactualRepairSignalAbortedTrajectoryDetected: overrides.counterfactualRepairSignalAbortedTrajectoryDetected ?? counterfactualRepairFields.counterfactualRepairSignalAbortedTrajectoryDetected,
+      counterfactualRepairSignalDirectionReversalDetected: overrides.counterfactualRepairSignalDirectionReversalDetected ?? counterfactualRepairFields.counterfactualRepairSignalDirectionReversalDetected,
+      counterfactualRepairSignalSelfCorrectionDetected: overrides.counterfactualRepairSignalSelfCorrectionDetected ?? counterfactualRepairFields.counterfactualRepairSignalSelfCorrectionDetected,
+      counterfactualRepairSignalRepairWindowOpen: overrides.counterfactualRepairSignalRepairWindowOpen ?? counterfactualRepairFields.counterfactualRepairSignalRepairWindowOpen,
+      counterfactualRepairSignalEscalationSuggested: overrides.counterfactualRepairSignalEscalationSuggested ?? counterfactualRepairFields.counterfactualRepairSignalEscalationSuggested,
+      counterfactualRepairSignalEscalationKind: overrides.counterfactualRepairSignalEscalationKind ?? counterfactualRepairFields.counterfactualRepairSignalEscalationKind,
+      counterfactualRepairSignalReasonCodes: overrides.counterfactualRepairSignalReasonCodes ?? counterfactualRepairFields.counterfactualRepairSignalReasonCodes,
+      counterfactualRepairRankingPilotVersion: overrides.counterfactualRepairRankingPilotVersion ?? counterfactualRepairFields.counterfactualRepairRankingPilotVersion,
+      counterfactualRepairRankingPilotApplied: overrides.counterfactualRepairRankingPilotApplied ?? counterfactualRepairFields.counterfactualRepairRankingPilotApplied,
+      counterfactualRepairRankingPrimaryScore: overrides.counterfactualRepairRankingPrimaryScore ?? counterfactualRepairFields.counterfactualRepairRankingPrimaryScore,
+      counterfactualRepairRankingAlternativeScore: overrides.counterfactualRepairRankingAlternativeScore ?? counterfactualRepairFields.counterfactualRepairRankingAlternativeScore,
+      counterfactualRepairRankingScoreGap: overrides.counterfactualRepairRankingScoreGap ?? counterfactualRepairFields.counterfactualRepairRankingScoreGap,
+      counterfactualRepairRankingStressAdjusted: overrides.counterfactualRepairRankingStressAdjusted ?? counterfactualRepairFields.counterfactualRepairRankingStressAdjusted,
+      counterfactualRepairRankingRepairAdjusted: overrides.counterfactualRepairRankingRepairAdjusted ?? counterfactualRepairFields.counterfactualRepairRankingRepairAdjusted,
+      counterfactualRepairRankingGuardrailSuggested: overrides.counterfactualRepairRankingGuardrailSuggested ?? counterfactualRepairFields.counterfactualRepairRankingGuardrailSuggested,
+      counterfactualRepairRankingGuardrailKind: overrides.counterfactualRepairRankingGuardrailKind ?? counterfactualRepairFields.counterfactualRepairRankingGuardrailKind,
+      counterfactualRepairRankingReasonCodes: overrides.counterfactualRepairRankingReasonCodes ?? counterfactualRepairFields.counterfactualRepairRankingReasonCodes,
+      counterfactualRepairCounterexampleFormatVersion: overrides.counterfactualRepairCounterexampleFormatVersion ?? counterfactualRepairFields.counterfactualRepairCounterexampleFormatVersion,
+      counterfactualRepairAntibodyPilotVersion: overrides.counterfactualRepairAntibodyPilotVersion ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotVersion,
+      counterfactualRepairAntibodyPilotApplied: overrides.counterfactualRepairAntibodyPilotApplied ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotApplied,
+      counterfactualRepairCounterexampleEventClass: overrides.counterfactualRepairCounterexampleEventClass ?? counterfactualRepairFields.counterfactualRepairCounterexampleEventClass,
+      counterfactualRepairCounterexampleSignature: overrides.counterfactualRepairCounterexampleSignature ?? counterfactualRepairFields.counterfactualRepairCounterexampleSignature,
+      counterfactualRepairCounterexampleTranscriptDigest: overrides.counterfactualRepairCounterexampleTranscriptDigest ?? counterfactualRepairFields.counterfactualRepairCounterexampleTranscriptDigest,
+      counterfactualRepairAntibodyMintSuggested: overrides.counterfactualRepairAntibodyMintSuggested ?? counterfactualRepairFields.counterfactualRepairAntibodyMintSuggested,
+      counterfactualRepairAntibodyMintKey: overrides.counterfactualRepairAntibodyMintKey ?? counterfactualRepairFields.counterfactualRepairAntibodyMintKey,
+      counterfactualRepairAntibodyQuarantineSuggested: overrides.counterfactualRepairAntibodyQuarantineSuggested ?? counterfactualRepairFields.counterfactualRepairAntibodyQuarantineSuggested,
+      counterfactualRepairAntibodyQuarantineBand: overrides.counterfactualRepairAntibodyQuarantineBand ?? counterfactualRepairFields.counterfactualRepairAntibodyQuarantineBand,
+      counterfactualRepairAntibodyValidationGateHint: overrides.counterfactualRepairAntibodyValidationGateHint ?? counterfactualRepairFields.counterfactualRepairAntibodyValidationGateHint,
+      counterfactualRepairAntibodyPilotReasonCodes: overrides.counterfactualRepairAntibodyPilotReasonCodes ?? counterfactualRepairFields.counterfactualRepairAntibodyPilotReasonCodes,
+      multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId:
+        overrides.multiResolutionAtlasTailStrategyRoutingCandidateTailStrategyId ?? undefined,
     });
+
+    if (decision?.granted && typeof overrides.semanticAddressId === "string" && overrides.semanticAddressId.length > 0) {
+      this.updateWorkflowReuseHistory(overrides.semanticAddressId);
+    }
   }
 
   private async enqueue(request: Request, flush: boolean = true) {
@@ -1922,6 +4021,17 @@ export default class ChunkManager {
     chunkId: string,
     finalize: boolean
   ): Promise<void> {
+    this.chunkH4FallbackInvoked.set(chunkId, true);
+    this.chunkH4FallbackReason.set(
+      chunkId,
+      "authoritative_path_failed_to_produce_lawful_final_decision"
+    );
+    this.emitH3Evidence(chunkId, "h4_authority_fallback_invoked", {
+      source: "microphone",
+      reason: "authoritative_path_failed_to_produce_lawful_final_decision",
+      fallbackInvoked: true,
+      fallbackReason: "authoritative_path_failed_to_produce_lawful_final_decision",
+    });
     const frames = this.chunkAudioFrames.get(chunkId) || [];
     for (const frame of frames) {
       this.stream.sendAudioRequest(frame, chunkId);
@@ -2193,6 +4303,9 @@ export default class ChunkManager {
       this.chunkH3NumericStrategyEnabled.delete(chunk.id);
       this.chunkH3OpenStrategyEnabled.delete(chunk.id);
       this.chunkH3LatestTailHintText.delete(chunk.id);
+      this.chunkH3WarmLookup?.delete(chunk.id);
+      this.chunkH3FocusContextEnvelope.delete(chunk.id);
+      this.chunkH3AtlasShardHint.delete(chunk.id);
       voiceSemanticAddressRegistry.clearChunk(chunk.id);
       this.chunkParakeetStream.get(chunk.id)?.cancel();
       this.chunkParakeetStream.delete(chunk.id);
@@ -2413,16 +4526,37 @@ export default class ChunkManager {
     this.chunkUseParakeetCommandFast.set(id, useParakeetCommandFast);
     this.chunkUseQwen3AsrDictation.set(id, useQwen3Dictation);
     this.chunkUseFasterWhisperDictation.set(id, useFasterWhisperDictation);
+    const h4AuthorityEntry = deriveH4AuthorityEntryObservation({
+      liveMicActive: true,
+      streamConnected: this.stream.connected(),
+      dictateMode: this.active.dictateMode,
+      forceLegacyCommandLane: FORCE_LEGACY_COMMAND_LANE,
+      h3AuthorityEnabled: this.h3GeometricEnabled,
+      source: "microphone",
+    });
+    this.chunkH4AuthorityDefaultPath.set(
+      id,
+      h4AuthorityEntry.h4AuthorityEntryDefaultPath ?? "legacy_fallback"
+    );
+    this.chunkH4FallbackInvoked.set(id, false);
+    this.chunkH4FallbackReason.delete(id);
     this.chunkH3StepIndex.set(id, 0);
     this.chunkH3Route.set(id, "legacy_text");
     this.chunkH3ParameterizedPrefix.delete(id);
     this.chunkH3TailDecodeActive.set(id, false);
     this.chunkH3TailAudioFrames.set(id, []);
+    this.emitH3Evidence(id, "h4_live_mic_authority_entry", {
+      source: "microphone",
+      reason: "live_mic_entry_default_authority_path_selected",
+    });
     this.chunkH3LatestGeometricEvent.delete(id);
     this.chunkH3TailCaptureStartMs.delete(id);
     this.chunkH3NumericStrategyEnabled.delete(id);
     this.chunkH3OpenStrategyEnabled.delete(id);
     this.chunkH3LatestTailHintText.delete(id);
+    this.chunkH3WarmLookup?.delete(id);
+    this.chunkH3FocusContextEnvelope.delete(id);
+    this.chunkH3AtlasShardHint.delete(id);
     if (useQwen3Dictation) {
       this.updateDictationRuntimeStatus({
         provider:
@@ -2521,6 +4655,8 @@ export default class ChunkManager {
     this.chunkH3TailDecodeActive.clear();
     this.chunkH3TailAudioFrames.clear();
     this.chunkH3LatestGeometricEvent.clear();
+    this.chunkH3FocusContextEnvelope.clear();
+    this.chunkH3AtlasShardHint.clear();
     this.chunkH3TailCaptureStartMs.clear();
     this.chunkH3LastGeometricSignature.clear();
     this.chunkH3NumericStrategyEnabled.clear();

@@ -1,0 +1,10 @@
+{
+  "bundle_name": "h3_stage3h_s4_repair1_bundle_20260403",
+  "files": [
+    {
+      "path": "maestro/client/src/test/audio/chunk-manager-h3-counterfactual-repair.unit.spec.ts",
+      "bytes": 6365,
+      "sha256": "7ff6db28f53e1e0ab644912568f1d7ee64a041b39e8efa62e1c5c9344fc529e4"
+    }
+  ]
+}

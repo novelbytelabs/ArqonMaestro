@@ -1,0 +1,16 @@
+{
+  "base_script": "/home/irbsurfer/Projects/arqon/ArqonMaestro/research/latent_rollout/v2/ashley_latent_rollout_replication_v2.py",
+  "python_exe": "/home/irbsurfer/miniconda3/envs/helios-gpu-118/bin/python3",
+  "outdir": "rd_confirmation_runs",
+  "seeds": "7,11,13",
+  "latent_dims": "16,20,24,28,32",
+  "rollout_lens": "80,96,112",
+  "n_train": 128,
+  "n_val": 32,
+  "n_test": 32,
+  "ae_epochs": 6,
+  "dyn_epochs": 8,
+  "batch_size": 32,
+  "device": "cpu",
+  "dry_run": false
+}

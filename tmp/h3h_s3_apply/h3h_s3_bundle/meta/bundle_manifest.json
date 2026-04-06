@@ -1,0 +1,41 @@
+{
+  "stage": "3H-S3",
+  "bundle_version": "20260403",
+  "files": [
+    {
+      "path": "maestro/client/src/main/runtime/dynamic-precision-regimes.ts",
+      "bytes": 12805,
+      "sha256": "95f248f3e45d3419562225323eaf500be9798db43644688f15b59a8ddeaac216"
+    },
+    {
+      "path": "maestro/client/src/main/runtime/h3-runtime-evidence.ts",
+      "bytes": 30179,
+      "sha256": "e39c93e649f216f40cfe22a5f6ed8390944eecdcd58fcd84bf2b1c28fb33ab6a"
+    },
+    {
+      "path": "maestro/client/src/main/stream/chunk-manager.ts",
+      "bytes": 158509,
+      "sha256": "822be79776eab9127a5b65034ee3701a709a8474ec5d81e5b52affaeb6c8f532"
+    },
+    {
+      "path": "maestro/client/src/test/audio/dynamic-precision-regimes.unit.spec.ts",
+      "bytes": 6830,
+      "sha256": "ea156120534fc5fcd2776bb5ba107bba8f6d90bfc7c5d71cc49cbe43cc4f8c98"
+    },
+    {
+      "path": "maestro/client/src/test/audio/chunk-manager-h3-dynamic-precision.unit.spec.ts",
+      "bytes": 8530,
+      "sha256": "862d7db6ec7cfd2f199ef413c0df291c740a40773a788be25b9b9f2eba17494a"
+    },
+    {
+      "path": "docs/h3/H3_RUNTIME_EVIDENCE_SCHEMA.md",
+      "bytes": 6381,
+      "sha256": "54ababf507c576382405777f1cd3e77e144c005380c3705ce9c9a906a075ccf9"
+    },
+    {
+      "path": "docs/h3/H3_STAGE3H_PLAN.md",
+      "bytes": 4895,
+      "sha256": "98f7f2ec6fd71cb7e6abfbffffaa4ff34bb759a5049aa0a8609e9c94cdbbc2ad"
+    }
+  ]
+}
