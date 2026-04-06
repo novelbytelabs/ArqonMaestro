@@ -210,7 +210,6 @@ export default class ChunkManager {
   private h3GeometricRoutingService = new GeometricRoutingService();
   private chunkH3StepIndex = new Map<string, number>();
   private chunkH3Route = new Map<string, H3Route>();
-  private chunkH3GeometricOnlyLocked = new Map<string, boolean>();
   private chunkH3ParameterizedPrefix = new Map<string, string>();
   private chunkH3TailDecodeActive = new Map<string, boolean>();
   private chunkH3TailAudioFrames = new Map<string, Buffer[]>();
@@ -882,13 +881,7 @@ export default class ChunkManager {
     }
     this.chunkH3LastGeometricSignature.set(chunkId, { signature, atMs: nowMs });
 
-    const geometricOnlyLockStore =
-      this.chunkH3GeometricOnlyLocked ??
-      (this.chunkH3GeometricOnlyLocked = new Map<string, boolean>());
     this.chunkH3LatestGeometricEvent.set(chunkId, event);
-    if (event.commandClass === "reflex" || event.commandClass === "closed_structure") {
-      geometricOnlyLockStore.set(chunkId, true);
-    }
     voiceSemanticAddressRegistry.markGeometricContext({
       chunkId,
       source: event.source,
@@ -1325,15 +1318,12 @@ export default class ChunkManager {
     });
 
     const routeBefore = this.chunkH3Route.get(chunkId) ?? "legacy_text";
-    const geometricOnlyLocked = geometricOnlyLockStore.get(chunkId) === true;
     const route = this.h3GeometricRoutingService.decide({
       regionId: event.regionId,
       commandClass: step.commandClass,
     });
     const routeAfter =
-      geometricOnlyLocked
-        ? "geometric_only"
-        : this.chunkH3TailDecodeActive.get(chunkId) && routeBefore === "geometric_prefix_asr_tail"
+      this.chunkH3TailDecodeActive.get(chunkId) && routeBefore === "geometric_prefix_asr_tail"
         ? "geometric_prefix_asr_tail"
         : route.route;
     this.chunkH3Route.set(chunkId, routeAfter);
@@ -1347,9 +1337,7 @@ export default class ChunkManager {
       routeAfter,
       reason:
         routeAfter !== route.route
-          ? geometricOnlyLocked
-            ? "geometric_only_locked_for_chunk"
-            : "tail_route_locked_until_finalize"
+          ? "tail_route_locked_until_finalize"
           : route.reason,
     });
 
@@ -4594,7 +4582,6 @@ workflowLibraryApiReasonCodes:
       this.chunkUseFasterWhisperDictation.delete(chunk.id);
       this.chunkH3StepIndex.delete(chunk.id);
       this.chunkH3Route.delete(chunk.id);
-      this.chunkH3GeometricOnlyLocked.delete(chunk.id);
       this.chunkH3ParameterizedPrefix.delete(chunk.id);
       this.chunkH3TailDecodeActive.delete(chunk.id);
       this.chunkH3TailAudioFrames.delete(chunk.id);
@@ -4843,7 +4830,6 @@ workflowLibraryApiReasonCodes:
     this.chunkH4FallbackReason.delete(id);
     this.chunkH3StepIndex.set(id, 0);
     this.chunkH3Route.set(id, "legacy_text");
-    this.chunkH3GeometricOnlyLocked.set(id, false);
     this.chunkH3ParameterizedPrefix.delete(id);
     this.chunkH3TailDecodeActive.set(id, false);
     this.chunkH3TailAudioFrames.set(id, []);
@@ -4953,7 +4939,6 @@ workflowLibraryApiReasonCodes:
     this.chunkUseFasterWhisperDictation.clear();
     this.chunkH3StepIndex.clear();
     this.chunkH3Route.clear();
-    this.chunkH3GeometricOnlyLocked.clear();
     this.chunkH3ParameterizedPrefix.clear();
     this.chunkH3TailDecodeActive.clear();
     this.chunkH3TailAudioFrames.clear();
