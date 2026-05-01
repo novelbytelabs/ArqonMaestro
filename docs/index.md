@@ -39,6 +39,7 @@ Keyboard and mouse are augmented, not replaced.
 - [Decision Log](decision-log.md)
 - [Modernization Matrix](modernization-matrix.md)
 - [Maestro In Arqon](overview/ecosystem.md)
+- [H3/H4 Canonical Alignment Runbook](operations/h3-h4-canonical-alignment-runbook.md)
 
 ## Documentation Shape
 

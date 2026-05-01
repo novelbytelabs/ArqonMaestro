@@ -67,6 +67,55 @@ export default class GeometricStreamProvider {
     return { ...this.config };
   }
 
+  /**
+   * Parse a raw geometric event from the Python sidecar (snake_case fields)
+   * into the camelCase GeometricRegionEvent expected by TypeScript consumers.
+   */
+  private parseGeometricEvent(value: any): GeometricRegionEvent | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const source = String(value.source || "");
+    const regionId = String(value.region_id || value.regionId || "").trim();
+    const commandIdRaw = String(value.command_id || value.commandId || "").trim();
+    const commandClass = String(value.command_class || value.commandClass || "unknown");
+    const parameterTypeRaw = value.parameter_type ?? value.parameterType ?? null;
+    const atlasSchemaRaw = value.atlas_schema ?? value.atlasSchema;
+    const atlasVersionRaw = value.atlas_version ?? value.atlasVersion;
+    const atlasBackedRaw = value.atlas_backed ?? value.atlasBacked;
+    const confidence = Number(value.confidence ?? 0);
+    const frameCount = Number(value.frame_count ?? value.frameCount ?? 0);
+    const timestampMs = Number(value.timestamp_ms ?? value.timestampMs ?? 0);
+    if (source !== "spectral_manifold" || !regionId) {
+      return null;
+    }
+    if (!["reflex", "closed_structure", "parameterized", "unknown"].includes(commandClass)) {
+      return null;
+    }
+    if (!Number.isFinite(confidence) || !Number.isFinite(frameCount) || !Number.isFinite(timestampMs)) {
+      return null;
+    }
+    let parameterType: "numeric" | "open" | null | undefined = undefined;
+    if (parameterTypeRaw === null || parameterTypeRaw === "") {
+      parameterType = null;
+    } else if (parameterTypeRaw === "numeric" || parameterTypeRaw === "open") {
+      parameterType = parameterTypeRaw;
+    }
+    return {
+      source: "spectral_manifold",
+      regionId,
+      commandId: commandIdRaw || undefined,
+      commandClass: commandClass as GeometricRegionEvent["commandClass"],
+      parameterType,
+      atlasSchema: typeof atlasSchemaRaw === "string" ? atlasSchemaRaw : undefined,
+      atlasVersion: typeof atlasVersionRaw === "string" ? atlasVersionRaw : undefined,
+      atlasBacked: typeof atlasBackedRaw === "boolean" ? atlasBackedRaw : undefined,
+      confidence: Math.max(0, Math.min(1, confidence)),
+      frameCount: Math.max(0, Math.round(frameCount)),
+      timestampMs: Math.max(0, Math.round(timestampMs)),
+    };
+  }
+
   createStream(
     chunkId: string,
     onGeometricEvent?: (event: GeometricRegionEvent) => void
@@ -120,8 +169,11 @@ export default class GeometricStreamProvider {
             throw new Error(`geometric_sidecar_error:${response.error || "unknown_error"}`);
           }
           if (response.geometric_event) {
-            latestEvent = response.geometric_event;
-            onGeometricEvent?.(response.geometric_event);
+            const parsed = this.parseGeometricEvent(response.geometric_event);
+            if (parsed) {
+              latestEvent = parsed;
+              onGeometricEvent?.(parsed);
+            }
           }
           if (response.is_final && response.geometric_reject?.reason) {
             lastRejectReason = String(response.geometric_reject.reason);

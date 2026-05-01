@@ -92,6 +92,7 @@ nav:
   - Architecture:
       - Codebase Layout: architecture/codebase-layout.md
       - Request Lifecycle: architecture/request-lifecycle.md
+      - RAIL + Manifold Walkthrough: architecture/rail-manifold-walkthrough.md
       - Maestro Actuation And Control Stack: architecture/maestro-actuation-and-control-stack.md
       - Ultimate VOS Reference Architecture: architecture/ultimate-vos-reference-architecture.md
   - Policies:

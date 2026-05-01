@@ -347,6 +347,20 @@ class H3GeometricDetector:
         denom = max(abs(best_score), 1)
         confidence = max(0.0, min(1.0, (best_score - second_score) / float(denom)))
         activation_threshold = self._activation_threshold_for(meta)
+        
+        feature_dim = int(meta.get("feature_dim", 320))
+        if feature_dim > 0:
+            absolute_threshold = feature_dim * 0.65
+            if best_score < absolute_threshold:
+                self._trace_reject(
+                    "absolute_similarity_too_low",
+                    region_id=command_name,
+                    best_score=best_score,
+                    feature_dim=feature_dim,
+                    threshold=absolute_threshold
+                )
+                return None
+
         if confidence < activation_threshold:
             self._trace_reject(
                 "confidence_below_activation_threshold",

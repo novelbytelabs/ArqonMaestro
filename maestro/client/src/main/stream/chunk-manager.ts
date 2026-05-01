@@ -3684,10 +3684,8 @@ workflowLibraryApiReasonCodes:
         if (request.finalize) {
           const handled = await this.handleGeometricFinalize(request.chunkId);
           if (!handled) {
-            this.handleGeometricAuthorityHardFailure(
-              request.chunkId,
-              "authoritative_path_failed_to_produce_lawful_final_decision"
-            );
+            this.log.logVerbose(`[Chunk] Geometric path failed, falling back to legacy endpoint...`);
+            await this.replayBufferedAudioAndFallbackToEndpoint(request.chunkId, request.finalize);
           }
         }
         return;
